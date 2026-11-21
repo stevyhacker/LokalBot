@@ -48,7 +48,6 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertEqual(store.screenshot(id: id)?.id, id)
         XCTAssertEqual(store.ocrText(snapshotID: id), "Q3 revenue grew 14 percent")
 
-        // Window titles are indexed too: a query matching only the title hits.
         XCTAssertEqual(store.searchOCR("quarterly").count, 1)
     }
 
@@ -171,15 +170,12 @@ final class ActivityStoreTests: XCTestCase {
             [safariID])
     }
 
-    /// Ask reads the records of up to 2,000 ranked captures in one go; each
-    /// must match the single-capture lookup, and gone captures are left out.
     func testBatchedScreenshotLookupMatchesSingleLookups() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
         let store = ActivityStore(databaseURL: url)
         var ids: [Int64] = []
-        // More than one 400-id chunk.
         for index in 0..<405 {
             let id = try store.insertScreenshot(
                 ts: Date(timeIntervalSince1970: 1_700_000_000 + Double(index)), path: "/tmp/\(index).heic.enc",
@@ -220,7 +216,6 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertEqual(saved.note, "Updated note")
         XCTAssertEqual(saved.createdAt, createdAt)
 
-        // A second store proves bookmark state is durable rather than cached.
         let reopened = ActivityStore(databaseURL: url)
         XCTAssertEqual(reopened.savedMoments().first?.note, "Updated note")
         try reopened.removeSavedMoment(snapshotID: snapshotID)
@@ -228,8 +223,6 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertFalse(reopened.screenshot(id: snapshotID)?.isBookmarked ?? true)
     }
 
-    /// The moment's detail page read its note out of the newest 200 saved
-    /// moments, so an older one opened with an empty note field.
     func testASavedMomentsNoteIsReadByItsOwnIDHoweverManyWereSavedSince() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
@@ -437,8 +430,6 @@ final class ActivityStoreTests: XCTestCase {
             "SELECT 1 FROM screen_embeddings WHERE snapshot_id = ?1", bind: [snapshotID]))
     }
 
-    /// EmbeddingGemma 2 scores unrelated screen text around 0.61, so Harrier's
-    /// 0.45 floor would let nearly every capture into semantic results.
     func testSemanticScreenRankingDropsCapturesBelowTheEmbeddingFloor() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let vectorData: ([Float]) -> Data = { values in
@@ -495,15 +486,11 @@ final class ActivityStoreTests: XCTestCase {
         try store.insertScreenshot(ts: Date(), path: "/tmp/a.heic.enc", app: "Safari",
                                    ocr: "kubernetes deployment rollback steps")
 
-        // Strict ANDs the stop words and misses…
         XCTAssertTrue(store.searchOCR("what were the rollback steps").isEmpty)
-        // …the relaxed OR query rescues the content terms.
         XCTAssertFalse(store.searchOCR("what were the rollback steps",
                                        matchAll: false, dropStopWords: true).isEmpty)
     }
 
-    /// Snippets are built after ranking, only for the rows returned; deferred
-    /// snippets filled later must equal them, for FTS and CJK substring search.
     func testDeferredOCRSnippetsMatchTheEagerOnes() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
@@ -537,8 +524,6 @@ final class ActivityStoreTests: XCTestCase {
             .appendingPathComponent("ActivityStoreTests-\(UUID().uuidString).sqlite")
         defer { try? FileManager.default.removeItem(at: url) }
 
-        // Plant the pre-event-driven schema: screenshots without window_title /
-        // capture_trigger, ocr_fts with only (text, ts, app).
         do {
             let legacy = try XCTUnwrap(SQLiteDatabase(url: url))
             legacy.exec("""
@@ -557,14 +542,12 @@ final class ActivityStoreTests: XCTestCase {
 
         let store = ActivityStore(databaseURL: url)
 
-        // Legacy rows survive with default trigger/title, and stay searchable.
         let legacyShot = try XCTUnwrap(store.screenshots(on: Date()).first)
         XCTAssertEqual(legacyShot.app, "Notes")
         XCTAssertEqual(legacyShot.trigger, "interval")
         XCTAssertEqual(legacyShot.windowTitle, "")
         XCTAssertEqual(store.searchOCR("grocery").count, 1)
 
-        // New-shape inserts work on the migrated tables.
         try store.insertScreenshot(ts: Date(), path: "/tmp/new.heic.enc", app: "Xcode",
                                    windowTitle: "build log", trigger: "app_switch",
                                    ocr: "compile succeeded")
@@ -595,8 +578,6 @@ final class ActivityStoreTests: XCTestCase {
                 "INSERT INTO screenshots (ts, path, app) VALUES (?1, ?2, ?3)",
                 bind: [base.addingTimeInterval(10).timeIntervalSince1970,
                        "/tmp/with-ocr.heic.enc", "Notes"])
-            // Empty OCR was never inserted in the legacy FTS table, so this
-            // row's FTS rowid is 1 while its real screenshot id is 2.
             try legacy.runChecked(
                 "INSERT INTO ocr_fts (text, ts, app) VALUES (?1, ?2, ?3)",
                 bind: ["linked to the second frame",
@@ -662,17 +643,13 @@ final class ActivityStoreTests: XCTestCase {
             "The screenshot row must roll back when its searchable OCR pair fails")
     }
 
-    // MARK: - Capture policy
-
     func testCapturePolicyCooldownAndIdleFallback() {
         var policy = ScreenCapturePolicy(eventCooldown: 20)
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
 
-        // First ever check always captures.
         XCTAssertTrue(policy.shouldCapture(trigger: .appSwitch, idleInterval: 180, now: t0))
         policy.noteCheck(at: t0)
 
-        // Event triggers inside the cooldown are dropped; after it, allowed.
         XCTAssertFalse(policy.shouldCapture(trigger: .appSwitch, idleInterval: 180,
                                             now: t0.addingTimeInterval(5)))
         XCTAssertFalse(policy.shouldCapture(trigger: .windowChange, idleInterval: 180,
@@ -680,13 +657,11 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertTrue(policy.shouldCapture(trigger: .windowChange, idleInterval: 180,
                                            now: t0.addingTimeInterval(21)))
 
-        // The interval trigger waits for the full idle window…
         XCTAssertFalse(policy.shouldCapture(trigger: .interval, idleInterval: 180,
                                             now: t0.addingTimeInterval(60)))
         XCTAssertTrue(policy.shouldCapture(trigger: .interval, idleInterval: 180,
                                            now: t0.addingTimeInterval(181)))
 
-        // …and manual always fires.
         XCTAssertTrue(policy.shouldCapture(trigger: .manual, idleInterval: 180,
                                            now: t0.addingTimeInterval(1)))
     }
@@ -702,7 +677,6 @@ final class ActivityStoreTests: XCTestCase {
             trigger: .interval,
             recordingActive: true))
 
-        // Explicit user action still works while recording.
         XCTAssertTrue(ScreenshotService.shouldCaptureDuringMeetingRecording(
             trigger: .manual,
             recordingActive: true))
@@ -740,8 +714,6 @@ final class ActivityStoreTests: XCTestCase {
 
     func testCaptureLayoutIncludesOnlyThePolicyCheckedFocusedWindow() throws {
         let windows = [
-            // The AX title and frame identify one focused window rather than
-            // selecting a different window of the same app by array order.
             ScreenshotCaptureLayout.Window(
                 id: 10, processID: 42, appName: "Safari", title: "Other tab",
                 frame: CGRect(x: 100, y: 100, width: 600, height: 500)),
@@ -757,7 +729,6 @@ final class ActivityStoreTests: XCTestCase {
             ScreenshotCaptureLayout.Window(
                 id: 23, processID: 93, appName: "Safari", title: "Private Browsing — Start Page",
                 frame: CGRect(x: 1_020, y: 20, width: 360, height: 320)),
-            // Windows on another display also stay outside the window filter.
             ScreenshotCaptureLayout.Window(
                 id: 22, processID: 92, appName: "1Password", title: "Vault",
                 frame: CGRect(x: 20, y: 20, width: 300, height: 300)),
@@ -770,8 +741,6 @@ final class ActivityStoreTests: XCTestCase {
             focusedWindowFrame: CGRect(x: 1_100, y: 100, width: 700, height: 500),
             excludedApps: ["1password", "SIGNAL"]))
 
-        // All other windows stay outside the filter, including an ordinary
-        // background browser whose excluded domain is not known here.
         XCTAssertEqual(selection.windowID, 11)
     }
 
@@ -798,7 +767,6 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertNil(ScreenshotCaptureLayout.selection(
             windows: Array(windows.prefix(1)), frontmostProcessID: 42, focusedWindowTitle: "Report",
             focusedWindowFrame: frame, excludedApps: ["Safari"]))
-        // Private windows are captured like any other focused window.
         XCTAssertEqual(ScreenshotCaptureLayout.selection(
             windows: [.init(id: 3, processID: 42, appName: "Safari", title: "Private Window", frame: frame)],
             frontmostProcessID: 42, focusedWindowTitle: "Private Window",
@@ -993,9 +961,6 @@ final class ActivityStoreTests: XCTestCase {
         sampler.stop()
 
         let blocks = store.blocks(in: DateInterval(start: base, end: Date().addingTimeInterval(1)))
-        // Only the excluded site is anonymous. An unreadable address under
-        // site rules and a timed-out read keep the app without a title; an
-        // unknown secure-field state keeps the window title.
         XCTAssertEqual(blocks.count, 6)
         XCTAssertEqual(blocks.map(\.title), [
             "Public report", "Sensitive account — Private Window", "", "", "Unknown secure title",
@@ -1006,8 +971,6 @@ final class ActivityStoreTests: XCTestCase {
         XCTAssertEqual(blocks[3].duration, 20)
     }
 
-    /// Regression: browsers and web-based apps were recorded as "Private"
-    /// whenever their browsing mode could not be verified.
     func testSamplerTracksBrowserAndWebAppWindowsByName() throws {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("ActivityBrowserTests-\(UUID().uuidString).sqlite")
@@ -1050,7 +1013,6 @@ final class ActivityStoreTests: XCTestCase {
 
         XCTAssertTrue(store.searchOCR("invoice").isEmpty)
         XCTAssertEqual(store.searchOCR("fresh").count, 1)
-        // Pixel bookkeeping untouched: text pruning is independent of paths.
         XCTAssertEqual(store.screenshotPaths(olderThan: Date()).count, 2)
     }
 

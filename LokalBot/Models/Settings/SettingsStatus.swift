@@ -1,13 +1,10 @@
 import Foundation
 
-/// A permission row on Privacy & permissions: macOS's four privacy grants
-/// and Calendar, in the order the page lists them.
 enum SettingsPermission: String, CaseIterable, Identifiable, Sendable {
     case microphone, accessibility, inputMonitoring, screenRecording, calendar
 
     var id: Self { self }
 
-    /// Nil for Calendar, which EventKit grants.
     var appPermission: AppPermission? {
         switch self {
         case .microphone: .microphone
@@ -30,7 +27,6 @@ enum SettingsPermission: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// The features that can use it, whether or not they are on now.
     var usedBy: String {
         switch self {
         case .microphone: "Meetings and Dictation"
@@ -41,7 +37,6 @@ enum SettingsPermission: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// What Overview asks for.
     var allowTitle: String {
         switch self {
         case .microphone: "Allow the microphone"
@@ -52,19 +47,13 @@ enum SettingsPermission: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// A grant made while LokalBot runs reaches these only at the next launch.
     var needsRelaunchAfterGrant: Bool { appPermission?.needsRelaunchAfterGrant ?? false }
 }
 
-/// Interface text a model type puts together: a catalog key and what fills
-/// its placeholders. The view looks the key up in the app's language.
 struct SettingsText: Equatable, Sendable {
     enum Argument: Equatable, Sendable {
-        /// Names, hosts and sizes, shown as they are.
         case verbatim(String)
-        /// A catalog key, such as a permission's title.
         case key(String)
-        /// Catalog keys joined into one list.
         case list([String])
         case count(Int)
     }
@@ -90,29 +79,19 @@ struct SettingsText: Equatable, Sendable {
     }
 }
 
-/// One line under a Settings page's header: whether the feature works, and
-/// when it does not, the one control that fixes it.
 struct SettingsStatusLine: Equatable, Identifiable, Sendable {
     enum Tone: Equatable, Sendable {
-        /// Something the person has to do: amber, with a warning sign.
         case need
-        /// Working: a green dot.
         case ok
-        /// Off, or waiting on something that is already under way: gray.
         case quiet
-        /// Something leaves this Mac: amber, with a globe.
         case online
-        /// Under way, with how far along it is when that is known.
         case progress(Double?)
     }
 
     enum Action: Equatable, Sendable {
-        /// Ask for the permission, the same way Privacy & permissions does.
         case allow(SettingsPermission)
-        /// Start downloading the models that are missing.
         case download
         case relaunch
-        /// Open another Settings page, on a setting when one is named.
         case open(AppState.SettingsTab, focus: String?)
     }
 
@@ -120,7 +99,6 @@ struct SettingsStatusLine: Equatable, Identifiable, Sendable {
     var tone: Tone
     var text: SettingsText
     var action: Action?
-    /// The action's button title, for an `open` whose title is not "Change…".
     var actionTitle: String?
 
     var buttonTitle: String? {
@@ -134,43 +112,31 @@ struct SettingsStatusLine: Equatable, Identifiable, Sendable {
         }
     }
 
-    /// Buttons fix something; links only take you somewhere.
     var isLink: Bool {
         if case .open = action { return true }
         return false
     }
 }
 
-/// What the Settings window says about the state of each feature: the
-/// "Off" and "Paused" marks and count badges in its list, what needs the
-/// person on Overview, each permission's row on Privacy & permissions, and
-/// the status lines under every page's header. Derived from real state and
-/// nothing else, so each of those places says the same thing.
 struct SettingsStatus: Equatable {
     enum Access: Equatable, Sendable {
         case allowed
-        /// A feature that is on uses it, and it is not granted.
         case missing
-        /// Not granted, and nothing that is on uses it.
         case notNeeded
     }
 
     enum RowState: Equatable, Sendable {
         case normal
         case off
-        /// On, but blocked by a missing permission or model.
         case paused
     }
 
     enum CalendarAccess: Equatable, Sendable {
         case allowed
-        /// macOS has not asked yet, so LokalBot can.
         case notAsked
-        /// Refused: only System Settings can turn it on.
         case refused
     }
 
-    /// A feature that uses a permission, named in "Needed for: …".
     enum Feature: String, Equatable, Sendable {
         case meetings = "Meetings"
         case dictation = "Dictation"
@@ -181,17 +147,13 @@ struct SettingsStatus: Equatable {
         case windowHandoff = "Hand off this window"
     }
 
-    /// One of the three models, as far as Settings needs to describe it.
     struct Model: Equatable, Sendable {
         var role: ModelRole
         var name: String
-        /// What its download weighs, when one is needed and its size is known.
         var bytes: Int64?
-        /// False for a server or Apple Intelligence: nothing downloads.
         var downloads: Bool
         var status: ModelRoleStatus
 
-        /// "Gemma 4 E2B (3.85 GB)", or the name alone when the size is unknown.
         var nameAndSize: String {
             guard downloads, let bytes, bytes > 0 else { return name }
             return "\(name) (\(SettingsStatus.size(bytes)))"
@@ -200,32 +162,22 @@ struct SettingsStatus: Equatable {
 
     struct Input: Equatable {
         var settings = AppSettings()
-        /// The real grants. A permission with no entry has not been read
-        /// yet and counts as granted, so no warning flashes on open.
         var granted: [AppPermission: Bool] = [:]
-        /// What was granted when this launch began.
         var grantedAtLaunch: [AppPermission: Bool] = [:]
         var calendar: CalendarAccess = .allowed
         var models: [Model] = []
-        /// Free space on the volume that holds the models.
         var freeBytes: Int64?
-        /// Whole minutes until the running downloads finish, once that can be told.
         var downloadMinutesLeft: Int?
-        /// Models that are here and did not answer their check.
         var failedChecks: [ModelRole] = []
         var emailConnected = false
-        /// The kinds of data external agents may read.
         var agentKinds = 0
         var agentsCanChangeSettings = false
         var pairedDevices = 0
     }
 
-    /// Something only the person can fix, listed on Overview.
     enum Need: Equatable, Identifiable, Sendable {
         case permission(SettingsPermission, features: [Feature])
-        /// Models that have to be downloaded, and what they weigh together.
         case download(roles: [ModelRole], bytes: Int64?)
-        /// A model that stopped or is not set up.
         case modelAttention(ModelRole)
 
         var id: String {
@@ -236,7 +188,6 @@ struct SettingsStatus: Equatable {
             }
         }
 
-        /// The page where it is fixed, which carries the count badge.
         var page: AppState.SettingsTab {
             switch self {
             case .permission: .privacy
@@ -257,8 +208,6 @@ struct SettingsStatus: Equatable {
         ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
-    // MARK: - Permissions
-
     private func granted(_ permission: AppPermission) -> Bool {
         input.granted[permission] ?? true
     }
@@ -276,9 +225,6 @@ struct SettingsStatus: Equatable {
         settings.dictationIntent == .compose && settings.dictationUseScreenContext
     }
 
-    /// The features that are on and use the permission now. Autocomplete
-    /// reads the focused window only when Screen Recording is already
-    /// granted and never asks for it, so it is not listed there.
     func features(using permission: SettingsPermission) -> [Feature] {
         var features: [Feature] = []
         switch permission {
@@ -309,12 +255,10 @@ struct SettingsStatus: Equatable {
         return features(using: permission).isEmpty ? .notNeeded : .missing
     }
 
-    /// Needed by something that is on, and not granted.
     var missingPermissions: [SettingsPermission] {
         SettingsPermission.allCases.filter { access($0) == .missing }
     }
 
-    /// Granted since this launch began, and only working after the next one.
     var permissionsAwaitingRelaunch: [SettingsPermission] {
         SettingsPermission.allCases.filter { permission in
             guard permission.needsRelaunchAfterGrant, let app = permission.appPermission else { return false }
@@ -322,10 +266,6 @@ struct SettingsStatus: Equatable {
         }
     }
 
-    // MARK: - Models
-
-    /// Transcribe and Think always; Autocomplete's model only while
-    /// Autocomplete is on.
     private var requiredModels: [Model] {
         input.models.filter { $0.role != .autocomplete || settings.cotypingEnabled }
     }
@@ -349,8 +289,6 @@ struct SettingsStatus: Equatable {
         input.models.filter { $0.status.isWorking }
     }
 
-    /// 0…1 across the models that are downloading, when their sizes and
-    /// progress are known.
     var downloadFraction: Double? {
         let working = modelsDownloading
         guard !working.isEmpty else { return nil }
@@ -364,8 +302,6 @@ struct SettingsStatus: Equatable {
         return total > 0 ? arrived / Double(total) : nil
     }
 
-    /// How much of the running downloads has arrived, and what they weigh
-    /// together, for telling how long they still take.
     var runningDownload: (arrived: Int64, total: Int64)? {
         guard let total = Self.totalBytes(modelsDownloading), total > 0, let fraction = downloadFraction else {
             return nil
@@ -378,17 +314,11 @@ struct SettingsStatus: Equatable {
         return models.reduce(Int64(0)) { $0 + ($1.bytes ?? 0) }
     }
 
-    // MARK: - What leaves this Mac
-
-    /// Every server the AI features send to, each named once.
     var remoteHosts: [String] { settings.remoteAIHosts }
 
     var sharesWithDevices: Bool { settings.companionSharingEnabled }
 
-    /// True while no AI server is in use and nothing is shared with phones.
     var everythingStaysHere: Bool { remoteHosts.isEmpty && !sharesWithDevices }
-
-    // MARK: - Overview
 
     var needs: [Need] {
         var needs = missingPermissions.map { Need.permission($0, features: features(using: $0)) }
@@ -400,7 +330,6 @@ struct SettingsStatus: Equatable {
         return needs
     }
 
-    /// The second line of the LokalBot row at the top of the list.
     var summary: SettingsText {
         let count = needs.count
         if count == 1 { return SettingsText("1 thing needs you") }
@@ -411,7 +340,6 @@ struct SettingsStatus: Equatable {
 
     var needsAttention: Bool { !needs.isEmpty }
 
-    /// Overview's headline, and the line under it.
     var headline: (title: SettingsText, detail: SettingsText) {
         if needsAttention {
             return (summary, SettingsText("Until then, parts of LokalBot can’t run."))
@@ -450,9 +378,6 @@ struct SettingsStatus: Equatable {
         }
     }
 
-    // MARK: - The list
-
-    /// "Off" or "Paused" at the right of a feature's row.
     func rowState(_ page: AppState.SettingsTab) -> RowState {
         switch page {
         case .overview, .general, .models, .privacy, .ask, .personalContext, .daily, .advanced:
@@ -487,14 +412,10 @@ struct SettingsStatus: Equatable {
         }
     }
 
-    /// How many things need the person on the page where they are fixed.
     func badge(_ page: AppState.SettingsTab) -> Int {
         needs.filter { $0.page == page }.count
     }
 
-    // MARK: - Page headers
-
-    /// The status lines under a page's header, most pressing first.
     func lines(for page: AppState.SettingsTab) -> [SettingsStatusLine] {
         switch page {
         case .privacy: privacyLines
@@ -515,8 +436,6 @@ struct SettingsStatus: Equatable {
         SettingsStatusLine(id: "off", tone: .quiet, text: SettingsText(key))
     }
 
-    /// macOS asks for Calendar once. After a refusal only System Settings
-    /// can turn it on, and the button says so.
     func allowTitle(_ permission: SettingsPermission) -> String {
         permission == .calendar && input.calendar == .refused ? "Open System Settings…" : "Allow…"
     }
@@ -526,7 +445,6 @@ struct SettingsStatus: Equatable {
                            action: .allow(permission), actionTitle: allowTitle(permission))
     }
 
-    /// A grant that waits for the next launch, for the pages that use it.
     private func relaunchLines(_ permissions: [SettingsPermission]) -> [SettingsStatusLine] {
         permissionsAwaitingRelaunch.filter(permissions.contains).map { permission in
             SettingsStatusLine(id: "relaunch.\(permission.rawValue)", tone: .need,
@@ -566,8 +484,6 @@ struct SettingsStatus: Equatable {
                 text = SettingsText("%@ isn’t downloaded yet.",
                                     .verbatim(downloads.map(\.nameAndSize).joined(separator: ", ")))
             }
-            // The header's own button downloads them all. While it shows
-            // Cancel for a running download, this line keeps the button.
             lines.append(SettingsStatusLine(id: "download", tone: .need, text: text,
                                             action: working.isEmpty ? nil : .download))
         }
@@ -587,7 +503,6 @@ struct SettingsStatus: Equatable {
         }
         guard lines.isEmpty else { return lines }
         if remoteHosts.isEmpty {
-            // The same sizes the download was announced with.
             let here = requiredModels.filter { $0.downloads && $0.status == .ready }
             if let stored = Self.totalBytes(here), stored > 0, let free = input.freeBytes {
                 return [SettingsStatusLine(
@@ -603,20 +518,14 @@ struct SettingsStatus: Equatable {
                                                       .verbatim(remoteHosts.joined(separator: ", "))))]
     }
 
-    /// The setting a failed check's line opens: the sheet that runs the checks.
     static let modelChecksFocus = "settings.modelChecks"
 
-    /// What every model that still has to arrive weighs together, for the
-    /// header's "Download all" button. Nil when nothing is missing or a size
-    /// is unknown.
     var bytesToDownload: Int64? {
         let downloads = modelsToDownload
         guard !downloads.isEmpty, let bytes = Self.totalBytes(downloads), bytes > 0 else { return nil }
         return bytes
     }
 
-    /// "Downloading · 3.7 GB of 9 GB · about 5 minutes left", with as much
-    /// of that as is known.
     private func downloadingText(_ working: [Model]) -> SettingsText {
         guard let total = Self.totalBytes(working), total > 0, let fraction = downloadFraction else {
             return SettingsText("%@ is downloading.", .verbatim(working.map(\.name).joined(separator: ", ")))
@@ -631,7 +540,6 @@ struct SettingsStatus: Equatable {
         }
     }
 
-    /// Whether the model is missing, on its way, stopped or ready.
     private func modelLine(_ role: ModelRole, focus: String) -> SettingsStatusLine? {
         guard let model = model(role) else { return nil }
         switch model.status {
@@ -755,7 +663,6 @@ struct SettingsStatus: Equatable {
     }
 }
 
-/// Back and forward through the Settings pages visited in this window.
 struct SettingsPageHistory: Equatable {
     private(set) var back: [AppState.SettingsTab] = []
     private(set) var forward: [AppState.SettingsTab] = []
@@ -768,8 +675,6 @@ struct SettingsPageHistory: Equatable {
     var canGoBack: Bool { !back.isEmpty }
     var canGoForward: Bool { !forward.isEmpty }
 
-    /// A page chosen from the list, a search result or a deep link. Choosing
-    /// the page already shown changes nothing.
     mutating func visit(_ page: AppState.SettingsTab) {
         guard page != current else { return }
         back.append(current)

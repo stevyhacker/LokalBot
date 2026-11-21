@@ -2,15 +2,12 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Prefix window + gating
-
 final class CotypingPrefixWindowTests: XCTestCase {
     func testShouldGenerateRequiresNonWhitespace() {
         XCTAssertFalse(CotypingPrefixWindow.shouldGenerate(for: "   \n"))
         XCTAssertTrue(CotypingPrefixWindow.shouldGenerate(for: "hi"))
     }
 
-    /// An SMS code typed into an unlabeled field got suggestions.
     func testNumbersWithoutLettersGetNoSuggestion() {
         for text in ["4", "482913", "482 913", "+382 67 123 456", "12.50", "10:30", "٤٨٢"] {
             XCTAssertFalse(CotypingPrefixWindow.shouldGenerate(for: text), text)
@@ -40,8 +37,6 @@ final class CotypingPrefixWindowTests: XCTestCase {
             from: text, maxCharacters: 2500, maxWords: 3), "1. Review\n  2. ")
     }
 
-    /// Typing on at the end of a long draft keeps the window's start in
-    /// place, so the model does not read the whole window again per keystroke.
     func testALongDraftsWindowStartStaysPutWhileTyping() {
         let sentence = "We reviewed the onboarding funnel again this week. "
         let draft = String(repeating: sentence, count: 80) + "The next step is to share"
@@ -61,8 +56,6 @@ final class CotypingPrefixWindowTests: XCTestCase {
         XCTAssertEqual(CotypingPrefixWindow.truncatedPrefix(from: "hello", maxCharacters: 3, maxWords: 0), "")
     }
 }
-
-// MARK: - Request builder
 
 final class CotypingRequestBuilderTests: XCTestCase {
     private func field(preceding: String, trailing: String = "") -> CotypingField {
@@ -106,8 +99,6 @@ final class CotypingRequestBuilderTests: XCTestCase {
     }
 
     func testCapturesWordPrefixAtCaretWithSpellVerdict() throws {
-        // The fragment at the caret plus the injected spell-checker verdict are
-        // what arm the normalizer's word-completion mismatch guard downstream.
         let request = try XCTUnwrap(CotypingRequestBuilder.build(
             field: field(preceding: "I want to rec"), config: .standard,
             personalization: .none, generation: 0, wordPrefixIsValidWord: false))

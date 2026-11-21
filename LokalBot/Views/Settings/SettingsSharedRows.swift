@@ -1,10 +1,8 @@
 import SwiftUI
 
-/// What opens over a Settings page instead of sending you to another page.
 enum SettingsSheet: Identifiable {
     case model(ModelPickerRole)
     case transcriptionOptions
-    /// "Try it…" on Autocomplete and Dictation.
     case tryAutocomplete
     case tryDictation
 
@@ -17,7 +15,6 @@ enum SettingsSheet: Identifiable {
         }
     }
 
-    /// The sheet a deep link to a feature's try-out opens.
     init?(focusedSettingID: String?, on page: AppState.SettingsTab) {
         switch (focusedSettingID, page) {
         case ("settings.autocompletePreview", .writing): self = .tryAutocomplete
@@ -27,9 +24,6 @@ enum SettingsSheet: Identifiable {
     }
 }
 
-// MARK: - Rows
-
-/// A longer explanation behind an "i", so the row itself stays one line.
 struct SettingsInfoButton: View {
     let text: String
     @State private var shown = false
@@ -60,8 +54,6 @@ struct SettingsInfoButton: View {
     }
 }
 
-/// A switch with its name at the left, an optional line under the name, an
-/// optional "i", and an optional line of state that the caller draws.
 struct SettingsSwitchRow<Status: View>: View {
     let title: String
     var detail: String?
@@ -73,8 +65,6 @@ struct SettingsSwitchRow<Status: View>: View {
         LabeledContent {
             HStack(spacing: 8) {
                 if let info { SettingsInfoButton(info) }
-                // The row's name is the switch's one accessibility label. A
-                // hidden label of its own would be read as well.
                 Toggle(isOn: $isOn) { EmptyView() }
                     .labelsHidden()
                     .accessibilityLabel(Text(LocalizedStringKey(title)))
@@ -95,8 +85,6 @@ extension SettingsSwitchRow where Status == EmptyView {
     }
 }
 
-/// A row that opens another page: its name, an optional line under it, an
-/// optional value, and a chevron.
 struct SettingsDrillRow: View {
     let title: String
     var detail: String?
@@ -124,7 +112,6 @@ struct SettingsDrillRow: View {
     }
 }
 
-/// The way back from a page a row opened, and that page's name.
 struct SettingsSubpageBar: View {
     let subpage: SettingsSubpage
     let back: () -> Void
@@ -145,13 +132,10 @@ struct SettingsSubpageBar: View {
     }
 }
 
-/// One kind of agent read access, shown on the page of the data it covers.
-/// It is the same grant as that kind's box on AI agents.
 struct AgentKindAccessSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var access: AgentReadAccess
     let kind: AgentReadAccess.Kind
-    /// A line under the box, such as how many items are shared.
     var detail: String?
 
     var body: some View {
@@ -204,9 +188,6 @@ struct AgentKindAccessSection: View {
     }
 }
 
-/// The writing profile Autocomplete and Dictation's Compose share. Both pages
-/// show these fields, bound to the same settings, so neither sends you to the
-/// other to edit them.
 struct WritingProfileFields: View {
     @EnvironmentObject private var app: AppState
 

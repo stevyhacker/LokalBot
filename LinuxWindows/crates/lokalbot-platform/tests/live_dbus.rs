@@ -1,7 +1,3 @@
-//! Notification and tray round trips against fake D-Bus servers, ignored by
-//! default. Run on a private bus: `dbus-run-session -- cargo test -p
-//! lokalbot-platform --test live_dbus -- --ignored --test-threads=1`.
-
 #![cfg(target_os = "linux")]
 
 use std::collections::HashMap;
@@ -53,8 +49,6 @@ impl FakeNotifications {
 
 type Posted = crossbeam_channel::Receiver<(u32, String, Vec<String>)>;
 
-/// A notification server on the session bus, with what was posted to it and
-/// the ids it was asked to close.
 fn fake_notifications() -> (
     zbus::blocking::Connection,
     Posted,
@@ -80,9 +74,7 @@ fn fake_notifications() -> (
     (server, posted, closed)
 }
 
-/// What the server sends when the user chooses `action` on notification `id`.
 fn choose(server: &zbus::blocking::Connection, id: u32, action: &str) {
-    // Give the waiting thread time to subscribe first.
     std::thread::sleep(Duration::from_millis(500));
     server
         .emit_signal(
@@ -113,7 +105,6 @@ fn notification_actions_reach_the_callback() {
     .unwrap();
     let (id, summary, offered) = posted.recv_timeout(WAIT).unwrap();
     assert_eq!(summary, "Meeting detected");
-    // The last pair is the click on the body.
     assert_eq!(
         offered,
         [
@@ -128,8 +119,6 @@ fn notification_actions_reach_the_callback() {
     assert_eq!(closed.recv_timeout(WAIT).unwrap(), id);
 }
 
-/// The update and settings-approval notifications have no buttons: a click on
-/// the body is all they can report, and nothing listened for it.
 #[test]
 #[ignore]
 fn a_click_on_a_notification_without_buttons_reaches_the_callback() {
@@ -152,7 +141,6 @@ fn a_click_on_a_notification_without_buttons_reaches_the_callback() {
     assert_eq!(actions.recv_timeout(WAIT).unwrap(), "default");
 }
 
-/// Nothing is listening for a click that nobody asked to hear about.
 #[test]
 #[ignore]
 fn a_notification_without_a_callback_offers_no_action() {
@@ -200,7 +188,6 @@ impl FakeWatcher {
 }
 
 type Layout = (i32, HashMap<String, OwnedValue>, Vec<OwnedValue>);
-/// Icon name, pixmaps, title and description.
 type ToolTip = (String, Vec<(i32, i32, Vec<u8>)>, String, String);
 
 fn labels(children: &[OwnedValue]) -> Vec<(i32, String)> {
@@ -249,8 +236,6 @@ fn tray_menu_items_reach_the_callback() {
     println!("tray registered as {service}");
 
     let client = zbus::blocking::Connection::session().unwrap();
-    // The item announces changes with its own signals, so read properties
-    // fresh instead of from zbus's cache.
     let item: zbus::blocking::Proxy<'_> = zbus::blocking::proxy::Builder::new(&client)
         .destination(service.as_str())
         .unwrap()

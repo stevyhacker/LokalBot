@@ -1,5 +1,3 @@
-//! `lokalbot --version` against the real binary.
-
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
@@ -15,7 +13,6 @@ fn version_exits_before_opening_the_library() {
             .stderr(Stdio::null())
             .spawn()
             .unwrap();
-        // If the flag were ignored the app would start; don't wait for it.
         let deadline = Instant::now() + Duration::from_secs(30);
         while child.try_wait().unwrap().is_none() {
             if Instant::now() > deadline {

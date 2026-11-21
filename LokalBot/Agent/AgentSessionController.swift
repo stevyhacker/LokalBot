@@ -1,9 +1,5 @@
 import Foundation
 
-/// Orchestrates one Agent Mode session: resolves the LLM endpoint, spawns
-/// the pi subprocess (or a test transport), pumps pi events into the
-/// transcript, and round-trips tool approvals between pi's confirm dialogs
-/// and the UI. Lives on the main actor because it feeds SwiftUI directly.
 @MainActor
 final class AgentSessionController: ObservableObject {
 
@@ -43,7 +39,6 @@ final class AgentSessionController: ObservableObject {
             name = settings.summarizerBackend == .builtIn
                 ? ModelCatalog.entry(id: endpoint.model, custom: settings.customBuiltInModels)?.displayName ?? endpoint.model
                 : endpoint.model
-            // A plan relay listens on this Mac; the plan's provider answers.
             if let plan = endpoint.plan {
                 destination = .remote(host: plan.title)
             } else {
@@ -58,13 +53,9 @@ final class AgentSessionController: ObservableObject {
     @Published private(set) var recoveryAction: RecoveryAction?
     @Published private(set) var sessionTitle: String?
     @Published private(set) var activeSessionFile: URL?
-    /// Bound to this process's connection, even if Settings changes later.
     @Published private(set) var modelContext: ModelContext? {
-        // The approval policy lets library lookups through only for a model
-        // known to run on this Mac; no bound model means it asks.
         didSet { policy.modelRunsOnThisMac = modelContext?.destination == .onDevice }
     }
-    /// The levels the launched model accepts; nil until a launch resolves them.
     @Published private(set) var reasoningSupport: ReasoningSupport?
     @Published var workspace: URL
     @Published var draft = ""
@@ -88,23 +79,16 @@ final class AgentSessionController: ObservableObject {
         items.compactMap { if case .approval(let request) = $0 { request } else { nil } }
     }
     var hasLiveRuntime: Bool { state == .starting || state == .ready || state == .running }
-    /// True after Stop ended a turn, until the next message or turn.
     @Published private(set) var wasStopped = false
-    /// For each write step seen as it started, whether its file was already
-    /// there. It tells a new file from a replaced one afterwards.
     private var writeTargetExisted: [String: Bool] = [:]
 
-    /// Where the task stands. `hasSavedConversation` covers a task whose
-    /// saved conversation has not been loaded into this controller yet.
     func status(hasSavedConversation: Bool = false) -> AgentTaskStatus {
-        // Only a finished task counts its changed files; counting reads the disk.
         let changed = state == .ready && pendingApprovals.isEmpty ? changedFiles(in: lastTurnItems).count : 0
         return .resolve(state: state, pendingApprovals: pendingApprovals.count, hasTurnError: turnError != nil,
                         wasStopped: wasStopped, items: items, hasSavedConversation: hasSavedConversation,
                         changedFiles: changed)
     }
 
-    /// The status in English, for logs and VoiceOver fallbacks.
     var taskStatus: String { status().title { $0 } ?? "Saved" }
 
     private var lastTurnItems: [AgentTranscriptItem] {
@@ -112,15 +96,11 @@ final class AgentSessionController: ObservableObject {
         return Array(items[start...])
     }
 
-    /// The files the given steps wrote or edited.
     func changedFiles(in steps: [AgentTranscriptItem]) -> [AgentChangedFile] {
         AgentChangedFile.list(in: steps, workspace: workspace, workspaceName: workspaceDisplayName,
                               existedBefore: writeTargetExisted)
     }
 
-    /// The file an approval request names. A relative path starts at the
-    /// folder the request came from; where it sits is judged against this
-    /// task's working folder.
     func approvalTarget(_ request: AgentApprovalRequest) -> AgentFileTarget? {
         guard let path = request.path else { return nil }
         let origin = request.workspace.map { URL(fileURLWithPath: $0) } ?? workspace
@@ -128,8 +108,6 @@ final class AgentSessionController: ObservableObject {
         return AgentFileTarget.resolve(asked.url.path, workspace: workspace, workspaceName: workspaceDisplayName)
     }
 
-    /// Where an approval request's file sits: the working folder, LokalBot's
-    /// own data, or anywhere else.
     func approvalPlace(_ request: AgentApprovalRequest) -> AgentApprovalPresentation.Place {
         guard let target = approvalTarget(request) else { return .none }
         let isProtected = policy.protectedWriteRoots.contains { root in
@@ -140,8 +118,6 @@ final class AgentSessionController: ObservableObject {
         return target.place == .workingFolder ? .workingFolder : .outside
     }
 
-    /// True when the file a write would create is already there, so the
-    /// request replaces it.
     func approvalTargetExists(_ request: AgentApprovalRequest) -> Bool {
         approvalTarget(request).map { FileManager.default.fileExists(atPath: $0.url.path) } ?? false
     }
@@ -149,9 +125,6 @@ final class AgentSessionController: ObservableObject {
         didSet { policy.mode = approvalMode }
     }
 
-    /// The approval mode is an app preference, unlike per-tool "Allow for
-    /// Session" exceptions. Keep the key separate from the encoded meeting
-    /// settings blob so changing it never rewrites unrelated settings.
     static let approvalModeDefaultsKey = "lokalbotv3.agent.approvalMode"
 
     private let settings: () -> AppSettings
@@ -174,31 +147,13 @@ final class AgentSessionController: ObservableObject {
     private var pendingTextDelta = ""
     private var nextRequestID = 0
     private var launchMode: LaunchMode = .fresh
-    /// Invalidates an in-flight start when its tab is closed or restarted.
-    /// Without this, a close during model warm-up could finish spawning pi
-    /// after shutdown() had already returned.
     private var lifecycleGeneration = 0
-    /// Serializes failure cleanup with shutdown/restart. A failed state is not
-    /// published until this returns to false, so a replacement process can
-    /// never launch while its predecessor is still being terminated.
     private var failureTeardownInProgress = false
-    /// Held while a turn runs (built-in engine only), so the Main LLM cannot
-    /// be evicted mid-turn by an unrelated model load. A task that is open
-    /// but waiting holds nothing: a lease kept for as long as the tab stayed
-    /// open made every other model on that server wait behind it.
     private var llmLease: InferenceLease?
-    /// The built-in weights this runtime talks to, for taking the lease
-    /// again at the next turn; nil for a server or a plan.
     private var builtInModel: URL?
-    /// Requests for the model that have not been answered yet; Stop cancels
-    /// them.
     private var modelWaits: Set<Task<InferenceLease, Error>> = []
-    /// Runs from resolveEndpoint (ChatGPT plan only) until shutdown or
-    /// failure, like the lease.
     private var planRelay: ChatGPTPlanRelay?
     private var accessCapability: AgentAccessCapability?
-    /// The extension reads the Agent reasoning level from this file before
-    /// every model call, so a change applies from the agent's next step.
     private let reasoningLevelFile = FileManager.default.temporaryDirectory
         .appendingPathComponent("lokalbot-agent-reasoning-\(UUID().uuidString).json")
     private var writtenReasoningLevel: ThinkReasoningLevel?
@@ -242,8 +197,6 @@ final class AgentSessionController: ObservableObject {
         return .standard
     }
 
-    // MARK: - Lifecycle
-
     func start() async {
         guard !failureTeardownInProgress,
               state == .idle || isFailed else { return }
@@ -264,9 +217,6 @@ final class AgentSessionController: ObservableObject {
             consumeEvents(from: rpc, generation: lifecycleGeneration)
             return
         }
-        // Keep Agent Mode UI tests hermetic: no model warm-up, capability
-        // issuance, subprocess, or network. Production builds never compile
-        // this path, and host runs must opt in explicitly.
         if ProcessInfo.processInfo.environment["LOKALBOT_AGENT_UI_TEST_READY"] == "1" {
             recoveryAction = nil
             state = .ready
@@ -285,8 +235,6 @@ final class AgentSessionController: ObservableObject {
             writeReasoningLevel()
             let endpoint = try await resolveEndpoint(settings: configuration)
             guard generation == lifecycleGeneration else {
-                // shutdown() may have run while the broker was still ensuring,
-                // before resolveEndpoint had assigned the lease.
                 releaseModelConnection()
                 return
             }
@@ -373,9 +321,6 @@ final class AgentSessionController: ObservableObject {
         eventTask?.cancel()
         eventTask = nil
         discardPendingTextDelta()
-        // Revoke access before giving a hung child its SIGTERM grace period.
-        // Closing a tab must close the meeting-library capability immediately,
-        // even if pi ignores termination until the SIGKILL fallback.
         revokeAccessCapability()
         await process?.stop()
         process = nil
@@ -390,10 +335,6 @@ final class AgentSessionController: ObservableObject {
         state = .idle
     }
 
-    // MARK: - Prompting
-
-    /// Called only after the user submits. Follow-ups stay in the host queue
-    /// until delivery, making cancellation and editing real operations.
     func queueDraft() {
         let text = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, queuedPrompts.count < 20 else {
@@ -423,9 +364,6 @@ final class AgentSessionController: ObservableObject {
         cancelQueued(id)
     }
 
-    /// Sends one queued message without waiting for the turn to end: as a
-    /// steering message while the agent works, as the next message otherwise.
-    /// The message returns to its place in the queue when it cannot be sent.
     @discardableResult
     func sendQueuedNow(_ id: UUID) async -> Bool {
         guard let index = queuedPrompts.firstIndex(where: { $0.id == id }),
@@ -546,27 +484,17 @@ final class AgentSessionController: ObservableObject {
         }
     }
 
-    /// Throws when the server or plan this runtime is connected to is no
-    /// longer approved in Settings → Models.
     private func requireApprovedDestination() throws {
         let configuration = settings()
         if let connectedEndpoint {
             try InferenceEndpointPolicy.validate(connectedEndpoint,
                 approvedOrigins: configuration.approvedRemoteInferenceOrigins)
         }
-        // The relay's loopback URL passes the origin check; the plan has
-        // its own approval.
         if let connectedPlan, !connectedPlan.isApproved(in: configuration) {
             throw SubscriptionPlanError.approvalRequired(connectedPlan)
         }
     }
 
-    /// Call when an approval for a Think server or plan is withdrawn. During
-    /// a turn the agent sends the conversation, attached context and tool
-    /// results to its endpoint at every model step without passing through
-    /// `send`, so a turn on a destination that is no longer approved ends
-    /// here, with its process. A session that is waiting sends nothing until
-    /// `send`, which refuses.
     func remoteApprovalsDidChange() async {
         guard state == .running || isSending else { return }
         do {
@@ -591,8 +519,6 @@ final class AgentSessionController: ObservableObject {
         queueDispatchTask = Task { [weak self] in
             await Task.yield()
             guard !Task.isCancelled, let self else { return }
-            // A prompt ack can arrive just after agent_end. Never overlap two
-            // sends or lose the queued message to that ordering.
             while self.isSending && !Task.isCancelled {
                 try? await Task.sleep(for: .milliseconds(20))
             }
@@ -607,22 +533,16 @@ final class AgentSessionController: ObservableObject {
     func abort() async {
         queueIsPaused = true
         for wait in modelWaits { wait.cancel() }
-        // Once an RPC is sent, canceling its acknowledgement would report a
-        // transport failure and requeue an already-delivered prompt. Let that
-        // acknowledgement settle while abort independently stops the turn.
         if !isSending { queueDispatchTask?.cancel(); queueDispatchTask = nil }
         guard let client, !isStopping else { return }
         let generation = lifecycleGeneration
         isStopping = true
         if state == .running { wasStopped = true }
         defer { if generation == lifecycleGeneration { isStopping = false } }
-        // Pi's confirmation promise has no abort signal. Resolve it as a
-        // cancellation first or Pi's abort RPC can wait forever for idle.
         await cancelPendingApprovals()
         _ = try? await client.request(.abort(id: freshID("a")))
     }
 
-    /// Pause an idle runtime without losing the saved task, draft, or preview.
     @discardableResult func park() async -> Bool {
         guard state != .running, state != .starting, !isSending else { return false }
         let saved = activeSessionFile.flatMap { file in
@@ -685,11 +605,6 @@ final class AgentSessionController: ObservableObject {
         await start()
     }
 
-    // MARK: - Approvals
-
-    /// Applies the remembered app-level mode and immediately answers any
-    /// already-visible cards that the new mode now permits. Changing modes
-    /// clears narrower per-tool session exceptions so downgrades take effect.
     func setApprovalMode(_ mode: AgentApprovalMode) async {
         guard approvalMode != mode else { return }
         policy.resetSession()
@@ -710,17 +625,11 @@ final class AgentSessionController: ObservableObject {
         }
     }
 
-    /// Read-only `lokalbot-cli` lookups run without a card in the read modes
-    /// even when the model is not on this Mac. On for tasks handed off from a
-    /// meeting's actions.
     var allowsLibraryLookups: Bool {
         get { policy.allowsLibraryLookups }
         set { policy.allowsLibraryLookups = newValue }
     }
 
-    /// Keeps the existing unattended `--agent` test hook narrowly scoped to
-    /// workspace file changes; external reads and shell commands still surface
-    /// and are denied by that caller.
     func approveWorkspaceFileChangesForAutomation() {
         policy.approveWorkspaceFileChangesForAutomation()
     }
@@ -744,15 +653,11 @@ final class AgentSessionController: ObservableObject {
         try? await client.sendResponse(.uiConfirmResponse(requestID: id, confirmed: approved))
     }
 
-    /// Unattended callers have nobody available to inspect sensitive requests.
-    /// Resolve every card as a one-time denial so the pi turn cannot hang.
     func denyAllPendingApprovals() async {
         for id in folder.pendingApprovalIDs {
             await respondToApproval(id: id, approved: false, scope: .once)
         }
     }
-
-    // MARK: - Event loop
 
     private func consumeEvents(from client: PiRPCClient, generation: Int) {
         eventTask?.cancel()
@@ -762,8 +667,6 @@ final class AgentSessionController: ObservableObject {
                 guard !Task.isCancelled else { return }
                 await self.handle(event, generation: generation)
             }
-            // shutdown() cancels this task and only later sets .idle; a
-            // cancelled iteration ending must not fold a spurious failure.
             guard !Task.isCancelled else { return }
             await self.handleStreamEnd(generation: generation)
         }
@@ -773,9 +676,6 @@ final class AgentSessionController: ObservableObject {
         guard generation == lifecycleGeneration,
               state != .idle,
               !isFailed else { return }
-        // Pi can emit hundreds of token deltas per second. Fold and publish
-        // those as one string at display cadence; structural events flush the
-        // pending text first so message/tool/approval ordering stays exact.
         if case .messageUpdate(.textDelta(let delta)) = event {
             enqueueTextDelta(delta)
             return
@@ -805,12 +705,9 @@ final class AgentSessionController: ObservableObject {
             failedPrompt = lastSubmittedPrompt
         }
         publish()
-        // agent_end can precede automatic retry/compaction. The pinned Pi
-        // runtime emits agent_settled only after the complete run is idle.
         if event == .agentSettled { scheduleQueuedDelivery() }
     }
 
-    /// Remembers, before a write runs, whether its file is already there.
     private func noteWriteTarget(callID: String, tool: String, argsJSON: String) {
         guard tool.lowercased() == "write", let path = AgentStepWording.arguments(argsJSON).path else { return }
         if writeTargetExisted.count > AgentTranscriptFolder.maximumItems { writeTargetExisted.removeAll() }
@@ -868,14 +765,10 @@ final class AgentSessionController: ObservableObject {
         await transitionToFailure(message: detail, recovery: .restart)
     }
 
-    // MARK: - Endpoint + plan
-
     private func resolveEndpoint(settings configuration: AppSettings) async throws -> AgentLLMEndpoint {
         releaseModelConnection()
         let connection = try await thinkExecution.prepareAgentConnection(
             settings: configuration,
-            // Injected transports never contact the configured service and
-            // must not prompt for real Keychain or local-server credentials.
             includingCredentials: makeTransport == nil,
             broker: broker)
         llmLease = connection.lease
@@ -884,16 +777,10 @@ final class AgentSessionController: ObservableObject {
         return connection.endpoint
     }
 
-    /// Takes the built-in model for the turn about to start, waiting behind
-    /// other work when the server is busy with a different model.
     private func holdModelForTurn() async throws {
         guard let builtInModel, llmLease == nil else { return }
         let generation = lifecycleGeneration
         let broker = broker
-        // Every caller asks for a lease of its own. When a send joined the
-        // request of a turn the agent had started, the turn could settle and
-        // give the lease back before the send resumed, and the send then
-        // stored that lease as if it were still held.
         let wait = Task {
             try await broker.lease(.mainLLM, model: builtInModel, priority: .interactive,
                                    purpose: "agent session")
@@ -907,12 +794,10 @@ final class AgentSessionController: ObservableObject {
             throw error
         }
         modelWaits.remove(wait)
-        // The tab was closed or restarted while this waited.
         guard generation == lifecycleGeneration else {
             await broker.release(lease)
             throw CancellationError()
         }
-        // Another caller got its lease first, and one is enough.
         guard llmLease == nil else {
             await broker.release(lease)
             return
@@ -920,20 +805,14 @@ final class AgentSessionController: ObservableObject {
         llmLease = lease
     }
 
-    /// The agent can start a turn the host did not send, such as a follow-up
-    /// it accepted just before settling. Take the model for it without
-    /// holding up the event loop.
     private func holdModelForStartedTurn() {
         guard builtInModel != nil, llmLease == nil, modelWaits.isEmpty else { return }
         Task {
             try? await self.holdModelForTurn()
-            // The turn may have settled before the model was free.
             if self.state != .running, !self.isSending { self.releaseModelBetweenTurns() }
         }
     }
 
-    /// The agent is idle (`agent_settled`): give the server back until the
-    /// next turn. The relay and the model's identity stay.
     private func releaseModelBetweenTurns() {
         guard let lease = llmLease else { return }
         llmLease = nil
@@ -941,14 +820,11 @@ final class AgentSessionController: ObservableObject {
         Task { await broker.release(lease) }
     }
 
-    /// Call after the Agent or Think reasoning setting changes. A running
-    /// agent picks the level up at its next model call; `send` also checks.
     func reasoningLevelDidChange() {
         guard reasoningSupport != nil else { return }
         writeReasoningLevel()
     }
 
-    /// The chosen level, clamped to what the launched model accepts.
     private func writeReasoningLevel() {
         guard let reasoningSupport else { return }
         let level = reasoningSupport.clamp(settings().effectiveAgentReasoningLevel) ?? .automatic
@@ -968,7 +844,6 @@ final class AgentSessionController: ObservableObject {
             ?? URL(fileURLWithPath: "pi/lokalbot-extension")
         let skillDir = resources?.appendingPathComponent("pi/lokalbot-cli-skill")
         let skillExists = skillDir.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
-        // pi takes a missing path as the prompt text itself.
         let systemPrompt = resources?.appendingPathComponent("pi/system-prompt.md")
         let systemPromptExists = systemPrompt.map { FileManager.default.fileExists(atPath: $0.path) } ?? false
         let helpers = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers")
@@ -993,9 +868,6 @@ final class AgentSessionController: ObservableObject {
             specificSession: launchMode.specificSession)
     }
 
-    /// Production Pi reports the exact file it created or resumed. Capturing
-    /// it lets the history browser prevent the same JSONL file from being
-    /// opened by two live tabs. Test transports skip this background request.
     private func captureActiveSessionFile(using client: PiRPCClient, generation: Int) {
         guard makeTransport == nil else { return }
         let requestID = freshID("session-file")
@@ -1022,8 +894,6 @@ final class AgentSessionController: ObservableObject {
               !path.isEmpty else { return nil }
         return URL(fileURLWithPath: path)
     }
-
-    // MARK: - Helpers
 
     private var isFailed: Bool {
         if case .failed = state { return true } else { return false }
@@ -1061,9 +931,6 @@ final class AgentSessionController: ObservableObject {
         pendingTextDelta = ""
     }
 
-    /// Stops the plan relay and releases the Main LLM lease. Fire-and-forget
-    /// so the synchronous failure paths can call it; the broker serializes
-    /// the release internally.
     private func releaseModelConnection() {
         planRelay?.stop()
         planRelay = nil
@@ -1120,10 +987,6 @@ final class AgentSessionController: ObservableObject {
         await transitionToFailure(message: message, recovery: .restart)
     }
 
-    /// Invalidates the current event generation before awaiting subprocess
-    /// shutdown. That prevents already-buffered frames from reviving `.ready`
-    /// or `.running` while teardown yields, and keeps restart disabled until
-    /// the old process has actually been terminated.
     private func transitionToFailure(message: String, recovery: RecoveryAction) async {
         guard !failureTeardownInProgress,
               state != .idle,
@@ -1177,15 +1040,10 @@ final class AgentSessionController: ObservableObject {
     }
 
     private func resetApprovalPolicy() {
-        // Session allowances are intentionally cleared at lifecycle
-        // boundaries. The approval mode itself is an app-level preference and
-        // must survive closing or resuming a session.
         policy.resetSession()
         policy.mode = approvalMode
     }
 
-    /// Our extension sends title "lokalbot_tool_approval" with exact structured
-    /// fields. Older payloads containing only `summary` remain readable.
     static func parseApprovalPayload(_ request: PiUIRequest) -> AgentApprovalRequest {
         if request.title == "lokalbot_tool_approval",
            let data = request.message?.data(using: .utf8),
@@ -1262,8 +1120,6 @@ final class AgentSessionController: ObservableObject {
             ? AgentWorkspacePolicy.privateWorkspaceNotice : nil
     }
 
-    /// Used before model loading or capability issuance, including resumed
-    /// sessions and headless entry points. Never migrate an old cwd silently.
     func prepareWorkspace() throws {
         if let notice = workspaceAccessNotice {
             throw WorkspaceError.unavailable(notice)

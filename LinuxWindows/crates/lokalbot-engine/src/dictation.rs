@@ -1,10 +1,3 @@
-//! Dictation: capture while the shortcut is held, transcribe on this PC,
-//! optionally clean up or compose with Think, then insert at the cursor
-//! (`DictationCoordinator.swift`). Insertion is allowed only while the app and
-//! field that had focus at the press still do; otherwise the text is copied.
-//! The latest results are kept, sealed on disk, so one left on the clipboard
-//! can be copied again (`DictationHistory`).
-
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
@@ -33,43 +26,29 @@ use crate::dictation_context::{self as context, CapturedScreen, ContextTarget, L
 use crate::models::Models;
 use crate::{Command, DictationCommand, DictationUpdate, EngineEvent, Shared, secrets};
 
-/// A status-only preparation reaches the overlay once it outlasts this. A warm
-/// model's check ends at once and must not flash the panel.
 const PREPARATION_GRACE: Duration = Duration::from_millis(600);
-/// How long the press's focus read may still be finishing when speech ends.
 const PRESS_WAIT: Duration = Duration::from_secs(2);
 const PREVIEW_FIRST_WAIT: Duration = Duration::from_millis(1_200);
 const PREVIEW_POLL: Duration = Duration::from_millis(450);
 const PREVIEW_MIN_SECONDS: f64 = 1.25;
-/// `MicCapture` collects 16 kHz mono.
 const SAMPLE_RATE: f64 = 16_000.0;
 const READ_BACK_DEADLINE: Duration = Duration::from_millis(400);
-/// Sound already on its way out when a player paused, before the mic opens.
 const MEDIA_SETTLE: Duration = Duration::from_millis(250);
-/// An earlier resume gets this long before a new dictation goes on without it.
 const MEDIA_CLEANUP_WAIT: Duration = Duration::from_millis(1500);
 
 pub struct Dictation {
     shared: Arc<Shared>,
     models: Models,
     state: Arc<Mutex<State>>,
-    /// The resume of the last dictation's players, while it runs.
     media_cleanup: Mutex<Option<std::thread::JoinHandle<()>>>,
     recent: Arc<Recent>,
-    /// Bumped by every start, finish and cancel, so a superseded run never
-    /// delivers or writes state.
     session: Arc<AtomicU64>,
-    /// Pasted text the field did not show, one click from being copied again.
     notice: Arc<Mutex<Option<String>>>,
-    /// The engine's own queue, for what a dictation's threads notice.
     commands: Sender<Command>,
 }
 
-/// Less than this recorded when the microphone is lost is not worth
-/// transcribing (`shouldTranscribeAfterMicrophoneFailure`).
 const WORTH_TRANSCRIBING_SECONDS: f64 = 1.0;
 
-/// Tells the engine, once, that this dictation's microphone is gone for good.
 fn report_lost_microphone(
     capture: &MicCapture,
     session: u64,
@@ -90,12 +69,10 @@ pub(crate) enum State {
     Idle,
     Listening(Box<Listening>),
     Working,
-    /// The speech model failed to load; the audio waits for Retry.
     NeedsRetry(Box<Job>),
 }
 
 impl State {
-    /// A dictation is under way, from the microphone to the delivered text.
     pub(crate) fn is_busy(&self) -> bool {
         !matches!(self, State::Idle)
     }
@@ -110,10 +87,6 @@ enum ToggleAction {
     Ignore,
 }
 
-/// The shortcut never cancels finished speech: a second press while the text
-/// is being prepared must not delete the recording and the transcript. While
-/// the speech model needs attention it retries instead. The menu and other
-/// on-screen controls keep their explicit Cancel (`toggleAction`).
 fn toggle_action(state: &State, from_shortcut: bool) -> ToggleAction {
     match state {
         State::Idle => ToggleAction::Start,
@@ -126,7 +99,6 @@ fn toggle_action(state: &State, from_shortcut: bool) -> ToggleAction {
 
 pub(crate) struct Listening {
     capture: MicCapture,
-    /// Resumed when the capture ends, however it ends.
     media: lokalbot_platform::media::PausedMedia,
     started: Instant,
     ticker_stop: Arc<AtomicBool>,
@@ -135,8 +107,6 @@ pub(crate) struct Listening {
     rehearsal: bool,
 }
 
-/// What is read at the press, off the engine thread: the app and field that
-/// own the result, and the focused window's context when Compose may use it.
 struct Press {
     focus: Receiver<PressedFocus>,
     screen: Option<Receiver<Option<CapturedScreen>>>,
@@ -201,14 +171,10 @@ fn context_target(pressed: &PressedFocus) -> Option<ContextTarget> {
     }
 }
 
-/// Where a finished dictation may go, decided at the press.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Binding {
     Target(DeliveryTarget),
-    /// Why paste mode has no target.
     Issue(DeliveryCheck),
-    /// This desktop says nothing about focus: paste as asked, since refusing
-    /// would make dictation copy-only on the whole desktop.
     Unknown,
 }
 
@@ -224,7 +190,6 @@ impl Binding {
         }
     }
 
-    /// Reads the field again and judges it against the press.
     fn check(&self, read: impl FnOnce() -> FocusRead) -> DeliveryCheck {
         match self {
             Self::Issue(issue) => *issue,
@@ -242,8 +207,6 @@ impl Binding {
     }
 }
 
-/// A running microphone that is not delivering audio. A Bluetooth headset
-/// takes a moment to switch into headset mode (`idleMicrophoneStatus`).
 fn idle_microphone_status(silent_for: Option<Duration>, elapsed: Duration) -> Option<&'static str> {
     const PATIENCE: Duration = Duration::from_secs(2);
     match silent_for {
@@ -252,7 +215,6 @@ fn idle_microphone_status(silent_for: Option<Duration>, elapsed: Duration) -> Op
     }
 }
 
-/// `DictationDeliveryCheck.clipboardMessage`.
 fn clipboard_message(check: DeliveryCheck) -> &'static str {
     match check {
         DeliveryCheck::Deliverable => "Copied to the clipboard",
@@ -271,7 +233,6 @@ fn clipboard_message(check: DeliveryCheck) -> &'static str {
     }
 }
 
-/// One finished recording on its way to the app it was meant for.
 pub(crate) struct Job {
     samples: Vec<f32>,
     settings: Settings,
@@ -290,7 +251,6 @@ impl Dictation {
             files: Mutex::new(()),
         });
         {
-            // Off the engine thread: the credential store may ask to unlock.
             let recent = recent.clone();
             let shared = shared.clone();
             std::thread::spawn(move || recent.load(&shared));
@@ -332,7 +292,6 @@ impl Dictation {
                     }
                 }
             }
-            // Trying it in Settings shows the result and never inserts.
             DictationCommand::ToggleRehearsal => {
                 if listening {
                     self.finish()
@@ -342,7 +301,6 @@ impl Dictation {
                     self.cancel()
                 }
             }
-            // With nothing running, the overlay's X just closes its notice.
             DictationCommand::Cancel => {
                 if idle {
                     *self.notice.lock() = None;
@@ -389,19 +347,12 @@ impl Dictation {
             ));
             return;
         }
-        // A newer dictation ends any read-back and notice from the last one.
         let session = self.session.fetch_add(1, Ordering::SeqCst) + 1;
         *self.notice.lock() = None;
         self.shared
             .emit(EngineEvent::Dictation(DictationUpdate::Starting));
-        // The settings at the press decide this recording.
         let settings = self.shared.settings();
-        // The focus read starts at the shortcut, alongside the microphone: a
-        // read during recording would bind whichever app had focus by then.
         let press = Press::start(&self.shared, &settings);
-        // An earlier cancel may still be restoring the players it paused. Wait,
-        // or its late resume could interrupt this capture. Then pause what is
-        // playing now and give the sound a moment to stop.
         self.finish_media_cleanup();
         let media = lokalbot_platform::media::pause_playing();
         if !media.is_empty() {
@@ -421,8 +372,6 @@ impl Dictation {
             }
         };
         self.shared.capture_active.store(true, Ordering::Relaxed);
-        // The model is ready when the person finishes speaking, not after: one
-        // that is missing downloads now, and the speech waits in memory.
         let requirements = self.models.dictation_requirements();
         {
             let shared = self.shared.clone();
@@ -468,17 +417,12 @@ impl Dictation {
                     if let State::Listening(listening) = &*state.lock() {
                         report_lost_microphone(&listening.capture, session, &commands, &mut lost);
                         let live = listening.capture.has_audio();
-                        // The cue plays only once audio arrives: pressing the
-                        // shortcut does not mean the microphone is listening.
                         if live && !announced {
                             announced = true;
                             if shared.settings().dictation_plays_start_sound {
                                 lokalbot_audio::cue::play_start();
                             }
                         }
-                        // Only real download progress shows while recording,
-                        // so a warm model never flashes the panel
-                        // (`shouldShowModelPreparation`).
                         let update = match models.download_progress(&requirements) {
                             Some(progress) => DictationUpdate::Preparing { progress },
                             None => DictationUpdate::Listening {
@@ -518,8 +462,6 @@ impl Dictation {
         }
     }
 
-    /// Ends the dictation at any stage. A result still being prepared is
-    /// dropped when it comes back.
     fn cancel(&self) {
         self.session.fetch_add(1, Ordering::SeqCst);
         let previous = std::mem::replace(&mut *self.state.lock(), State::Idle);
@@ -548,9 +490,6 @@ impl Dictation {
             .emit(EngineEvent::Dictation(DictationUpdate::Cancelled));
     }
 
-    /// The microphone could not be reopened, so the dictation ends here
-    /// instead of listening to nothing until the shortcut is pressed again.
-    /// What was said before it stopped is kept (`refreshCaptureHealth`).
     fn microphone_lost(&self, session: u64) {
         if self.session.load(Ordering::SeqCst) != session {
             return;
@@ -585,7 +524,6 @@ impl Dictation {
             *self.state.lock() = State::Idle;
             return;
         };
-        // Cleared again by `Runner::run`, however that run ends.
         self.shared.dictation_working.store(true, Ordering::Relaxed);
         let Listening {
             capture,
@@ -629,7 +567,6 @@ impl Dictation {
         });
     }
 
-    /// Resumes players off the engine thread, as soon as the capture is over.
     fn resume_media(&self, media: lokalbot_platform::media::PausedMedia) {
         if media.is_empty() {
             return;
@@ -640,7 +577,6 @@ impl Dictation {
         }));
     }
 
-    /// Waits a bounded time for an earlier resume to finish.
     fn finish_media_cleanup(&self) {
         let Some(cleanup) = self.media_cleanup.lock().take() else {
             return;
@@ -677,7 +613,6 @@ impl Dictation {
     }
 }
 
-/// Keep dictation audio files: `<library>/dictations`, as on macOS, as WAV.
 fn keep_audio(shared: &Shared, samples: &[f32]) {
     if samples.is_empty() {
         return;
@@ -695,7 +630,6 @@ fn keep_audio(shared: &Shared, samples: &[f32]) {
     }
 }
 
-/// Clears `Shared::dictation_working` when dropped.
 struct StillWorking(Arc<Shared>);
 
 impl Drop for StillWorking {
@@ -704,7 +638,6 @@ impl Drop for StillWorking {
     }
 }
 
-/// What a recording needs on its way to the end.
 struct Runner {
     shared: Arc<Shared>,
     models: Models,
@@ -719,17 +652,13 @@ impl Runner {
         self.sessions.load(Ordering::SeqCst) == session
     }
 
-    /// Runs one recording to the end, unless it was cancelled meanwhile.
     fn run(self, job: Job, session: u64) {
-        // Day digests and overnight reviews wait while this is set, so every
-        // way out clears it: a cancel or a failed load before the text too.
         let working = StillWorking(self.shared.clone());
         if let Err(err) = self.prepare_model(&job.settings, session) {
             if !self.is_current(session) {
                 return;
             }
             log::warn!("the dictation model did not load: {err:#}");
-            // The audio stays in memory for Retry; nothing is lost.
             *self.state.lock() = State::NeedsRetry(Box::new(job));
             self.shared
                 .emit(EngineEvent::Dictation(DictationUpdate::PreparationFailed {
@@ -776,8 +705,6 @@ impl Runner {
         }
     }
 
-    /// Finishes downloading a missing model, with its progress in the overlay.
-    /// The audio stays in memory for as long as that takes.
     fn install_model(&self, session: u64) -> Result<()> {
         let requirements = self.models.dictation_requirements();
         if self.models.missing(&requirements).is_empty() {
@@ -789,7 +716,6 @@ impl Runner {
         };
         while !installing.is_finished() {
             if !self.is_current(session) {
-                // Cancelled: the download goes on, as it would from Settings.
                 return Ok(());
             }
             let progress = self.models.download_progress(&requirements);
@@ -804,9 +730,6 @@ impl Runner {
             .map_err(|_| anyhow::anyhow!("the model download stopped"))?
     }
 
-    /// Loads the speech model, showing that in the overlay only once it takes
-    /// a while (`shouldShowModelPreparation`). A preview pass still decoding
-    /// is not preparation: the final pass waits for its current window.
     fn prepare_model(&self, settings: &Settings, session: u64) -> Result<()> {
         self.install_model(session)?;
         if !self.is_current(session) {
@@ -834,9 +757,6 @@ impl Runner {
     }
 }
 
-/// The rolling live transcript (`runLivePreviewLoop`): overlapping windows of
-/// the recording, stitched together. It shares the loaded speech model with
-/// the final pass, which waits for a pass in progress.
 fn run_preview(
     state: &Mutex<State>,
     shared: &Shared,
@@ -905,16 +825,12 @@ fn run_preview(
         if stopped() {
             return;
         }
-        // Too short and no speech still advance, so one silent window is not
-        // retried forever; anything else tries the same audio again later.
         match heard {
             Ok(heard) => {
                 previewed = range.end;
                 let heard = heard.trim();
                 if !heard.is_empty() {
                     let mut text = text.lock();
-                    // While the overlap reaches the recording's beginning,
-                    // this window is the complete prefix.
                     *text = if range.start == 0.0 {
                         heard.to_string()
                     } else {
@@ -969,8 +885,6 @@ fn process(
         return Err(anyhow!("No speech detected."));
     }
     let compose = settings.dictation_intent == DictationIntent::Compose;
-    // A direct sentence must not acquire claims from nearby messages, so the
-    // capture that began during recording stops here.
     if !compose || !requests_context(&spoken) {
         job.cancel_screen.store(true, Ordering::Relaxed);
     }
@@ -987,7 +901,6 @@ fn process(
         is_current,
     );
     let prepared = prepare_checked(&spoken, settings, &mut providers).and_then(|checked| {
-        // Sources and grants guard delivery too.
         let current = shared.settings();
         if compose
             && (!permissions_match(settings, &current)
@@ -1011,7 +924,6 @@ fn process(
             if !is_current() {
                 return Err(DictationError::Cancelled.into());
             }
-            // Compose failing must not lose minutes of transcribed speech.
             recent.keep(shared, &spoken, Outcome::NotInserted, &started_in);
             return Err(anyhow!(
                 "{}: {err:#}",
@@ -1032,7 +944,6 @@ fn process(
     let delivered = deliver(&text, mode, &binding, is_current);
     match &delivered {
         Ok(Delivered::Cancelled) => return Err(DictationError::Cancelled.into()),
-        // Text meant for a password field is never kept.
         Ok(Delivered::Withheld(DeliveryCheck::SecureField)) => {}
         Ok(Delivered::Inserted) => recent.keep(shared, &text, Outcome::Inserted, &started_in),
         Ok(Delivered::Shown) => recent.keep(shared, &text, Outcome::Shown, &started_in),
@@ -1077,19 +988,15 @@ fn process(
     ))
 }
 
-/// Where the text went.
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Delivered {
     Inserted,
     Shown,
-    /// On the clipboard, with this notice.
     Copied(String),
-    /// On the clipboard instead of pasted, for this reason.
     Withheld(DeliveryCheck),
     Cancelled,
 }
 
-/// Errors only when even the clipboard failed.
 fn deliver(
     text: &str,
     mode: DictationOutputMode,
@@ -1137,7 +1044,6 @@ fn deliver_with(
                 copy(text)?;
                 return Ok(Delivered::Withheld(check));
             }
-            // An earlier paste may hold the queue; check the field again.
             let mut queued = DeliveryCheck::Deliverable;
             let outcome = paste(text, &mut || {
                 if !is_current() {
@@ -1165,10 +1071,6 @@ fn deliver_with(
     }
 }
 
-/// Reads the field back after a paste. Only a field that can be read and still
-/// lacks the text raises the notice; an unreadable one (many Electron and web
-/// editors) is left alone rather than guessed at. The read is compared here
-/// and dropped.
 struct ReadBack {
     text: String,
     pid: u32,
@@ -1176,7 +1078,6 @@ struct ReadBack {
 }
 
 impl ReadBack {
-    /// Only the exact field the text went to, and never an excluded app.
     fn of(binding: &Binding, pressed: &PressedFocus, text: &str, shared: &Shared) -> Option<Self> {
         let Binding::Target(target) = binding else {
             return None;
@@ -1224,9 +1125,6 @@ impl ReadBack {
     }
 }
 
-/// Learn from my dictation (`keepForLearning`): reads the pasted-into window's
-/// title and page address once, and keeps the spoken words only if they pass the
-/// same exclusions as nearby text. Anything unreadable keeps nothing.
 fn keep_for_learning(shared: &Shared, spoken: &str, pressed: &PressedFocus) {
     let settings = shared.settings();
     if !settings.learns_from_dictation() {
@@ -1259,12 +1157,9 @@ fn keep_for_learning(shared: &Shared, spoken: &str, pressed: &PressedFocus) {
     });
 }
 
-/// The app a dictation started in.
 #[derive(Clone, Debug, Default)]
 struct StartedIn {
-    /// `None` for LokalBot itself or when it can't be read.
     app_name: Option<String>,
-    /// Text dictated into a password manager is never kept.
     password_manager: bool,
 }
 
@@ -1283,12 +1178,9 @@ impl StartedIn {
     }
 }
 
-/// Recent dictations: in memory, and sealed in the library whenever the
-/// credential store can keep their key. Without one they last until quit.
 struct Recent {
     path: PathBuf,
     history: Mutex<DictationHistory>,
-    /// Orders writes and deletes; each writes the history as it is then.
     files: Mutex<()>,
 }
 
@@ -1367,7 +1259,6 @@ mod tests {
     use lokalbot_platform::focus::FocusSnapshot;
     use std::cell::{Cell, RefCell};
 
-    /// A coordinator with no microphone, and everything it reported.
     fn coordinator() -> (
         tempfile::TempDir,
         Dictation,
@@ -1388,8 +1279,6 @@ mod tests {
         (dir, dictation, shared, events)
     }
 
-    /// A recording waiting for its speech model, which is "downloading" for
-    /// as long as the test runs, so nothing is fetched.
     fn waiting_for_the_model(dictation: &Dictation) -> Job {
         for id in dictation.models.dictation_requirements() {
             dictation.models.pretend_downloading(&id);
@@ -1404,8 +1293,6 @@ mod tests {
         }
     }
 
-    /// Day digests and overnight reviews wait while `dictation_working` is
-    /// set, so a run that ends before the text must clear it too.
     #[test]
     fn a_run_cancelled_while_its_model_loads_stops_counting_as_working() {
         let (_dir, dictation, shared, _events) = coordinator();
@@ -1444,8 +1331,6 @@ mod tests {
         assert!(!shared.dictation_state.lock().is_busy());
     }
 
-    /// Puts a dictation in its listening state with no microphone behind it:
-    /// `seconds` already recorded, and how the capture failed, if it did.
     fn listen(dictation: &Dictation, seconds: f64, error: Option<&str>) -> u64 {
         let session = dictation.session.fetch_add(1, Ordering::SeqCst) + 1;
         let (_, focus) = bounded(1);
@@ -1471,8 +1356,6 @@ mod tests {
     #[test]
     fn a_lost_microphone_ends_the_dictation_and_keeps_what_was_said() {
         let (_dir, dictation, shared, events) = coordinator();
-        // The speech model "downloads" for as long as the test runs, so the
-        // kept audio waits for it and nothing is fetched.
         for id in dictation.models.dictation_requirements() {
             dictation.models.pretend_downloading(&id);
         }
@@ -1583,7 +1466,6 @@ mod tests {
         }
     }
 
-    /// The two share a microphone; the meeting recording wins.
     #[test]
     fn dictation_does_not_start_during_a_meeting_recording() {
         let (_dir, dictation, shared, events) = coordinator();
@@ -1627,7 +1509,6 @@ mod tests {
         }
     }
 
-    /// Delivery with fakes: what was pasted and what was copied.
     struct Fakes {
         reads: RefCell<Vec<FocusRead>>,
         pasted: RefCell<Vec<String>>,
@@ -1716,7 +1597,6 @@ mod tests {
     fn a_password_field_is_never_pasted_into() {
         let mut secure = snapshot(None);
         secure.secure = true;
-        // It had focus at the press: no target is ever bound.
         let binding = Binding::of(&FocusRead::Snapshot(secure.clone()));
         assert_eq!(binding, Binding::Issue(DeliveryCheck::SecureField));
         let fakes = Fakes::new(Vec::new());
@@ -1725,7 +1605,6 @@ mod tests {
             Delivered::Withheld(DeliveryCheck::SecureField)
         );
         assert!(fakes.pasted.borrow().is_empty());
-        // It took focus later, in the same app.
         let fakes = Fakes::new(vec![FocusRead::Snapshot(secure)]);
         let app_only = Binding::of(&still(None));
         assert_eq!(
@@ -1765,7 +1644,6 @@ mod tests {
             fakes.deliver(DictationOutputMode::Paste, &binding).unwrap(),
             Delivered::Inserted
         );
-        // Unless it found out meanwhile that a password field has focus.
         let mut secure = snapshot(None);
         secure.secure = true;
         let fakes = Fakes::new(vec![FocusRead::Snapshot(secure)]);
@@ -1777,7 +1655,6 @@ mod tests {
 
     #[test]
     fn the_queue_checks_the_field_again() {
-        // Fine before waiting for an earlier paste, gone after it.
         let fakes = Fakes::new(vec![still(Some("a")), still(Some("b"))]);
         assert_eq!(
             fakes
@@ -1808,7 +1685,6 @@ mod tests {
         );
         assert!(fakes.copied.borrow().is_empty());
 
-        // Cancelled while the paste waited: reported so, with no fallback.
         let fakes = Fakes::new(vec![still(Some("a")), still(Some("a"))]);
         fakes.cancel_during_paste.set(true);
         assert_eq!(

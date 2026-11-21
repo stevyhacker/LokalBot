@@ -59,8 +59,6 @@ final class MCPServerIntegrationTests: XCTestCase {
             .map(String.init)
     }
 
-    /// Real clients (Claude Code, Claude Desktop) keep stdin open; the server
-    /// must answer initialize before the client sends anything else.
     func testAnswersInitializeWhileStdinStaysOpen() throws {
         let process = Process()
         process.executableURL = helperURL

@@ -18,11 +18,6 @@ import me.dotenv.lokalbot.companion.CompanionApp
 import me.dotenv.lokalbot.companion.data.SyncFailure
 import me.dotenv.lokalbot.companion.data.UploadOutcome
 
-/**
- * Background catch-up with the Mac. WorkManager can't require "unmetered or
- * VPN" directly, so the worker waits for any network and skips metered
- * connections that aren't Tailscale (a VPN on Android).
- */
 class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         if (!isUnmeteredOrVpn(applicationContext)) return Result.success()
@@ -54,12 +49,6 @@ class SyncWorker(context: Context, params: WorkerParameters) : CoroutineWorker(c
     }
 }
 
-/**
- * Sends waiting recordings, and keeps trying until none are left, so one
- * stopped out of range goes when the computer is back, even if this process
- * died in between. A recording the computer deferred waits the same way; one it
- * refused waits for the person.
- */
 class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
     override suspend fun doWork(): Result {
         val container = (applicationContext as CompanionApp).container
@@ -69,7 +58,6 @@ class UploadWorker(context: Context, params: WorkerParameters) : CoroutineWorker
     companion object {
         private const val WORK_NAME = "lokalbot-upload"
 
-        /** Starts the tries over, so a new recording doesn't wait out an old backoff. */
         fun enqueue(context: Context) {
             val request = OneTimeWorkRequestBuilder<UploadWorker>()
                 .setConstraints(Constraints.Builder().setRequiredNetworkType(NetworkType.CONNECTED).build())

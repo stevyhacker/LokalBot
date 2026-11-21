@@ -1,8 +1,5 @@
 import Foundation
 
-/// One searchable occurrence on a meeting detail page. Locations are stable
-/// scroll targets; the source list supplied by the workspace defines reading
-/// order for Previous/Next navigation.
 struct MeetingPageSearchMatch: Equatable {
     enum Section: Hashable {
         case meetingDetails
@@ -103,14 +100,11 @@ struct MeetingPageSearchMatch: Equatable {
     let occurrenceIndex: Int
 }
 
-/// One visible text node on the meeting page. Keeping the location beside the
-/// exact rendered text makes matching, highlighting, and scrolling agree.
 struct MeetingPageSearchSource: Equatable {
     let location: MeetingPageSearchMatch.Location
     let text: String
 }
 
-/// Pure matching logic shared by the meeting find UI and unit tests.
 enum MeetingPageSearch {
     static func matches(
         query: String,

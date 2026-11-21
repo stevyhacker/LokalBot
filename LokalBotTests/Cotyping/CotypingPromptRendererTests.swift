@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Prompt renderer
-
 final class CotypingPromptRendererTests: XCTestCase {
     func testBarePrefixWhenNoPreface() {
         XCTAssertEqual(CotypingPromptRenderer.prompt(prefixText: "Hello wo"), "Hello wo")

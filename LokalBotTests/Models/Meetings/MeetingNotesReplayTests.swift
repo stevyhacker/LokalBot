@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in, local-only latency/quality replay. Normal unit/CI runs skip it.
-/// The manifest and all transcript/output files stay outside the repository.
 final class MeetingNotesReplayTests: XCTestCase {
     private actor Recorder {
         let folder: URL
@@ -50,8 +48,6 @@ final class MeetingNotesReplayTests: XCTestCase {
         let manifest = try JSONDecoder().decode(PlanManifest.self, from: Data(contentsOf: URL(fileURLWithPath: path)))
         let folder = URL(fileURLWithPath: manifest.output, isDirectory: true)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        // This engine's tokenizer returns nil without a network request. No
-        // generation method is called by this planning-only replay.
         let engine = OpenAICompatibleEngine(baseURL: URL(string: "https://openrouter.ai/api/v1")!,
             model: "z-ai/glm-5.3-flash", apiKey: nil, chatDialect: .openRouter)
         var reports: [[String: Any]] = []
@@ -110,9 +106,6 @@ final class MeetingNotesReplayTests: XCTestCase {
         try SummaryClaimEvidence.commit(transcript: transcript, in: folder)
         try result.outcomes.write(to: folder)
         try Data(result.body.utf8).write(to: folder.appendingPathComponent("summary.md"), options: .atomic)
-        // Optional prior outcomes/state live only in the copied replay input.
-        // Exercise the same reconciliation as a notes-only regeneration, while
-        // preserving unmatched manual edits for review rather than losing them.
         let input = source.deletingLastPathComponent()
         let previousURL = input.appendingPathComponent(MeetingOutcomes.fileName)
         if FileManager.default.fileExists(atPath: previousURL.path) {
@@ -125,7 +118,6 @@ final class MeetingNotesReplayTests: XCTestCase {
             XCTAssertEqual(edits.count, retained.count)
             for edit in edits { XCTAssertTrue(retained.contains(edit), "Replay must retain every manual action edit") }
         }
-        // Mechanical source/identity checks supplement manual coverage review.
         let claimsJSON = try SummaryClaimEvidence.encode(result.claims)
         XCTAssertNoThrow(try SummaryClaimEvidence.decode(claimsJSON, transcript: transcript, template: .meeting))
         for action in result.outcomes.actionItems {

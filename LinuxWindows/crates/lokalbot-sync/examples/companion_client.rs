@@ -1,19 +1,3 @@
-//! A stand-in phone for developing against a host (the Mac app or the
-//! `companion_host` example). It keeps its key and copy in one directory.
-//!
-//! ```text
-//! cargo run -p lokalbot-sync --example companion_client -- [--dir PATH] [--name NAME] <command>
-//!
-//!   pair <payload>                        pair using a lokalbot://pair?d=… code
-//!   sync [address…]                       sync, trying these host:port addresses first
-//!   status | meetings | people | days
-//!   actions [--mine] [--open]             action items, overdue first
-//!   set-status <meeting> <action> <status>
-//!   ask "<question>" [address…]           ask the Mac, printing the answer as it arrives
-//!   search "<query>"
-//!   unpair
-//! ```
-
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
@@ -30,7 +14,6 @@ impl AskListener for Printer {
     }
 }
 
-/// The phone's key and device id, created on first use.
 fn identity(dir: &Path) -> (Vec<u8>, String) {
     let key_path = dir.join("client.key");
     let id_path = dir.join("device-id");

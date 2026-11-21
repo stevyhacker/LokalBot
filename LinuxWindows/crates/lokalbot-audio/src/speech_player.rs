@@ -1,6 +1,3 @@
-//! Plays one synthesized clip (Read aloud). Meeting playback is 16 kHz and
-//! seekable ([`crate::Player`]); this takes any rate, plays once and stops.
-
 use std::num::NonZero;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -8,7 +5,6 @@ use std::time::Duration;
 
 use anyhow::{Context, Result, anyhow, bail};
 
-/// Audio the device has taken but not yet played when the clip's samples end.
 const DRAIN: Duration = Duration::from_millis(200);
 
 struct Clip {
@@ -53,14 +49,12 @@ impl rodio::Source for Clip {
     }
 }
 
-/// A clip playing on the default output. Dropping it stops the sound.
 pub struct SpeechPlayer {
     stop: Arc<AtomicBool>,
     finished: Arc<AtomicBool>,
 }
 
 impl SpeechPlayer {
-    /// Opens the speakers and starts `samples` (mono).
     pub fn start(samples: Vec<f32>, sample_rate: u32) -> Result<SpeechPlayer> {
         let Some(rate) = NonZero::new(sample_rate) else {
             bail!("Could not start speech playback.");
@@ -86,8 +80,6 @@ impl SpeechPlayer {
                         sink.log_on_drop(false);
                         sink.mixer().add(clip);
                         let _ = ready_tx.send(Ok(()));
-                        // A stopped clip doesn't wait for a stalled device to
-                        // ask for its next sample.
                         while !ended.load(Ordering::Relaxed) && !stopped.load(Ordering::Relaxed) {
                             std::thread::sleep(Duration::from_millis(25));
                         }
@@ -115,7 +107,6 @@ impl SpeechPlayer {
         }
     }
 
-    /// The clip ended or was stopped, and the device is released.
     pub fn is_finished(&self) -> bool {
         self.finished.load(Ordering::Relaxed)
     }

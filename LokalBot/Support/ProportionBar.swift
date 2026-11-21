@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Human-facing rows for the app-time list. The complete totals remain in the
-/// journal, while the overview promotes only meaningful apps and folds short
-/// or long-tail activity into one honest `Other` row.
 enum AppTimePresentation {
     struct Row: Equatable {
         let label: String
@@ -44,17 +41,12 @@ enum AppTimePresentation {
     }
 }
 
-/// Math behind the per-app proportion bar, separated from the view for unit
-/// tests (same pattern as `LiveWaveformMath`).
 enum ProportionBarMath {
     struct Segment: Equatable {
         let label: String
         let fraction: Double
     }
 
-    /// Per-app seconds → ordered fractions of the whole, folding everything
-    /// past `cap` apps into an "Other" segment. Zero totals produce an empty
-    /// bar rather than NaN fractions.
     static func segments(perApp: [(label: String, seconds: TimeInterval)],
                          cap: Int = 5) -> [Segment] {
         let positive = perApp.filter { $0.seconds > 0 }
@@ -70,9 +62,6 @@ enum ProportionBarMath {
     }
 }
 
-/// Horizontal stacked proportion bar (spec §3.2): one rounded track whose
-/// segments show each app's share of the tracked day. Colors come from the
-/// caller so the bar stays in the same family as the hour track.
 struct ProportionBar: View {
     let segments: [(segment: ProportionBarMath.Segment, color: Color)]
     var height: CGFloat = 10

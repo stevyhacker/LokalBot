@@ -50,8 +50,6 @@ final class MeetingOutcomesGeneratorTests: XCTestCase {
         XCTAssertTrue(merged.decisionRecords.isEmpty)
     }
 
-    /// Asked again about a row, the built-in 4B model returned the row's own
-    /// words as a second task beside the one already written from it.
     func testATaskThatOnlyRepeatsItsSourceMergesIntoTheTaskWrittenFromIt() {
         let spoken = "those can be simpler if we update the plan but I'll ping you Mira and Jonas to to get that resolved in chat"
         let citation = OutcomeSourceCitation(segmentID: "segment-0011-0000046300-0000058000", start: 46.3, end: 58,

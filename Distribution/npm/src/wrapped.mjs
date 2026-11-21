@@ -1,6 +1,3 @@
-// Reads the year's sessions from all supported local coding agents and
-// computes its figures. Nothing is sent over the network.
-
 import os from 'node:os';
 
 import { antigravityRoots, readAntigravity } from './antigravity.mjs';
@@ -13,16 +10,10 @@ import { opencodeRoot, readOpenCode } from './opencode.mjs';
 import { ompRoot, piRoot, readOmp, readPi } from './pi.mjs';
 import { computeStats, yearWindow } from './stats.mjs';
 
-/** January still looks back at the year that just ended. */
 export function defaultYear(now = new Date()) {
   return now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
 }
 
-/**
- * Dir options override where each agent's logs are read from; pass `null` to
- * skip an agent, or omit/`undefined` to honour its environment variable and
- * default folder. `onProgress(agentName, done, total)` reports progress.
- */
 export async function wrapped({
   year = defaultYear(),
   env = process.env,

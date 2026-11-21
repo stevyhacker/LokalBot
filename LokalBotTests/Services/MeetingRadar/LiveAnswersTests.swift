@@ -45,7 +45,6 @@ final class LiveAnswersTests: XCTestCase {
         try? FileManager.default.removeItem(at: folder)
     }
 
-    /// A git repository with one tracked file and one untracked file.
     private func makeRepository() async throws -> LiveAnswerPlace {
         let repo = folder.appendingPathComponent("Widget", isDirectory: true)
         try FileManager.default.createDirectory(at: repo, withIntermediateDirectories: true)
@@ -60,8 +59,6 @@ final class LiveAnswersTests: XCTestCase {
         return try XCTUnwrap(places.first)
     }
 
-    // MARK: - Documents
-
     func testSpreadsheetXMLReadsSharedAndInlineStrings() {
         let strings = XLSX.sharedStrings(#"<sst><si><t>Plan</t></si><si><t>Team &amp; Co</t></si></sst>"#)
         XCTAssertEqual(strings, ["Plan", "Team & Co"])
@@ -71,7 +68,6 @@ final class LiveAnswersTests: XCTestCase {
     }
 
     func testDemoSheetAndBriefAreReadable() async throws {
-        // Copies of the two files in LokalBotTests/Fixtures/meta-hackathon/demo-files; see project.yml.
         let bundle = Bundle(for: Self.self)
         let sheetURL = try XCTUnwrap(bundle.url(forResource: "Northwind pricing v2", withExtension: "xlsx"))
         let sheet = try await LiveAnswerTools.documentText(sheetURL)
@@ -97,7 +93,6 @@ final class LiveAnswersTests: XCTestCase {
         let words = PersonalContextSelection.contentWords("Team plan price")
         XCTAssertEqual(LiveAnswerTools.nameScore("Northwind pricing v2", words: words), 1, "price finds pricing")
         XCTAssertEqual(LiveAnswerTools.nameScore("notes", words: words), 0)
-        // Outside Spotlight's index (the temporary folder), names are ranked.
         let place = LiveAnswerPlace(name: "Northwind", url: docs, isRepository: false)
         let result = await LiveAnswerTools.searchDocuments("Q1 target in the launch brief", places: [place])
         XCTAssertTrue(result.text.hasPrefix("Northwind/Northwind launch brief.pdf"), result.text)
@@ -125,8 +120,6 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertNil(LiveAnswerPlace.gitHubRepository(fromRemote: "https://gitlab.com/a/b.git"))
     }
 
-    // MARK: - Code
-
     func testCodeToolsReadOnlyTrackedFiles() async throws {
         let place = try await makeRepository()
         XCTAssertTrue(place.isRepository)
@@ -141,10 +134,6 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertTrue(commits.text.contains("Hide the panel from sharing"))
     }
 
-    /// Git tracking a file does not make it readable: hidden files and
-    /// folders, `node_modules` and secret-looking files stay out of the code
-    /// tools as they do out of the document tools. `search_code` and
-    /// `read_file` used to return them.
     func testCodeToolsLeaveOutHiddenVendoredAndSecretFilesGitTracks() async throws {
         let place = try await makeRepository()
         let repo = place.url
@@ -155,7 +144,6 @@ final class LiveAnswersTests: XCTestCase {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try "let hiddenFromSharing = \"withheld \(path)\"\n".write(to: url, atomically: true, encoding: .utf8)
         }
-        // A tracked link with an ordinary name that leads to a withheld file.
         try FileManager.default.createSymbolicLink(
             atPath: repo.appendingPathComponent("Settings.swift").path, withDestinationPath: ".env")
         _ = try await LiveAnswerTools.git(["add", "-f", "--"] + withheld + ["Settings.swift"], in: repo)
@@ -175,8 +163,6 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertTrue(tracked.text.contains("let hiddenFromSharing = true"))
     }
 
-    // MARK: - Grounding
-
     func testAnswersKeepOnlySourcesThatContainTheirQuote() {
         let output = LiveAnswerToolOutput(
             text: "Panel.swift:2:    let hiddenFromSharing = true", kind: .code, title: "Widget",
@@ -194,8 +180,6 @@ final class LiveAnswersTests: XCTestCase {
                                               references: ["R1": output], model: "m", steps: []),
                      "an answer without one grounded source is dropped")
     }
-
-    // MARK: - The loop
 
     @MainActor
     func testMemoryCanAnswerWithoutAnyLookup() async throws {
@@ -244,9 +228,6 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertTrue(steps.contains { $0.contains("hiddenFromSharing") })
     }
 
-    /// The same loop on the Think model, as the app runs it: each turn comes
-    /// back as one JSON object, and a lookup's result reaches the next turn
-    /// as an observation.
     @MainActor
     func testTheThinkModelLooksUpAndAnswers() async throws {
         let place = try await makeRepository()
@@ -270,14 +251,12 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertEqual(outcome.turns, 2)
 
         XCTAssertEqual(engine.requests.count, 2)
-        // First turn: the tools and the task, nothing looked up yet.
         XCTAssertTrue(engine.requests[0].system.hasPrefix(LiveAnswerSession.system))
         XCTAssertTrue(engine.requests[0].system.contains("search_code: "))
         XCTAssertEqual(engine.requests[0].prompt, ThinkChat.nextCall)
         XCTAssertEqual(engine.requests[0].context.count, 1)
         XCTAssertTrue(engine.requests[0].context[0].contains("QUESTION: Is the panel hidden when sharing?"))
         XCTAssertEqual(engine.requests[0].options, MeetingRadar.answerOptions)
-        // Second turn: the call it made, then what came back.
         XCTAssertEqual(engine.requests[1].context.count, 3)
         XCTAssertTrue(engine.requests[1].context[1].hasPrefix(#"Assistant: {"call":"#), engine.requests[1].context[1])
         XCTAssertTrue(engine.requests[1].context[2].hasPrefix("Observation: [R1]"), engine.requests[1].context[2])
@@ -293,8 +272,6 @@ final class LiveAnswersTests: XCTestCase {
         XCTAssertNil(outcome.answer)
         XCTAssertEqual(outcome.reason, "an opinion")
     }
-
-    // MARK: - The radar
 
     @MainActor
     func testRadarAttachesALiveAnswerToACaughtQuestion() async throws {

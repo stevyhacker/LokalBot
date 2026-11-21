@@ -19,16 +19,8 @@ GATES = {
     'lint.yml': ['SwiftLint'],
     'ci-helpers.yml': ['CI helpers and release metadata'],
 }
-# UI Tests no longer runs on every master push. prepare-release.sh dispatches
-# it for the candidate, and that run binds itself to the exact SHA it was
-# asked to test before any job runs. Only a full run reports `XCUITest
-# (macOS)`; filtered and legacy-comparison dispatches use another name.
 GATE_EVENTS = {'ui-tests.yml': ('push', 'workflow_dispatch')}
-# Without an exact-commit UI run, the merged pull request's run counts when it
-# tested this exact tree (merged_pull_request_ui). `UI build (macOS)` runs only
-# when the suite does, so a draft or UI-irrelevant pass doesn't count.
 PULL_REQUEST_UI_JOBS = ['UI build (macOS)']
-# GitHub's comparison lists at most this many files, so a list this long may be cut short.
 COMPARE_FILE_LIMIT = 300
 
 
@@ -61,7 +53,6 @@ def paths_changed_since(sha, tip):
     files = comparison.get('files') or []
     if not files or len(files) >= COMPARE_FILE_LIMIT:
         raise ValueError(f'Cannot read what master changed after the candidate ({len(files)} files listed)')
-    # A rename names both ends: moving a file out of the app changes the app.
     paths = [path for file in files for path in (file['filename'], file.get('previous_filename')) if path]
     blocking = [path for path in paths if not relevance.docs_only(path)]
     if blocking:
@@ -85,8 +76,6 @@ def trusted_candidate():
 
 
 def successful_gate(runs, jobs, sha, required, events=('push',), branch='master'):
-    # The newest qualifying run on this exact SHA is authoritative. An older
-    # successful attempt cannot hide a running or failed rerun.
     candidates = [run for run in runs if run['head_sha'] == sha and run['head_branch'] == branch
                   and run['event'] in events]
     if not candidates:
@@ -145,7 +134,6 @@ def gates():
         events = GATE_EVENTS.get(workflow, ('push',))
         runs = [run for event in events
                 for run in api(f'actions/workflows/{workflow}/runs?head_sha={sha}&event={event}&per_page=100')['workflow_runs']]
-        # An exact-commit UI run, when there is one, decides on its own.
         if workflow == 'ui-tests.yml' and not any(run['head_sha'] == sha and run['head_branch'] == 'master'
                                                   for run in runs):
             run_id = merged_pull_request_ui(sha)

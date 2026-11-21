@@ -3,19 +3,12 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// The list-and-detail workspaces sit in the main window's detail column. From
-/// macOS 26 that column runs under the sidebar, so the list pane's frame is
-/// wider than the list by the sidebar's width. On hosted macOS 26 the Projects
-/// list therefore opened at its minimum width, and selecting a project widened
-/// it to its maximum. No divider position is saved, so nothing is written to
-/// the preferences.
 @MainActor
 final class SplitPaneBesideSidebarTests: XCTestCase {
     private final class Selection: ObservableObject {
         @Published var page = 0
     }
 
-    /// The list as it shows: a view the size of the list's content.
     private final class ListWidth {
         weak var view: NSView?
         var value: CGFloat { view?.frame.width ?? 0 }
@@ -85,8 +78,6 @@ final class SplitPaneBesideSidebarTests: XCTestCase {
         } detail: {
             Workspace(selection: selection, listWidth: listWidth)
         }
-        // As in the main window: macOS 26 cannot lay out a right-to-left split
-        // here, and hosted unit tests run on it.
         .splitStructureDirection()
         .environment(\.layoutDirection, direction)
         let window = NSWindow(contentRect: NSRect(x: -20_000, y: -20_000, width: 1_440, height: 900),

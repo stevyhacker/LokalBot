@@ -2,23 +2,6 @@ import DigUpKit
 import XCTest
 @testable import LokalBot
 
-/// DigUp's reference inputs through the app's own path (ImageIO decoding,
-/// `FileImageSizing`, PNG content parts, the media llama-server with the app's
-/// arguments) must reproduce DigUp's reference vectors at cosine ≥ 0.999, the
-/// bar DigUp sets for runtimes that agree. JPEG inputs get 0.998: DigUp's
-/// reference decodes them with stb_image and the app with ImageIO, and the two
-/// decoders differ on 27% of the photo's pixels (mean 0.2 levels). Measured on
-/// 30 October with ImageIO-decoded pixels in Pillow's path too: photo-140
-/// 0.99964 and frame-70 0.99860, the same as this test, while text, the PNG
-/// screenshot and speech match at 1.0. Run it for every llama.cpp update:
-/// a failure means bump `FileMediaEmbedder.vectorVersion` (every file index
-/// then reads its files again) or keep the old llama.cpp.
-///
-/// Needs both model files in one folder: set `LOKALBOT_MEDIA_EMBEDDER_MODELS`
-/// (pass `TEST_RUNNER_LOKALBOT_MEDIA_EMBEDDER_MODELS` through xcodebuild) to a
-/// folder holding `embeddinggemma-2-Q8_0.gguf` and
-/// `mmproj-embeddinggemma-2-Q8_0.gguf`. Skipped otherwise. The fixtures are
-/// DigUp's (MIT; `Fixtures/MediaEmbedderReference/LICENSE.DigUp`).
 final class FileMediaEmbedderReferenceTests: XCTestCase {
     private static let agreement: Float = 0.999
     private static let jpegAgreement: Float = 0.998
@@ -44,11 +27,6 @@ final class FileMediaEmbedderReferenceTests: XCTestCase {
         }
     }
 
-    /// A text longer than the server's batch gets the vector of its first
-    /// 2,047 tokens and `<eos>`, as DigUp's embedder and transformers cut it,
-    /// so what follows the cut changes nothing. Sent whole, llama-server
-    /// refused such a page with HTTP 500 and every indexing pass stopped there
-    /// (1 November).
     func testATextLongerThanTheBatchIsCutLikeDigUpCutsIt() async throws {
         let page = Prompts.document(title: "zastava-1906-08-10-str2", text: String(
             repeating: "Српска застава, лист за политику и књижевност, излази сваког дана осим недеље. ", count: 100))
@@ -61,8 +39,6 @@ final class FileMediaEmbedderReferenceTests: XCTestCase {
         XCTAssertEqual(Self.cosine(made[0], made[1]), 1, accuracy: 1e-6)
     }
 
-    /// Runs `body` off the main thread against the media llama-server with the
-    /// app's arguments on a private port.
     private static func withServer<T: Sendable>(
         _ body: @escaping @Sendable (FileMediaEmbedder.Endpoint) throws -> T) async throws -> T {
         guard let path = ProcessInfo.processInfo.environment["LOKALBOT_MEDIA_EMBEDDER_MODELS"] else {
@@ -98,7 +74,6 @@ final class FileMediaEmbedderReferenceTests: XCTestCase {
         }
     }
 
-    /// DigUp's `ReferenceVectorTests` inputs, word for word.
     private static func vectors(endpoint: FileMediaEmbedder.Endpoint, fixtures: URL) throws -> [String: [Float]] {
         let embedder = FileMediaEmbedder(endpoint: endpoint)
         let texts: [(String, String)] = [

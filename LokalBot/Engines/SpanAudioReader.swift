@@ -1,14 +1,6 @@
 import AVFoundation
 import Foundation
 
-/// Decodes 16 kHz mono Float32 windows of an audio file on demand — one span
-/// at a time. Transcription used to decode a whole track up front (~230 MB of
-/// samples per recorded hour per track) and then copy every speech span out of
-/// it; reading each span's window straight from the file keeps at most one
-/// span (seconds of audio, a few MB) resident while the ASR model works.
-///
-/// Not Sendable (wraps an `AVAudioFile`): create one inside the actor-isolated
-/// transcribe call and iterate spans in order — reads seek forward only.
 final class SpanAudioReader {
     static let sampleRate = 16_000.0
 
@@ -20,7 +12,6 @@ final class SpanAudioReader {
     private let file: AVAudioFile
     private let outputFormat: AVAudioFormat
 
-    /// Track length in seconds, from the container header — no decode.
     var duration: TimeInterval {
         Double(file.length) / file.processingFormat.sampleRate
     }
@@ -35,9 +26,6 @@ final class SpanAudioReader {
         outputFormat = format
     }
 
-    /// Decodes the `[start, end)` window (seconds on the track timeline) to
-    /// 16 kHz mono samples, clamped to the file's bounds. An empty or fully
-    /// out-of-range window returns `[]`.
     func samples(from start: TimeInterval, to end: TimeInterval) throws -> [Float] {
         let sourceFormat = file.processingFormat
         let sourceRate = sourceFormat.sampleRate
@@ -53,7 +41,6 @@ final class SpanAudioReader {
         }
         try file.read(into: sourceBuffer, frameCount: frameCount)
 
-        // Already 16 kHz mono float (e.g. the test-fixture WAVs): no conversion.
         if sourceFormat.sampleRate == outputFormat.sampleRate,
            sourceFormat.channelCount == 1,
            sourceFormat.commonFormat == .pcmFormatFloat32 {
@@ -62,18 +49,12 @@ final class SpanAudioReader {
         return try Self.convert(sourceBuffer, to: outputFormat)
     }
 
-    /// One-shot rate/channel conversion of a single already-read window. A
-    /// fresh converter per window is deliberate: its cost is trivial next to
-    /// the decode + ASR work, and it avoids carrying resampler state across
-    /// non-adjacent windows (spans skip the silence between them).
     private static func convert(
         _ source: AVAudioPCMBuffer, to outputFormat: AVAudioFormat
     ) throws -> [Float] {
         guard let converter = AVAudioConverter(from: source.format, to: outputFormat) else {
             throw ReaderError.formatUnavailable
         }
-        // No priming: each window is converted in isolation, and priming would
-        // swallow the first ~milliseconds of every span boundary.
         converter.primeMethod = .none
         var fed = false
         let input: AVAudioConverterInputBlock = { _, status in
@@ -86,10 +67,6 @@ final class SpanAudioReader {
             return source
         }
         let ratio = outputFormat.sampleRate / source.format.sampleRate
-        // Draining AVAudioConverter can emit filter-tail samples beyond the
-        // source window (e.g. 480,011 samples for a 30 s, 48 kHz window).
-        // Those samples must not lengthen a speaker region or become a tiny
-        // extra ASR span. Keep draining, but retain only the source duration.
         let maximumFrames = Int(ceil(Double(source.frameLength) * ratio))
         var result: [Float] = []
         result.reserveCapacity(maximumFrames)

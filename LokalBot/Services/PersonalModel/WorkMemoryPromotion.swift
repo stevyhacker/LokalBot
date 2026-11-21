@@ -1,11 +1,5 @@
 import Foundation
 
-/// Suggests long-running work as Personal Context items. The overnight review keeps
-/// short-lived work memory (projects and goals that age out after 30–45
-/// days); a goal or project it keeps seeing for two weeks or more, and saw in
-/// the last week, says something durable about the person. No model call:
-/// the review already distilled the day's meetings, digest, and timeline.
-/// Every promotion waits for review and depends on the review's evidence.
 enum WorkMemoryPromotion {
     static let minimumDays = 14
     static let recentDays = 7
@@ -15,8 +9,6 @@ enum WorkMemoryPromotion {
         var candidates: [PersonalModel.LearningCandidate]
     }
 
-    /// Records when each current goal and project was first seen, forgets
-    /// ones the memory no longer holds, and returns those that qualify.
     static func evaluate(memory: DreamMemory, sightings: [PersonalModel.WorkSighting], dayKey: String,
                          calendar: Calendar = .current) -> Result {
         var firstSeen: [String: String] = [:]

@@ -1,10 +1,3 @@
-//! Meeting notes (`MeetingNotesGenerator.swift`, `MeetingNotesRecovery.swift`).
-//!
-//! One extraction pass per transcript part yields notes, actions, decisions
-//! and open questions. The model cites only `s#` row IDs; the app maps them
-//! to stable segment IDs, checks every record against the cited speech,
-//! repairs rejected records once or twice, and renders the Markdown itself.
-
 pub mod budget;
 pub mod evidence;
 pub mod ownership;
@@ -33,18 +26,13 @@ use budget::{Budget, Limits};
 use evidence::{Claim, Evidence, Record, Rejection, Unit, Validated};
 use view::View;
 
-/// Notes for one meeting, ready to write.
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeetingNotes {
-    /// `summary.md`: the header line, then the rendered sections.
     pub summary_markdown: String,
     pub outcomes: MeetingOutcomes,
-    /// `summary-claims.json`: `{version, transcriptRevision, claims}`.
     pub claims: Value,
 }
 
-/// Some parts could not be completed; partial files were saved when a
-/// checkpoint folder was given.
 #[derive(Debug, thiserror::Error)]
 #[error(
     "Partial notes saved ({completed} of {total} parts source-linked). Summarize again to continue."
@@ -56,13 +44,9 @@ pub struct Incomplete {
 
 #[derive(Clone, Default)]
 pub struct NotesOptions {
-    /// The meeting folder: checkpoints after every part (`notes.parts.partial.json`)
-    /// and the partial files the UI can show. `None` keeps everything in memory.
     pub checkpoint_dir: Option<PathBuf>,
-    /// A person asked again: parts an earlier run stopped get another scan.
     pub retrying_stopped_parts: bool,
     pub cancel: Option<Arc<AtomicBool>>,
-    /// Titles of documents on screen during the meeting (context only).
     pub screen_titles: Vec<String>,
 }
 
@@ -75,15 +59,12 @@ const PARTIAL_FILES: [&str; 5] = [
     "notes.partial.json",
 ];
 
-/// Removes the checkpoint and partial files. Call it after the final notes are
-/// saved, so a crash between the two can't lose the finished parts.
 pub fn remove_checkpoint(folder: &Path) {
     for name in PARTIAL_FILES {
         let _ = std::fs::remove_file(folder.join(name));
     }
 }
 
-/// Generates notes with default options (no checkpoint folder).
 pub fn generate_meeting_notes(
     think: &ThinkClient,
     meeting: &Meeting,
@@ -151,7 +132,6 @@ fn cancelled(cancel: Option<&AtomicBool>) -> Result<()> {
     cancel.map_or(Ok(()), crate::error::check_cancelled)
 }
 
-/// The generator with explicit options.
 pub fn generate_meeting_notes_with(
     think: &ThinkClient,
     meeting: &Meeting,
@@ -165,8 +145,6 @@ pub fn generate_meeting_notes_with(
     let _hold = think.hold()?;
     let template = settings.note_template;
     let language = language::prompt_language(&settings.summary_language, transcript);
-    // Likely echo repeats a remote participant; the remote row carries those
-    // words, so the echo is never shown or cited as evidence.
     let marked = transcript.marking_suspected_echo();
     let evidence = Evidence::new(
         View::new(&marked, settings.microphone_is_user),
@@ -179,7 +157,6 @@ pub fn generate_meeting_notes_with(
     let context = context_items(meeting, user_notes, &options.screen_titles, settings);
     let context_tokens = think.context_tokens();
     let mut limits = Limits::for_preset(settings.generation_budget_preset);
-    // The time allowance assumes GPU decoding; a CPU-only PC gets three times as long.
     if think.runs_on_cpu() {
         limits.seconds *= 3.0;
     }
@@ -297,7 +274,6 @@ pub fn generate_meeting_notes_with(
     })
 }
 
-/// `# {title} — {date}` and the provenance line (`ProcessingPipeline.summarize`).
 fn header(
     meeting: &Meeting,
     transcript: &Transcript,
@@ -353,10 +329,6 @@ fn grouped(count: usize) -> String {
     out
 }
 
-/// User notes, then the secondary meeting-context block (≤2,400 characters,
-/// `MeetingGenerationContext`): the calendar title and invited names when
-/// `meetingNotesUseCalendarContext` is on, the saved agenda when
-/// `useCalendarAgenda` is on, and on-screen document titles.
 fn context_items(
     meeting: &Meeting,
     user_notes: &str,
@@ -399,7 +371,6 @@ fn context_items(
     items
 }
 
-/// The scheduled title and invited names; never email addresses.
 fn calendar_lines(meeting: &Meeting, lines: &mut Vec<String>) {
     if let Some(title) = meeting
         .calendar_title
@@ -442,8 +413,6 @@ fn calendar_lines(meeting: &Meeting, lines: &mut Vec<String>) {
     }
 }
 
-// ------------------------------------------------------------------ sizing
-
 const STANDARD_PART_TOKENS: u32 = 6_000;
 const ENVELOPE_TOKENS: u32 = 1_536;
 
@@ -460,8 +429,6 @@ struct PromptSize {
     planning: u32,
 }
 
-/// Native tokens when the server can count them; otherwise UTF-8 bytes bound
-/// the context and bytes/3 plans part sizes.
 fn prompt_size(think: &ThinkClient, text: &str) -> Result<PromptSize> {
     let native = think.token_count(text)?.map(|n| n as u32);
     let bytes = text.len() as u32;
@@ -475,8 +442,6 @@ fn token_count(think: &ThinkClient, text: &str) -> Result<u32> {
     Ok(prompt_size(think, text)?.upper)
 }
 
-/// Parts fit the context, the planning step, and a hosted server's limit on
-/// schema enum values; neighbours overlap by two rows.
 fn make_chunks(
     evidence: &Evidence,
     think: &ThinkClient,
@@ -540,8 +505,6 @@ fn make_chunks(
     Ok(chunks)
 }
 
-// ----------------------------------------------------------------- requests
-
 fn expanded_tokens(tokens: u32, input: u32, context_tokens: u32) -> Option<u32> {
     let available = context_tokens.checked_sub(input)?;
     (tokens > 0 && available > tokens).then(|| available.min(16_384.min((tokens * 2).max(8_192))))
@@ -555,8 +518,6 @@ fn record_count(text: &str) -> usize {
         .sum()
 }
 
-/// One structured call. A reply cut off at its limit gets one larger retry
-/// (not for repairs); whichever holds more complete records is kept.
 #[allow(clippy::too_many_arguments)]
 fn request(
     think: &ThinkClient,
@@ -580,9 +541,6 @@ fn request(
         return Err(AiError::BadResponse("Notes request cannot fit the model's input allowance. Source-linked progress was saved.".into()).into());
     }
     budget.reserve(u64::from(input), u64::from(tokens))?;
-    // The transcript travels as context, so a server with prompt caching
-    // (Anthropic) reuses it across this meeting's requests; every other
-    // server gets it joined in front of the instruction as before.
     let request = ChatRequest::new(system, prompt)
         .context(context.to_vec())
         .max_tokens(tokens)
@@ -638,8 +596,6 @@ fn request(
     }
     Ok((completion.text, true))
 }
-
-// -------------------------------------------------------------------- parts
 
 fn same_task(lhs: &ActionItem, rhs: &ActionItem) -> bool {
     evidence::similarity_normalized(&lhs.text) == evidence::similarity_normalized(&rhs.text)
@@ -717,8 +673,6 @@ fn accept(part: &mut Part, recovery: &mut Recovery, value: &Validated) {
     }
 }
 
-/// The output room beside this request's input, or `None` when even the
-/// structured-output minimum cannot fit.
 fn output_room(
     job: &Job,
     system: &str,
@@ -748,8 +702,6 @@ fn continuation(records: &[Record], omitted: usize) -> String {
     prompts::notes_continuation(&Value::Array(ledger).to_string(), omitted)
 }
 
-/// A continuation's ledger comes out of the output allowance; a long one
-/// keeps its newest records.
 fn fitted_page(
     job: &Job,
     rows: &str,
@@ -805,7 +757,6 @@ fn repair_batch(rejected: &[Rejection], units: &[Unit]) -> Vec<Rejection> {
     batch
 }
 
-/// ±2 rows around a rejected note, ±8 around a rejected action.
 fn repair_evidence(rejected: &[Rejection], units: &[Unit]) -> Vec<Unit> {
     let sources: HashSet<&str> = rejected
         .iter()
@@ -862,7 +813,6 @@ fn repair_prompt(
     )
 }
 
-/// The user's undertakings that no user task cites.
 fn missing_commitments(part: &Part, job: &Job, recovery: &Recovery) -> Vec<String> {
     let view = &job.evidence.view;
     let cited: HashSet<&str> = part
@@ -914,8 +864,6 @@ fn missing_commitments(part: &Part, job: &Job, recovery: &Recovery) -> Vec<Strin
         .collect()
 }
 
-/// Queue a repair for each user undertaking no user task cites: finish a
-/// nearby owner-unclear task first, else ask for the missing action.
 fn queue_missing_commitments(part: &Part, job: &Job, recovery: &mut Recovery) {
     if !recovery.scan_complete {
         return;
@@ -983,7 +931,6 @@ fn queue_missing_commitments(part: &Part, job: &Job, recovery: &mut Recovery) {
     }
 }
 
-/// Ownership repairs keep each task's text fixed; replacement is atomic.
 fn accept_ownership_repairs(
     fixed: &Validated,
     requested: &[Rejection],
@@ -1065,7 +1012,6 @@ fn accept_ownership_repairs(
     }
 }
 
-/// At most three extraction pages and two rounds of repairs per part.
 fn generate_part(
     initial: Part,
     job: &Job,
@@ -1161,7 +1107,6 @@ fn generate_part(
         );
         let previous_count = recovery.records.len();
         accept(&mut part, &mut recovery, &validated);
-        // Empty output cannot certify a substantial untouched transcript.
         if part.claims.is_empty() && part.outcomes.is_empty() && word_count > 500 {
             validated.complete = false;
         }
@@ -1422,8 +1367,6 @@ fn generate_part(
     checkpoint(&mut part, &recovery);
     Ok(())
 }
-
-// ------------------------------------------------------------------- merged
 
 fn merged(
     checkpoint: &Checkpoint,

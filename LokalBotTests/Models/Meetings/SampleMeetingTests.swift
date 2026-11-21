@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The bundled sample meeting (`SampleMeeting`): it imports like a recording,
-/// is marked, and stays out of the day and the action lists.
 final class SampleMeetingTests: XCTestCase {
     private func temporaryDirectory(_ name: String) throws -> URL {
         let url = FileManager.default.temporaryDirectory
@@ -17,7 +15,6 @@ final class SampleMeetingTests: XCTestCase {
         XCTAssertEqual(SampleMeeting.recording(for: "de").id, "orders-api/de")
         XCTAssertEqual(SampleMeeting.recording(for: "de-CH").id, "orders-api/de")
         XCTAssertEqual(SampleMeeting.recording(for: "zh-Hans").id, "orders-api/zh")
-        // Traditional Chinese gets the Mandarin recording too, titled in Simplified Chinese.
         XCTAssertEqual(SampleMeeting.recording(for: "zh-Hant").id, "orders-api/zh")
         XCTAssertEqual(SampleMeeting.recording(for: "sr-Latn").id, "orders-api/sr-Latn")
         XCTAssertEqual(SampleMeeting.recording(for: "fr"), SampleMeeting.english)
@@ -63,7 +60,7 @@ final class SampleMeetingTests: XCTestCase {
         let storage = StorageManager(rootURL: root)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = Date(timeIntervalSince1970: 1_784_376_000) // 2026-07-18 12:00 UTC
+        let now = Date(timeIntervalSince1970: 1_784_376_000)
         var own = Meeting(id: UUID(), title: "Design review", appName: "Zoom",
                           startedAt: now.addingTimeInterval(-3_600), endedAt: now.addingTimeInterval(-1_800),
                           relativePath: try storage.reserveMeetingFolder(
@@ -88,21 +85,18 @@ final class SampleMeetingTests: XCTestCase {
         let entries = ActionItemsReport.entries(
             meetings: [own, sample], root: root, filter: ActionItemsReport.Filter(), now: now, calendar: calendar)
         XCTAssertEqual(entries.flatMap(\.meetings).map(\.title), [own.title])
-        // Asked for by id, the sample's own actions are still there.
         var bySample = ActionItemsReport.Filter()
         bySample.meetingID = sample.id
         XCTAssertEqual(ActionItemsReport.entries(
             meetings: [own, sample], root: root, filter: bySample, now: now, calendar: calendar).count, 1)
     }
 
-    /// The overnight review compares a day with the meetings and open actions
-    /// of the days before it. The sample used to be among them.
     func testOvernightReviewLeavesTheSampleOutOfEarlierMeetingsAndActions() throws {
         let root = try temporaryDirectory("SampleDream")
         let storage = StorageManager(rootURL: root)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
-        let now = Date(timeIntervalSince1970: 1_784_376_000) // 2026-07-18 12:00 UTC
+        let now = Date(timeIntervalSince1970: 1_784_376_000)
         let own = Meeting(id: UUID(), title: "Design review", appName: "Zoom",
                           startedAt: now.addingTimeInterval(-3_600), endedAt: now.addingTimeInterval(-1_800),
                           relativePath: try storage.reserveMeetingFolder(
@@ -119,7 +113,6 @@ final class SampleMeetingTests: XCTestCase {
                 decisions: []).write(to: meeting.folderURL(in: storage))
         }
 
-        // The day after both meetings.
         let evidence = try DreamCompiler.compile(
             day: now.addingTimeInterval(86_400), storageRoot: root, calendar: calendar)
 

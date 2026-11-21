@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Checks autocomplete's desktop side on a private Xvfb display and D-Bus
-# session with the accessibility bus: the field watcher reads a GTK reply
-# field (text, caret, window title, the messages above it), Tab is taken
-# while active and types the accepted text through AT-SPI, and the password
-# field is never read. Needs Xvfb, xfwm4, xdotool, python3-gi with GTK 3,
-# at-spi2-core and dbus-run-session.
-# Usage: crates/lokalbot-platform/scripts/live-autocomplete.sh [display number]
 set -euo pipefail
 if [ -z "${LOKALBOT_LIVE_BUS:-}" ]; then
   exec env LOKALBOT_LIVE_BUS=1 dbus-run-session -- "$0" "$@"

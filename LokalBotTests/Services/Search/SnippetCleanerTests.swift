@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Screen OCR usually re-captures the window chrome, so an FTS snippet's first
-/// line often just repeats the row title. The cleaner drops that echo and
-/// collapses whitespace while leaving «» match markers for the highlighter.
 final class SnippetCleanerTests: XCTestCase {
 
     func testDropsLeadingLineThatEchoesTitle() {

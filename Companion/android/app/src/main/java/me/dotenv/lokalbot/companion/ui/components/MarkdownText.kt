@@ -42,7 +42,6 @@ import me.dotenv.lokalbot.companion.ui.theme.Inter
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** Renders the Mac's Markdown with LokalBot type: no bubbles, an editorial reading column. */
 @Composable
 fun MarkdownText(
     markdown: String,
@@ -76,7 +75,6 @@ fun MarkdownText(
     }
 }
 
-/** One paragraph with inline formatting and numbered teal citation badges. */
 @Composable
 fun RichText(
     text: String,

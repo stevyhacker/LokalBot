@@ -1,20 +1,7 @@
-//! Where each thing LokalBot needs from this computer stands, worked out once
-//! for setup's access step and for Settings (Privacy & permissions, the
-//! status lines, the list's badges, Overview) and `lokalbot-cli permissions`.
-//! Linux and Windows have no permission prompts like macOS: a state is what
-//! this computer can be seen to allow (`lokalbot_platform::access`), read
-//! into one [`Probe`] that `AppData` keeps, plus what the running app has
-//! found out for itself (a microphone listed, capture or the screenshot key
-//! failing). Both places map that same reading through [`Permission::state`],
-//! so they never disagree, and a state that can't be known before the
-//! feature runs claims none.
-
 use lokalbot_platform::access::{Check, Gap};
 
-/// The Window Calls extension's page, where GNOME installs it from.
 pub const WINDOW_CALLS_URL: &str = "https://extensions.gnome.org/extension/4724/window-calls/";
 
-/// What this computer allows, read in the background.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Probe {
     pub microphone: Check,
@@ -25,7 +12,6 @@ pub struct Probe {
 }
 
 impl Default for Probe {
-    /// Nothing read yet: every state unknown.
     fn default() -> Self {
         Self {
             microphone: Check::Unknown,
@@ -38,8 +24,6 @@ impl Default for Probe {
 }
 
 impl Probe {
-    /// Reads every check. Blocks for up to a few seconds; call it off the
-    /// UI thread.
     pub fn read() -> Self {
         use lokalbot_platform::access;
         Self {
@@ -52,44 +36,31 @@ impl Probe {
     }
 }
 
-/// What the running app has seen for itself, beyond the probe.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Observed {
-    /// A microphone shows up at all. On Linux, where no switch guards it,
-    /// that is what can be checked.
     pub microphone_found: bool,
-    /// Screen capture said this desktop can't capture the window in front.
     pub capture_failed: bool,
-    /// The key that encrypts screenshots couldn't be kept.
     pub key_failed: bool,
 }
 
-/// One thing setup asks about and Settings lists.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Permission {
     Microphone,
-    /// The app and window title in front (X11, a compositor, a GNOME extension).
     WindowTitles,
-    /// Text on screen through AT-SPI or UI Automation.
     Accessibility,
     Screenshots,
-    /// The key that encrypts screenshots.
     CredentialStore,
 }
 
-/// Where one stands.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum State {
     Allowed,
-    /// The system has it switched off; only its settings can turn it on.
     TurnedOff,
     Missing(Gap),
-    /// Can't be known before the feature runs: no state is claimed.
     Unchecked,
 }
 
 impl Permission {
-    /// As `lokalbot-cli permissions request` takes it.
     pub fn name(self) -> &'static str {
         match self {
             Permission::Microphone => "microphone",
@@ -110,7 +81,6 @@ impl Permission {
         }
     }
 
-    /// What it is for.
     pub fn reason(self) -> &'static str {
         match self {
             Permission::Microphone => lokalbot_i18n::tr("Records your side of each call."),
@@ -129,8 +99,6 @@ impl Permission {
         }
     }
 
-    /// Where it stands, from `probe` and what the app has `observed`.
-    /// `linux` because only there does a listed microphone mean it can be used.
     pub fn state(self, probe: &Probe, observed: &Observed, linux: bool) -> State {
         let check = match self {
             Permission::Microphone => match probe.microphone {
@@ -156,8 +124,6 @@ impl Permission {
         }
     }
 
-    /// What a row says about `state` beyond its reason: the problem, or why
-    /// nothing can be said yet. `None` when there's nothing to add.
     pub fn note(self, state: State) -> Option<&'static str> {
         match state {
             State::Allowed => None,
@@ -170,7 +136,6 @@ impl Permission {
     }
 }
 
-/// What is missing, worded for a row.
 pub fn gap_text(gap: Gap) -> &'static str {
     match gap {
         Gap::GnomeWindowExtension => lokalbot_i18n::tr(
@@ -189,7 +154,6 @@ pub fn gap_text(gap: Gap) -> &'static str {
     }
 }
 
-/// What a row whose state can't be checked says instead.
 fn unchecked_text(permission: Permission) -> Option<&'static str> {
     match permission {
         Permission::Microphone if cfg!(target_os = "windows") => Some(lokalbot_i18n::tr(
@@ -220,7 +184,6 @@ mod tests {
             mic.state(&probe, &Observed::default(), true),
             State::Unchecked
         );
-        // Windows lists microphones its privacy switch keeps apps away from.
         assert_eq!(mic.state(&probe, &found, false), State::Unchecked);
         let off = Probe {
             microphone: Check::TurnedOff,
@@ -282,7 +245,6 @@ mod tests {
             Permission::CredentialStore.state(&ready, &failed, true),
             State::Missing(Gap::CredentialStore)
         );
-        // A portal that may ask stays unknown until capture says otherwise.
         assert_eq!(
             Permission::Screenshots.state(&Probe::default(), &Observed::default(), true),
             State::Unchecked

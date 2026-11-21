@@ -1,25 +1,11 @@
-//! Speaker bleed before recognition: without headphones the microphone picks
-//! up the remote side a few tens of milliseconds after the system track
-//! carries it. Mic frames whose energy is explained by the delayed system
-//! signal are attenuated by 30 dB in the copy the models hear (the recording
-//! is untouched), like the residual suppressor in macOS's `EchoCanceller`.
-//! Nothing is gated unless the two envelopes show a clear, consistent bleed.
-
-/// 20 ms frames at 16 kHz.
 const FRAME: usize = 320;
-/// Speaker-to-microphone delays searched: 0–400 ms.
 const MAX_LAG_FRAMES: usize = 20;
-/// Log-envelope correlation (over remote-speech frames) needed before any gating.
 const MIN_CORRELATION: f64 = 0.5;
-/// Bleed weaker than −40 dB is left alone.
 const MIN_GAIN: f64 = 0.01;
-/// A frame is bleed when the mic is at most this far above the predicted bleed (+8 dB).
 const MARGIN: f64 = 2.5;
 const ATTENUATION: f32 = 0.03;
-/// Frames kept around detected local speech so word edges survive.
 const KEEP_AROUND: usize = 3;
 
-/// Per-frame gains for the microphone track.
 #[derive(Clone, Debug, PartialEq)]
 pub struct BleedGate {
     pub delay_ms: u32,
@@ -27,7 +13,6 @@ pub struct BleedGate {
     gains: Vec<f32>,
 }
 
-/// Frame RMS of 16 kHz audio (20 ms frames).
 pub fn envelope(samples: &[f32]) -> Vec<f64> {
     samples
         .chunks(FRAME)
@@ -69,25 +54,18 @@ fn correlation(a: &[f64], b: &[f64]) -> f64 {
 }
 
 impl BleedGate {
-    /// Analyses both tracks (16 kHz, same timeline); `None` when no bleed is evident.
     pub fn detect(mic: &[f32], system: &[f32]) -> Option<BleedGate> {
         Self::from_envelopes(&envelope(mic), &envelope(system))
     }
 
-    /// [`BleedGate::detect`] from precomputed [`envelope`]s.
     pub fn from_envelopes(m: &[f64], s: &[f64]) -> Option<BleedGate> {
         let n = m.len().min(s.len());
         if n < 50 {
             return None;
         }
-        // Only frames where the remote side is clearly active tell us about bleed.
         let mut sorted = s[..n].to_vec();
         let floor = percentile(&mut sorted, 0.2).max(1e-5);
         let loud = percentile(&mut sorted, 0.7).max(floor * 4.0);
-        // Where the remote side talks, a bleeding mic follows its syllables:
-        // log envelopes correlate at the acoustic delay. Frames where the mic
-        // is far above the typical ratio (local speech, double talk) are left
-        // out; with headphones the mic does not follow at all.
         let log = |x: f64| (x + 1e-4).ln();
         let (mut best_lag, mut best_corr) = (0, 0.0);
         for lag in 0..=MAX_LAG_FRAMES.min(n / 4) {
@@ -121,7 +99,6 @@ impl BleedGate {
         if ratios.len() < 25 {
             return None;
         }
-        // The quieter quartile: frames where the user is silent and the mic hears only bleed.
         let gain = percentile(&mut ratios, 0.25);
         if gain < MIN_GAIN {
             return None;
@@ -130,7 +107,6 @@ impl BleedGate {
         let mut bleed: Vec<bool> = (0..m.len())
             .map(|i| i < n && delayed(i) >= active && m[i] <= MARGIN * gain * delayed(i))
             .collect();
-        // Keep a margin around local speech so onsets and word endings are not cut.
         let keep: Vec<bool> = bleed.iter().map(|b| !b).collect();
         for (i, kept) in keep.iter().enumerate() {
             if *kept {
@@ -152,12 +128,10 @@ impl BleedGate {
         })
     }
 
-    /// Seconds of microphone audio attenuated.
     pub fn gated_seconds(&self) -> f64 {
         self.gains.iter().filter(|g| **g < 1.0).count() as f64 * FRAME as f64 / 16_000.0
     }
 
-    /// Applies the frame gains with 5 ms ramps between frames.
     pub fn apply(&self, mic: &mut [f32]) {
         const RAMP: usize = 80;
         for (index, frame) in mic.chunks_mut(FRAME).enumerate() {
@@ -201,7 +175,7 @@ mod tests {
         let remote_ranges = [(16_000, 80_000), (160_000, 240_000)];
         let system = burst(n, &remote_ranges, 300.0, 0.5);
         let local = burst(n, &[(96_000, 144_000), (200_000, 216_000)], 200.0, 0.5);
-        let delay = 640; // 40 ms
+        let delay = 640;
         let mut mic: Vec<f32> = (0..n)
             .map(|i| {
                 local[i]

@@ -3,8 +3,6 @@ import XCTest
 
 @MainActor
 final class LaunchAtLoginStateTests: XCTestCase {
-    /// SwiftUI reads the toggle's value on every update; none of those reads
-    /// may reach the service-management daemon.
     func testReadingTheValueNeverAsksTheSystem() async {
         let system = FakeLoginItem(enabled: true)
         let state = LaunchAtLoginState(read: system.read, write: system.write)

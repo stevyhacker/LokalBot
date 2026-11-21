@@ -1,7 +1,3 @@
-//! Sweeps speaker-separation settings on a WAV with a known script.
-//!
-//! `cargo run -p lokalbot-speech --release --example diarize -- <segmentation.onnx> <embedding.onnx> <track.wav> <scenario.json> <track name> [thresholds…]`
-
 use std::path::Path;
 
 use lokalbot_speech::Turn;
@@ -53,7 +49,6 @@ fn main() -> anyhow::Result<()> {
         let mut speakers: Vec<i32> = turns.iter().map(|t| t.speaker).collect();
         speakers.sort_unstable();
         speakers.dedup();
-        // Purity: seconds of each turn whose majority truth voice matches the speaker's majority voice.
         let mut overlap = std::collections::HashMap::<(i32, String), f64>::new();
         for turn in &turns {
             for (start, end, voice) in &truth {

@@ -1,8 +1,3 @@
-//! The list column (`ActionsFilterBar`, `ActionsList`, `ActionsStaleBar`):
-//! Open / Deferred / Done, the Filter menu with a removable chip per active
-//! choice and the search field; the list under its headings; and the Review
-//! bar for open actions nobody has mentioned in three weeks.
-
 use std::rc::Rc;
 
 use crate::i18n::h_flex;
@@ -28,14 +23,10 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::action_row::{self, ListRowStyle};
 use crate::ui::{self, Ico, segmented_tabs};
 
-/// The search field's width beside the other controls.
 const SEARCH_WIDTH: f32 = 230.;
-/// A chip's padding and close mark around its words.
 const CHIP_CHROME: f32 = 32.;
-/// The Filter button's icon, caret and padding around its word.
 const FILTER_CHROME: f32 = 60.;
 
-/// The widest of `texts` as drawn at `size`, for controls sized by their words.
 pub(super) fn text_width(texts: &[&str], size: Pixels, window: &mut Window) -> Pixels {
     let style = window.text_style();
     texts
@@ -113,8 +104,6 @@ impl ActionsPage {
             .into_any_element()
     }
 
-    // ------------------------------------------------------------ controls
-
     fn render_filter_bar(
         &self,
         content: &ListContent,
@@ -124,7 +113,6 @@ impl ActionsPage {
         let lb = cx.lb().clone();
         let keys = STATUSES.map(state_key);
         let words: Vec<&str> = keys.iter().map(|k| lokalbot_i18n::tr(k)).collect();
-        // Each segment fits the longest status in the interface language.
         let segment =
             px((f32::from(text_width(&words, ty::SECONDARY, window)) + 24.).clamp(76., 160.));
         let selected = STATUSES
@@ -153,9 +141,6 @@ impl ActionsPage {
             .enumerate()
             .map(|(ix, chip)| self.chip(ix, chip.kind, chip.label, cx).into_any_element())
             .collect::<Vec<_>>();
-        // One row when it fits; more chips than the row holds go to a row of
-        // their own, and in a narrow list so does the search field
-        // (`ViewThatFits`).
         let width = self
             .list_bounds
             .get()
@@ -211,7 +196,6 @@ impl ActionsPage {
             })
     }
 
-    /// One active Filter menu choice; clicking it removes the choice.
     fn chip(
         &self,
         ix: usize,
@@ -244,9 +228,6 @@ impl ActionsPage {
             }))
     }
 
-    /// The Filter menu: due, person, project, meeting, the stale review and
-    /// how the open list is grouped. People and Projects only know open and
-    /// deferred work, and grouping and the stale review are for open work.
     fn filter_menu(
         &self,
         content: &ListContent,
@@ -263,7 +244,6 @@ impl ActionsPage {
             .label(lokalbot_i18n::tr("Filter"))
             .dropdown_caret(true)
             .dropdown_menu(move |menu, window, cx| {
-                // A menu entry that changes the filter.
                 let set = |change: Rc<dyn Fn(&mut ListFilter)>| {
                     let page = page.clone();
                     move |_: &gpui_kit::ClickEvent, _: &mut Window, cx: &mut gpui_kit::App| {
@@ -374,8 +354,6 @@ impl ActionsPage {
                 menu
             })
     }
-
-    // ---------------------------------------------------------------- list
 
     fn render_empty(&self, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
@@ -493,8 +471,6 @@ impl ActionsPage {
         }
     }
 
-    /// "8 open actions haven’t been mentioned in 3 weeks. Review": the quiet
-    /// bar under the list that replaces the "Still open?" question on rows.
     fn render_stale_bar(&self, count: usize, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let page = cx.entity().downgrade();
@@ -532,8 +508,6 @@ impl ActionsPage {
     }
 }
 
-/// "Anyone", then each choice, the current one checked; picking one sets the
-/// filter through `apply`.
 fn choice_items(
     menu: PopupMenu,
     choices: &[(Option<String>, String)],

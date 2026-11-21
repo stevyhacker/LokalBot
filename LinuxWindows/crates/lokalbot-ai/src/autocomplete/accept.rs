@@ -1,6 +1,3 @@
-//! What one accept key press takes (`CotypingAcceptanceChunker`) and the
-//! exact edit it makes (`CotypingContinuationAcceptance`).
-
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use lokalbot_core::settings::AcceptGranularity;
@@ -14,15 +11,10 @@ use super::text::{
 };
 use super::window;
 
-/// The acceptance settings that shape a press (`Options`). The defaults are
-/// the macOS ones.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct AcceptOptions {
     pub granularity: AcceptGranularity,
-    /// Punctuation after a word goes with it in the same press. Off, as in
-    /// Cotypist: a full stop or comma takes its own press.
     pub auto_accept_trailing_punctuation: bool,
-    /// Add a space after a suggestion's last word.
     pub add_space_after_accept: bool,
 }
 
@@ -46,33 +38,20 @@ impl AcceptOptions {
     }
 }
 
-/// Which key was pressed: the next chunk, or the whole remaining suggestion.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum AcceptScope {
     Chunk,
     Whole,
 }
 
-/// One accept press, planned once for the desktop's accept key and the
-/// practice editor alike.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AcceptancePlan {
-    /// The part of the suggestion this press consumes; report it back in
-    /// `AutocompleteCommand::Accepted`.
     pub chunk: String,
-    /// What to type at the caret: the chunk without a space the field
-    /// already has, with the space a new sentence needs.
     pub insertion: String,
-    /// User-perceived characters after the caret the insertion replaces,
-    /// when it completes a word the caret is inside of.
     pub forward_delete: usize,
-    /// User-perceived characters before the caret the insertion replaces:
-    /// the typed `:shortcode` an emoji stands for.
     pub backward_delete: usize,
 }
 
-/// `CotypingContinuationAcceptance.plan` plus the emoji replacement of
-/// `CotypingReplacementAcceptancePlanner`. `None` when nothing is accepted.
 pub fn plan(
     suggestion: &str,
     scope: AcceptScope,
@@ -83,7 +62,6 @@ pub fn plan(
     if suggestion.is_empty() {
         return None;
     }
-    // An emoji replaces the shortcode typed before it, whole or not at all.
     if let Some(hit) = emoji::match_trailing(before)
         && hit.glyph == suggestion
     {
@@ -130,9 +108,6 @@ pub fn plan(
     })
 }
 
-/// The first word-like chunk of `text`, keeping its leading whitespace.
-/// Scripts without spaces advance one UAX #29 word at a time (macOS uses
-/// ICU's dictionary words), with CJK punctuation bound to the word before it.
 pub fn next_word(text: &str, auto_accept_trailing_punctuation: bool) -> &str {
     if text.is_empty() {
         return "";
@@ -162,8 +137,6 @@ pub fn next_word(text: &str, auto_accept_trailing_punctuation: bool) -> &str {
     &text[..end]
 }
 
-/// Up to and including the next sentence or clause boundary, or the whole
-/// text when there is none. ASCII commas stay inside the phrase.
 pub fn next_phrase(text: &str, auto_accept_trailing_punctuation: bool) -> String {
     let mut accumulated = String::new();
     let mut working = text;
@@ -225,8 +198,6 @@ fn word_end_trimming_trailing_punctuation(text: &str, start: usize, end: usize) 
     (last_word_end < end).then_some(last_word_end)
 }
 
-/// The chunk as typed: a leading space the field already has is not typed
-/// twice, and a new sentence gets its separating space.
 pub fn insertion_chunk(chunk: &str, before: &str) -> String {
     let after_space = before
         .chars()
@@ -261,7 +232,6 @@ fn keeps_dot_attached(before: &str, next: char, chunk: &str) -> bool {
         if before_dot.is_numeric() && next.is_numeric() {
             return true;
         }
-        // "U." + "S": a dotted initialism goes on.
         if next.is_uppercase() && super::text::trailing_letters(before, dot).chars().count() == 1 {
             return true;
         }
@@ -283,8 +253,6 @@ fn keeps_dot_attached(before: &str, next: char, chunk: &str) -> bool {
     ))
 }
 
-/// `acceptanceChunkConsumingTrailingSpace`: with the trailing-space option the
-/// model's own space after a finished word goes with it.
 pub fn chunk_consuming_trailing_space(chunk: &str, remaining: &str) -> String {
     let Some(last) = chunk.chars().next_back() else {
         return chunk.to_string();
@@ -304,7 +272,6 @@ fn appending_trailing_space(chunk: &str) -> String {
     }
 }
 
-/// Words with at least one letter or digit (`acceptedWordCount`).
 pub fn accepted_word_count(text: &str) -> usize {
     text.split_whitespace()
         .filter(|w| w.chars().any(|c| c.is_alphanumeric()))
@@ -350,7 +317,6 @@ mod tests {
                 "{run}"
             );
         }
-        // UAX #29 words are one ideograph; CJK punctuation stays with the word.
         assert_eq!(word("\u{6599}\u{3001}\u{5185}\u{5bb9}"), "\u{6599}\u{3001}");
         assert_eq!(
             word("\u{3001}\u{7406}\u{89e3}\u{3057}\u{3001}\u{305d}\u{306e}\u{5185}\u{5bb9}"),
@@ -529,7 +495,6 @@ mod tests {
                 .backward_delete,
             8
         );
-        // Another glyph, or no shortcode, is an ordinary continuation.
         assert_eq!(
             plan_chunk("🎉", "Launch day :roc").unwrap().backward_delete,
             0
@@ -537,8 +502,6 @@ mod tests {
         assert_eq!(plan_chunk("🚀", "Launch day").unwrap().backward_delete, 0);
     }
 
-    /// Accepting piece by piece reproduces the suggestion exactly, for
-    /// accents, emoji, punctuation runs and scripts written without spaces.
     #[test]
     fn accepting_piece_by_piece_reproduces_the_suggestion() {
         for suggestion in [

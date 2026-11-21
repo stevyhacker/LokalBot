@@ -1,19 +1,9 @@
-//! The one-time request on Today to star LokalBot's repository
-//! (`GitHubStarPrompt.swift`). Everything here stays on this computer:
-//! LokalBot keeps only whether a meeting summary has finished, which calendar
-//! days it was used, and whether the request was answered. It sends nothing
-//! and never learns whether anyone starred.
-
 use std::path::Path;
 
-/// Distinct days of use that make the request eligible without a summary.
 pub const ACTIVE_DAYS_BEFORE_ASKING: usize = 7;
 
-/// Written at the root of every demo library, including the screenshot ones.
 pub const DEMO_LIBRARY_MARKER: &str = ".lokalbot-demo-library";
 
-/// After the first completed meeting summary or `ACTIVE_DAYS_BEFORE_ASKING`
-/// distinct days of use, whichever comes first, until it is answered.
 pub fn should_show(
     dismissed: bool,
     summary_completed: bool,
@@ -25,8 +15,6 @@ pub fn should_show(
         && (summary_completed || active_days.len() >= ACTIVE_DAYS_BEFORE_ASKING)
 }
 
-/// Whether `day_key` still needs counting; each day counts once, and only
-/// until there are enough to ask.
 pub fn should_record_day(day_key: &str, active_days: &[String]) -> bool {
     !active_days.iter().any(|day| day == day_key) && active_days.len() < ACTIVE_DAYS_BEFORE_ASKING
 }

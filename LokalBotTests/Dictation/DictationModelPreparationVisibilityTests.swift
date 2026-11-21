@@ -1,11 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The dictation HUD's model-preparation visibility policy. Preparation
-/// begins synchronously on every recording start, so `.recording` must stay
-/// quiet until real download progress (or a failure) exists — a warm model
-/// never flashes the panel — while `.transcribing` keeps the historical
-/// behavior of showing any status at all.
 @MainActor
 final class DictationModelPreparationVisibilityTests: XCTestCase {
 

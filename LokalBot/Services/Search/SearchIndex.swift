@@ -1,20 +1,11 @@
 import Foundation
 import SQLite3
 
-/// SQLite + FTS5 full-text index (design doc §4.1) over meeting titles,
-/// transcript segments, summaries, the user's own notes, and extracted
-/// outcomes with their saved corrections. Lives at <storage root>/lokalbotv3.sqlite.
-/// Segment-level rows let transcript hits deep-link to their audio timestamp.
-/// macOS ships SQLite with FTS5 enabled, so this adds no dependency.
 final class SearchIndex {
 
     private static let documentRowsMigration = "search-document-rows-v1"
-    /// Notes and outcomes were added after libraries were already indexed.
-    /// Clearing the freshness marks once makes the next pass include them
-    /// even when those files are older than the recorded source mtime.
     private static let notesOutcomesMigration = "search-notes-outcomes-v1"
 
-    /// Files whose contents become documents. Any newer write reindexes.
     static let sourceFileNames = [
         "meta.json", "transcript.json", "summary.md", MeetingNotes.fileName,
         MeetingOutcomes.fileName, MeetingOutcomeState.fileName,
@@ -28,14 +19,10 @@ final class SearchIndex {
         let id = UUID()
         let meetingID: UUID
         let kind: Kind
-        /// Segment start time for transcript hits; 0 otherwise.
         let start: TimeInterval
-        /// Snippet with « » around matched terms.
         let snippet: String
         let speaker: String
         var isSemantic = false
-        /// The whole stored document row. `snippet` keeps only a few tokens
-        /// around the match and can drop a nearby "not".
         var sourceText: String?
     }
 
@@ -82,9 +69,6 @@ final class SearchIndex {
         _ = reconcileDeletedMeetings()
     }
 
-    // MARK: - Indexing
-
-    /// Re-index every meeting whose files changed since the last pass.
     func reindexAll(_ meetings: [Meeting], storage: StorageManager) {
         for meeting in meetings {
             guard !Task.isCancelled else { return }
@@ -137,23 +121,14 @@ final class SearchIndex {
 
         guard !Task.isCancelled, let database else { return }
         let meetingID = meeting.id.uuidString
-        // Test seam for deterministically exercising an older snapshot that
-        // reaches its transaction after a newer independent connection.
         beforeTransaction?()
         guard !Task.isCancelled else { return }
         database.transaction {
-            // Deletion and indexing use independent SQLite connections. Check
-            // the durable tombstone inside this write transaction so either
-            // indexing commits first and deletion removes it, or deletion
-            // commits first and this late worker becomes a no-op.
             do {
                 guard try !database.hasRowChecked(
                     "SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1",
                     bind: [meetingID]),
                       FileManager.default.fileExists(atPath: folder.path) else { return true }
-                // The optimistic check above avoids unnecessary file reads.
-                // Repeat it under BEGIN IMMEDIATE so an older worker cannot
-                // commit after and overwrite a newer snapshot.
                 if let indexed = try database.firstDoubleChecked(
                     "SELECT source_mtime FROM indexed_meetings WHERE meeting_id = ?1",
                     bind: [meetingID]), indexed >= mtime,
@@ -213,10 +188,6 @@ final class SearchIndex {
         locallyDeletedMeetingIDs.remove(meetingID)
     }
 
-    /// Deleting a meeting removes its folder before writing its tombstone, so
-    /// a tombstone on a meeting that still loads (and is not a merged source)
-    /// is stale; earlier boundary reviews wrote such tombstones. Clearing them
-    /// lets both indexes cover the meeting again. Returns the cleared IDs.
     static func clearStaleTombstones(liveMeetingIDs: Set<UUID>, databaseURL: URL) -> Set<UUID> {
         guard !liveMeetingIDs.isEmpty,
               let database = SQLiteDatabase(url: databaseURL),
@@ -235,9 +206,6 @@ final class SearchIndex {
         return succeeded ? cleared : []
     }
 
-    /// Both FTS and embeddings consult this shared tombstone table. Commit
-    /// recovery before clearing the source's merge marker in meta.json so an
-    /// interrupted/failed repair always retains enough information to retry.
     static func restoreMergedSource(_ meetingID: UUID, from mergedID: UUID,
                                     databaseURL: URL) throws {
         guard let database = SQLiteDatabase(url: databaseURL) else {
@@ -261,9 +229,6 @@ final class SearchIndex {
         }
     }
 
-    /// Finishes cleanup for durable tombstones left by a prior failed or
-    /// interrupted deletion. Queries exclude tombstones even before this pass
-    /// succeeds, so reconciliation can safely be retried at startup and in-app.
     @discardableResult
     func reconcileDeletedMeetings() -> Bool {
         guard let database else { return false }
@@ -286,18 +251,11 @@ final class SearchIndex {
         }
     }
 
-    // MARK: - Query
-
-    /// FTS5 search. By default terms are AND-ed and the last gets prefix matching
-    /// (search-as-you-type). `matchAll: false` ORs the terms for recall, and
-    /// `dropStopWords` strips function words first — both used by the chat tool to
-    /// rescue natural-language questions. `kind` nil = all kinds.
     func search(_ query: String, kind: Kind? = nil, limit: Int = 60,
                 matchAll: Bool = true, dropStopWords: Bool = false,
                 meetingIDs: Set<UUID>? = nil) -> [Hit] {
         guard limit > 0 else { return [] }
         if let meetingIDs, meetingIDs.isEmpty { return [] }
-        // FTS5 cannot see words inside a run of CJK text; see `CJKSearch`.
         if CJKSearch.containsCJK(query) {
             return substringSearch(query, kind: kind, limit: limit, matchAll: matchAll,
                                    dropStopWords: dropStopWords, meetingIDs: meetingIDs,
@@ -306,7 +264,6 @@ final class SearchIndex {
         let hits = ftsSearch(query, kind: kind, limit: limit, matchAll: matchAll,
                              dropStopWords: dropStopWords, meetingIDs: meetingIDs)
         guard hits.isEmpty else { return hits }
-        // A Latin word glued to CJK text ("比如logo再大") is part of that run's token.
         return substringSearch(query, kind: kind, limit: limit, matchAll: matchAll,
                                dropStopWords: dropStopWords, meetingIDs: meetingIDs,
                                cjkRowsOnly: true)
@@ -355,9 +312,6 @@ final class SearchIndex {
         }.filter { !locallyDeletedMeetingIDs.contains($0.meetingID) }
     }
 
-    /// Every meeting with a row matching the query. The Meetings list filter
-    /// shows all matches; ranked search fetched 2,000 rows and kept the first
-    /// 40 meetings, so a common word hid older ones.
     func matchingMeetingIDs(_ query: String) -> Set<UUID> {
         if CJKSearch.containsCJK(query) { return substringMeetingIDs(query, cjkRowsOnly: false) }
         guard let match = Self.ftsQuery(from: query, matchAll: true, dropStopWords: false),
@@ -375,10 +329,6 @@ final class SearchIndex {
         return found.isEmpty ? substringMeetingIDs(query, cjkRowsOnly: true) : found
     }
 
-    // MARK: - Substring matching (CJK)
-
-    /// Search terms for the substring path, honouring the same AND/OR and
-    /// stop-word choices as `ftsQuery`.
     static func substringTerms(_ query: String, matchAll: Bool, dropStopWords: Bool) -> [String] {
         var terms = matchAll ? CJKSearch.terms(from: query) : CJKSearch.relaxedTerms(from: query)
         if dropStopWords {
@@ -388,9 +338,6 @@ final class SearchIndex {
         return terms
     }
 
-    /// The WHERE clause shared by substring search and the meeting filter:
-    /// every term (or, relaxed, any term) occurs in the text, optionally only
-    /// in rows that contain CJK text, and the meeting is not deleted.
     private static func substringConditions(terms: [String], matchAll: Bool, cjkRowsOnly: Bool,
                                             values: inout [Any]) -> [String] {
         let termClauses = terms.map { term -> String in
@@ -411,10 +358,6 @@ final class SearchIndex {
         return conditions
     }
 
-    /// Substring counterpart of `ftsSearch`. Shorter documents come first, the
-    /// way bm25 favours them; relaxed (OR) results rank by how many pieces
-    /// matched. Snippets are built here because `snippet()` marks nothing
-    /// without MATCH.
     private func substringSearch(_ query: String, kind: Kind?, limit: Int, matchAll: Bool,
                                  dropStopWords: Bool, meetingIDs: Set<UUID>?,
                                  cjkRowsOnly: Bool) -> [Hit] {
@@ -481,8 +424,6 @@ final class SearchIndex {
         return Set(ids).subtracting(locallyDeletedMeetingIDs)
     }
 
-    /// Embeddings historically retained only the first 300 characters and lost
-    /// source kind. Recover the matching document before choosing a reading excerpt.
     func semanticPassage(meetingID: UUID, start: TimeInterval, text: String, query: String) -> Hit? {
         guard let database, !locallyDeletedMeetingIDs.contains(meetingID) else { return nil }
         let candidates: [(String, Kind, TimeInterval, String)] = database.query("""
@@ -522,10 +463,6 @@ final class SearchIndex {
         }.first
     }
 
-    /// Common English function words that carry no retrieval signal. Stripped
-    /// from natural-language queries (`dropStopWords`) so a question like
-    /// "what did we decide about caching" doesn't AND `what/did/we/about`
-    /// against the index and return nothing.
     static let stopWords: Set<String> = [
         "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at",
         "for", "with", "about", "as", "by", "from", "into", "is", "are", "was",
@@ -536,11 +473,6 @@ final class SearchIndex {
         "should", "will", "shall", "may", "might", "must", "any", "some", "there",
     ]
 
-    /// "fts5 syntax" is user-hostile; quote each term so punctuation can't
-    /// produce a syntax error. `matchAll` ANDs the terms and prefix-matches the
-    /// final one (search-as-you-type); pass `matchAll: false` to OR them for
-    /// recall. `dropStopWords` strips function words first, keeping the originals
-    /// only when every term was a stop word.
     static func ftsQuery(from raw: String, matchAll: Bool = true,
                          dropStopWords: Bool = false) -> String? {
         var terms = raw.split(whereSeparator: \.isWhitespace)
@@ -560,8 +492,6 @@ final class SearchIndex {
             }
             .joined(separator: " ")
     }
-
-    // MARK: - Plumbing
 
     private struct Document {
         let text: String
@@ -587,9 +517,6 @@ final class SearchIndex {
         }
     }
 
-    /// One searchable row per current decision, action, and open question.
-    /// Actions use the user's saved text, owner, and due corrections so a
-    /// corrected commitment is found by the words the user chose.
     static func outcomeTexts(for meeting: Meeting, root: URL) -> [String] {
         guard let projection = MeetingOutcomeProjection.load(for: meeting, root: root),
               !projection.isArchived else { return [] }
@@ -611,9 +538,6 @@ final class SearchIndex {
         return decisions + actions + questions
     }
 
-    /// Source file behind each removable document kind. Deleting a file
-    /// (clearing notes, archiving outcomes) cannot raise the newest source
-    /// modification time, so freshness alone would keep its rows searchable.
     private static let documentSources: [(kind: Kind, fileName: String)] = [
         (.segment, "transcript.json"), (.summary, "summary.md"),
         (.notes, MeetingNotes.fileName), (.outcome, MeetingOutcomes.fileName),

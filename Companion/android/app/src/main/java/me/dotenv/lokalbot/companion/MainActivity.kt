@@ -32,7 +32,6 @@ import me.dotenv.lokalbot.companion.ui.LockScreen
 import me.dotenv.lokalbot.companion.ui.RootActions
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 
-/** A FragmentActivity because BiometricPrompt needs one. */
 class MainActivity : FragmentActivity() {
     private val container get() = (application as CompanionApp).container
 
@@ -45,8 +44,6 @@ class MainActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
-        // Restored state says "unlocked" for as long as Android keeps it, which can be days after
-        // it ended the process. Only a restart soon after the app was left may skip the lock.
         locked = savedInstanceState == null || savedInstanceState.getBoolean(KEY_LOCKED) ||
             awayTooLong(savedInstanceState.getLong(KEY_STOPPED_AT, NEVER))
         pairingLink = savedInstanceState?.getString(KEY_LINK) ?: pairingLinkFrom(intent)
@@ -74,7 +71,6 @@ class MainActivity : FragmentActivity() {
                             appLockEnabled = appLockEnabled,
                             appLockAvailable = canAuthenticate(),
                             onAppLockChange = { enable ->
-                                // Turning the lock on asks once, so nobody locks themselves out.
                                 if (enable) authenticate { setAppLock(true) } else setAppLock(false)
                             },
                             pairingLink = pairingLink,
@@ -112,7 +108,6 @@ class MainActivity : FragmentActivity() {
         pairingLink?.let { outState.putString(KEY_LINK, it) }
     }
 
-    /** [since] is on the clock that restarts with the device, so a time ahead of it is from before a restart. */
     private fun awayTooLong(since: Long): Boolean {
         val away = SystemClock.elapsedRealtime() - since
         return since == NEVER || away > RELOCK_AFTER_MS || away < 0
@@ -149,7 +144,6 @@ class MainActivity : FragmentActivity() {
         )
     }
 
-    /** The recording notification opens the recording screen. */
     private fun showRecorderIfAsked(intent: Intent?) {
         if (intent?.getBooleanExtra(RecordingService.EXTRA_SHOW_RECORDER, false) == true) container.recorder.showScreen()
     }
@@ -167,13 +161,6 @@ class MainActivity : FragmentActivity() {
     }
 }
 
-/**
- * With the app lock on, the recents screen shows no picture of the library: the
- * lock only comes down after a while in the background, and the system takes
- * that picture on the way out. Android 13 can leave just that picture out, so
- * the person's own screenshots still work, as on iOS. Earlier versions can only
- * mark the whole window secure, which stops screenshots too.
- */
 internal fun Activity.keepOutOfRecents(hide: Boolean) {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         setRecentsScreenshotEnabled(!hide)

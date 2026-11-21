@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The recording in progress, at the top of Today: what is being recorded, for
-/// how long, whether sound is arriving, and the only Stop on the page.
 struct TodayLiveCard: View {
     @EnvironmentObject private var app: AppState
     let meeting: Meeting
@@ -69,8 +67,6 @@ struct TodayLiveCard: View {
     }
 }
 
-/// Whether each source is producing sound right now, from the same health
-/// snapshot the recording strip reads, on one line.
 private struct TodayRecordingLevels: View {
     @ObservedObject var recording: RecordingController
 

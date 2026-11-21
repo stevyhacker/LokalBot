@@ -1,11 +1,5 @@
 import Foundation
 
-/// Value-typed description of the llama.cpp sampler chain, in apply order.
-/// Pure so the config→chain mapping is unit-testable without libllama; the
-/// runtime turns each case into the matching `llama_sampler_init_*` call.
-///
-/// Order mirrors llama.cpp's `common` default for this subset:
-/// penalties → top_k → top_p → min_p → temp → dist (final distribution sampler).
 enum LlamaSamplerSpec: Equatable {
     case penalties(lastN: Int32, repeat: Float, freq: Float, present: Float)
     case topK(Int32)

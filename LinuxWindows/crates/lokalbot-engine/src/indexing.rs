@@ -1,7 +1,3 @@
-//! Brings search up to date at startup, for meetings this app did not just
-//! process: the keyword index first, then meaning-search vectors for meetings
-//! without current ones (`SemanticIndexer` on macOS).
-
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::Duration;
@@ -15,7 +11,6 @@ pub fn start(shared: Arc<Shared>, models: Models) {
     let spawned = std::thread::Builder::new()
         .name("lokalbot-index".into())
         .spawn(move || {
-            // Let the window and the first engine events settle.
             std::thread::sleep(Duration::from_secs(5));
             match shared.library.reindex_stale() {
                 Ok(0) => {}
@@ -25,7 +20,6 @@ pub fn start(shared: Arc<Shared>, models: Models) {
                 }
                 Err(err) => log::warn!("updating the search index failed: {err:#}"),
             }
-            // This looks for the runtime once per launch.
             while models.runtime_updating() && !shared.is_shutting_down() {
                 std::thread::sleep(Duration::from_secs(1));
             }
@@ -34,7 +28,6 @@ pub fn start(shared: Arc<Shared>, models: Models) {
             {
                 return;
             }
-            // Embedding is heavy; wait until nothing is capturing audio.
             while shared.capture_active.load(Ordering::Relaxed) {
                 if shared.is_shutting_down() {
                     return;

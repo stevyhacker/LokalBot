@@ -1,7 +1,3 @@
-//! Commands that do their work and exit, without opening a window
-//! (`HeadlessCommands.swift`): `lokalbot --health [--day YYYY-MM-DD] [--json]`,
-//! `lokalbot --dream [YYYY-MM-DD]` and `lokalbot --export-diagnostics <zip>`.
-
 use chrono::{Local, NaiveDate, Utc};
 use lokalbot_core::{Library, LibraryPaths, Settings};
 
@@ -62,7 +58,6 @@ fn health(
     Ok(())
 }
 
-/// Runs `command`; returns the process's exit code.
 pub fn run(command: &Command, paths: &LibraryPaths) -> i32 {
     let result = (|| -> Result<(), String> {
         let settings = Settings::load(&paths.settings_file());

@@ -1,20 +1,14 @@
 import Foundation
 import Observation
 
-/// Questions answered by the Mac, the conversation they belong to, and what to
-/// offer when the Mac can't be reached.
 @MainActor @Observable
 public final class AskModel {
     public struct Turn: Identifiable, Hashable, Sendable {
         public enum State: Hashable, Sendable {
             case answering
             case answered
-            /// Waiting to be sent the next time the Mac is reachable.
             case queued
-            /// The Mac didn't answer; the phone offers its own search and the queue.
             case macUnreachable
-            /// The connection dropped while the Mac answered. It keeps
-            /// answering, and the turn picks the answer up on return.
             case waiting
             case failed(String)
         }
@@ -24,12 +18,8 @@ public final class AskModel {
         public var result: AskResult?
         public var state: State
         public var askedAt: Date
-        /// "Search this device" results for this question.
         public var localResults: [SearchHit]?
-        /// The connection dropped once while the Mac answered, so the
-        /// question is queued.
         public var interrupted = false
-        /// Picking up an answer: the next delta is the whole text so far.
         var restartText = false
 
         public var id: String { request.requestId }
@@ -46,15 +36,11 @@ public final class AskModel {
     public private(set) var conversations: [Conversation] = []
     public var currentID: String?
     public var draft = ""
-    /// The day or meeting "Ask About…" started from. The computer answers
-    /// from there but still reads everything shared, so it shows no chip.
     public var scope: AskRequest.Scope?
     public private(set) var loaded = false
 
     public init() {}
 
-    /// The sample answerer reads meeting decisions and actions, so offer
-    /// questions grounded in its bundled library. Paired suggestions stay general.
     public static func suggestions(for mode: CompanionSession.Mode) -> [String] {
         if mode == .sample {
             return ["What came up about onboarding?", "What came up about pricing?", "What came up in the Northwind call?"]
@@ -74,10 +60,6 @@ public final class AskModel {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !isAnswering
     }
 
-    // MARK: Loading
-
-    /// Ask history and queued questions from the store, keeping turns that
-    /// exist only in memory (answering, unreachable, failed).
     public func load(_ session: CompanionSession) async {
         let history = (try? await session.store.askHistory(limit: 500)) ?? []
         let queued = (try? await session.store.queuedQuestions()) ?? []
@@ -89,7 +71,6 @@ public final class AskModel {
         }
         let saved = Set(history.map(\.request.requestId))
         for request in queued where !saved.contains(request.requestId) {
-            // An interrupted turn keeps its partial answer and its state.
             if let memory = memoryTurn(request.requestId), memory.interrupted {
                 turnsByConversation[request.conversationId, default: []].append(memory)
                 continue
@@ -117,8 +98,6 @@ public final class AskModel {
         conversations.lazy.flatMap(\.turns).first { $0.id == id }
     }
 
-    // MARK: Asking
-
     public func newConversation(scope: AskRequest.Scope? = nil) {
         currentID = nil
         self.scope = scope
@@ -143,19 +122,15 @@ public final class AskModel {
         await send(request, session: session)
     }
 
-    /// Asks again a question that couldn't reach the Mac or failed.
     public func retry(_ turnID: String, session: CompanionSession) async {
         guard let turn = turn(turnID) else { return }
         update(turnID) { $0.state = .answering; $0.answer = ""; $0.localResults = nil }
         await send(turn.request, session: session)
     }
 
-    /// Picks up an answer whose connection dropped, e.g. when the phone is
-    /// unlocked again.
     public func resumeWaiting(_ session: CompanionSession) async {
         guard !isAnswering,
               let waiting = conversations.lazy.flatMap(\.turns).last(where: { $0.state == .waiting }) else { return }
-        // The Mac sends the text so far as the first delta.
         update(waiting.id) { $0.state = .answering; $0.restartText = true }
         await send(waiting.request, session: session)
     }
@@ -164,7 +139,6 @@ public final class AskModel {
         let id = request.requestId
         session.askingIDs.insert(id)
         defer { session.askingIDs.remove(id) }
-        // The sample is answered on this device and needs no network discovery.
         let addresses = session.mode == .sample ? [] : await session.discoverAddresses()
         do {
             let result = try await session.store.ask(request, extraAddresses: addresses) { [weak self] delta in
@@ -184,14 +158,12 @@ public final class AskModel {
         } catch CompanionStoreError.interrupted {
             update(id) { $0.state = .waiting; $0.interrupted = true }
         } catch CompanionStoreError.unreachable, CompanionStoreError.notPaired {
-            // An interrupted question is queued already: out of reach, it keeps waiting.
             update(id) { $0.state = $0.interrupted ? .waiting : .macUnreachable }
         } catch {
             update(id) { $0.state = .failed(error.localizedDescription) }
         }
     }
 
-    /// "Ask when my computer is back".
     public func queue(_ turnID: String, session: CompanionSession) async {
         guard let turn = turn(turnID) else { return }
         do {
@@ -202,7 +174,6 @@ public final class AskModel {
         }
     }
 
-    /// "Search this device": the phone's own copy, without the Mac.
     public func searchDevice(_ turnID: String, session: CompanionSession) async {
         guard let turn = turn(turnID) else { return }
         let terms = Self.searchTerms(turn.request.question)
@@ -216,7 +187,6 @@ public final class AskModel {
         update(turnID) { $0.localResults = hits.filter { seen.insert($0.id).inserted } }
     }
 
-    /// The question's content words, for a keyword search of the local copy.
     static func searchTerms(_ question: String) -> String {
         let stopWords: Set<String> = [
             "what", "when", "where", "which", "who", "why", "how", "about", "this", "that", "with", "week",
@@ -230,8 +200,6 @@ public final class AskModel {
             .filter { $0.count > 2 && !stopWords.contains($0) }
             .joined(separator: " ")
     }
-
-    // MARK: Helpers
 
     public func turn(_ id: String) -> Turn? {
         for conversation in conversations {

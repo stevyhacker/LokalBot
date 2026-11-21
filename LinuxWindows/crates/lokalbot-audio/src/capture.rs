@@ -1,9 +1,3 @@
-//! Microphone devices and cpal input streams.
-//!
-//! On Linux cpal talks to PulseAudio (or PipeWire through pipewire-pulse) when a
-//! server is running, which gives readable device names, and falls back to ALSA.
-//! On Windows it uses WASAPI.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
@@ -17,12 +11,9 @@ use crate::track::ChunkSink;
 
 const STREAM_TIMEOUT: Duration = Duration::from_secs(5);
 
-/// A microphone the user can pick.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct AudioDevice {
-    /// Stable identifier to store in settings (`host:device`).
     pub id: String,
-    /// Name to show.
     pub name: String,
     pub is_default: bool,
 }
@@ -31,8 +22,6 @@ pub(crate) fn host() -> cpal::Host {
     cpal::default_host()
 }
 
-/// Inputs worth offering: monitor sources (loopback of speakers) and ALSA
-/// plumbing devices are left out.
 fn is_offered_input(id: &str, name: &str) -> bool {
     let lower = id.to_lowercase();
     if lower.ends_with(".monitor") {
@@ -77,7 +66,6 @@ fn device_name(device: &cpal::Device) -> String {
         .unwrap_or_default()
 }
 
-/// Microphones on this computer, the system default first.
 pub fn input_devices() -> Vec<AudioDevice> {
     let host = host();
     let default_id = host.default_input_device().as_ref().and_then(device_id);
@@ -103,8 +91,6 @@ pub fn input_devices() -> Vec<AudioDevice> {
     devices
 }
 
-/// The microphone to record from: the stored id, then a device with that name,
-/// then the system default. The second value explains a fallback.
 pub(crate) fn resolve_input_device(
     preferred: Option<&str>,
 ) -> Result<(cpal::Device, Option<String>)> {
@@ -136,8 +122,6 @@ pub(crate) fn resolve_input_device(
     Ok((device, warning))
 }
 
-/// Errors reported by a stream's error callback. Xruns and automatic reroutes
-/// are counted, not treated as failures.
 #[derive(Default)]
 pub(crate) struct StreamFlags {
     failed: AtomicBool,
@@ -178,8 +162,6 @@ impl StreamFlags {
     }
 }
 
-/// Opens `device` for capture in its preferred format and feeds mono buffers to
-/// `sink`. On Windows, an output device yields a WASAPI loopback stream.
 pub(crate) fn open_stream(
     device: &cpal::Device,
     loopback: bool,
@@ -194,8 +176,6 @@ pub(crate) fn open_stream(
     .with_context(|| format!("no usable format for “{}”", device_name(device)))?;
     let format = supported.sample_format();
     let mut config: cpal::StreamConfig = supported.config();
-    // Ask for ~30 ms buffers: PulseAudio otherwise delivers 2 s fragments,
-    // which delays meters and stream start. Fall back to the device default.
     let wanted = (config.sample_rate * 30 / 1000).max(64);
     if let cpal::SupportedBufferSize::Range { min, max } = supported.buffer_size()
         && (*min..=*max).contains(&wanted)
@@ -256,7 +236,6 @@ where
     let stream = device.build_input_stream::<T, _, _>(
         *config,
         move |data: &[T], info: &cpal::InputCallbackInfo| {
-            // Place the buffer by when it was captured, not when it arrived.
             let stamp = info.timestamp();
             let latency = stamp.callback.checked_duration_since(stamp.capture);
             sink.push_captured(mix_to_mono(data, channels), rate, latency);

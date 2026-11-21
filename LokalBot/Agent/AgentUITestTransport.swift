@@ -1,8 +1,6 @@
 #if LOKALBOT_UI_TEST_HOST
 import Foundation
 
-/// Hosted UI fixture for the real RPC/controller/approval flow. It performs
-/// no inference or tool operations, and is absent from production builds.
 actor AgentUITestTransport: PiLineTransport {
     nonisolated let incoming: AsyncStream<String>
     private let continuation: AsyncStream<String>.Continuation

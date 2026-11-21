@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// The meeting library list — live recording first, then finished meetings
-/// grouped by day. Capture's Library scope (spec §2.2: unchanged behavior —
-/// multi-select, delete). The live row routes to `LiveMeetingDetailView`
-/// via the shared selection. Deletion is confirmed by the host window's
-/// dialog via `pendingDelete`.
 struct MeetingListView: View {
     @EnvironmentObject var app: AppState
     @Binding var pendingDelete: Set<Meeting.ID>?
@@ -16,8 +11,6 @@ struct MeetingListView: View {
     var body: some View {
         VStack(spacing: 0) {
             VStack(spacing: 10) {
-                // The header is the search field and Record. Importing stays in
-                // the File menu, on drag and drop, and in the empty library.
                 HStack(spacing: 8) {
                     HStack(spacing: 6) {
                         Image(systemName: "magnifyingglass")
@@ -220,7 +213,6 @@ struct MeetingListView: View {
         }
     }
 
-    /// Live recording first, then finished meetings, grouped by day.
     private var groupedMeetings: [(label: String, items: [Meeting])] {
         let calendar = Calendar.current
         let all = app.meetings
@@ -268,15 +260,9 @@ struct MeetingListView: View {
 
 }
 
-/// One meeting row — status dot, live waveform, metadata line, and the
-/// processing/failed pipeline state. Shared by the Meetings list and the
-/// Today home so the two surfaces can never drift.
 struct MeetingRowView: View {
     @EnvironmentObject var app: AppState
     let meeting: Meeting
-    /// Comes from the list's selection, not `backgroundProminence`: the row
-    /// never saw `.increased` on the teal highlight, which left the
-    /// light-mode supporting grey on teal.
     var isSelected = false
 
     var body: some View {
@@ -305,16 +291,11 @@ struct MeetingRowView: View {
                         LiveWaveform(barCount: 5, barWidth: 2.5, maxHeight: 10)
                     }
                 }
-                // When, how long, then where. The sample says what it is
-                // where a meeting names its app.
                 Text(verbatim: MeetingDetailPresentation.rowSubtitle(
                     time: time, duration: duration,
                     source: meeting.isMergedMeeting ? nil
                         : meeting.isSample ? app.settings.appLanguage.localized("Sample") : meeting.appName))
                     .font(.scaled(.callout))
-                    // Selected rows take the title's own foreground, which the
-                    // list turns white on teal and keeps dark on the inactive
-                    // highlight. White is only 4.7:1 on teal, so no dimming.
                     .foregroundStyle(isSelected
                                      ? AnyShapeStyle(.primary)
                                      : AnyShapeStyle(Color(nsColor: WorkspaceTextColor.supporting)))
@@ -348,8 +329,6 @@ struct MeetingRowView: View {
             .help(stage.label)
             .accessibilityIdentifier("meeting.retry.\(meeting.id.uuidString)")
         } else if stage.isWaitingForModels {
-            // Parked, not in progress: no spinner. The action is explicit
-            // about what it does — it starts the missing model downloads.
             VStack(alignment: .trailing, spacing: 2) {
                 Label("Waiting for models", systemImage: "arrow.down.circle")
                     .font(AppFont.scaled(.callout))
@@ -371,8 +350,6 @@ struct MeetingRowView: View {
     }
 }
 
-// Expanded units are a visual presentation choice; exported summaries retain
-// their existing compact duration format.
 extension Meeting {
     var displayDuration: String {
         guard let seconds = recordedDuration ?? duration else { return "in progress" }

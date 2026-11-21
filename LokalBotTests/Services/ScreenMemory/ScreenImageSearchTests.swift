@@ -4,9 +4,6 @@ import SQLite3
 import XCTest
 @testable import LokalBot
 
-/// Picture vectors for retained screen captures: what is embedded, that a
-/// vector never outlives its pixels, and how text and picture vectors rank
-/// together with the keyword hits.
 @MainActor
 final class ScreenImageSearchTests: XCTestCase {
     private var url: URL!
@@ -23,8 +20,6 @@ final class ScreenImageSearchTests: XCTestCase {
             try? FileManager.default.removeItem(atPath: url.path + suffix)
         }
     }
-
-    // MARK: - Embedding captures
 
     func testAPassEmbedsRetainedPicturesNewestFirstAndMarksBrokenOnes() async throws {
         let older = try insert(path: "/shots/older.heic.enc", minutesAgo: 30)
@@ -79,10 +74,8 @@ final class ScreenImageSearchTests: XCTestCase {
         _ = await images.runPass()
         XCTAssertEqual(images.embeddedCount(), 3)
 
-        // Retention removes the file and clears the path; the row stays.
         try store.clearScreenshotPath("/shots/expiring.heic.enc")
         XCTAssertEqual(try vectorBytes(for: expiring), nil)
-        // Deleting a moment deletes the row and everything made from it.
         try store.deleteScreenshot(id: deleted)
         XCTAssertEqual(try vectorBytes(for: deleted), nil)
         XCTAssertEqual(try vectorBytes(for: kept), ScreenImageEmbeddings.vectorBytes)
@@ -141,8 +134,6 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(try vectorBytes(for: id), nil)
     }
 
-    // MARK: - Meaning on one scale
-
     func testAPictureThatStandsOutWinsAndScopesApply() throws {
         _ = EmbeddingIndex(databaseURL: url, storage: StorageManager(rootURL: url.deletingLastPathComponent()),
                            embedder: EmbeddingIndex.unavailableEmbedder)
@@ -174,7 +165,6 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(best.value.meaning.modality, .image)
         XCTAssertGreaterThanOrEqual(best.value.meaning.z, ScreenSearchRanking.zGate)
         XCTAssertEqual(all.count, 30)
-        // Text is read afterwards, only for the captures a search shows.
         XCTAssertEqual(EmbeddingIndex.screenTexts([ids[0], ids[0], 999_999], in: reader), [ids[0]: "capture 0 text"])
 
         let xcode = EmbeddingIndex.screenMeanings(database: reader, queryVector: query,
@@ -190,8 +180,6 @@ final class ScreenImageSearchTests: XCTestCase {
         let afterRetention = EmbeddingIndex.screenMeanings(database: reader, queryVector: query, filter: .all)
         XCTAssertEqual(afterRetention[ids[7]]?.meaning.modality, .text, "the picture vector left with the pixels")
     }
-
-    // MARK: - Ranking with keyword hits
 
     func testKeywordHitsAndPictureMatchesRankTogether() throws {
         let titled = try insert(path: "/shots/a.heic.enc", minutesAgo: 2, windowTitle: "Checkout — Stripe")
@@ -223,8 +211,6 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertFalse(ranked[1].isSemantic)
     }
 
-    /// Scoring leaves every capture's text unread; ranking reads it once, for
-    /// the captures found by meaning alone, and shows their best passage.
     func testATextMatchFoundByMeaningShowsItsPassageReadAfterRanking() throws {
         let worded = try insert(path: "/shots/c.heic.enc", minutesAgo: 3, windowTitle: "Invoices", ocr: "refund queue")
         let meant = try insert(path: "/shots/d.heic.enc", minutesAgo: 2, windowTitle: "Billing")
@@ -249,8 +235,6 @@ final class ScreenImageSearchTests: XCTestCase {
         XCTAssertEqual(hit.snippet, RecallPassage.excerpt(passage, query: "refund"))
         XCTAssertEqual(ranked.first { $0.snapshotID == worded }?.snippet, "«refund» queue")
     }
-
-    // MARK: - Helpers
 
     private func makeImages(recorder: SessionRecorder) -> ScreenImageEmbeddings {
         let images = ScreenImageEmbeddings(
@@ -287,7 +271,6 @@ final class ScreenImageSearchTests: XCTestCase {
         (0..<768).map { $0 == axis ? 1 : 0 }
     }
 
-    /// A unit vector at exactly `cosine` to axis 0.
     nonisolated private static func vector(cosine: Float, axis: Int) -> [Float] {
         var vector = [Float](repeating: 0, count: 768)
         vector[0] = cosine
@@ -306,7 +289,6 @@ final class ScreenImageSearchTests: XCTestCase {
     }
 }
 
-/// Counts sessions and what the loader read; can make the embedder fail.
 private final class SessionRecorder: @unchecked Sendable {
     private let lock = NSLock()
     var starts = 0

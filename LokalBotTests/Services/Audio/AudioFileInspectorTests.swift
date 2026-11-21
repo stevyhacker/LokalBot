@@ -51,7 +51,6 @@ final class AudioFileInspectorTests: XCTestCase {
 
     func testWriteWavIsReadable16kHzMonoPCM() throws {
         let url = temporaryURL(name: "onnx.wav")
-        // 0.5 s sawtooth so sample fidelity is checkable through int16.
         let samples = (0..<8_000).map { Float($0 % 200) / 200.0 - 0.5 }
         try OnnxTranscriptionEngine.writeWav(samples, to: url)
 

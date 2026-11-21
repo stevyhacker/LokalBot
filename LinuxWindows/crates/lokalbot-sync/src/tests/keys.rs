@@ -17,7 +17,6 @@ fn generated_keys_match_their_public_half() {
 
 #[test]
 fn public_key_follows_rfc_7748() {
-    // RFC 7748 section 6.1, Alice.
     let private =
         hex::decode("77076d0a7318a57d3c16c17251b26645df4c2f87ebc0992ab177fba51db92c2a").unwrap();
     let public =
@@ -39,7 +38,6 @@ fn public_key_rejects_wrong_lengths() {
 
 #[test]
 fn fingerprint_is_sixteen_hex_characters_of_sha256() {
-    // SHA-256 of 32 zero bytes starts 66687aadf862bd77.
     assert_eq!(key_fingerprint(vec![0; 32]), "66687aadf862bd77");
     let fingerprint = key_fingerprint(generate_static_key().public_key);
     assert_eq!(fingerprint.len(), 16);
@@ -73,7 +71,6 @@ fn pairing_payload_round_trips_without_revealing_the_secret() {
         host.server.public_key().to_vec()
     );
 
-    // The JSON inside uses the documented keys.
     let data = offer.qr_payload.strip_prefix("lokalbot://pair?d=").unwrap();
     let json: serde_json::Value =
         serde_json::from_slice(&crate::keys::b64url_decode(data).unwrap()).unwrap();

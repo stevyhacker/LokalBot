@@ -1,7 +1,5 @@
 import XCTest
 
-/// Hosted-only coverage of the model role editors. Uses synthetic settings;
-/// no credentials are saved and no inference or downloads are requested.
 final class ModelsSettingsUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -31,7 +29,6 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertTrue(search.waitForExistence(timeout: 5))
         search.click()
         search.typeText("Granite Speech 5.0 2B")
-        // The combined picker row exposes its text through value on macOS.
         let choice = app.staticTexts.matching(
             NSPredicate(format: "label BEGINSWITH %@ OR value BEGINSWITH %@",
                         "Granite Speech 5.0 2B", "Granite Speech 5.0 2B")).firstMatch
@@ -72,7 +69,6 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertEqual(picker.value as? String, "Ukrainian", "Changing model must not reset the saved language")
         let explanation = app.staticTexts["models.transcription.languageSupport"]
         XCTAssertTrue(explanation.waitForExistence(timeout: 5))
-        // macOS exposes SwiftUI static text through value on some SDKs.
         let explanationText = explanation.label + " " + (explanation.value as? String ?? "")
         XCTAssertTrue(explanationText.contains("does not support Ukrainian"), explanationText)
         capture("models-ukrainian-unsupported")
@@ -207,7 +203,6 @@ final class ModelsSettingsUITests: XCTestCase {
         XCTAssertTrue(UITestHarness.waitUntil { (consent.value as? Int) == 1 })
         app.buttons["models.back"].click()
         XCTAssertTrue(UITestHarness.waitUntil { !server.exists })
-        // Online services is a row under More now.
         UITestHarness.scrollTo(app.buttons["models.more.connections"], in: app, within: app.scrollViews["models.content"])
         app.buttons["models.more.connections"].click()
         XCTAssertEqual(model.value as? String, "example/test-model", "Changing pages must preserve the saved model")

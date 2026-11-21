@@ -1,16 +1,3 @@
-// Reads Claude Code sessions from `<config>/projects/<folder>/<id>.jsonl`
-// and the subagent transcripts beside them, in
-// `<config>/projects/<folder>/<id>/subagents/`.
-//
-// The rules follow LokalBot's own reader (ClaudeCodeSessionReader.swift):
-// a tool result contributes only its time, and meta records and compaction
-// summaries are skipped. Subagent work adds to its parent session's time,
-// tokens and tool calls, never to its requests.
-//
-// Every line is decoded. Judging lines by their opening bytes instead was
-// measured on 5.3 GB of real logs and saved no time, so it is not worth a
-// second way of reading that could disagree with the first.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -21,10 +8,8 @@ import { actionsInCommand, classifyPrompt } from './text.mjs';
 const AGENT = 'claude-code';
 const EDIT_TOOLS = new Set(['Edit', 'MultiEdit', 'Write', 'NotebookEdit']);
 const SUBAGENT_TOOLS = new Set(['Task', 'Agent']);
-/** A longer line is a tool result with a file or an image in it; nothing counted is that large. */
 const PARSE_LIMIT = 16 * 1024 * 1024;
 
-/** Where Claude Code keeps its projects: `CLAUDE_CONFIG_DIR` (a list), else the two defaults. */
 export function claudeRoots(env, home) {
   const configured = (env.CLAUDE_CONFIG_DIR ?? '').split(',').map((entry) => entry.trim()).filter(Boolean);
   const bases = configured.length > 0
@@ -33,12 +18,6 @@ export function claudeRoots(env, home) {
   return bases.map((base) => path.join(base, 'projects'));
 }
 
-/**
- * Claude Code deletes session logs after 30 days unless `cleanupPeriodDays`
- * says otherwise, but keeps a count per day in `stats-cache.json` beside the
- * projects folder. Returns those counts by date (`2026-02-03`), for the days
- * whose logs are gone. The file holds numbers only.
- */
 export function readClaudeSummary(roots) {
   const days = new Map();
   for (const root of roots) {
@@ -60,7 +39,6 @@ export function readClaudeSummary(roots) {
   return days;
 }
 
-/** Reads every session with activity in the collector's window. */
 export function readClaude(roots, collector, onProgress = () => {}) {
   const sessions = [];
   const subagents = [];
@@ -77,8 +55,6 @@ export function readClaude(roots, collector, onProgress = () => {}) {
       }
     }
   }
-  // A fork or resumed session copies earlier records under their original
-  // ids. Reading older files first credits that history where it happened.
   const main = candidates(sessions, collector).sort((a, b) => a.born - b.born || (a.file < b.file ? -1 : 1));
   const side = candidates(subagents, collector);
   const total = main.length + side.length;
@@ -113,7 +89,6 @@ function collectTranscripts(folder, parent, into, depth = 0) {
   }
 }
 
-/** Files written since the window began and created before it ended. */
 function candidates(files, collector) {
   const kept = [];
   for (const candidate of files) {
@@ -124,7 +99,6 @@ function candidates(files, collector) {
       continue;
     }
     if (!stat.isFile() || stat.mtimeMs < collector.start) continue;
-    // Some filesystems report no creation time.
     const born = stat.birthtimeMs > 0 ? stat.birthtimeMs : stat.mtimeMs;
     if (stat.birthtimeMs > 0 && stat.birthtimeMs >= collector.end) continue;
     kept.push({ ...candidate, born });
@@ -135,7 +109,6 @@ function candidates(files, collector) {
 function readTranscript({ file, id, subagent = false }, collector) {
   let session = null;
   let launched = false;
-  /** Usage by API message id: one message is written as several records. */
   const usage = new Map();
   const tally = emptyActions();
 
@@ -169,7 +142,6 @@ function readTranscript({ file, id, subagent = false }, collector) {
     const at = Date.parse(record.timestamp);
     if (!collector.inWindow(at) || !admit(record.uuid)) return;
     const current = touch(at);
-    // Older versions wrote subagent turns into the session's own file.
     const side = subagent || record.isSidechain === true;
     const workingDirectory = typeof record.cwd === 'string' ? record.cwd : null;
     if (workingDirectory && !side) bump(current.folders, workingDirectory);
@@ -216,14 +188,12 @@ function countRequest(session, content, tally) {
   session.prompts += 1;
   session.promptWords += request.words;
   if (request.kind === 'command') session.slashCommands += 1;
-  // A command the person ran in the agent's terminal mode is still their work.
   if (request.kind === 'terminal') mergeActions(tally, actionsInCommand(request.command));
 }
 
 function countReply(session, message, { side, workingDirectory, usage, tally, collector }) {
   const model = typeof message.model === 'string' && message.model !== '<synthetic>' ? message.model : null;
   const id = typeof message.id === 'string' ? message.id : null;
-  // The model a person chose, not the one a subagent was handed.
   if (model && !side && (!id || !usage.has(id))) bump(session.models, model);
   if (message.usage && typeof message.usage === 'object') {
     const key = id ?? `record-${usage.size}`;

@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The words and grouping the Agent screen shows: step labels, how a turn
-/// folds, a task's status, the task list's groups, changed files, and the
-/// approval card.
 final class AgentPresentationTests: XCTestCase {
     private var root: URL!
     private var workspace: URL!
@@ -37,8 +34,6 @@ final class AgentPresentationTests: XCTestCase {
         .tool(id: id, name: tool, argsJSON: json(arguments), output: "", status: status)
     }
 
-    // MARK: - Step labels
-
     func testFileStepsNameTheFileAndItsFolder() {
         let read = label("read", ["path": "notes/plan.md"])
         XCTAssertEqual(read.done, "Read plan.md")
@@ -67,14 +62,11 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(label("bash", ["command": "lokalbot-cli brief"]).done, "Read your briefing")
         XCTAssertEqual(label("bash", ["command": "lokalbot-cli actions --owner me --table"]).done, "Read action items")
         XCTAssertEqual(label("bash", ["command": "lokalbot-cli search --limit 5 release"]).detail, "release")
-        // A command without a name of its own shows its text.
         let people = label("bash", ["command": "lokalbot-cli people \"Ana Petrović\""])
         XCTAssertEqual(people.done, "Ran a command")
         XCTAssertEqual(people.detail, "lokalbot-cli people \"Ana Petrović\"")
     }
 
-    /// A label never hides what ran: anything a shell could chain or redirect
-    /// is a command, shown with its text.
     func testOtherCommandsShowTheirText() {
         for command in ["ls -la", "lokalbot-cli list > notes.md", "lokalbot-cli brief && rm -rf build",
                         "mkdir -p exports && lokalbot-cli list --table > exports/open-actions.md",
@@ -93,7 +85,6 @@ final class AgentPresentationTests: XCTestCase {
         let tool = label("mcp_search", ["q": "x"])
         XCTAssertEqual(tool.done, "Used mcp_search")
         XCTAssertEqual(tool.doing, "Using mcp_search")
-        // A file tool without a path has nothing to name.
         XCTAssertEqual(label("read", [:]).done, "Used read")
     }
 
@@ -102,7 +93,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(label.text(.succeeded, taskIsWorking: true) { $0 }, "Wrote note.md")
         XCTAssertEqual(label.text(.running, taskIsWorking: true) { $0 }, "Writing note.md…")
         XCTAssertEqual(label.text(.failed, taskIsWorking: false) { $0 }, "Writing note.md · failed")
-        // Still running when its task stopped: it never finished.
         XCTAssertEqual(label.text(.running, taskIsWorking: false) { $0 }, "Writing note.md · not finished")
     }
 
@@ -115,7 +105,6 @@ final class AgentPresentationTests: XCTestCase {
                        "Searched meeting library, read meeting notes, wrote README.md")
         XCTAssertEqual(AgentStepWording.summary(labels, lowercaseFollowing: false),
                        "Searched meeting library, Read meeting notes, Wrote README.md")
-        // Where a translation puts the file name first, its capitals stay.
         XCTAssertEqual(AgentStepWording.summary([("Gelesen", false), ("README.md geschrieben", true)],
                                                 lowercaseFollowing: true), "Gelesen, README.md geschrieben")
         XCTAssertEqual(AgentStepWording.summary([], lowercaseFollowing: true), "")
@@ -130,8 +119,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(german.done, "README.md geschrieben")
         XCTAssertTrue(german.beginsWithName)
     }
-
-    // MARK: - Layout
 
     private let question = AgentTranscriptItem.user(id: "u1", text: "Draft a follow-up")
 
@@ -160,7 +147,6 @@ final class AgentPresentationTests: XCTestCase {
         let finished = AgentTranscriptLayout.make(
             [question, step("t1", "read", ["path": "a"]), step("t2", "read", ["path": "b"])], isWorking: true)
         XCTAssertEqual(finished.map(\.id), ["u1", "steps.t1"])
-        // The only step of a run shows live with no folded line above it.
         let alone = AgentTranscriptLayout.make([question, step("t1", "read", ["path": "a"], .running)], isWorking: true)
         XCTAssertEqual(alone.map(\.id), ["u1", "t1"])
     }
@@ -181,11 +167,9 @@ final class AgentPresentationTests: XCTestCase {
         }
         XCTAssertTrue(work.isTurnSummary)
         XCTAssertEqual(work.steps.map(\.id), ["t1", "t2", "t3"])
-        // What the agent said between steps stays inside the fold, in order.
         XCTAssertEqual(work.entries.map(\.id), ["t1", "a1", "t2", "t3"])
         XCTAssertEqual(answer.id, "a2")
         XCTAssertEqual(steps.map(\.id), ["t1", "t2", "t3"])
-        // Nothing is dropped: every message is in exactly one block.
         XCTAssertTrue(blocks.contains { $0.searchableText.contains("Found it.") })
     }
 
@@ -247,8 +231,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertTrue(run.hasFailure)
     }
 
-    // MARK: - Status
-
     private func status(_ state: AgentSessionController.SessionState, approvals: Int = 0, error: Bool = false,
                         stopped: Bool = false, items: [AgentTranscriptItem] = [], saved: Bool = false,
                         changed: Int = 0) -> AgentTaskStatus {
@@ -268,10 +250,8 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(status(.failed("x"), items: answered), .needsAttention)
         XCTAssertEqual(status(.ready, stopped: true, items: answered), .stopped)
         XCTAssertEqual(status(.ready, items: answered, changed: 1), .done(changedFiles: 1))
-        // A notice after the answer does not undo it.
         XCTAssertEqual(status(.ready, items: answered + [.notice(id: "n", text: "Resumed", isError: false)]),
                        .done(changedFiles: 0))
-        // A saved conversation that is only being read is not "done" again.
         XCTAssertEqual(status(.idle, items: answered, saved: true), .saved)
         XCTAssertEqual(status(.ready, items: [question, step("t", "read")]), .saved)
     }
@@ -294,10 +274,7 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(AgentTaskStatus.stopped.tone, .quiet)
     }
 
-    // MARK: - Task list
-
     func testTasksGroupByDayWithPinnedFirst() throws {
-        // Day titles are formatted in the current time zone, so group in it too.
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = .current
         func date(_ day: Int, _ hour: Int) throws -> Date {
@@ -327,8 +304,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertTrue(AgentTaskListSection.make([], now: now, calendar: calendar).isEmpty)
     }
 
-    // MARK: - Changed files
-
     func testChangedFilesComeFromSucceededWritesAndEdits() throws {
         let outside = root.appendingPathComponent("elsewhere.txt")
         let items: [AgentTranscriptItem] = [
@@ -354,7 +329,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(files[1].detail { $0 }, "Edited · 1 line · Agent Workspace")
         XCTAssertEqual(files[2].target.place, .outside)
         XCTAssertEqual(files[2].detail { $0 }, "Edited · \(files[2].target.folder)")
-        // History does not say whether a written file was there before.
         XCTAssertEqual(files[3].change, .written)
         XCTAssertEqual(files[3].detail { $0 }, "2 lines · Agent Workspace")
         XCTAssertEqual(AgentChangedFile.lineCount(""), 0)
@@ -376,8 +350,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertEqual(AgentFileTarget.resolve("../up.md", workspace: workspace, workspaceName: "W").place, .outside)
         XCTAssertEqual(AgentFileTarget.resolve("~/x.md", workspace: workspace, workspaceName: "W").place, .outside)
     }
-
-    // MARK: - Approval card
 
     private func request(_ tool: String, path: String? = nil, command: String? = nil, content: String? = nil,
                          edits: [AgentApprovalRequest.Edit] = [], arguments: String? = nil) -> AgentApprovalRequest {
@@ -451,11 +423,8 @@ final class AgentPresentationTests: XCTestCase {
         let tool = card(request("mcp_search", arguments: "{\"q\":\"x\"}"))
         XCTAssertEqual(tool.title, "Use mcp_search?")
         XCTAssertEqual(tool.preview, "{\"q\":\"x\"}")
-        // A write's text stays on this Mac until the agent reads something back.
         XCTAssertNil(card(request("write", path: "/a/b.md", content: "x"), remote: "api.example.com").destination)
     }
-
-    // MARK: - Access levels
 
     func testEachLevelSaysWhatRunsOnItsOwnAndWhatStillAsks() {
         let asks = AgentApprovalMode.askBeforeChanges.levelDetail(workspaceName: "Agent Workspace") { $0 }
@@ -468,9 +437,6 @@ final class AgentPresentationTests: XCTestCase {
         XCTAssertTrue(AgentApprovalMode.fullAccess.levelDetail(workspaceName: "W") { $0 }.contains("without asking"))
     }
 
-    // MARK: - Catalog
-
-    /// Every sentence these types put together has an entry in the catalog.
     func testEverySentenceIsInTheCatalog() throws {
         let url = try XCTUnwrap(Bundle.main.url(
             forResource: "Localizable", withExtension: "strings", subdirectory: nil, localization: "en"))

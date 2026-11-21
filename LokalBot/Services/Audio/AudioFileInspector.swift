@@ -21,8 +21,6 @@ enum AudioFileInspector {
         return duration >= minimumDuration
     }
 
-    /// Reading a container header alone cannot establish that the payload is
-    /// complete. Recovery copies are retired only after decoding every frame.
     static func fullyDecodedDuration(at url: URL) -> TimeInterval? {
         guard let file = try? AVAudioFile(forReading: url), file.length > 0,
               let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: 16_384) else { return nil }

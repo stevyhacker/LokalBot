@@ -1,20 +1,13 @@
 import XCTest
 @testable import LokalBot
 
-/// Display rules of the Ask page: the order and count of matches, where the
-/// keyboard is among them, what the sources menu says, how an answer's
-/// citations group into sources, the passage a citation quotes, and the
-/// questions an empty page suggests.
 final class AskPresentationTests: XCTestCase {
     private let meetingA = UUID()
     private let meetingB = UUID()
 
-    // MARK: Matches
-
     func testMatchesListMeetingsThenScreenMomentsThenFiles() {
         var matches = sampleMatches()
         XCTAssertEqual(matches.count, 4)
-        // Saved agent notes, when that source is on, come last.
         matches.agentNotes = [note("0123abcd", title: "Release runbook")]
         XCTAssertEqual(matches.count, 5)
         guard case .agentNote(let listed)? = matches.row(at: 4) else { return XCTFail("the note is not the last row") }
@@ -63,8 +56,6 @@ final class AskPresentationTests: XCTestCase {
         XCTAssertTrue(AskMatches().isEmpty)
     }
 
-    // MARK: Keyboard
-
     func testDownMovesFromTheFieldIntoTheMatchesAndUpReturns() {
         var cursor = AskMatchCursor()
         XCTAssertFalse(cursor.isInMatches)
@@ -101,8 +92,6 @@ final class AskPresentationTests: XCTestCase {
         XCTAssertFalse(picked.isInMatches)
     }
 
-    // MARK: Sources menu
-
     func testSourcesMenuNamesTheChosenSources() {
         let all = AskScopeSummary.make(input(), meetingTitle: { _ in nil })
         XCTAssertEqual(all.title, "All sources")
@@ -114,7 +103,6 @@ final class AskPresentationTests: XCTestCase {
         let some = AskScopeSummary.make(input(sources: [.meetings, .screen]), meetingTitle: { _ in nil })
         XCTAssertEqual(some.title, "Meetings, Screen")
 
-        // Files is part of "All sources" even while it is not offered.
         let withoutFiles = AskScopeSummary.make(
             input(sources: [.meetings, .today, .screen], available: [.meetings, .today, .screen]),
             meetingTitle: { _ in nil })
@@ -122,7 +110,6 @@ final class AskPresentationTests: XCTestCase {
     }
 
     func testSourcesMenuNamesAgentNotesOnlyWhileTheyAreOffered() {
-        // "All sources" holds Agent notes whether or not the setting is on.
         let off = AskScopeSummary.make(input(available: [.meetings, .today, .screen, .files]),
                                        meetingTitle: { _ in nil })
         XCTAssertEqual(off.title, "All sources")
@@ -133,7 +120,6 @@ final class AskPresentationTests: XCTestCase {
             meetingTitle: { _ in nil })
         XCTAssertEqual(hidden.title, "Meetings", "a source that is switched off is not named")
 
-        // Only notes matched: the limit holds no meeting or screen moment.
         let onlyNotes = AskScopeSummary.make(
             input(sources: [.meetings, .agentNotes], meetingIDs: [], screenIDs: []),
             meetingTitle: { _ in nil })
@@ -166,7 +152,6 @@ final class AskPresentationTests: XCTestCase {
                                             meetingTitle: { _ in nil })
         XCTAssertEqual(untitled.title, "1 meeting")
 
-        // Only files matched: no meeting or screen moment is left to name.
         let files = AskScopeSummary.make(input(sources: [.meetings, .files], meetingIDs: [], screenIDs: []),
                                          meetingTitle: { _ in nil })
         XCTAssertTrue(files.isNarrowed)
@@ -201,8 +186,6 @@ final class AskPresentationTests: XCTestCase {
         XCTAssertEqual(summary.widenTitle, "Alle Quellen")
     }
 
-    // MARK: Sources under an answer
-
     func testCitationsGroupBySourceAndKeepTheirNumbers() {
         let citations: [ChatCitation] = [
             .init(meetingID: "aabbccdd", seconds: 12),
@@ -235,8 +218,6 @@ final class AskPresentationTests: XCTestCase {
         let grouped = AnswerSources.groups(citations) { paths[$0] }
         XCTAssertEqual(grouped.map { $0.entries.map(\.number) }, [[1, 3], [2]])
     }
-
-    // MARK: Quoted passages
 
     func testMeetingCitationQuotesTheLineThatStartsInItsSecond() {
         let lines: [CitationPassage.Line] = [
@@ -285,8 +266,6 @@ final class AskPresentationTests: XCTestCase {
                        "a long quote is cut between words")
     }
 
-    // MARK: Suggestions
-
     func testSuggestionsNameThePersonsOwnProjectMeetingAndColleague() {
         let suggestions = AskSuggestions.build(
             .init(latestMeetingTitle: "Design review meeting", personName: "Maya Chen", projectName: "Atlas"),
@@ -329,8 +308,6 @@ final class AskPresentationTests: XCTestCase {
         XCTAssertNil(AskSuggestions.keyword(from: []))
     }
 
-    // MARK: Dates
-
     func testDatesAreShortAndCarryTheYearOnlyWhenItDiffers() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(secondsFromGMT: 0))
@@ -346,8 +323,6 @@ final class AskPresentationTests: XCTestCase {
         XCTAssertTrue(moment.contains("11:00"), moment)
         XCTAssertFalse(moment.contains("2026"), moment)
     }
-
-    // MARK: Fixtures
 
     private func input(sources: Set<AskSourceScope> = AskSourceScope.defaults,
                        available: [AskSourceScope] = AskSourceScope.allCases,

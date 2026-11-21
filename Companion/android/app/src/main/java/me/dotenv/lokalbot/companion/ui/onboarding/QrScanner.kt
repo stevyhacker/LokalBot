@@ -18,10 +18,6 @@ import com.google.mlkit.vision.barcode.BarcodeScannerOptions
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.barcode.common.Barcode
 
-/**
- * A camera preview that reads QR codes on the device with ML Kit's bundled
- * model; nothing is sent anywhere. Calls [onCode] with each QR payload seen.
- */
 @Composable
 fun QrScanner(onCode: (String) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current

@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// What the Settings window says about each feature: the "Off" and "Paused"
-/// marks and the count badges in its list, what needs the person on
-/// Overview, each permission's state on Privacy & permissions, and the
-/// status lines under the page headers.
 final class SettingsStatusTests: XCTestCase {
     private let allGranted: [AppPermission: Bool] = [
         .microphone: true, .accessibility: true, .inputMonitoring: true, .screenRecording: true,
@@ -20,7 +16,6 @@ final class SettingsStatusTests: XCTestCase {
         [model(.transcribe, .ready), model(.think, .ready), model(.autocomplete, .ready)]
     }
 
-    /// Everything granted and downloaded, with the default settings.
     private func input(_ change: (inout SettingsStatus.Input) -> Void = { _ in }) -> SettingsStatus.Input {
         var input = SettingsStatus.Input(settings: AppSettings(), granted: allGranted, grantedAtLaunch: allGranted,
                                          calendar: .allowed, models: readyModels(), freeBytes: 50_000_000_000)
@@ -34,8 +29,6 @@ final class SettingsStatusTests: XCTestCase {
 
     private func text(_ text: SettingsText) -> String { text.string { $0 } }
 
-    // MARK: Everything set up
-
     func testNothingNeedsYouWhenEverythingIsGrantedAndDownloaded() {
         let status = status()
 
@@ -46,21 +39,16 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(status.badge(.privacy), 0)
         XCTAssertEqual(status.badge(.models), 0)
         XCTAssertEqual(status.lines(for: .privacy).map(\.text.key), ["All set. Nothing leaves this Mac."])
-        // Ready models say what they take and what is free.
         XCTAssertEqual(status.lines(for: .models).map(\.text.key),
                        ["All ready. The models take about %@ on this Mac, and %@ is free."])
     }
 
-    /// A permission that has not been read yet counts as granted, so no
-    /// warning flashes while the window opens.
     func testUnreadPermissionsCountAsGranted() {
         let status = status { $0.granted = [:] }
 
         XCTAssertTrue(status.missingPermissions.isEmpty)
         XCTAssertEqual(status.access(.microphone), .allowed)
     }
-
-    // MARK: Permissions
 
     func testMicrophoneIsAlwaysNeededAndPausesMeetings() {
         let status = status { $0.granted[.microphone] = false }
@@ -106,8 +94,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(text(status.detail(of: need)), "Needed for: Autocomplete, Window titles, Selection actions")
     }
 
-    /// PRIVACY.md: Autocomplete reads the focused window only when Screen
-    /// Recording is already granted and never asks for it.
     func testAutocompleteNeverAsksForScreenRecording() {
         let status = status {
             $0.settings.cotypingEnabled = true
@@ -163,11 +149,8 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(status.permissionsAwaitingRelaunch, [.accessibility])
         let line = status.lines(for: .writing).first { $0.action == .relaunch }
         XCTAssertEqual(line.map { text($0.text) }, "Accessibility starts working after LokalBot reopens.")
-        // The microphone works at once, and Dictation does not paste here.
         XCTAssertFalse(status.lines(for: .recording).contains { $0.action == .relaunch })
     }
-
-    // MARK: Models
 
     func testMissingModelsAreOneNeedFixedOnModels() {
         let status = status {
@@ -176,7 +159,6 @@ final class SettingsStatusTests: XCTestCase {
                          self.model(.autocomplete, .unavailable, bytes: 4_000_000_000)]
         }
 
-        // Autocomplete is off, so its model is not asked for.
         XCTAssertEqual(status.needs, [.download(roles: [.transcribe, .think], bytes: 5_000_000_000)])
         XCTAssertEqual(status.badge(.models), 1)
         XCTAssertEqual(status.badge(.privacy), 0)
@@ -185,7 +167,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(text(status.detail(of: need)),
                        "\(SettingsStatus.size(5_000_000_000)) · New meetings wait to be transcribed until then.")
         let line = status.lines(for: .models).first
-        // The header's "Download all" button downloads them, so the line has none of its own.
         XCTAssertNil(line?.action)
         XCTAssertEqual(status.bytesToDownload, 5_000_000_000)
         XCTAssertEqual(line.map { text($0.text) },
@@ -193,8 +174,6 @@ final class SettingsStatusTests: XCTestCase {
                            + "\(SettingsStatus.size(50_000_000_000)) free.")
     }
 
-    /// While the header shows Cancel for a running download, a model that
-    /// still has to be asked for keeps its own Download button.
     func testAMissingModelKeepsItsDownloadButtonWhileAnotherDownloads() {
         let status = status {
             $0.models = [self.model(.transcribe, .unavailable, bytes: 2_000_000_000),
@@ -226,7 +205,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(line(minutes: 1), "Downloading · \(arrived) of \(total) · about 1 minute left")
         XCTAssertEqual(line(minutes: 5), "Downloading · \(arrived) of \(total) · about 5 minutes left")
 
-        // Without a size or a progress there is nothing to count.
         let unknown = status {
             $0.models = [self.model(.transcribe, .ready), self.model(.think, .downloading(progress: nil)),
                          self.model(.autocomplete, .ready)]
@@ -239,7 +217,6 @@ final class SettingsStatusTests: XCTestCase {
         let ready = status {
             $0.models = [self.model(.transcribe, .ready, bytes: 3_000_000_000),
                          self.model(.think, .ready, bytes: 2_000_000_000),
-                         // Autocomplete is off and its model is not here: it is not counted.
                          self.model(.autocomplete, .unavailable, bytes: 4_000_000_000)]
         }
         let line = ready.lines(for: .models).first
@@ -253,9 +230,6 @@ final class SettingsStatusTests: XCTestCase {
                        "All set. Every model runs on this Mac.")
     }
 
-    /// A model that is here and did not answer its check is said on Models,
-    /// with the way to the sheet that checks it again. It is not a count
-    /// badge: the model may still work.
     func testAFailedCheckIsALineOnModels() {
         let status = status { $0.failedChecks = [.think] }
 
@@ -267,7 +241,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(line?.buttonTitle, "Review…")
         XCTAssertEqual(status.badge(.models), 0)
 
-        // A check of a model that has since gone says nothing.
         let gone = self.status {
             $0.failedChecks = [.think]
             $0.models[1].status = .unavailable
@@ -319,8 +292,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(server.needs, [.modelAttention(.think)])
         XCTAssertTrue(server.modelsToDownload.isEmpty)
     }
-
-    // MARK: The list
 
     func testFeaturesThatAreOffSayOff() {
         let status = status {
@@ -395,7 +366,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(noMicrophone.lines(for: .dictation).first?.action, .allow(.microphone))
         XCTAssertEqual(noMicrophone.needs, [.permission(.microphone, features: [.meetings, .dictation])])
 
-        // Copying to the clipboard needs no Accessibility; pasting does.
         let copies = status {
             $0.settings.trackingEnabled = false
             $0.settings.dictationEnabled = true
@@ -415,7 +385,6 @@ final class SettingsStatusTests: XCTestCase {
     }
 
     func testScreenAndActivityIsPausedOnlyWhenWhatItReadsIsBlocked() {
-        // Apps are still tracked without Accessibility; only titles are missing.
         let titles = status { $0.granted[.accessibility] = false }
         XCTAssertEqual(titles.rowState(.dayMemory), .normal)
         XCTAssertEqual(titles.lines(for: .dayMemory).map(\.action), [.allow(.accessibility)])
@@ -447,8 +416,6 @@ final class SettingsStatusTests: XCTestCase {
         }
     }
 
-    // MARK: What leaves this Mac
-
     func testSharingWithPhonesIsNotEverythingStayingHere() {
         let status = status { $0.settings.companionSharingEnabled = true }
 
@@ -456,8 +423,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(status.headline.detail.key, "Nothing needs you.")
         XCTAssertEqual(status.lines(for: .privacy).map(\.tone), [.online])
     }
-
-    // MARK: Text
 
     func testTextFillsItsPlaceholdersFromTheCatalog() {
         let catalog = ["%lld things need you": "%lld Dinge", "Needed for: %@": "Für: %@", "Meetings": "Besprechungen"]
@@ -469,7 +434,6 @@ final class SettingsStatusTests: XCTestCase {
         XCTAssertEqual(SettingsText("Everything is working").string(localized), "Everything is working")
     }
 
-    /// Every sentence the status can show has an entry in the English catalog.
     func testStatusTextIsInTheCatalog() throws {
         let url = try XCTUnwrap(Bundle(for: AppState.self).url(
             forResource: "Localizable", withExtension: "strings", subdirectory: nil, localization: "en"))
@@ -482,7 +446,6 @@ final class SettingsStatusTests: XCTestCase {
             for need in status.needs {
                 keys.insert(status.title(of: need).key)
                 let detail = status.detail(of: need)
-                // "%@ · %@" only joins a size and a sentence.
                 if detail.key != "%@ · %@" { keys.insert(detail.key) }
                 for case .key(let key) in detail.arguments { keys.insert(key) }
                 for case .list(let list) in detail.arguments { keys.formUnion(list) }
@@ -540,7 +503,6 @@ final class SettingsStatusTests: XCTestCase {
     }
 }
 
-/// Back and forward through the Settings pages visited.
 final class SettingsPageHistoryTests: XCTestCase {
     func testBackAndForwardFollowTheVisits() {
         var history = SettingsPageHistory(current: .overview)

@@ -261,7 +261,6 @@ final class ModelSettingsTests: XCTestCase {
 
         XCTAssertEqual(ModelSettingsPresentation.downloadBlocker(for: unpinned, downloaded: false),
                        ModelDownloadManager.unpinnedHuggingFaceMessage)
-        // A file already on disk needs no download, so its source is moot.
         XCTAssertNil(ModelSettingsPresentation.downloadBlocker(for: unpinned, downloaded: true))
         XCTAssertNil(ModelSettingsPresentation.downloadBlocker(for: recommended, downloaded: false))
     }
@@ -278,7 +277,6 @@ final class ModelSettingsTests: XCTestCase {
                        .allowed)
         XCTAssertEqual(ModelSettingsPresentation.customModelRemoval(custom, in: settings, downloaded: true),
                        .downloaded)
-        // A saved on-device Think choice counts even while Think runs remotely.
         settings.summarizerBackend = .openAICompatible
         settings.builtInModelID = custom.id
         settings.dictationCompositionBuiltInModelID = custom.id

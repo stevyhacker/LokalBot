@@ -1,7 +1,6 @@
 import SwiftUI
 
 extension OnboardingDownloadPlan {
-    /// The plan for what the app has selected and what is on this Mac now.
     @MainActor
     init(app: AppState, roles: ModelRoles, session: OnboardingDownloadSession) {
         let snapshot = roles.snapshot
@@ -19,8 +18,6 @@ private func byteCount(_ bytes: Int64) -> String {
     ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
 }
 
-/// Setup, step 3. Download progress reaches only the views that observe
-/// `ModelRoles`: AppState does not relay it.
 struct OnboardingDownloadStep: View {
     @ObservedObject var app: AppState
     @ObservedObject private var roles: ModelRoles
@@ -40,7 +37,6 @@ struct OnboardingDownloadStep: View {
         let plan = OnboardingDownloadPlan(app: app, roles: roles, session: session)
         OnboardingDownloadContent(
             plan: plan,
-            // An estimate only once the speed has been watched for a while.
             minutesLeft: plan.downloadedBytes == nil ? nil
                 : plan.totalBytes.flatMap { estimator.minutesLeft(totalBytes: $0) },
             destination: InferencePresentation(settings: app.settings),
@@ -64,18 +60,12 @@ struct OnboardingDownloadStep: View {
             }
     }
 
-    /// A download that began outside this window (before a restart, or from
-    /// Settings) counts what is missing from the moment it is first seen.
     private func settle(_ phase: OnboardingDownloadPlan.Phase) {
         guard phase != .before, session.readyBefore == nil else { return }
         let snapshot = roles.snapshot
         session.readyBefore = Set(ModelRole.allCases.filter { snapshot[$0].isReady })
     }
 
-    /// huggingface.co is blocked in mainland China, so the first download
-    /// offers HF-Mirror and ModelScope there: on a Mac set to that region or to
-    /// Simplified Chinese, or once a mirror is already chosen. Settings → Models
-    /// always has the same picker.
     private var showsDownloadSource: Bool {
         Locale.current.region?.identifier == "CN"
             || Locale.preferredLanguages.first?.hasPrefix("zh-Hans") == true
@@ -84,13 +74,9 @@ struct OnboardingDownloadStep: View {
     }
 }
 
-/// The download step for one plan: each model's job and size before anything
-/// downloads, then progress per model and overall.
 struct OnboardingDownloadContent: View {
     let plan: OnboardingDownloadPlan
-    /// Nil until the speed makes an honest estimate.
     let minutesLeft: Int?
-    /// Where Think runs. A server is disclosed; this Mac needs no note.
     let destination: InferencePresentation
     let microphoneAllowed: Bool
     let showsDownloadSource: Bool
@@ -138,8 +124,6 @@ struct OnboardingDownloadContent: View {
         .animation(WorkspaceMotion.animation(.milestone, reduceMotion: reduceMotion), value: plan.phase)
     }
 
-    // MARK: Heading
-
     private func presetPicker(selected: ModelStackPreset,
                               onSelect: @escaping (ModelStackPreset) -> Void) -> some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -180,8 +164,6 @@ struct OnboardingDownloadContent: View {
             }
         }
     }
-
-    // MARK: Overall progress
 
     private func hero(_ plan: OnboardingDownloadPlan) -> some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -235,13 +217,10 @@ struct OnboardingDownloadContent: View {
             if plan.phase == .finished {
                 Text("\(byteCount(total)) downloaded")
             } else if let downloaded = plan.downloadedBytes {
-                // Sizes carry their unit, so the pair reads the same in every language.
                 Text(verbatim: "\(byteCount(downloaded)) / \(byteCount(total))")
             }
         }
     }
-
-    // MARK: Models
 
     private func row(_ model: OnboardingDownloadPlan.Model, plan: OnboardingDownloadPlan) -> some View {
         OnboardingRow(symbol: model.symbol) {
@@ -295,8 +274,6 @@ struct OnboardingDownloadContent: View {
         }
     }
 
-    // MARK: Before the download
-
     private func beforeNotes(_ plan: OnboardingDownloadPlan) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             sizeNote(plan)
@@ -311,7 +288,6 @@ struct OnboardingDownloadContent: View {
         .padding(.top, -4)
     }
 
-    /// The total and the free space, in the warning colour when it will not fit.
     @ViewBuilder private func sizeNote(_ plan: OnboardingDownloadPlan) -> some View {
         let total = plan.remainingBytes.flatMap { $0 > 0 ? byteCount($0) : nil }
         let free = plan.availableBytes.map { byteCount(max(0, $0)) }
@@ -330,8 +306,6 @@ struct OnboardingDownloadContent: View {
             .accessibilityIdentifier("onboarding.downloadSize")
         }
     }
-
-    // MARK: While it downloads, and after
 
     private func afterOptions(_ plan: OnboardingDownloadPlan) -> some View {
         let waiting = plan.phase != .finished
@@ -414,14 +388,12 @@ private extension OnboardingDownloadPlan.Model {
     }
 }
 
-/// The download step's footer, kept current by `ModelRoles`.
 struct OnboardingDownloadFooter: View {
     @ObservedObject var app: AppState
     @ObservedObject private var roles: ModelRoles
     let session: OnboardingDownloadSession
     let back: () -> Void
     let start: () -> Void
-    /// Ends setup; true opens the sample meeting when its models are ready.
     let finish: (Bool) -> Void
 
     init(app: AppState, session: OnboardingDownloadSession, back: @escaping () -> Void,
@@ -442,8 +414,6 @@ struct OnboardingDownloadFooter: View {
     }
 }
 
-/// Skip and "Download 5.2 GB" before anything downloads, then the way into
-/// the app while it runs.
 struct OnboardingDownloadFooterContent: View {
     let plan: OnboardingDownloadPlan
     let opensSampleMeeting: Bool

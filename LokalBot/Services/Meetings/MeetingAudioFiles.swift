@@ -1,17 +1,7 @@
 import Foundation
 
-/// Resolves the durable AAC tracks and the crash-safe PCM preview tees for one
-/// meeting. A process crash can leave `mic.m4a` / `system.m4a` unreadable
-/// because their MP4 containers were never finalized; the append-only CAF tees
-/// remain readable and must stay available for transcription and playback.
-/// Meetings recorded, imported or merged by the Windows and Linux app keep
-/// 16 kHz `mic.wav` / `system.wav` tracks instead; they are read only when a
-/// folder has neither an AAC track nor a recovery tee.
 enum MeetingAudioFiles {
 
-    /// Container finalization and the PCM tee can differ by a small encoder
-    /// tail. A larger gap means the primary track was truncated and the CAF is
-    /// the more complete recording.
     private static let completenessTolerance: TimeInterval = 0.1
 
     enum Track: String, CaseIterable {
@@ -20,7 +10,6 @@ enum MeetingAudioFiles {
 
         var primaryFileName: String { "\(rawValue).m4a" }
 
-        /// Written by the Windows and Linux app, which has no AAC encoder.
         var portableFileName: String { "\(rawValue).wav" }
 
         var recoveryFileName: String {
@@ -43,9 +32,6 @@ enum MeetingAudioFiles {
         folder.appendingPathComponent(track.portableFileName)
     }
 
-    /// Prefer the compact AAC track, falling back to the crash-safe CAF only
-    /// when AAC cannot be decoded or is materially shorter. The latter covers
-    /// a crash that leaves a technically readable but truncated MP4 container.
     static func readableURL(for track: Track, in folder: URL) -> URL? {
         preferredURL(for: track, in: folder, minimumDuration: 0)
     }
@@ -64,9 +50,6 @@ enum MeetingAudioFiles {
         Track.allCases.compactMap { duration(for: $0, in: folder) }.max()
     }
 
-    /// A normal stop leaves a finalized primary track, so its duplicate CAF can
-    /// be removed. If the primary is unreadable, preserving the CAF is a hard
-    /// data-safety rule: it may be the user's only recoverable recording.
     static func removeRedundantRecoveryFiles(in folder: URL) {
         for track in Track.allCases {
             let primary = primaryURL(for: track, in: folder)
@@ -81,8 +64,6 @@ enum MeetingAudioFiles {
                 continue
             }
             for source in sources { try? FileManager.default.removeItem(at: source) }
-            // Keep checkpoints if reconstruction failed: they may be the only
-            // surviving copies of intervals not described by the AAC header.
             if rebuilt != nil, AudioRecoveryJournal.receipt(previewURL: preview)?.complete == true {
                 try? FileManager.default.removeItem(at: AudioRecoveryJournal.directory(for: preview))
                 try? FileManager.default.removeItem(at: AudioRecoveryJournal.receiptURL(for: preview))
@@ -98,7 +79,6 @@ enum MeetingAudioFiles {
         let recovery = [preview, rebuilt].compactMap { $0 }.max {
             (AudioFileInspector.duration(at: $0) ?? 0) < (AudioFileInspector.duration(at: $1) ?? 0)
         } ?? preview
-        // A readable AAC header alone cannot prove its payload is intact.
         let hasRecovery = AudioFileInspector.duration(at: recovery) != nil
         let primaryDuration = (hasRecovery ? AudioFileInspector.fullyDecodedDuration(at: primary)
             : AudioFileInspector.duration(at: primary))

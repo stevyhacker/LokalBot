@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Screen search ranks DigUp's way: meaning on the query's scale per kind of
-/// vector, plus a bonus for the query's words; one common word no longer
-/// outranks a clear meaning match.
 final class ScreenSearchRankingTests: XCTestCase {
     private typealias Ranking = ScreenSearchRanking
 
@@ -18,8 +15,6 @@ final class ScreenSearchRankingTests: XCTestCase {
     }
 
     func testPicturesAreScoredOnTheirOwnScale() {
-        // Text vectors score higher than picture vectors for the same topic; a
-        // picture that stands out among pictures must still win.
         var scores = (1...100).map { Ranking.Score(snapshotID: Int64($0), modality: .text,
                                                    cosine: 0.70 + Float($0 % 5) * 0.003) }
         scores += (101...200).map { Ranking.Score(snapshotID: Int64($0), modality: .image,
@@ -45,9 +40,6 @@ final class ScreenSearchRankingTests: XCTestCase {
     }
 
     func testOneCommonWordNoLongerBuriesAMeaningMatch() {
-        // The OR fallback found five captures sharing one of three words; a
-        // sixth capture stands out by meaning alone. Fusion put the keyword
-        // rows first; this ranking puts the meaning match first.
         let meanings: [Int64: Ranking.Meaning] = [
             10: .init(z: 3.4, cosine: 0.71, modality: .image),
             1: .init(z: 0.4, cosine: 0.60, modality: .text),
@@ -75,7 +67,6 @@ final class ScreenSearchRankingTests: XCTestCase {
     }
 
     func testALookupWeighsItsWordsOverMeaning() {
-        // DigUp splits "INV-2041" into "inv" and "2041"; a code written as one word is a lookup.
         XCTAssertTrue(Ranking.isLookup(Ranking.terms("INV2041")))
         XCTAssertTrue(Ranking.isLookup(Ranking.terms("2041")))
         XCTAssertFalse(Ranking.isLookup(Ranking.terms("payment declined error")))

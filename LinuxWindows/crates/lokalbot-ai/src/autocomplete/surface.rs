@@ -3,15 +3,6 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! "What am I writing in?" (`CotypingSurfaceContext`): the window title
-//! carries the email subject, document name, chat channel or page title, the
-//! strongest situational cue a small model gets. Left out for code editors
-//! and terminals, where app metadata pulls the model toward code.
-//!
-//! macOS classifies by bundle identifier; here the desktop reports an
-//! executable or desktop id ("firefox", "code.exe", "org.gnome.Evolution").
-
-/// `CotypingSurfaceClass`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum SurfaceClass {
     CodeEditor,
@@ -23,7 +14,6 @@ pub enum SurfaceClass {
 }
 
 impl SurfaceClass {
-    /// `CotypingSurfaceClassifier.classify`, by the app's id and then its name.
     pub fn of(app_id: &str, app_name: &str) -> Self {
         let id = normalized_app_id(app_id);
         let name = app_name.trim().to_lowercase();
@@ -41,8 +31,6 @@ impl SurfaceClass {
         SurfaceClass::Other
     }
 
-    /// `classify(bundleID:isIntegratedTerminal:)`: an xterm.js surface in an
-    /// editor or a browser is a terminal, whatever app it is in.
     pub fn of_field(app_id: &str, app_name: &str, integrated_terminal: bool) -> Self {
         if integrated_terminal {
             SurfaceClass::Terminal
@@ -51,7 +39,6 @@ impl SurfaceClass {
         }
     }
 
-    /// The Mac's raw value, used as a key in statistics and learned examples.
     pub fn raw_name(self) -> &'static str {
         match self {
             SurfaceClass::CodeEditor => "codeEditor",
@@ -64,8 +51,6 @@ impl SurfaceClass {
     }
 }
 
-/// "Code.exe" → "code", "/usr/bin/firefox" → "firefox",
-/// "org.mozilla.firefox.desktop" → "org.mozilla.firefox".
 pub(crate) fn normalized_app_id(app_id: &str) -> String {
     let base = app_id
         .trim()
@@ -78,7 +63,6 @@ pub(crate) fn normalized_app_id(app_id: &str) -> String {
     base.to_string()
 }
 
-/// "org.mozilla.firefox" ends with the name "firefox" as its own segment.
 fn dotted_suffix(id: &str, name: &str) -> bool {
     id.strip_suffix(name)
         .is_some_and(|rest| rest.ends_with('.') && !name.contains('.'))
@@ -250,7 +234,6 @@ const TABLE: &[(SurfaceClass, &[&str])] = &[
     ),
 ];
 
-/// A sanitized surface description (`CotypingSurfaceContext`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Surface {
     pub class: SurfaceClass,
@@ -260,8 +243,6 @@ pub struct Surface {
 
 const MAX_TITLE_LENGTH: usize = 80;
 
-/// Browser and app names Linux and Windows window titles end with
-/// ("Inbox - Gmail - Mozilla Firefox"), besides the app's own name.
 const TITLE_SUFFIXES: [&str; 12] = [
     "Mozilla Firefox",
     "Firefox",
@@ -277,8 +258,6 @@ const TITLE_SUFFIXES: [&str; 12] = [
     "Visual Studio Code",
 ];
 
-/// `CotypingSurfaceComposer.compose`: nil for code editors, terminals, and
-/// generic apps with nothing useful to say.
 pub fn compose(app_name: &str, app_id: &str, window_title: &str) -> Option<Surface> {
     let class = SurfaceClass::of(app_id, app_name);
     if matches!(class, SurfaceClass::CodeEditor | SurfaceClass::Terminal) {
@@ -289,7 +268,6 @@ pub fn compose(app_name: &str, app_id: &str, window_title: &str) -> Option<Surfa
         return None;
     }
     let title = sanitized_title(window_title, &app).filter(|t| !is_generic_document_title(t));
-    // A generic app with no title has nothing useful to add.
     if class == SurfaceClass::Other && title.is_none() {
         return None;
     }
@@ -300,7 +278,6 @@ pub fn compose(app_name: &str, app_id: &str, window_title: &str) -> Option<Surfa
     })
 }
 
-/// [`compose`] for a field: an integrated terminal has no surface to describe.
 pub fn compose_field(
     app_name: &str,
     app_id: &str,
@@ -313,9 +290,6 @@ pub fn compose_field(
     compose(app_name, app_id, window_title)
 }
 
-/// Conditions on the writing topic. Descriptions of the interface ("text
-/// being typed", "the window is titled") pull small models toward talking
-/// about buttons and fields instead of continuing the passage.
 pub fn preface_lines(surface: &Surface) -> Vec<String> {
     match (&surface.window_title, surface.class) {
         (_, SurfaceClass::CodeEditor | SurfaceClass::Terminal) => Vec::new(),
@@ -325,14 +299,10 @@ pub fn preface_lines(surface: &Surface) -> Vec<String> {
     }
 }
 
-/// Strips the app-name suffix titles carry ("Inbox - Gmail - Mozilla
-/// Firefox", "Notes — Pages"), drops control characters and quotes, and caps
-/// the length.
 pub fn sanitized_title(raw: &str, app_name: &str) -> Option<String> {
     let mut title = non_empty_cleaned(raw)?;
     let mut suffixes: Vec<&str> = vec![app_name];
     suffixes.extend(TITLE_SUFFIXES);
-    // "Notes - Visual Studio Code - Insiders" style titles end in two segments.
     for _ in 0..2 {
         let Some(cut) = suffixes.iter().find_map(|suffix| {
             [" - ", " — ", " – "]
@@ -350,8 +320,6 @@ pub fn sanitized_title(raw: &str, app_name: &str) -> Option<String> {
     Some(title.chars().take(MAX_TITLE_LENGTH).collect())
 }
 
-/// Where `tail` starts when `title` ends with it (case-insensitively) and
-/// something comes before it.
 fn suffix_start(title: &str, tail: &str) -> Option<usize> {
     let tail_chars = tail.chars().count();
     let title_chars = title.chars().count();
@@ -445,7 +413,6 @@ mod tests {
             None
         );
         assert_eq!(compose("Terminal", "kgx", "~/src"), None);
-        // A generic app without a title has nothing to say.
         assert_eq!(compose("Text Editor", "org.gnome.TextEditor", ""), None);
         assert_eq!(compose("Writer", "soffice", "Untitled 1"), None);
     }
@@ -476,7 +443,6 @@ mod tests {
             sanitized_title("Inbox - Gmail - Mozilla Firefox", "Firefox").as_deref(),
             Some("Inbox - Gmail")
         );
-        // Edge writes its name with a zero-width space, which is dropped first.
         assert_eq!(
             sanitized_title("Plan - Personal - Microsoft\u{200B} Edge", "Microsoft Edge")
                 .as_deref(),

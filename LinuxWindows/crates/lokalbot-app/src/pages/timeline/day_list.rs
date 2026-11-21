@@ -1,27 +1,12 @@
-//! What Timeline shows for one day, without drawing it: the rail's sessions
-//! and meetings under Morning, Afternoon and Evening with Away gaps
-//! (`TimelineDayList.swift`), the hour strip (`TimelineDayStrip.swift`), what
-//! the arrow keys walk (`TimelineListSelection`), the rail's opening width
-//! (`TimelineRailMetric`), the day's actions panel (`TimelineDayActions`) and
-//! the digest's state (`TodayDigestLine`, `TimelineDigestPreview`).
-//!
-//! Display only: nothing here is stored. A call app's session that folds into
-//! its meeting keeps its activity in All captured activity.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, Duration, Local, NaiveDate, Timelike as _, Utc};
 use lokalbot_core::{ActionStatus, ActionThread, ActivityBlock, Meeting, WorkSession};
 use uuid::Uuid;
 
-/// A stretch this long with nothing recorded gets its own "Away" line.
 pub(crate) const MINIMUM_GAP_SECONDS: f64 = lokalbot_core::timeline::AWAY_MINIMUM_GAP_SECONDS;
-/// A call app's session folds into a meeting that covers this much of it.
 pub(crate) const FOLD_SHARE: f64 = 0.6;
 
-// ------------------------------------------------------------------ list
-
-/// Before noon, before five, and the rest of the day.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Part {
     Morning,
@@ -30,7 +15,6 @@ pub(crate) enum Part {
 }
 
 impl Part {
-    /// The heading's catalog key.
     pub(crate) fn title(self) -> &'static str {
         match self {
             Part::Morning => "Morning",
@@ -56,15 +40,10 @@ impl Part {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum RowKind {
-    /// A work session, by `WorkSession::id`.
     Work(String),
-    Meeting {
-        id: Uuid,
-        live: bool,
-    },
+    Meeting { id: Uuid, live: bool },
 }
 
-/// One session or meeting in the rail.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Row {
     pub id: String,
@@ -72,18 +51,10 @@ pub(crate) struct Row {
     pub start: DateTime<Utc>,
     pub end: DateTime<Utc>,
     pub title: String,
-    /// The second line: project and what was produced, or the apps, for
-    /// work; "Meeting · app" for a meeting. Empty when the title says it all.
     pub detail: String,
-    /// A session's active time; a meeting's length, in seconds.
     pub duration: f64,
-    /// What colours a session's dot and its bar: its project, or its busiest
-    /// app on a day without projects. `None` reads as other activity.
-    /// Meetings keep their own tone.
     pub color_key: Option<String>,
-    /// A title that only lists apps reads quieter than one that names work.
     pub quiet: bool,
-    /// Call-app sessions folded into this meeting.
     pub folded_sessions: Vec<String>,
 }
 
@@ -104,7 +75,6 @@ impl Row {
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum Entry {
     Row(Row),
-    /// Nothing was recorded between two rows.
     Away {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
@@ -117,7 +87,6 @@ pub(crate) struct Section {
     pub entries: Vec<Entry>,
 }
 
-/// The rail's list for one day.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct DayList {
     pub sections: Vec<Section>,
@@ -156,10 +125,6 @@ impl Item<'_> {
 }
 
 impl DayList {
-    /// `sessions` are the day's sessions; recorded meetings among them are
-    /// left out and come from `meetings`. `blocks` are the day's activity,
-    /// for which apps a session used. `uses_project_colors`: the day's time
-    /// is split by project, so a session without one reads as other activity.
     pub(crate) fn new(
         sessions: &[WorkSession],
         blocks: &[ActivityBlock],
@@ -182,7 +147,6 @@ impl DayList {
 
         let mut items: Vec<Item> = work.iter().map(|s| Item::Work(s)).collect();
         items.extend(timed.iter().map(|(m, end)| Item::Meeting(m, *end)));
-        // A meeting leads a session that starts with it.
         items.sort_by(|a, b| {
             a.start()
                 .cmp(&b.start())
@@ -193,7 +157,6 @@ impl DayList {
         let mut sections: Vec<Section> = Vec::new();
         let mut latest_end: Option<DateTime<Utc>> = None;
         for item in &items {
-            // The gap closes the part of the day it began in, as the list reads.
             if let Some(latest) = latest_end
                 && seconds(item.start() - latest) >= MINIMUM_GAP_SECONDS
                 && let Some(last) = sections.last_mut()
@@ -206,7 +169,6 @@ impl DayList {
             latest_end = Some(latest_end.map_or(item.end(), |l| l.max(item.end())));
             let row = match item {
                 Item::Work(session) => {
-                    // A folded call is recorded time, shown as its meeting's row.
                     if folded_ids.contains(session.id.as_str()) {
                         continue;
                     }
@@ -269,7 +231,6 @@ impl DayList {
         Self { sections }
     }
 
-    /// Every session and meeting row, in list order.
     pub(crate) fn rows(&self) -> impl Iterator<Item = &Row> {
         self.sections.iter().flat_map(|section| {
             section.entries.iter().filter_map(|entry| match entry {
@@ -287,14 +248,11 @@ impl DayList {
         self.rows().find(|row| row.id == id)
     }
 
-    /// The row that shows a session: its own, or the meeting it folded into.
     pub(crate) fn row_showing(&self, session: &str) -> Option<&Row> {
         self.rows()
             .find(|row| row.id == session || row.folded_sessions.iter().any(|s| s == session))
     }
 
-    /// The session a digest task's "09:00–10:30" covers most, so an older
-    /// digest's time range can open that session.
     pub(crate) fn work_row_in_time_range(&self, text: &str, day: NaiveDate) -> Option<&Row> {
         let (start, end) = interval_from_time_range(text, day)?;
         let mut best: Option<(&Row, f64)> = None;
@@ -312,8 +270,6 @@ fn seconds(duration: Duration) -> f64 {
     duration.num_milliseconds() as f64 / 1000.0
 }
 
-/// "09:00–10:30" on `day`. A range that ends before it starts runs past
-/// midnight and is clipped to the day.
 pub(crate) fn interval_from_time_range(
     text: &str,
     day: NaiveDate,
@@ -342,9 +298,6 @@ pub(crate) fn interval_from_time_range(
     (end > start).then_some((start, end))
 }
 
-// ------------------------------------------------------------- row text
-
-/// The project a session's title names, the one whose colour it takes.
 pub(crate) fn session_project(session: &WorkSession) -> Option<&str> {
     session
         .title_names_project
@@ -352,8 +305,6 @@ pub(crate) fn session_project(session: &WorkSession) -> Option<&str> {
         .flatten()
 }
 
-/// A project session's title is "projects · task"; without a task it is the
-/// projects alone.
 pub(crate) fn project_and_task(session: &WorkSession) -> (String, Option<String>) {
     match session.title.split_once(" · ") {
         Some((project, task)) => (project.to_string(), Some(task.to_string())),
@@ -361,8 +312,6 @@ pub(crate) fn project_and_task(session: &WorkSession) -> (String, Option<String>
     }
 }
 
-/// Apps used for at least a minute, busiest first. Apps glanced at for
-/// seconds are left out, unless that leaves none.
 pub(crate) fn used_apps(session: &WorkSession, blocks: &[ActivityBlock]) -> Vec<String> {
     let mine: HashSet<i64> = session.block_ids.iter().copied().collect();
     let used: Vec<String> = session
@@ -391,10 +340,6 @@ pub(crate) struct WorkText {
     pub quiet: bool,
 }
 
-/// A session's two lines. With a project the task leads and the project
-/// moves to the second line beside what the agents produced. Without one,
-/// the window that named the session leads and its apps follow. A session
-/// only its apps describe is one quiet line.
 pub(crate) fn work_text(
     session: &WorkSession,
     used_apps: &[String],
@@ -435,7 +380,6 @@ pub(crate) fn work_text(
     }
 }
 
-/// "Meeting · Zoom", or "Recording · Zoom" while it is being recorded.
 pub(crate) fn meeting_detail(app: &str, live: bool) -> String {
     let kind = lokalbot_i18n::tr(if live { "Recording" } else { "Meeting" }).to_string();
     joined([kind, app.trim().to_string()])
@@ -449,11 +393,6 @@ fn joined(parts: impl IntoIterator<Item = String>) -> String {
         .join(" · ")
 }
 
-// ------------------------------------------------------- folding a call
-
-/// The meeting a call-app session belongs to: the one that covers most of
-/// it, when that is at least `FOLD_SHARE`. Work with a project and agent
-/// sessions never fold.
 pub(crate) fn meeting_covering(
     session: &WorkSession,
     meetings: &[(&Meeting, DateTime<Utc>)],
@@ -478,9 +417,6 @@ pub(crate) fn meeting_covering(
     best.map(|(id, _)| id)
 }
 
-/// The sampler stores an app's own name ("zoom.us", "Microsoft Teams") and
-/// a meeting the name LokalBot gives its call app ("Zoom", "Teams"), so one
-/// may contain the other.
 pub(crate) fn is_same_app(session_app: &str, meeting_app: &str) -> bool {
     let key = |name: &str| -> String {
         name.chars()
@@ -494,11 +430,6 @@ pub(crate) fn is_same_app(session_app: &str, meeting_app: &str) -> bool {
         && (left.contains(&right) || right.contains(&left))
 }
 
-// ------------------------------------------------------------- selection
-
-/// What Timeline's main area shows: the day's page (`Digest`, with no row
-/// chosen in the rail), a session or meeting row, or all captured activity.
-/// `None` is something opened from elsewhere that belongs to no row.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub(crate) enum ListSelection {
     Digest,
@@ -508,9 +439,6 @@ pub(crate) enum ListSelection {
 }
 
 impl ListSelection {
-    /// The rail from top to bottom, for the arrow keys. The day's page
-    /// stands before the first session; All captured activity, the rail's
-    /// bottom row, follows the last one.
     pub(crate) fn order(list: &DayList) -> Vec<ListSelection> {
         std::iter::once(ListSelection::Digest)
             .chain(list.rows().map(|row| ListSelection::Row(row.id.clone())))
@@ -518,8 +446,6 @@ impl ListSelection {
             .collect()
     }
 
-    /// The selection `step` rows away, stopping at either end. From a
-    /// selection the rail does not show, any step lands on the day's page.
     pub(crate) fn moved(&self, step: isize, list: &DayList) -> ListSelection {
         let order = Self::order(list);
         let Some(index) = order.iter().position(|s| s == self) else {
@@ -530,10 +456,6 @@ impl ListSelection {
     }
 }
 
-// ------------------------------------------------------------ hour strip
-
-/// One bar of the strip: the row it selects, where it starts and ends (0 at
-/// the leading edge, 1 at the trailing one) and what colours it.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Bar {
     pub id: String,
@@ -546,17 +468,13 @@ pub(crate) struct Bar {
 pub(crate) struct Tick {
     pub position: f64,
     pub at: DateTime<Utc>,
-    /// The first hour and noon say AM or PM where the clock has them.
     pub names_day_period: bool,
 }
 
-/// The rail's hour strip: hours left to right, meetings in a lane above
-/// work. Positions are fractions of a span of whole hours inside the day.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct DayStrip {
     pub meetings: Vec<Bar>,
     pub work: Vec<Bar>,
-    /// One per hour, from the first hour to the last one inside the span.
     pub ticks: Vec<Tick>,
 }
 
@@ -570,7 +488,6 @@ fn local_hour_start(at: DateTime<Utc>) -> DateTime<Utc> {
 }
 
 impl DayStrip {
-    /// `None` for a day with no rows inside `[day_start, day_end)`.
     pub(crate) fn new<'a>(
         rows: impl IntoIterator<Item = &'a Row>,
         day_start: DateTime<Utc>,
@@ -588,7 +505,6 @@ impl DayStrip {
         let last = clipped.iter().map(|(_, _, end)| *end).max()?;
         let span_start = local_hour_start(first);
         let mut span_end = last;
-        // An end on the hour needs no extra hour; any other rounds up.
         let last_hour = local_hour_start(last);
         if last_hour < last {
             span_end = last_hour + Duration::hours(1);
@@ -632,8 +548,6 @@ impl DayStrip {
         })
     }
 
-    /// The ticks that get a label when only `count` labels fit: every
-    /// second or third hour on a long day, always starting with the first.
     pub(crate) fn labelled_ticks(&self, count: usize) -> Vec<&Tick> {
         if count == 0 {
             return Vec::new();
@@ -646,8 +560,6 @@ impl DayStrip {
     }
 }
 
-/// A bar's place in a lane `width` wide. A short bar keeps `minimum` so it
-/// can be seen, and never leaves the lane.
 pub(crate) fn bar_frame(bar: &Bar, width: f32, minimum: f32) -> (f32, f32) {
     if width <= 0.0 {
         return (0.0, 0.0);
@@ -658,8 +570,6 @@ pub(crate) fn bar_frame(bar: &Bar, width: f32, minimum: f32) -> (f32, f32) {
     (start.min(width - bar_width), bar_width)
 }
 
-/// Where a click counts for a bar: its own place, widened to 12 around its
-/// middle when it is drawn thinner, and kept inside the lane.
 pub(crate) fn bar_hit_frame(bar: &Bar, width: f32) -> (f32, f32) {
     const MINIMUM: f32 = 12.0;
     let (x, drawn) = bar_frame(bar, width, 3.0);
@@ -671,8 +581,6 @@ pub(crate) fn bar_hit_frame(bar: &Bar, width: f32) -> (f32, f32) {
     (left.max(0.0).min(width - hit), hit)
 }
 
-/// Bars in the order to draw them: the longest first, so a short bar's
-/// widened click area lies over its longer neighbour's edge.
 pub(crate) fn hit_order(bars: &[Bar]) -> Vec<&Bar> {
     let mut ordered: Vec<&Bar> = bars.iter().collect();
     ordered.sort_by(|a, b| {
@@ -683,25 +591,14 @@ pub(crate) fn hit_order(bars: &[Bar]) -> Vec<&Bar> {
     ordered
 }
 
-// ------------------------------------------------------------ rail width
-
-/// The rail in a roomy window.
 pub(crate) const RAIL_IDEAL_WIDTH: f32 = 352.0;
-/// The rail in the default window.
 pub(crate) const RAIL_MINIMUM_WIDTH: f32 = 300.0;
-/// The rail's share of the body while it is between those two.
 pub(crate) const RAIL_SHARE: f32 = 0.30;
-/// The narrowest the rail gets: a time, a short title and a duration fit.
 pub(crate) const RAIL_FLOOR_WIDTH: f32 = 260.0;
-/// The widest the divider drags it.
 pub(crate) const RAIL_MAXIMUM_WIDTH: f32 = 540.0;
-/// The day's page keeps the minimum every detail pane has.
 pub(crate) const PAGE_MINIMUM_WIDTH: f32 = 420.0;
 const DIVIDER_WIDTH: f32 = 1.0;
 
-/// The rail's opening width in a body `available` wide, until the divider
-/// is dragged: a share of the body between its two sizes, both grown with
-/// the text size, and never so wide that the page drops under its minimum.
 pub(crate) fn rail_width(available: f32, text_scale: f32) -> f32 {
     let factor = text_scale.max(0.5);
     let ideal = (RAIL_IDEAL_WIDTH * factor).round();
@@ -711,10 +608,6 @@ pub(crate) fn rail_width(available: f32, text_scale: f32) -> f32 {
     RAIL_FLOOR_WIDTH.max(shared.min(room))
 }
 
-// ------------------------------------------------------ the day's actions
-
-/// The user's actions that a meeting of `day` mentioned, done ones
-/// included: open work first, then the rest, each in the index's order.
 pub(crate) fn day_threads(all: Vec<ActionThread>, day: NaiveDate) -> Vec<ActionThread> {
     let (open, rest): (Vec<ActionThread>, Vec<ActionThread>) = all
         .into_iter()
@@ -733,7 +626,6 @@ pub(crate) fn day_threads(all: Vec<ActionThread>, day: NaiveDate) -> Vec<ActionT
 pub(crate) enum ActionsSummary {
     Open(usize),
     AllDone(usize),
-    /// Nothing is open, and some are deferred rather than done.
     NoneOpen(usize),
 }
 
@@ -754,15 +646,12 @@ pub(crate) fn actions_summary(threads: &[ActionThread]) -> Option<ActionsSummary
     })
 }
 
-/// The badge beside the panel's title.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum ActionsPill {
     Open(usize),
     AllDone,
 }
 
-/// "2 open" while anything is; "All done" once every action is done.
-/// Deferred actions are neither, so a day with only those says "0 open".
 pub(crate) fn actions_pill(summary: ActionsSummary) -> ActionsPill {
     match summary {
         ActionsSummary::Open(count) => ActionsPill::Open(count),
@@ -771,23 +660,15 @@ pub(crate) fn actions_pill(summary: ActionsSummary) -> ActionsPill {
     }
 }
 
-/// The panel lists its actions while one is open. Once none is, it is a
-/// header alone, except that rows the reader was just shown stay, so
-/// ticking the last one does not take the list away.
 pub(crate) fn actions_show_rows(summary: ActionsSummary, had_open: bool) -> bool {
     matches!(summary, ActionsSummary::Open(_)) || had_open
 }
 
-// ------------------------------------------------------------- the digest
-
-/// Where the day's digest stands (`TodayDigestLine`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum DigestLine {
-    /// A digest is being written, by hand or on schedule.
     Writing,
     Missing,
     Current(Option<DateTime<Utc>>),
-    /// Activity arrived after the digest was written; Update rewrites it.
     Stale(Option<DateTime<Utc>>),
 }
 
@@ -809,8 +690,6 @@ impl DigestLine {
         }
     }
 
-    /// The Highlights panel's footer: when the digest was written, Update
-    /// once it is stale, progress while it is rewritten.
     pub(crate) fn shows_footer(self, has_digest: bool) -> bool {
         has_digest
             && match self {
@@ -821,8 +700,6 @@ impl DigestLine {
     }
 }
 
-/// The catalog key of the … menu item that writes the digest. It names what
-/// choosing it will do; a digest is never rewritten without being asked.
 pub(crate) fn digest_menu_title(writing: bool, has_digest: bool, stale: bool) -> &'static str {
     if writing {
         "Writing digest…"
@@ -902,7 +779,6 @@ mod tests {
 
     #[test]
     fn a_call_folds_only_when_the_meeting_covers_most_of_it() {
-        // 15 of 40 minutes is under the share; another app never folds.
         let long_call = session("work-1", "zoom.us", at(10, 0), at(10, 40));
         let browser = session("work-2", "Firefox", at(10, 0), at(10, 15));
         let standup = meeting("Standup", "Zoom", at(10, 0), at(10, 15));
@@ -914,7 +790,6 @@ mod tests {
             false,
         );
         assert_eq!(list.row_count(), 3);
-        // A meeting leads a session that starts with it.
         assert_eq!(ids(&list)[0], Row::meeting_row_id(standup.id));
     }
 
@@ -933,7 +808,6 @@ mod tests {
         assert!(is_same_app("zoom.us", "Zoom"));
         assert!(is_same_app("Microsoft Teams", "Teams"));
         assert!(!is_same_app("Xcode", "Zoom"));
-        // Too short to tell apart.
         assert!(!is_same_app("Go", "Google Meet"));
     }
 
@@ -941,7 +815,6 @@ mod tests {
     fn rows_fall_under_morning_afternoon_and_evening_with_away_gaps() {
         let sessions = [
             session("work-1", "Xcode", at(9, 0), at(10, 0)),
-            // 9:30–11:00 overlaps, so the gap starts at 11:00, not 10:00.
             session("work-2", "Safari", at(9, 30), at(11, 0)),
             session("work-3", "Xcode", at(11, 20), at(11, 50)),
             session("work-4", "Mail", at(13, 0), at(13, 30)),
@@ -950,7 +823,6 @@ mod tests {
         let list = DayList::new(&sessions, &[], &[], at(20, 0), false);
         let parts: Vec<Part> = list.sections.iter().map(|s| s.part).collect();
         assert_eq!(parts, vec![Part::Morning, Part::Afternoon, Part::Evening]);
-        // 11:00 to 11:20 is no gap; 11:50 to 13:00 closes the morning.
         let morning = &list.sections[0].entries;
         assert_eq!(morning.len(), 4);
         assert_eq!(
@@ -1055,7 +927,6 @@ mod tests {
             ListSelection::Row("work-2".into())
         );
         assert_eq!(ListSelection::None.moved(1, &list), ListSelection::Digest);
-        // A day without sessions goes from its page to all captured activity.
         let empty = DayList::default();
         assert_eq!(digest.moved(1, &empty), ListSelection::Raw);
     }
@@ -1074,7 +945,6 @@ mod tests {
         let (start, end) =
             lokalbot_core::time::local_day_bounds(at(9, 0).with_timezone(&Local).date_naive());
         let strip = DayStrip::new(list.rows(), start, end).unwrap();
-        // 9:00 to 12:00: three hours.
         assert_eq!(strip.ticks.len(), 3);
         assert_eq!(strip.ticks[0].at, at(9, 0));
         assert!(strip.ticks[0].names_day_period);
@@ -1085,7 +955,6 @@ mod tests {
         assert!((bar.start - 10.0 / 180.0).abs() < 1e-9);
         assert!((bar.end - 90.0 / 180.0).abs() < 1e-9);
         assert!((strip.meetings[0].start - 120.0 / 180.0).abs() < 1e-9);
-        // An end on the hour adds no hour.
         let on_hour = [session("work-1", "Xcode", at(9, 0), at(11, 0))];
         let list = DayList::new(&on_hour, &[], &[], at(12, 0), false);
         assert_eq!(
@@ -1128,7 +997,6 @@ mod tests {
             color_key: None,
         };
         assert_eq!(bar_frame(&bar(0.5, 0.5), 200.0, 3.0), (100.0, 3.0));
-        // At the trailing edge the bar stays inside the lane.
         assert_eq!(bar_frame(&bar(1.0, 1.0), 200.0, 3.0), (197.0, 3.0));
         assert_eq!(bar_hit_frame(&bar(0.5, 0.5), 200.0), (95.5, 12.0));
         assert_eq!(bar_hit_frame(&bar(0.0, 0.01), 200.0), (0.0, 12.0));
@@ -1140,18 +1008,14 @@ mod tests {
 
     #[test]
     fn the_rail_opens_between_its_two_widths_and_leaves_the_page_its_minimum() {
-        // The default window's body, a roomy one, and one in between.
         assert_eq!(rail_width(964.0, 1.0), 300.0);
         assert_eq!(rail_width(1224.0, 1.0), 352.0);
         assert_eq!(rail_width(1100.0, 1.0), 330.0);
-        // Larger text asks for more, as far as the page's minimum allows.
         assert_eq!(rail_width(1600.0, 1.35), 475.0);
         assert_eq!(rail_width(964.0, 1.35), 405.0);
         assert_eq!(rail_width(800.0, 1.35), 379.0);
-        // The narrowest body still gets the floor.
         assert_eq!(rail_width(681.0, 1.0), RAIL_FLOOR_WIDTH);
         assert!(RAIL_MAXIMUM_WIDTH > rail_width(1224.0, 1.0));
-        // The widest rail fits beside the page in the default window.
         const { assert!(964.0 - DIVIDER_WIDTH - RAIL_MAXIMUM_WIDTH >= PAGE_MINIMUM_WIDTH) };
     }
 
@@ -1184,7 +1048,6 @@ mod tests {
 
         let all_done = actions_summary(std::slice::from_ref(&done_on_day)).unwrap();
         assert_eq!(actions_pill(all_done), ActionsPill::AllDone);
-        // Done: only the header, unless the rows were just showing.
         assert!(!actions_show_rows(all_done, false));
         assert!(actions_show_rows(all_done, true));
 
@@ -1211,7 +1074,6 @@ mod tests {
         assert!(DigestLine::Current(written).shows_footer(true));
         assert!(!DigestLine::Current(None).shows_footer(true));
         assert!(!DigestLine::Missing.shows_footer(false));
-        // The first digest being written has no footer: the body says so.
         assert!(!DigestLine::Writing.shows_footer(false));
         assert!(DigestLine::Writing.shows_footer(true));
 

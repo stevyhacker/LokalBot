@@ -1,8 +1,3 @@
-//! One captured screen moment (`ScreenMomentDetailView.swift`): its image
-//! (decrypted in memory, or why it cannot be shown), the window title and
-//! captured text, Save Moment and Ask About This, the saved note, capture
-//! details, and Delete Moment.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant};
 use gpui_kit::component::input::Input;
@@ -23,18 +18,14 @@ use crate::ui::section_panel::SectionPanelLead;
 use crate::ui::{self, Ico};
 use crate::windows::screen_image::{self, ScreenImage};
 
-/// The inspector's image: longest side in pixels.
 const THUMBNAIL_PIXELS: u32 = 960;
 
-/// The image of the moment the inspector shows.
 pub(super) struct MomentImage {
     pub id: i64,
-    /// `None` while it is being decrypted.
     pub image: Option<ScreenImage>,
 }
 
 impl TimelinePage {
-    /// Decrypts the selected moment's image off the UI thread.
     pub(super) fn load_moment_image(&mut self, moment: &ScreenMoment, cx: &mut Context<Self>) {
         if self
             .moment_image
@@ -72,7 +63,6 @@ impl TimelinePage {
         .detach();
     }
 
-    /// Forgets the inspector's image; its texture is freed on the next frame.
     pub(super) fn release_moment_image(&mut self) {
         if let Some(MomentImage {
             image: Some(ScreenImage::Ready(image)),
@@ -426,7 +416,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// "Capture Details": window, trigger, what was kept, provenance.
     fn render_moment_details(&self, moment: &ScreenMoment, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let open = self.moment_details_open;
@@ -529,7 +518,6 @@ impl TimelinePage {
     }
 }
 
-/// "app_switch" → "App Switch", as the Mac shows `capture_trigger`.
 pub(super) fn trigger_label(trigger: &str) -> String {
     trigger
         .split('_')

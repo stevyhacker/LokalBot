@@ -34,8 +34,6 @@ fn provenance(revision: u64, sources: Vec<Source>) -> Provenance {
 
 const MEETING: &str = "4E1C1B59-6E0B-4F38-9E57-3C1B1F0A2D11";
 
-/// `dreams/<day>.json` as the Mac writes it: pretty, sorted, ISO dates, and
-/// optional fields left out rather than null.
 const MAC_REPORT: &str = r#"{
   "attention" : [ "Beta blocked on review" ],
   "day" : "2026-10-19",
@@ -59,7 +57,6 @@ const MAC_REPORT: &str = r#"{
   "version" : 3
 }"#;
 
-/// `memory/memory.json` as the Mac writes it.
 const MAC_MEMORY: &str = r#"{
   "activeProjects" : [ {
     "evidence" : [ "Review moved to Friday" ],
@@ -138,7 +135,6 @@ fn a_saved_report_is_the_days_completion_marker_with_a_markdown_copy() {
     assert!(markdown.starts_with(GENERATED_MARKER));
     assert!(markdown.contains("# Morning brief — 2026-10-19"));
     assert_eq!(store.latest_report().unwrap().day, "2026-10-19");
-    // A file whose day doesn't match its name is not a marker.
     std::fs::copy(
         dir.path().join("dreams/2026-10-19.json"),
         dir.path().join("dreams/2026-10-18.json"),
@@ -198,7 +194,6 @@ fn a_change_to_another_day_does_not_discard_the_run() {
 fn source_deletion_retracts_even_pinned_items_and_their_reports() {
     let (dir, store) = store();
     let mut memory: DreamMemory = serde_json::from_str(MAC_MEMORY).unwrap();
-    // The goal has no provenance, so the first change takes it too.
     memory.active_projects[0].provenance = Some(provenance(
         0,
         vec![source("meeting", MEETING, "2026-10-19")],
@@ -230,10 +225,8 @@ fn source_deletion_retracts_even_pinned_items_and_their_reports() {
     assert!(memory.work_goals.is_empty());
     assert!(!store.has_report("2026-10-19"));
     assert!(!dir.path().join("dreams/2026-10-19.json").exists());
-    // The rewritten memory no longer holds them for anyone reading the file.
     let on_disk = std::fs::read_to_string(dir.path().join("memory/memory.json")).unwrap();
     assert!(!on_disk.contains("Beta launch"));
-    // The windows after a meeting are reopened too.
     assert_eq!(evidence::read_state(dir.path()).unwrap().revision, 1);
     assert!(!dir.path().join(evidence::PENDING_FILE).exists());
 }
@@ -248,7 +241,6 @@ fn an_unfinished_revocation_blocks_use_until_it_is_recovered() {
         .unwrap()
         .revision = 0;
     store.save_memory(&memory).unwrap();
-    // The Mac crashed after writing its intent.
     std::fs::write(
         dir.path().join(evidence::PENDING_FILE),
         format!(
@@ -266,7 +258,6 @@ fn an_unfinished_revocation_blocks_use_until_it_is_recovered() {
         Err(StoreError::RetractionIncomplete)
     ));
 
-    // The scheduler's next revision read finishes the cleanup.
     assert_eq!(store.evidence_revision().unwrap(), 1);
     assert!(!dir.path().join(evidence::PENDING_FILE).exists());
     let memory = store.load_memory().unwrap().unwrap();
@@ -374,13 +365,11 @@ fn the_merge_follows_the_days_evidence_and_keeps_what_the_model_forgot() {
         .iter()
         .map(|p| p.name.as_str())
         .collect();
-    // A pinned project sorts first; an inactive one is never inserted.
     assert_eq!(names, vec!["Beta launch", "New work"]);
     assert_eq!(merged.active_projects[0].last_active_day, "2026-10-19");
     let goals: Vec<&str> = merged.work_goals.iter().map(|g| g.text.as_str()).collect();
     assert_eq!(goals, vec!["Real goal", "Ship the beta"]);
     assert_eq!(merged.work_goals[1].last_reinforced_day, "2026-10-18");
-    // An explicit empty list clears the patterns.
     assert!(merged.recurring_patterns.is_empty());
     assert!(merged.pattern_provenance.is_empty());
     assert_eq!(merged.last_dream_day.as_deref(), Some("2026-10-20"));
@@ -505,8 +494,6 @@ fn report_days_cover_the_following_comparison_windows_up_to_today() {
     assert_eq!(report_day_keys([day], today, 1).len(), 1);
 }
 
-// ------------------------------------------------------------------ rollups
-
 fn review(day: &str, generated: &str) -> rollup::DayReview {
     rollup::DayReview {
         day: day.into(),
@@ -517,7 +504,6 @@ fn review(day: &str, generated: &str) -> rollup::DayReview {
 
 #[test]
 fn weeks_and_months_use_the_macs_keys() {
-    // 2026-10-07 is a Wednesday in ISO week 41.
     let week = rollup::week_containing(NaiveDate::from_ymd_opt(2026, 10, 7).unwrap());
     assert_eq!(week.key, "2026-W41");
     assert_eq!(week.first_day, "2026-10-05");
@@ -548,7 +534,6 @@ fn a_rollups_stamp_goes_stale_when_a_review_changes_and_matches_the_macs_format(
     );
     let inside = rollup::reviews_in("2026-10-05", "2026-10-11", &reviews);
     let stamp = rollup::stamp(&inside);
-    // SHA-256 of "2026-10-05|2026-10-06T04:00:00Z".
     assert_eq!(
         stamp,
         crate::library::sha256_hex(b"2026-10-05|2026-10-06T04:00:00Z")
@@ -588,7 +573,6 @@ fn deleting_a_report_removes_the_lines_covering_it() {
     };
     rollup::write(&line, dir.path()).unwrap();
     assert_eq!(rollup::rollups(dir.path()).len(), 1);
-    // A Mac can read what is written here.
     let json: serde_json::Value = serde_json::from_slice(
         &std::fs::read(rollup::rollup_path(dir.path(), "2026-W41")).unwrap(),
     )

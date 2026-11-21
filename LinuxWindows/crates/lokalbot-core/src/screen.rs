@@ -1,23 +1,3 @@
-//! Writing screen context: capture rows (`ActivityStore.insertScreenshot`,
-//! `deleteScreenshots`), the perceptual hash that groups near-identical
-//! frames (`ScreenPerceptualHash`), and the encrypted image files
-//! (`ScreenshotService.captureFileURL`, `encryptionKey`).
-//!
-//! # Image files
-//!
-//! Each kept frame is `activity/<YYYY-MM-DD>/shots/<epoch ms>-<uuid>.jpg.enc`
-//! under the library root, with the day in UTC as on macOS. The file is a
-//! JPEG sealed with AES-256-GCM and no associated data, laid out as
-//! `nonce (12 bytes) ‖ ciphertext ‖ tag (16 bytes)`: the layout of CryptoKit's
-//! `AES.GCM.SealedBox.combined`, which the Mac app uses for its `.heic.enc`
-//! files. The 32-byte key is created once per install and kept in the system
-//! credential store (account `screenshot-key`), never in the library. A Mac
-//! keeps its own key in its Keychain, so frames captured there cannot be
-//! opened here (and the other way round); their text is unaffected.
-//!
-//! The `screenshots.path` column holds the file's absolute path, as macOS
-//! writes it, or is empty for text-only moments and after the pixels expire.
-
 use std::path::{Component, Path, PathBuf};
 
 use aes_gcm::Aes256Gcm;
@@ -31,16 +11,11 @@ use crate::library::Library;
 use crate::time::to_epoch;
 use crate::timeline::table_exists;
 
-/// Length of the per-install image key.
 pub const IMAGE_KEY_BYTES: usize = 32;
-/// File suffix of frames written here (`.heic.enc` on macOS).
 pub const IMAGE_FILE_SUFFIX: &str = ".jpg.enc";
 
-/// Automatic captures whose perceptual hashes differ in at most this many
-/// bits belong to one scene (`ScreenPerceptualHash.defaultDistanceThreshold`).
 pub const NEAR_DUPLICATE_DISTANCE: u32 = 6;
 
-/// Why an image file could not be opened.
 #[derive(Debug, thiserror::Error)]
 pub enum ImageError {
     #[error("the image file is missing")]
@@ -51,24 +26,19 @@ pub enum ImageError {
     Io(#[from] std::io::Error),
 }
 
-/// A new random image key.
 pub fn new_image_key() -> [u8; IMAGE_KEY_BYTES] {
     Aes256Gcm::generate_key(OsRng).into()
 }
 
-/// Seals `plaintext` as `nonce ‖ ciphertext ‖ tag` with a fresh random nonce.
 pub fn seal_image(key: &[u8; IMAGE_KEY_BYTES], plaintext: &[u8]) -> Result<Vec<u8>> {
     crate::sealed::seal(key, plaintext)
         .map_err(|_| anyhow::anyhow!("could not encrypt the screen image"))
 }
 
-/// Opens bytes written by [`seal_image`]. Any other key, a truncated file
-/// or a changed byte fails authentication.
 pub fn open_image(key: &[u8; IMAGE_KEY_BYTES], sealed: &[u8]) -> Result<Vec<u8>, ImageError> {
     crate::sealed::open(key, sealed).ok_or(ImageError::OtherKey)
 }
 
-/// Reads and opens one image file.
 pub fn read_image(key: &[u8; IMAGE_KEY_BYTES], path: &Path) -> Result<Vec<u8>, ImageError> {
     let sealed = match std::fs::read(path) {
         Ok(bytes) => bytes,
@@ -78,7 +48,6 @@ pub fn read_image(key: &[u8; IMAGE_KEY_BYTES], path: &Path) -> Result<Vec<u8>, I
     open_image(key, &sealed)
 }
 
-/// Where a frame taken at `ts` is stored (`ScreenshotService.captureFileURL`).
 pub fn capture_file_path(root: &Path, ts: DateTime<Utc>, id: Uuid) -> PathBuf {
     root.join("activity")
         .join(ts.format("%Y-%m-%d").to_string())
@@ -90,10 +59,6 @@ pub fn capture_file_path(root: &Path, ts: DateTime<Utc>, id: Uuid) -> PathBuf {
         ))
 }
 
-/// The file behind a stored `screenshots.path`, inside `root`. Paths written
-/// on another computer (an absolute Mac or Windows path) are found again
-/// under this library's own `activity` folder. `None` for text-only moments
-/// and for anything that would leave the library.
 pub fn resolve_capture_path(root: &Path, stored: &str) -> Option<PathBuf> {
     let stored = stored.trim();
     if stored.is_empty() {
@@ -127,11 +92,6 @@ fn only_normal(path: &Path) -> bool {
             .all(|component| matches!(component, Component::Normal(_)))
 }
 
-// ------------------------------------------------------------ perceptual hash
-
-/// 64-bit difference hash of a 9×8 grayscale reduction (`ScreenPerceptualHash`).
-/// It stays stable across cursor blinks and small animations, so frames of
-/// one scene share a similarity group. `rgba` holds `width × height` pixels.
 pub fn perceptual_hash(rgba: &[u8], width: u32, height: u32) -> u64 {
     const COLUMNS: usize = 9;
     const ROWS: usize = 8;
@@ -139,7 +99,6 @@ pub fn perceptual_hash(rgba: &[u8], width: u32, height: u32) -> u64 {
     if width == 0 || height == 0 || rgba.len() < width * height * 4 {
         return 0;
     }
-    // Box-filter each cell, like drawing into a 9×8 context.
     let mut cells = [0f64; COLUMNS * ROWS];
     for (row, cell_row) in cells.chunks_mut(COLUMNS).enumerate() {
         let y0 = row * height / ROWS;
@@ -149,7 +108,6 @@ pub fn perceptual_hash(rgba: &[u8], width: u32, height: u32) -> u64 {
             let x1 = ((column + 1) * width / COLUMNS).max(x0 + 1).min(width);
             let mut sum = 0u64;
             let mut count = 0u64;
-            // Sample at most 16×16 points per cell: plenty for a 72-cell hash.
             let y_step = ((y1 - y0) / 16).max(1);
             let x_step = ((x1 - x0) / 16).max(1);
             for y in (y0..y1).step_by(y_step) {
@@ -188,7 +146,6 @@ pub fn is_near_duplicate(a: u64, b: u64) -> bool {
     hamming_distance(a, b) <= NEAR_DUPLICATE_DISTANCE
 }
 
-/// `%016llx`, the stored form.
 pub fn encode_perceptual_hash(hash: u64) -> String {
     format!("{hash:016x}")
 }
@@ -197,23 +154,15 @@ pub fn decode_perceptual_hash(value: &str) -> Option<u64> {
     u64::from_str_radix(value, 16).ok()
 }
 
-// ------------------------------------------------------------------ writing
-
-/// One capture to store. `path` is the sealed image file, empty when only
-/// text was kept; `text` is already redacted and empty when none was read.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScreenCapture {
     pub ts: DateTime<Utc>,
     pub app: String,
     pub window_title: String,
-    /// `app_switch`, `window_change`, `click`, `typing_pause`, `scroll_settled`,
-    /// `clipboard_change`, `interval` or `manual` (`ScreenCaptureTrigger`).
     pub trigger: String,
     pub path: String,
     pub text: String,
-    /// `accessibility`, `ocr` or `hybrid`, with `_redacted` when something was redacted.
     pub text_source: String,
-    /// Set for frames, so near-identical ones share a similarity group.
     pub perceptual_hash: Option<u64>,
     pub source_url: String,
     pub document_name: String,
@@ -222,10 +171,6 @@ pub struct ScreenCapture {
 }
 
 impl Library {
-    /// Stores one capture row and its searchable text in one transaction and
-    /// returns its id (`ActivityStore.insertScreenshot`): a `screenshots` row,
-    /// an `ocr_fts` row and its `ocr_metadata` index entry when there is text,
-    /// and the similarity group from the previous frame's perceptual hash.
     pub fn insert_screen_capture(&self, capture: &ScreenCapture) -> Result<i64> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -287,10 +232,6 @@ impl Library {
         })
     }
 
-    /// Deletes moments with their pixels, text, bookmark and vectors. The
-    /// person deleted the source, so overnight memory built from those days
-    /// and their unedited generated journals are withdrawn first
-    /// (`AppState.withPrimaryEvidenceChange`). Returns how many were removed.
     pub fn delete_screen_moments(&self, ids: &[i64]) -> Result<usize> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -318,9 +259,6 @@ impl Library {
         )
     }
 
-    /// `ScreenshotService.deleteCapture`, `ActivityStore.deleteScreenshots`.
-    /// Files go first: a file that cannot be removed keeps its row, so the
-    /// deletion can be retried.
     pub(crate) fn remove_screen_moments(&self, ids: &[i64]) -> Result<usize> {
         let root = self.paths().root().to_path_buf();
         let mut removable = Vec::new();
@@ -392,15 +330,11 @@ impl Library {
         })
     }
 
-    /// The image file of a stored moment, when it has one inside this library.
     pub fn screen_image_file(&self, stored_path: &str) -> Option<PathBuf> {
         resolve_capture_path(self.paths().root(), stored_path)
     }
 }
 
-/// Brings screen tables written by older Mac builds to the current shape
-/// before anything is stored (`ActivityStore.migrateScreenshotColumns`,
-/// `migrateOCRTable`, `backfillUnlinkedOCRRows`).
 pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
     if table_exists(db, "screenshots")? {
         let columns = column_names(db, "screenshots")?;
@@ -428,8 +362,6 @@ pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
     if columns.iter().any(|column| column == "snapshot_id") {
         return backfill_unlinked_text(db);
     }
-    // FTS5 tables cannot add columns: rebuild a legacy (text, ts, app) table,
-    // linking each row to the capture taken within a second of it.
     let tx = db.unchecked_transaction()?;
     tx.execute_batch(
         "CREATE VIRTUAL TABLE IF NOT EXISTS ocr_fts_v2 USING fts5(
@@ -455,8 +387,6 @@ pub(crate) fn migrate(db: &rusqlite::Connection) -> Result<()> {
     Ok(())
 }
 
-/// Links text rows an earlier migration left with `snapshot_id = 0` to the
-/// capture taken within a second of them.
 fn backfill_unlinked_text(db: &rusqlite::Connection) -> Result<()> {
     let rows: Vec<(i64, f64, String)> = {
         let mut statement = db.prepare(
@@ -505,8 +435,6 @@ pub(crate) fn column_names(db: &rusqlite::Connection, table: &str) -> Result<Vec
     Ok(names)
 }
 
-/// The group of a new frame: the previous frame's group when its group's
-/// representative is a near duplicate, else a group of its own.
 fn similarity_group(db: &rusqlite::Connection, id: i64, ts: f64, hash: u64) -> Result<i64> {
     let previous: Option<(i64, String, i64)> = db
         .query_row(
@@ -584,7 +512,6 @@ mod tests {
         let sealed = seal_image(&key, b"jpeg bytes").unwrap();
         assert_eq!(sealed.len(), NONCE_BYTES + b"jpeg bytes".len() + TAG_BYTES);
         assert_eq!(open_image(&key, &sealed).unwrap(), b"jpeg bytes");
-        // Fresh nonces: the same image never seals to the same bytes.
         assert_ne!(seal_image(&key, b"jpeg bytes").unwrap(), sealed);
         assert!(matches!(
             open_image(&new_image_key(), &sealed),
@@ -598,7 +525,6 @@ mod tests {
 
     #[test]
     fn opens_a_cryptokit_style_combined_box() {
-        // nonce ‖ ciphertext ‖ tag, as `AES.GCM.SealedBox.combined` lays it out.
         let key = [7u8; IMAGE_KEY_BYTES];
         let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(&key));
         let nonce = [3u8; NONCE_BYTES];
@@ -629,7 +555,6 @@ mod tests {
         let root = Path::new("/home/u/.local/share/LokalBot");
         let own = "/home/u/.local/share/LokalBot/activity/2026-10-17/shots/1-a.jpg.enc";
         assert_eq!(resolve_capture_path(root, own), Some(PathBuf::from(own)));
-        // Written on a Mac: found again under this library's activity folder.
         assert_eq!(
             resolve_capture_path(
                 root,
@@ -772,7 +697,6 @@ mod tests {
         library.save_moment(id, "keep").unwrap();
         let dates_before = crate::evidence::read_state(dir.path()).unwrap().revision;
         assert_eq!(library.delete_screen_moments(&[id, 999]).unwrap(), 1);
-        // Deleting a source advances the evidence for its days.
         let state = crate::evidence::read_state(dir.path()).unwrap();
         assert_eq!(state.revision, dates_before + 1);
         assert!(state.invalidated_activity_days.is_some());

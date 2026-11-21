@@ -1,14 +1,5 @@
-//! Date encodings and display helpers shared by every crate.
-//!
-//! The macOS app writes four date encodings (see `docs/library-format.md`).
-//! Each JSON file uses the matching serde helper below so libraries stay
-//! readable by both apps.
-
 use chrono::{DateTime, Local, NaiveDate, SecondsFormat, TimeZone, Utc};
 
-/// ISO-8601 with whole seconds and a `Z` suffix (`meta.json`, chats, projects).
-/// Swift's `ISO8601DateFormatter` rejects fractional seconds, so writers must
-/// not emit them. Readers accept fractions anyway.
 pub mod iso_seconds {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -58,7 +49,6 @@ pub mod iso_seconds {
     }
 }
 
-/// ISO-8601 with milliseconds (`outcome-state.json`, `follow-up-draft.json`).
 pub mod iso_millis {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -108,12 +98,8 @@ pub mod iso_millis {
     }
 }
 
-/// Seconds between 1970-01-01 and Swift's reference date, 2001-01-01Z.
 pub const SWIFT_REFERENCE_EPOCH: f64 = 978_307_200.0;
 
-/// Swift's default `JSONEncoder` date: a number of seconds since
-/// 2001-01-01Z (`journal/*.meta.json`, `coding_agent_bursts.payload`).
-/// Readers also accept ISO-8601 strings.
 pub mod swift_date {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer};
@@ -170,14 +156,12 @@ pub mod swift_date {
     }
 }
 
-/// Parses ISO-8601/RFC 3339 with or without fractional seconds.
 pub fn parse_iso(raw: &str) -> Option<DateTime<Utc>> {
     DateTime::parse_from_rfc3339(raw.trim())
         .ok()
         .map(|d| d.with_timezone(&Utc))
 }
 
-/// SQLite timestamp columns hold REAL Unix epoch seconds.
 pub fn from_epoch(seconds: f64) -> DateTime<Utc> {
     let whole = seconds.floor();
     let nanos = ((seconds - whole) * 1e9).round().clamp(0.0, 999_999_999.0) as u32;
@@ -190,14 +174,11 @@ pub fn to_epoch(value: DateTime<Utc>) -> f64 {
     value.timestamp() as f64 + f64::from(value.timestamp_subsec_nanos()) / 1e9
 }
 
-/// Current time at millisecond precision, as ISO-8601 millisecond files
-/// store it (`outcomePersistedTimestamp`).
 pub fn now_millis() -> DateTime<Utc> {
     let now = Utc::now();
     DateTime::from_timestamp_millis(now.timestamp_millis()).unwrap_or(now)
 }
 
-/// Current time truncated to whole seconds, for values written to `meta.json`.
 pub fn now_seconds() -> DateTime<Utc> {
     let now = Utc::now();
     Utc.timestamp_opt(now.timestamp(), 0)
@@ -205,12 +186,10 @@ pub fn now_seconds() -> DateTime<Utc> {
         .unwrap_or(now)
 }
 
-/// The local calendar day of a UTC instant.
 pub fn local_day(value: DateTime<Utc>) -> NaiveDate {
     value.with_timezone(&Local).date_naive()
 }
 
-/// `[start, end)` of a local calendar day in UTC.
 pub fn local_day_bounds(day: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {
     let start = day.and_hms_opt(0, 0, 0).expect("midnight exists");
     let next = (day + chrono::Days::new(1))
@@ -226,7 +205,6 @@ pub fn local_day_bounds(day: NaiveDate) -> (DateTime<Utc>, DateTime<Utc>) {
     (to_utc(start), to_utc(next))
 }
 
-/// `HH:MM:SS`, the stamp used by transcripts, citations and evidence pills.
 pub fn stamp(seconds: f64) -> String {
     let total = seconds.max(0.0).floor() as u64;
     format!(
@@ -237,7 +215,6 @@ pub fn stamp(seconds: f64) -> String {
     )
 }
 
-/// Parses `HH:MM:SS`, `MM:SS` or `H:MM:SS` into seconds.
 pub fn parse_stamp(raw: &str) -> Option<f64> {
     let parts: Vec<&str> = raw.trim().split(':').collect();
     if parts.is_empty() || parts.len() > 3 {
@@ -251,7 +228,6 @@ pub fn parse_stamp(raw: &str) -> Option<f64> {
     Some(total)
 }
 
-/// `MM:SS`, or `H:MM:SS` past an hour: the recording timer.
 pub fn timer(seconds: f64) -> String {
     let total = seconds.max(0.0).floor() as u64;
     if total >= 3600 {
@@ -266,7 +242,6 @@ pub fn timer(seconds: f64) -> String {
     }
 }
 
-/// Meeting list durations: "2 min", "25 min", "1 hr 5 min".
 pub fn meeting_duration_label(seconds: f64) -> String {
     let minutes = (seconds / 60.0).round().max(1.0) as u64;
     if minutes < 60 {
@@ -278,7 +253,6 @@ pub fn meeting_duration_label(seconds: f64) -> String {
     }
 }
 
-/// Tracked-time chips and legends: "3h 50m", "48m", "<1m".
 pub fn compact_duration(seconds: f64) -> String {
     let minutes = (seconds / 60.0).floor() as u64;
     if minutes == 0 {
@@ -291,7 +265,6 @@ pub fn compact_duration(seconds: f64) -> String {
     }
 }
 
-/// A time of day in the user's locale style, e.g. "10:57 AM".
 pub fn clock_time(value: DateTime<Utc>) -> String {
     value
         .with_timezone(&Local)

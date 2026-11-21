@@ -1,11 +1,7 @@
-//! Embedded assets: Inter, the app icon, and the Lucide icons LokalBot uses.
-
 use std::borrow::Cow;
 
 use gpui_kit::{App, AssetSource, Result, SharedString};
 
-// Lucide icons beyond GPUI Kit's default component set. Add a name here before
-// using `Icon::new(LbIcon::…)` with it; unknown names render as nothing.
 gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     Activity, AppWindow, ArrowDownLeft, ArrowRightLeft, ArrowUpDown, ArrowUpRight, AudioLines,
     BadgeCheck, Bookmark, BookmarkCheck, Brain, Briefcase, Camera, ChartGantt, Circle,
@@ -16,35 +12,21 @@ gpui_kit::assets::icon_assets!(pub ExtraIcons, [
     ShieldCheck, SlidersHorizontal, Sparkle, Sparkles, SquareArrowOutUpRight, SquarePen, Terminal,
     TextCursorInput, TextQuote, TextSearch, Trash, UserRoundCheck, Users, Video, Volume2,
     WandSparkles, X, ZoomIn, ZoomOut,
-    // Agent Mode
     Archive, CirclePlus, Download, Hand, ListPlus, LockOpen,
-    // Meeting import, merge and boundaries
     Group, Import,
-    // Phones and tablets
     Smartphone, Tablet,
-    // Selection actions
     ClipboardCheck, Languages, Lightbulb, Minimize2, Reply, TextAlignStart, TextCursor,
-    // Files
     FileCode, FileHeadphone, FileImage, FileVideoCamera,
-    // Sidebar: Timeline (calendar.day.timeline.left) and the privacy line (lock.shield)
     SquareChartGantt, ShieldLock,
-    // Today: a recent meeting before you join (clock.arrow.circlepath)
     RotateCcwClock,
-    // Actions: the Filter menu (line.3.horizontal.decrease)
     ListFilter,
-    // Tray menu on Windows: Quit LokalBot (power)
     Power,
-    // Timeline panels: Work Summary (list.bullet), Decisions (flag), Screen moments (photo)
     List, Flag, Image,
-    // Ask: a screen moment pinned as context (pin)
     Pin,
-    // Setup: the Accessibility and credential store rows, the download size line
     Accessibility, KeyRound, ArrowDownToLine,
-    // Settings: a permission nothing uses now (minus.circle.fill)
     CircleMinus,
 ]);
 
-/// Serves LokalBot's own files first, then the extra icons, then GPUI Kit's defaults.
 pub struct Assets;
 
 const BRAND_ICON: &[u8] = include_bytes!("../assets/icons/lokalbot.svg");
@@ -69,10 +51,7 @@ impl AssetSource for Assets {
     }
 }
 
-/// Registers the bundled Inter faces. The UI uses Inter on every platform so
-/// layouts and screenshots look the same on Linux and Windows.
 pub fn load_fonts(cx: &mut App) {
-    // Geist and Geist Mono 1.900 and Inter 4.001, all SIL OFL 1.1. See `theme::FONT_FAMILY`.
     let fonts: Vec<Cow<'static, [u8]>> = vec![
         Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Regular.ttf")),
         Cow::Borrowed(include_bytes!("../assets/fonts/Geist-Medium.ttf")),

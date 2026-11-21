@@ -1,13 +1,9 @@
 import Foundation
 
-/// The People list as it is drawn: who matches the search, grouped by time
-/// only, with each row's wording already made.
 struct PeopleListContent: Equatable, Sendable {
-    /// Calendar meetings in the next week, then when you last met.
     enum Group: String, CaseIterable, Sendable {
         case comingUp, recent, earlier
 
-        /// The catalog key of the group's heading.
         var title: String {
             switch self {
             case .comingUp: "Coming up"
@@ -17,8 +13,6 @@ struct PeopleListContent: Equatable, Sendable {
         }
     }
 
-    /// Which way open work runs, as one badge. Work the user owes shows
-    /// first: when both directions are open, the badge counts the user's.
     enum Badge: Equatable, Sendable {
         case youOwe(Int)
         case owesYou(Int)
@@ -33,7 +27,6 @@ struct PeopleListContent: Equatable, Sendable {
             }
         }
 
-        /// Amber for the user's own work, quiet for the other person's.
         var needsAttention: Bool {
             if case .youOwe = self { return true }
             return false
@@ -48,12 +41,9 @@ struct PeopleListContent: Equatable, Sendable {
     }
 
     struct Row: Identifiable, Equatable, Sendable {
-        /// The person's id.
         let id: String
         let name: String
-        /// The next meeting's title under Coming up, else the latest one's.
         let detail: String
-        /// The next meeting's time, else the day you last met.
         let when: String
         let badge: Badge?
     }
@@ -64,19 +54,13 @@ struct PeopleListContent: Equatable, Sendable {
         var id: String { group.rawValue }
     }
 
-    /// "Last 2 weeks" reaches this many days back.
     static let recentDays = 14
 
     var sections: [Section] = []
 
-    /// Every row's person id, in the order shown.
     var personIDs: [String] { sections.flatMap { $0.rows.map(\.id) } }
     var isEmpty: Bool { sections.isEmpty }
 
-    /// - Parameters:
-    ///   - upcoming: each person's next calendar meeting, by person id; empty
-    ///     without Calendar access, and then there is no Coming up group.
-    ///   - query: matches a person's name or any other name they appear as.
     static func build(
         people: [PersonProfile],
         upcoming: [String: PersonUpcomingMeeting] = [:],
@@ -150,18 +134,11 @@ struct PeopleListContent: Equatable, Sendable {
     }
 }
 
-/// Wording on a person's page that is put together from counts, dates and
-/// names. `localize` looks a catalog key up in the interface language.
 enum PeopleWording {
-    /// Decisions shown before "Show N more".
     static let visibleDecisions = 3
-    /// Meeting titles shown in the side column before "Show N more".
     static let visibleSeries = 8
-    /// Other invited people named on the next-meeting card.
     static let visibleInvitees = 3
 
-    /// "31 meetings since Mar 4", "Met once, Oct 22", or "Named in actions"
-    /// for someone who only owns an action.
     static func subtitle(
         for person: PersonProfile, now: Date = Date(), calendar: Calendar = .current,
         locale: Locale = .current, localize: (String) -> String = { $0 }
@@ -173,8 +150,6 @@ enum PeopleWording {
         return String(format: localize("%lld meetings since %@"), occasions.count, day)
     }
 
-    /// "Thu 2:00 PM", or the time alone for a meeting today. A meeting under
-    /// way still shows when it started.
     static func upcomingTime(
         _ meeting: PersonUpcomingMeeting, now: Date = Date(), calendar: Calendar = .current,
         locale: Locale = .current, localize: (String) -> String = { $0 }
@@ -186,8 +161,6 @@ enum PeopleWording {
         return meeting.start.formatted(style.weekday(.abbreviated).hour().minute())
     }
 
-    /// "Next meeting in 2 days · Thu, Nov 12, 2:00 – 2:30 PM". The distance
-    /// in days comes from the system in the interface language.
     static func nextMeetingLine(
         _ meeting: PersonUpcomingMeeting, now: Date = Date(), calendar: Calendar = .current,
         locale: Locale = .current, localize: (String) -> String = { $0 }
@@ -219,7 +192,6 @@ enum PeopleWording {
         return lead + " · " + day + ", " + time
     }
 
-    /// "Also invited: Daniel Ortiz, Priya Nair +2", or "Just the two of you".
     static func invited(_ others: [String], localize: (String) -> String = { $0 }) -> String {
         guard !others.isEmpty else { return localize("Just the two of you") }
         var names = others.prefix(visibleInvitees).joined(separator: ", ")
@@ -227,15 +199,12 @@ enum PeopleWording {
         return String(format: localize("Also invited: %@"), names)
     }
 
-    /// "Design review meeting · Nov 10".
     static func meetingLink(
         title: String, date: Date, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current
     ) -> String {
         title + " · " + shortDate(date, now: now, calendar: calendar, locale: locale)
     }
 
-    /// Under a title in the side column: "22 meetings · Nov 10" for a
-    /// series, the date alone for a single meeting.
     static func seriesDetail(
         _ series: PersonProfile.Series, now: Date = Date(), calendar: Calendar = .current,
         locale: Locale = .current, localize: (String) -> String = { $0 }
@@ -246,12 +215,10 @@ enum PeopleWording {
         return String(format: localize("%lld meetings"), count) + " · " + day
     }
 
-    /// "Restore 2 hidden entries".
     static func restoreHidden(_ count: Int, localize: (String) -> String = { $0 }) -> String {
         String(format: localize(count == 1 ? "Restore %lld hidden entry" : "Restore %lld hidden entries"), count)
     }
 
-    /// "Nov 10", with the year once it is not this year.
     static func shortDate(
         _ date: Date, now: Date = Date(), calendar: Calendar = .current, locale: Locale = .current
     ) -> String {
@@ -260,16 +227,12 @@ enum PeopleWording {
         return date.formatted(sameYear ? monthDay : monthDay.year())
     }
 
-    /// The interface language's formats with the reader's own clock, so a
-    /// 24-hour preference holds under any interface language and a meeting
-    /// reads the same here as on Today.
     static func formattingLocale(_ locale: Locale, reader: Locale = .autoupdatingCurrent) -> Locale {
         var components = Locale.Components(locale: locale)
         components.hourCycle = reader.hourCycle
         return Locale(components: components)
     }
 
-    /// How many rows stay behind "Show N more".
     static func hiddenCount(total: Int, visible: Int) -> Int { max(0, total - max(0, visible)) }
 
     private static func style(calendar: Calendar, locale: Locale) -> Date.FormatStyle {
@@ -277,9 +240,6 @@ enum PeopleWording {
     }
 }
 
-/// What "Prepare" hands to Agent: the person's newest notes, projects, open
-/// work in both directions and recent decisions. The calendar event that
-/// offered it adds nothing.
 enum PersonPreparation {
     static func launchContext(for person: PersonProfile) -> AgentLaunchContext {
         AgentLaunchContext(

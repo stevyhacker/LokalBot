@@ -1,14 +1,11 @@
 import Foundation
 
-/// An action with its meeting, as the store lists it (ffi.md, ActionRow).
 public struct ActionRow: Codable, Sendable, Hashable, Identifiable {
     public var meetingId: String
     public var meetingTitle: String
     public var meetingStartedAt: Date
     public var action: ActionItem
-    /// A status change made here that the Mac hasn't confirmed yet.
     public var pending: Bool
-    /// The computer didn't make the last status change sent from here.
     public var syncNote: ActionSyncNote?
 
     public var id: String { "\(meetingId)/\(action.id)" }
@@ -23,17 +20,14 @@ public struct ActionRow: Codable, Sendable, Hashable, Identifiable {
         self.syncNote = syncNote
     }
 
-    /// The row for one of a meeting's own actions, which carry what a row does.
     public init(meeting: Meeting, action: ActionItem) {
         self.init(meetingId: meeting.id, meetingTitle: meeting.title, meetingStartedAt: meeting.startedAt,
                   action: action, pending: action.pending, syncNote: action.syncNote)
     }
 }
 
-/// One page of the Meetings list.
 public struct MeetingsPage: Sendable, Hashable {
     public var meetings: [Meeting]
-    /// Older meetings exist beyond these.
     public var hasMore: Bool
 
     public init(meetings: [Meeting], hasMore: Bool) {
@@ -41,21 +35,16 @@ public struct MeetingsPage: Sendable, Hashable {
         self.hasMore = hasMore
     }
 
-    /// From the rows a store returned when asked for `limit + 1`. A meeting
-    /// this build can't read is left out, and must not look like the end of
-    /// the list: whether more exist is counted in rows, not in what decoded.
     public init(rows: [String], limit: Int) {
         meetings = rows.prefix(limit).compactMap { try? CompanionJSON.decode(Meeting.self, from: $0) }
         hasMore = rows.count > limit
     }
 }
 
-/// Mirrors ffi.md `ActionFilter`.
 public struct ActionFilter: Sendable, Hashable {
     public var mineOnly: Bool
     public var status: ActionStatus?
     public var ownerUnclearOnly: Bool
-    /// `YYYY-MM-DD`, exclusive.
     public var dueBefore: String?
 
     public init(mineOnly: Bool = false, status: ActionStatus? = nil, ownerUnclearOnly: Bool = false, dueBefore: String? = nil) {
@@ -79,16 +68,13 @@ public struct ActionFilter: Sendable, Hashable {
     }
 }
 
-/// Mirrors ffi.md `SearchHit`.
 public struct SearchHit: Sendable, Hashable, Identifiable {
     public var kind: String
     public var key: String
     public var meetingId: String?
     public var title: String
     public var snippet: String
-    /// Segment start, for transcript hits.
     public var at: Double?
-    /// `YYYY-MM-DD`, for day hits.
     public var date: String?
 
     public var id: String { "\(kind)/\(key)/\(at.map { String($0) } ?? "")/\(snippet.hashValue)" }
@@ -105,7 +91,6 @@ public struct SearchHit: Sendable, Hashable, Identifiable {
     }
 }
 
-/// Mirrors ffi.md `SyncStatus`.
 public struct SyncStatus: Sendable, Hashable {
     public var paired: Bool
     public var lastSyncAt: Date?
@@ -127,7 +112,6 @@ public struct SyncStatus: Sendable, Hashable {
     public static let unpaired = SyncStatus()
 }
 
-/// Mirrors ffi.md `SyncReport`.
 public struct SyncReport: Sendable, Hashable {
     public var received: Int
     public var deleted: Int
@@ -147,31 +131,22 @@ public struct SyncReport: Sendable, Hashable {
     }
 }
 
-/// Mirrors ffi.md `RecordingInfo`: a recording this device holds or just sent.
 public struct RecordingItem: Sendable, Hashable, Identifiable {
     public enum State: String, Sendable, Hashable {
-        /// A recorder is writing it, or was when the app last stopped.
         case recording
-        /// On its way to the Mac as soon as it can be reached.
         case waiting
-        /// The Mac refused it; it stays until retried or discarded.
         case failed
-        /// The Mac has it; the audio left this device.
         case uploaded
     }
 
-    /// A UUID; the Mac's meeting has the same id.
     public var id: String
-    /// Empty until the person names it.
     public var title: String
     public var state: State
     public var startedAt: Date
     public var durationSeconds: Double?
     public var byteCount: Int64
     public var sentBytes: Int64
-    /// Why it hasn't reached the Mac, or what went wrong.
     public var message: String?
-    /// Where the recorder writes.
     public var filePath: String
 
     public init(id: String, title: String = "", state: State, startedAt: Date, durationSeconds: Double? = nil,
@@ -187,11 +162,9 @@ public struct RecordingItem: Sendable, Hashable, Identifiable {
         self.filePath = filePath
     }
 
-    /// Still only on this device, so deleting it loses it.
     public var isOnlyCopy: Bool { state != .uploaded }
 }
 
-/// Mirrors ffi.md `UploadReport`.
 public struct UploadReport: Sendable, Hashable {
     public var uploaded: Int
     public var waiting: Int
@@ -204,7 +177,6 @@ public struct UploadReport: Sendable, Hashable {
     }
 }
 
-/// Mirrors ffi.md `PairedMac`.
 public struct PairedMac: Sendable, Hashable {
     public var macName: String
     public var macKeyB64: String

@@ -4,7 +4,6 @@ import CryptoKit
 import os
 
 enum AppIdentifiers {
-    /// The release identity is frozen for existing libraries and Keychain items.
     static let appBundleID = "me.dotenv.LokalBot"
 
     enum Identity: String {
@@ -21,8 +20,6 @@ enum AppIdentifiers {
 #elseif LOKALBOT_DEV
         .development
 #else
-        // The shared CLI target is embedded in both app variants. Resolve its
-        // enclosing app even when invoked through the installed command symlink.
         identity(forExecutable: Bundle.main.executableURL,
                  bundleIdentifier: Bundle.main.bundleIdentifier)
 #endif
@@ -55,17 +52,11 @@ enum UITestRuntime {
     private static let storageRootArgument = "--lokalbot-storage-root"
     private static let defaultsSuiteArgument = "--lokalbot-defaults-suite"
 
-    /// XCTest loads the production app as its host, so `LokalBotMain.main()` and
-    /// `AppState` still run before the first test method. Keep that launch
-    /// hermetic even when the caller did not provide the UI-test overrides.
     static var isUnitTesting: Bool {
         !isEnabled
             && ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
-    /// Unit tests run with temporary libraries, so any model they reach would
-    /// be downloaded from the network. They never download one: the download
-    /// throws instead, and the test bundle fails the test that started it.
     static func refuseDownloadInUnitTests(of name: String) throws {
         guard isUnitTesting else { return }
         refusedUnitTestDownloads.withLock { $0.append(name) }
@@ -77,7 +68,6 @@ enum UITestRuntime {
         var errorDescription: String? { "Unit tests never download \(name)." }
     }
 
-    /// Downloads refused since the last call, oldest first.
     static func takeRefusedUnitTestDownloads() -> [String] {
         refusedUnitTestDownloads.withLock { names in
             defer { names.removeAll() }
@@ -113,14 +103,8 @@ enum UITestRuntime {
             ?? localBuildDefaultsSuite
     }
 
-    /// The folder and settings suite of a release-identity copy run from
-    /// Xcode build products.
     static let localBuildName = "me.dotenv.LokalBot.local-build"
 
-    /// A release-identity app run from Xcode build products (DerivedData or a
-    /// custom derived-data path) keeps its own library and settings, so a
-    /// development copy never writes the installed app's activity, journals,
-    /// or scheduled runs. `LOKALBOT_STORAGE_ROOT` still points it anywhere.
     static var isLocalBuild: Bool {
         guard !isEnabled, !isUnitTesting, AppIdentifiers.identity == .release else { return false }
         return isBuildProductsPath(Bundle.main.executableURL?.resolvingSymlinksInPath().path ?? "")
@@ -217,9 +201,6 @@ enum KeychainSecrets {
         data(service: AppIdentifiers.bundleID, account: account)
     }
 
-    /// The item's data, or nil when it was never saved. Throws for any other
-    /// failure (a locked keychain, denied access), so a caller can tell
-    /// "signed out" from "can't read it right now".
     static func existingData(account: String) throws -> Data? {
         var query = baseQuery(service: AppIdentifiers.bundleID, account: account)
         query[kSecReturnData as String] = true
@@ -276,11 +257,6 @@ enum KeychainSecrets {
         ]
     }
 
-    /// A per-install AES-256 key for `account`, generated on first use and
-    /// stored in the Keychain (design §3.4). Used to seal at-rest data —
-    /// screenshots (`screenshot-key`) and chat history (`chat-key`) — with
-    /// `AES.GCM`. Cached in-process per account; `@MainActor` because the cache
-    /// is shared mutable state and every caller already runs on the main actor.
     @MainActor private static var symmetricKeyCache: [String: SymmetricKey] = [:]
     @MainActor static func symmetricKey(account: String) throws -> SymmetricKey {
         if let cached = symmetricKeyCache[account] { return cached }
@@ -299,9 +275,6 @@ enum KeychainSecrets {
         return key
     }
 
-    /// Loads the existing AES-256 key or atomically creates it on first use.
-    /// Existing items are never updated: a temporary read failure must not be
-    /// mistaken for absence, and a concurrent creator wins without replacement.
     static func resolveSymmetricKey(
         account: String,
         operations: EncryptionKeyOperations

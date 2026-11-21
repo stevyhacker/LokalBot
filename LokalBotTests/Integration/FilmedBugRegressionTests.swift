@@ -4,11 +4,7 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// Bugs the landing page films exposed on real footage (2026-11-05). Each
-/// expectation is the filmed input and what should have come out of it.
 final class FilmedBugRegressionTests: XCTestCase {
-    // MARK: - Transcript
-
     private func token(_ text: String, _ start: TimeInterval, _ end: TimeInterval) -> TokenTiming {
         TokenTiming(token: text, tokenId: 0, startTime: start, endTime: end, confidence: 0.9)
     }
@@ -31,8 +27,6 @@ final class FilmedBugRegressionTests: XCTestCase {
         ])
         XCTAssertEqual(ParakeetEngine.segments(from: result, speaker: "them").map(\.text), ["One", "Two"])
     }
-
-    // MARK: - Decisions
 
     func testStatedDecisionsComeFromTheFilmedLines() {
         XCTAssertEqual(ExplicitDecisions.statements(
@@ -78,8 +72,6 @@ final class FilmedBugRegressionTests: XCTestCase {
                                                 in: ["s1": "Decision made, we shoot in the studio."]).isEmpty)
     }
 
-    // MARK: - Ask streaming
-
     func testStreamingTextHidesMarkersStillArriving() {
         XCTAssertEqual(StreamingMarkdown.displayable("Plain so far"), "Plain so far")
         XCTAssertEqual(StreamingMarkdown.displayable("The **studio"), "The **studio**")
@@ -99,8 +91,6 @@ final class FilmedBugRegressionTests: XCTestCase {
                                                            style: .editorial)
         XCTAssertEqual(String(rendered.characters), "Shoot in the studio")
     }
-
-    // MARK: - Compose
 
     private func screen(window: String = "Spring campaign — Edited") -> DictationScreenContext {
         DictationScreenContext(appName: "TextEdit", bundleID: "com.apple.TextEdit", windowTitle: window, visibleText: "")
@@ -134,16 +124,12 @@ final class FilmedBugRegressionTests: XCTestCase {
                        "```\n**keep**\n```")
     }
 
-    // MARK: - Model server
-
     func testAFreshlyBootedMacGetsMinutesToLoadAModel() {
         let seconds = Double(LlamaServer.startupHealthAttempts)
             * Double(LlamaServer.startupHealthInterval.components.seconds * 1_000
                      + LlamaServer.startupHealthInterval.components.attoseconds / 1_000_000_000_000_000) / 1_000
         XCTAssertEqual(seconds, 300, accuracy: 0.001)
     }
-
-    // MARK: - Topics
 
     func testHardwareAcronymsAreNotSuggestedProjects() {
         let meetings = (1...4).map { index in
@@ -159,8 +145,6 @@ final class FilmedBugRegressionTests: XCTestCase {
         let topics = ProjectTopicDetector.topics(meetings: meetings, summaries: summaries, projections: [], excludedWords: [])
         XCTAssertEqual(topics.map(\.name), ["Kestrel"])
     }
-
-    // MARK: - Project notes
 
     func testEvidenceFormatIsRemovedFromANote() {
         XCTAssertEqual(ProjectStatusGenerator.removingEvidenceFormat(
@@ -242,7 +226,6 @@ final class ProjectWritingStateTests: XCTestCase {
             myActions: [], othersActions: [], olderOthersActions: [], decisions: [], reviewNotes: [],
             days: [], windows: [], people: [], lastActive: nil)
         let task = store.startWritingSummary(for: project, automatic: true, location: "this Mac") { Never() }
-        // No suspension point since the call: a view updating now already sees it.
         XCTAssertTrue(store.writing.contains(id))
         await task?.value
         XCTAssertFalse(store.writing.contains(id))

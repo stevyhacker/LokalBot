@@ -1,21 +1,13 @@
 import CoreGraphics
 import Foundation
 
-/// What each optional context source can contribute right now. Settings shows
-/// this beside its switch, so a grant that is on but cannot take effect says
-/// why instead of looking active.
 struct CotypingContextAvailability: Equatable, Sendable {
-    /// What is saved and readable, counted without reading any text.
     struct Inventory: Equatable, Sendable {
         var libraryReady = true
-        /// Finished meetings recent enough to supply a fact.
         var recentMeetings = 0
-        /// Attributed work-memory facts by what they draw on.
         var meetingFacts = 0
         var screenFacts = 0
-        /// Facts combining meeting and screen sources; they need both grants.
         var mixedFacts = 0
-        /// Only affects wording: whether new work memory is still being added.
         var overnightReviewOn = true
 
         init(libraryReady: Bool = true, recentMeetings: Int = 0, meetingFacts: Int = 0,
@@ -49,13 +41,9 @@ struct CotypingContextAvailability: Equatable, Sendable {
     }
 
     enum State: Equatable, Sendable {
-        /// The grant is off.
         case off
-        /// On, and there is something it can use when it is relevant.
         case available(String)
-        /// On, but something it depends on is off or missing.
         case unavailable(String)
-        /// On, with nothing saved to read yet.
         case nothingSaved(String)
 
         var message: String? {
@@ -126,7 +114,6 @@ struct CotypingContextAvailability: Equatable, Sendable {
         guard inventory.libraryReady else {
             return .unavailable("Unavailable: the library is still loading.")
         }
-        // A fact built from meetings and screen activity needs both grants.
         let blocked = settings.cotypingUseMeetingMemory ? 0 : inventory.mixedFacts
         let usable = inventory.screenFacts + inventory.mixedFacts - blocked
         if usable > 0 {
@@ -149,14 +136,10 @@ struct CotypingContextAvailability: Equatable, Sendable {
     }
 }
 
-/// The optional sources one suggestion drew on.
 struct CotypingContextUse: Equatable, Sendable {
-    /// Nearby text was part of the prompt.
     var visibleText = false
-    /// Titles of the saved sources used, by the grant that admitted them.
     var meetingSources: [String] = []
     var screenSources: [String] = []
-    /// A saved-memory lookup ran, whether or not it found anything.
     var searchedMemory = false
 
     init(visibleText: Bool = false, selection: CotypingMemoryContext.Selection = .init(),
@@ -172,24 +155,17 @@ struct CotypingContextUse: Equatable, Sendable {
     }
 }
 
-/// A rehearsal suggestion and the optional sources behind it.
 struct CotypingPreview: Equatable, Sendable {
     var text = ""
-    /// Why the model's answer became no suggestion.
     var suppression: CotypingSuppressionReason?
     var use = CotypingContextUse()
 }
 
-/// One line of the rehearsal's account of where a suggestion came from.
 struct CotypingContextStatus: Equatable, Identifiable, Sendable {
     enum Tone: Equatable, Sendable {
-        /// The source shaped this suggestion.
         case used
-        /// The source is on and working; it had nothing to add this time.
         case ready
-        /// The source is on but cannot contribute.
         case attention
-        /// The source is off.
         case off
     }
 
@@ -198,8 +174,6 @@ struct CotypingContextStatus: Equatable, Identifiable, Sendable {
     var detail: String
     var tone: Tone
 
-    /// The three optional sources, in the order Settings lists them. `use` is
-    /// nil until a suggestion has been generated.
     static func rehearsal(availability: CotypingContextAvailability,
                           use: CotypingContextUse?) -> [CotypingContextStatus] {
         [
@@ -223,7 +197,6 @@ struct CotypingContextStatus: Equatable, Identifiable, Sendable {
                 : .init(id: "visible", title: title, detail: "On. The sample conversation above stands in for nearby text.",
                         tone: .ready)
         case .unavailable(let reason):
-            // The rehearsal still reads its own sample, so say both things.
             let here = use?.visibleText == true ? "Used the sample conversation above. " : ""
             return .init(id: "visible", title: title, detail: "\(here)In other apps: \(reason)", tone: .attention)
         }
@@ -248,15 +221,11 @@ struct CotypingContextStatus: Equatable, Identifiable, Sendable {
     }
 }
 
-/// The synthetic exchange above the rehearsal's reply field. When the
-/// visible-text grant is on it is offered to the model the way nearby text is
-/// in another app, so the setting can be judged without leaving Settings.
 enum CotypingRehearsalConversation {
     struct Message: Equatable, Identifiable, Sendable {
         var sender: String
         var text: String
         var id: String { text }
-        /// How the line reads to the model, as a chat app exposes it.
         var line: String { "\(sender): \(text)" }
     }
 
@@ -265,9 +234,6 @@ enum CotypingRehearsalConversation {
         .init(sender: "Sarah", text: "Daniel can start the database cutover on Thursday if you confirm today."),
     ]
 
-    /// The messages as a live capture would select them: the same bounded
-    /// traversal, limits and text filters, run over a synthetic layout. Nothing
-    /// on screen is read.
     static func snapshot(of messages: [Message] = sample) -> CotypingVisibleContext.Snapshot? {
         let window = CGRect(x: 0, y: 0, width: 800, height: 720)
         let field = CGRect(x: 40, y: 560, width: 720, height: 120)
@@ -276,7 +242,6 @@ enum CotypingRehearsalConversation {
             scopeID: "conversation", windowTitle: "Settings", sourceURL: nil, hasWebContent: false,
             focusedSecureField: false, windowFrame: window, fieldFrame: field, scopeFrame: window)
         var nodes: [CotypingVisibleContextReplay.Node] = []
-        // The newest message sits directly above the field, as in a chat.
         var bottom = field.minY - 12
         for (index, message) in messages.enumerated().reversed() {
             let frame = CGRect(x: field.minX, y: bottom - 48, width: field.width, height: 48)
@@ -295,7 +260,6 @@ enum CotypingRehearsalConversation {
 }
 
 extension AppState {
-    /// What each optional autocomplete context source can do right now.
     func cotypingContextAvailability(accessibilityGranted: Bool,
                                      screenRecordingGranted: Bool = false) -> CotypingContextAvailability {
         CotypingContextAvailability(

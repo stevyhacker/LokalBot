@@ -1,9 +1,3 @@
-//! The Agent notes grant for external agents (`AgentNotesAccessGate`): a marker
-//! the app sets from Settings → AI agents. `lokalbot-cli` and its MCP
-//! server search the saved notes themselves, without the app running, and find
-//! none while Read coding agent notes is off, because turning that off deletes
-//! them. Separate from every other grant; no Agent Mode capability satisfies it.
-
 use std::path::PathBuf;
 
 use anyhow::{Result, bail};
@@ -48,7 +42,6 @@ mod tests {
         let paths = LibraryPaths::new(dir.path());
         assert!(!is_enabled(&paths));
 
-        // No other grant turns it on.
         crate::access::set_meetings_access(&paths, true).unwrap();
         crate::files::access::set_enabled(&paths, true).unwrap();
         assert!(!is_enabled(&paths));

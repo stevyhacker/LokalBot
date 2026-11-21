@@ -1,13 +1,3 @@
-//! Speech model catalog: transcription models plus voice activity detection
-//! and speaker separation, all sherpa-onnx exports pinned by URL, size and
-//! SHA-256 (GitHub release assets of `k2-fsa/sherpa-onnx`).
-//!
-//! Each model is one download: a `.tar.bz2` archive extracted into
-//! [`model_dir`], or a single file saved straight into it. The engine
-//! downloads [`download_info`] to [`download_dest`], extracts archives into
-//! `model_dir`, then calls [`finish_install`], which flattens the archive's
-//! top folder, checks the files and writes the install marker.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result, bail};
@@ -16,18 +6,12 @@ use serde::{Deserialize, Serialize};
 
 const MARKER: &str = ".lokalbot-installed.json";
 
-/// How a transcription model decodes.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Family {
-    /// Qwen3-ASR: conv front end + encoder + LLM decoder; takes a language and hotwords per span.
     Qwen3Asr,
-    /// NeMo transducer (Parakeet TDT); token timestamps, automatic language.
     NemoTransducer,
-    /// SenseVoice CTC; language fixed per recognizer.
     SenseVoice,
-    /// Whisper encoder/decoder; language fixed per recognizer, 30 s windows.
     Whisper,
-    /// NeMo CTC (GigaAM); one language, no options.
     NemoCtc,
 }
 
@@ -37,35 +21,27 @@ pub enum ModelKind {
     VoiceActivity,
     SpeakerSegmentation,
     SpeakerEmbedding,
-    /// Reads text aloud.
     SpeechSynthesis,
 }
 
-/// One pinned download.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct DownloadInfo {
     pub url: &'static str,
     pub sha256: &'static str,
     pub size: u64,
-    /// Top folder inside a `.tar.bz2`; `None` for a single file.
     pub archive_root: Option<&'static str>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct SpeechModel {
-    /// Stable id stored in settings (`transcriptionModel`) and used for the folder name.
     pub id: &'static str,
     pub display_name: &'static str,
     pub kind: ModelKind,
-    /// ISO 639 codes the model transcribes (empty for support models).
     pub languages: &'static [&'static str],
     pub archive: DownloadInfo,
-    /// Files that must exist in the model folder once installed.
     pub files: &'static [&'static str],
-    /// Short description for the model picker.
     pub summary: &'static str,
     pub license: &'static str,
-    /// Uses the vocabulary prompt (names and terms) as decoding context.
     pub supports_prompt: bool,
 }
 
@@ -86,7 +62,6 @@ impl SpeechModel {
     }
 }
 
-/// Qwen3-ASR's languages (model card), as ISO codes.
 const QWEN3_LANGUAGES: &[&str] = &[
     "zh", "en", "yue", "ar", "de", "fr", "es", "pt", "id", "it", "ko", "ru", "th", "vi", "ja",
     "tr", "hi", "ms", "nl", "sv", "da", "fi", "pl", "cs", "fil", "fa", "el", "hu", "mk", "ro",
@@ -96,7 +71,6 @@ const PARAKEET_V3_LANGUAGES: &[&str] = &[
     "pl", "pt", "ro", "sk", "sl", "es", "sv", "ru", "uk",
 ];
 const SENSE_VOICE_LANGUAGES: &[&str] = &["zh", "en", "ja", "ko", "yue"];
-/// Whisper covers ~100 languages; these are the ones the language picker offers.
 const WHISPER_LANGUAGES: &[&str] = &[
     "en", "de", "es", "fr", "it", "nl", "pt", "pl", "sv", "da", "no", "tr", "ru", "uk", "sr", "zh",
     "yue", "ja", "ko", "ar", "hi", "th", "vi",
@@ -271,8 +245,6 @@ static MODELS: [SpeechModel; 10] = [
         },
         files: &["nemo_en_titanet_small.onnx"],
         summary: "Tells voices apart.",
-        // NVIDIA's NGC card for titanet_small (the model sherpa-onnx
-        // converted) puts it under the NeMo toolkit's license.
         license: "Apache-2.0",
         supports_prompt: false,
     },
@@ -301,11 +273,9 @@ static MODELS: [SpeechModel; 10] = [
     },
 ];
 
-/// Pinned after downloading the release asset (GitHub publishes no digest for it).
 const WHISPER_TURBO_SHA256: &str =
     "b11acbbcd660b44a8e0df33724feb5aaa709cf65668f2823d59f656312544f22";
 
-/// Every speech model: transcription models first, then VAD and speaker separation.
 pub fn all() -> &'static [SpeechModel] {
     &MODELS
 }
@@ -318,12 +288,10 @@ pub fn vad_model() -> &'static SpeechModel {
     &MODELS[6]
 }
 
-/// Segmentation and speaker-embedding models used for "Separate speakers".
 pub fn diarization_models() -> &'static [SpeechModel] {
     &MODELS[7..9]
 }
 
-/// The voice model behind Read aloud.
 pub fn kokoro_model() -> &'static SpeechModel {
     &MODELS[9]
 }
@@ -332,18 +300,14 @@ pub fn find(id: &str) -> Option<&'static SpeechModel> {
     MODELS.iter().find(|m| m.id == id)
 }
 
-/// Audio goes to the user's transcription server, so nothing downloads for it.
 pub fn is_remote(id: &str) -> bool {
     id == lokalbot_core::remote_transcription::MODEL_ID
 }
 
-/// `acceptsVocabularyPrompt`: the model reads names and terms. Whisper does on
-/// the Mac; sherpa-onnx gives it no way to.
 pub fn accepts_vocabulary(id: &str) -> bool {
     is_remote(id) || find(id).is_some_and(|model| model.supports_prompt)
 }
 
-/// Models a transcription needs besides the transcription model itself.
 pub fn supporting_ids(diarize: bool) -> Vec<String> {
     let mut ids = vec![VAD_MODEL.to_string()];
     if diarize {
@@ -352,12 +316,10 @@ pub fn supporting_ids(diarize: bool) -> Vec<String> {
     ids
 }
 
-/// `<root>/models/speech/<id>/`.
 pub fn model_dir(paths: &LibraryPaths, model: &SpeechModel) -> PathBuf {
     paths.models_dir().join("speech").join(model.id)
 }
 
-/// Absolute path of one of the model's files.
 pub fn model_file(paths: &LibraryPaths, model: &SpeechModel, file: &str) -> PathBuf {
     let mut path = model_dir(paths, model);
     for part in file.split('/') {
@@ -370,13 +332,11 @@ pub fn is_archive(model: &SpeechModel) -> bool {
     model.archive.archive_root.is_some()
 }
 
-/// What to download for a model, for the engine's downloader.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModelDownload {
     pub url: String,
     pub sha256: String,
     pub size: u64,
-    /// A `.tar.bz2` to extract into [`model_dir`] (otherwise the file is the model).
     pub archive: bool,
 }
 
@@ -389,8 +349,6 @@ pub fn download_info(model: &SpeechModel) -> ModelDownload {
     }
 }
 
-/// Where the download goes: archives into `<root>/models/speech/.downloads/`,
-/// single files straight to their final path inside [`model_dir`].
 pub fn download_dest(paths: &LibraryPaths, model: &SpeechModel) -> PathBuf {
     let name = model.archive.url.rsplit('/').next().unwrap_or(model.id);
     if is_archive(model) {
@@ -410,15 +368,6 @@ struct Marker {
     sha256: String,
 }
 
-/// Archives this app pinned before, whose installs stay in use.
-///
-/// Upstream replaced both Parakeet archives on 2026-11-07 with a new export
-/// of the same weights, under the same names. The ones below are what this
-/// app downloaded, checked against its pin and ran until then. The previous
-/// model files, still in the Hugging Face mirror's history, gave the same
-/// text as the new export on the archives' own clips and on the sample
-/// meetings, so someone who has one installed is not made to download half
-/// a gigabyte again. New downloads get the archive pinned in the catalog.
 fn earlier_archives(model: &SpeechModel) -> &'static [&'static str] {
     match model.id {
         "parakeet-v3" => &["5793d0fd397c5778d2cf2126994d58e9d56b1be7c04d13c7a15bb1b4eafb16bf"],
@@ -427,8 +376,6 @@ fn earlier_archives(model: &SpeechModel) -> &'static [&'static str] {
     }
 }
 
-/// Whether every file is present and the install marker names the pinned
-/// download, or an earlier one that is still accepted.
 pub fn is_installed(paths: &LibraryPaths, model: &SpeechModel) -> bool {
     let dir = model_dir(paths, model);
     let marker = std::fs::read(dir.join(MARKER))
@@ -447,10 +394,6 @@ fn files_present(paths: &LibraryPaths, model: &SpeechModel) -> bool {
     })
 }
 
-/// Finishes an install after the engine downloaded (and, for archives,
-/// extracted) the model into [`model_dir`]: moves the archive's top folder
-/// up, drops sample audio shipped with it, checks every file and writes the
-/// marker [`is_installed`] looks for.
 pub fn finish_install(paths: &LibraryPaths, model: &SpeechModel) -> Result<()> {
     let dir = model_dir(paths, model);
     std::fs::create_dir_all(&dir).with_context(|| format!("could not create {}", dir.display()))?;
@@ -510,7 +453,6 @@ fn flatten(nested: &Path, dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Removes an installed model.
 pub fn uninstall(paths: &LibraryPaths, model: &SpeechModel) -> Result<()> {
     let dir = model_dir(paths, model);
     if dir.exists() {
@@ -560,7 +502,6 @@ mod tests {
         assert_eq!(supporting_ids(true).len(), 3);
     }
 
-    /// A model folder with its files and a marker naming `sha256`.
     fn installed_from(paths: &LibraryPaths, model: &SpeechModel, sha256: &str) {
         for file in model.files {
             let path = model_file(paths, model, file);
@@ -578,8 +519,6 @@ mod tests {
         .unwrap();
     }
 
-    /// Someone who installed Parakeet before upstream replaced its archive
-    /// keeps a working model after updating the app.
     #[test]
     fn a_parakeet_installed_from_the_earlier_archive_is_still_installed() {
         let root = tempfile::tempdir().unwrap();
@@ -604,16 +543,13 @@ mod tests {
                 is_installed(&paths, model),
                 "{id} would be downloaded again"
             );
-            // Its files still have to be there.
             std::fs::remove_file(model_file(&paths, model, "tokens.txt")).unwrap();
             assert!(!is_installed(&paths, model));
-            // Any other archive is not this model.
             installed_from(&paths, model, &"0".repeat(64));
             assert!(!is_installed(&paths, model));
             installed_from(&paths, model, model.archive.sha256);
             assert!(is_installed(&paths, model));
         }
-        // No other model accepts an archive it does not pin.
         let other = find("sense-voice").unwrap();
         installed_from(
             &paths,
@@ -636,7 +572,6 @@ mod tests {
             finish_install(&paths, model).is_err(),
             "tokens.txt is missing"
         );
-        // The failed attempt already moved the files up; complete the folder.
         std::fs::write(model_dir(&paths, model).join("tokens.txt"), b"a 0").unwrap();
         finish_install(&paths, model).unwrap();
         assert!(is_installed(&paths, model));

@@ -1,8 +1,3 @@
-//! The reviewed cleanup behind retention (`RetentionSettingsControls.swift`):
-//! shortening how long screen context lasts, or stopping keeping screen text
-//! forever, opens this review first. The policy stays unchanged until it is
-//! applied, and what it lists is exactly what goes.
-
 use chrono::{Local, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{WindowExt as _, v_flex};
@@ -18,7 +13,6 @@ use crate::i18n::h_flex;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::controls;
 
-/// A change that deletes something needs a review; one that keeps more doesn't.
 pub fn needs_review(current_days: u32, current_forever: bool, days: u32, forever: bool) -> bool {
     days < current_days || (current_forever && !forever)
 }
@@ -54,7 +48,6 @@ fn outcome_text(report: &RetentionReport) -> (Option<String>, Option<String>) {
 }
 
 impl SettingsPage {
-    /// Applies a change that keeps more straight away; any other opens the review.
     pub(super) fn propose_retention(
         &mut self,
         days: u32,
@@ -112,7 +105,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// Back to the policy in force: the slider only ever previewed a change.
     pub(super) fn reset_retention_draft(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.retention_draft = None;
         let days = self.data.read(cx).settings.retention_days;
@@ -140,7 +132,6 @@ impl SettingsPage {
                     this.retention_completion = completion;
                     this.retention_error = error;
                     this.retention_draft = None;
-                    // The policy is set only once its cleanup has run.
                     this.update_settings(
                         move |s| {
                             s.retention_days = days;
@@ -227,8 +218,6 @@ fn open_sheet(
         let approved = review.clone();
         dialog
             .w(px(520.))
-            // Only Cancel and Apply end the review: Cancel puts the slider
-            // back, which Esc, the X and a click outside would skip.
             .close_button(false)
             .overlay_closable(false)
             .keyboard(false)

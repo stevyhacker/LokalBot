@@ -13,8 +13,6 @@ struct MeetingNotesEditor: View {
     @State private var error: String?
 
     var body: some View {
-        // Your notes on one panel: the editor is its body, and the line that
-        // says whether they are saved is its footer.
         SectionPanel(
             title: Text("Your notes"),
             systemImage: "pencil",
@@ -31,7 +29,6 @@ struct MeetingNotesEditor: View {
                         Text("Add context, reminders, or your own wording. Notes save automatically.")
                             .font(AppFont.scaled(.body))
                             .foregroundStyle(.tertiary)
-                            // Where the editor puts its first character.
                             .padding(.leading, 17)
                             .padding(.top, 12)
                             .allowsHitTesting(false)

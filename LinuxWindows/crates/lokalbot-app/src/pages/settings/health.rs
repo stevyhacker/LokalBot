@@ -1,7 +1,3 @@
-//! Advanced → Memory health (`MemoryHealthSection.swift`): one operational view
-//! across activity, screen context, meeting audio, processing, retention and
-//! routines, plus the health check and Export Diagnostics.
-
 use chrono::{Local, Utc};
 use gpui_kit::component::Sizable as _;
 use gpui_kit::component::button::Button;
@@ -20,8 +16,6 @@ use crate::state::{AppData, AppEvent};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, settings_row};
 
-/// How a value reads at a glance: running as intended, needing the person,
-/// deliberately off or waiting, or a plain measurement.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Tone {
     Good,
@@ -31,7 +25,6 @@ pub enum Tone {
 }
 
 impl Tone {
-    /// Status strings outside both lists are unexpected, so they ask for a look.
     fn status(value: &str, good: &[&str], idle: &[&str]) -> Self {
         if good.contains(&value) {
             Self::Good
@@ -42,8 +35,6 @@ impl Tone {
         }
     }
 
-    /// Only live input is good; quiet states between meetings are idle; stalls,
-    /// recovery, degradation and a missing track need a look.
     fn audio(status: &str) -> Self {
         Self::status(
             status,
@@ -53,7 +44,6 @@ impl Tone {
     }
 }
 
-/// One row of the table.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Item {
     pub title: &'static str,
@@ -77,11 +67,6 @@ fn activity_status(tracking: bool, paused: bool) -> &'static str {
     }
 }
 
-/// `missingPermissions`: Linux and Windows have no permission prompts, so this is
-/// what this desktop can't do for the features that are on: seeing the window in
-/// front, capturing it, reading text over the accessibility bus or UI Automation,
-/// global shortcuts, and the credential store that keeps the screen image key,
-/// as Privacy & permissions and setup read them.
 fn missing_capabilities(data: &AppData, cx: &App) -> Vec<String> {
     crate::control::permissions::needs(data, cx)
         .into_iter()
@@ -90,7 +75,6 @@ fn missing_capabilities(data: &AppData, cx: &App) -> Vec<String> {
         .collect()
 }
 
-/// The Permissions row, from what this desktop is missing.
 fn permissions_item(missing: &[String]) -> Item {
     Item {
         title: "Permissions",
@@ -113,7 +97,6 @@ fn permissions_item(missing: &[String]) -> Item {
     }
 }
 
-/// The capture rows from what the engine reports.
 pub fn capture_items(
     data: &AppData,
     missing: &[String],
@@ -193,8 +176,6 @@ pub fn capture_items(
     ]
 }
 
-/// The two tracks from the live statuses, "Idle" between meetings, and when a lost
-/// track last came back.
 pub fn audio_items(
     statuses: Option<&(SharedString, SharedString)>,
     last_recovery: Option<chrono::DateTime<Utc>>,
@@ -326,8 +307,6 @@ pub fn background_items(
     ]
 }
 
-/// A value in a tone: a dot and a word, the word keeping its meaning without
-/// color. Only states that need the person are emphasized.
 fn status(item: &Item, cx: &App) -> AnyElement {
     let lb = cx.lb();
     let value = lokalbot_i18n::tr(&item.value).to_string();
@@ -411,8 +390,6 @@ fn table(id: &'static str, items: &[Item], cx: &App) -> AnyElement {
     .into_any_element()
 }
 
-/// One line that answers "is everything working?", and the button that starts
-/// capture afresh.
 fn summary(attention: &[&Item], data: Entity<AppData>, cx: &App) -> AnyElement {
     let lb = cx.lb().clone();
     let (title, detail): (String, String) = if attention.is_empty() {
@@ -491,7 +468,6 @@ fn summary(attention: &[&Item], data: Entity<AppData>, cx: &App) -> AnyElement {
     .into_any_element()
 }
 
-/// Bytes in the library, and bytes free on its drive.
 fn measure_storage(root: &std::path::Path) -> (u64, Option<u64>) {
     fn walk(directory: &std::path::Path, total: &mut u64) {
         let Ok(entries) = std::fs::read_dir(directory) else {
@@ -591,9 +567,6 @@ impl SettingsPage {
         self.storage_measured_at = Some(std::time::Instant::now());
         let library = self.data.read(cx).library.clone();
         cx.spawn(async move |this, cx| {
-            // The page redraws on every engine event, several times a second
-            // while recording, so what it shows from the database is read
-            // here and not while drawing.
             let (measured, latest_activity, pending) = cx
                 .background_spawn(async move {
                     (

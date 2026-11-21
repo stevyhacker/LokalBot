@@ -1,18 +1,3 @@
-//! Release tool: signs a Linux or Windows archive with the Sparkle key and
-//! writes its update feed, or checks a feed and archive against a public key.
-//! The release workflow builds it with `--no-default-features`.
-//!
-//! ```text
-//! lokalbot-update-feed sign --archive DIST/LokalBot-0.10.11-linux-x86_64.tar.gz \
-//!     --platform linux-x86_64 --version 0.10.11 --tag v0.10.11 --key-file KEY \
-//!     [--expect-public-key BASE64] [--minimum-version 0.10.10] [--repo owner/name] \
-//!     [--download-base URL] [--notes-url URL] --output linux-x86_64.json
-//! lokalbot-update-feed verify --feed linux-x86_64.json --archive FILE [--public-key BASE64]
-//! lokalbot-update-feed public-key --key-file KEY
-//! ```
-//!
-//! The private key is read from a file and never printed.
-
 use std::collections::HashMap;
 use std::path::Path;
 use std::process::ExitCode;
@@ -199,7 +184,6 @@ mod tests {
     fn signs_and_verifies_a_feed() {
         let temp = tempfile::tempdir().unwrap();
         let key_file = temp.path().join("key");
-        // A throwaway seed in Sparkle's file format, with a trailing newline.
         std::fs::write(
             &key_file,
             format!(
@@ -247,7 +231,6 @@ mod tests {
             archive.display()
         );
         assert!(run(&args(&format!("{verify} --public-key {public}"))).is_ok());
-        // The release key did not sign this.
         assert!(run(&args(&verify)).is_err());
         std::fs::write(&archive, b"zip bytez").unwrap();
         assert!(run(&args(&format!("{verify} --public-key {public}"))).is_err());

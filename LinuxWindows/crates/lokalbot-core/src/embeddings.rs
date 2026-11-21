@@ -1,6 +1,3 @@
-//! Semantic search storage (`EmbeddingIndex.swift`). Vectors are computed
-//! by the AI layer; this module chunks text, stores vectors and ranks them.
-
 use std::collections::{HashMap, HashSet};
 use std::hash::Hash;
 
@@ -12,21 +9,15 @@ use crate::library::Library;
 use crate::model::*;
 use crate::timeline::table_exists;
 
-/// The macOS index version; vectors from another model are not comparable.
 pub const MODEL_ID: &str = "embeddinggemma-2-q8-mean-768-v1";
-/// Prompt prefix for documents and for queries.
 pub const DOCUMENT_PREFIX: &str = "title: none | text: ";
 pub const QUERY_PREFIX: &str = "task: search result | query: ";
 pub const MEETING_SIMILARITY_FLOOR: f32 = 0.61;
-/// Marks chunks taken from the user's own notes.
 pub const NOTES_CHUNK_MARKER: &str = "My meeting notes: ";
 const TRANSCRIPT_TARGET_CHARS: usize = 500;
 const TRANSCRIPT_HARD_LIMIT_CHARS: usize = 1800;
-/// Reciprocal rank fusion constant.
 pub const RRF_K: f64 = 60.0;
 
-/// Pieces of at most `maximum` characters, cut at whitespace in the second
-/// half when possible; concatenating them reproduces the input.
 fn split_text(text: &str, maximum: usize) -> Vec<String> {
     let chars: Vec<char> = text.chars().collect();
     let mut pieces = Vec::new();
@@ -47,8 +38,6 @@ fn split_text(text: &str, maximum: usize) -> Vec<String> {
     pieces
 }
 
-/// `(start seconds, text)` chunks to embed for one meeting
-/// (`EmbeddingIndex.transcriptChunks`, summary sections, `notesChunks`).
 pub fn embedding_chunks(
     transcript: &Transcript,
     summary: Option<&str>,
@@ -114,9 +103,6 @@ pub fn embedding_chunks(
     chunks
 }
 
-/// Reciprocal rank fusion of a lexical and a semantic ranking (`k` = 60):
-/// score = Σ 1/(k + rank). Ties: lexical evidence first, then the best single
-/// rank, then the key.
 pub fn rrf_fuse<K: Clone + Eq + Hash + Ord>(
     lexical: &[K],
     semantic: &[K],
@@ -184,7 +170,6 @@ fn dot(blob: &[u8], query: &[f32]) -> Option<f32> {
 }
 
 impl Library {
-    /// Newest modification time of the files embeddings come from.
     pub fn embedding_source_mtime(&self, meeting: &Meeting) -> f64 {
         let dir = self.meeting_dir(meeting);
         ["transcript.json", "summary.md", "notes.md"]
@@ -194,7 +179,6 @@ impl Library {
             .fold(0.0, f64::max)
     }
 
-    /// The chunks to embed for one meeting.
     pub fn meeting_embedding_chunks(&self, meeting: &Meeting) -> Result<Vec<(f64, String)>> {
         let transcript = self.transcript(meeting)?.unwrap_or_default();
         let summary = self.summary(meeting)?;
@@ -202,8 +186,6 @@ impl Library {
         Ok(embedding_chunks(&transcript, summary.as_deref(), &notes))
     }
 
-    /// Replaces a meeting's vectors (`chunks`: start, text, vector) unless the
-    /// meeting was deleted meanwhile or a newer snapshot is already stored.
     pub fn store_meeting_embeddings(
         &self,
         meeting_id: Uuid,
@@ -258,8 +240,6 @@ impl Library {
         })
     }
 
-    /// Visible meetings whose vectors for `model_id` are missing or stale
-    /// (newer sources, or notes present on only one side).
     pub fn meetings_needing_embeddings(&self, model_id: &str) -> Result<Vec<Meeting>> {
         let mut out = Vec::new();
         for meeting in self.list_meetings()? {
@@ -295,7 +275,6 @@ impl Library {
         Ok(out)
     }
 
-    /// Deletes vectors written by any other model (run at startup).
     pub fn purge_embeddings_except(&self, model_id: &str) -> Result<()> {
         if self.is_read_only() {
             bail!("the library is open read-only");
@@ -320,9 +299,6 @@ impl Library {
         })
     }
 
-    /// Brute-force dot-product search over meeting chunks (vectors are
-    /// L2-normalized): `(meeting, start, text, score)` strictly above `floor`,
-    /// best first.
     pub fn semantic_search(
         &self,
         query_vec: &[f32],
@@ -332,8 +308,6 @@ impl Library {
         self.semantic_search_in(query_vec, limit, floor, None)
     }
 
-    /// [`Self::semantic_search`] among `meetings` only, so a day or an evidence
-    /// boundary doesn't lose its passages to the limit.
     pub fn semantic_search_in(
         &self,
         query_vec: &[f32],
@@ -518,7 +492,6 @@ mod tests {
             .unwrap();
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].2, "close");
-        // A scope filters before the limit, so it can't lose its passages.
         let scope: HashSet<Uuid> = [ended.id].into_iter().collect();
         assert_eq!(
             library

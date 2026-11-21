@@ -1,23 +1,12 @@
-//! Streaming windowed-sinc resampler for mono audio.
-//!
-//! Output sample `n` sits exactly at input position `n * in_rate / out_rate`
-//! (computed in integers, so hours of audio never drift). The kernel is a
-//! Kaiser-windowed sinc low-pass at 90% of the lower Nyquist frequency, 16 zero
-//! crossings each side, normalised per output sample for exact unity DC gain.
-
 const ZERO_CROSSINGS: f64 = 16.0;
 const KAISER_BETA: f64 = 8.6;
-/// Kernel table resolution, entries per input sample.
 const TABLE_STEPS: usize = 64;
 
 pub struct Resampler {
     in_rate: u64,
     out_rate: u64,
-    /// Kernel half width in input samples.
     half_width: i64,
-    /// `table[i]` is the kernel at distance `i / TABLE_STEPS` input samples.
     table: Vec<f32>,
-    /// Pending input; `buffer[0]` is global input index `buffer_start`.
     buffer: Vec<f32>,
     buffer_start: u64,
     input_total: u64,
@@ -29,7 +18,6 @@ impl Resampler {
         let in_rate = in_rate.max(1) as u64;
         let out_rate = out_rate.max(1) as u64;
         let cutoff = 0.45 * in_rate.min(out_rate) as f64;
-        // Normalised bandwidth in cycles per input sample, times two.
         let g = 2.0 * cutoff / in_rate as f64;
         let half_width = (ZERO_CROSSINGS / g).ceil() as i64;
         let len = half_width as usize * TABLE_STEPS + 2;
@@ -61,7 +49,6 @@ impl Resampler {
         self.in_rate == self.out_rate
     }
 
-    /// Appends every output sample that `input` makes computable to `out`.
     pub fn process(&mut self, input: &[f32], out: &mut Vec<f32>) {
         if self.is_passthrough() {
             out.extend_from_slice(input);
@@ -74,7 +61,6 @@ impl Resampler {
         self.drain(out, false);
     }
 
-    /// Emits the remaining output, treating input past the end as silence.
     pub fn flush(&mut self, out: &mut Vec<f32>) {
         if self.is_passthrough() {
             return;
@@ -84,18 +70,15 @@ impl Resampler {
         self.buffer_start = self.input_total;
     }
 
-    /// Output samples produced so far.
     pub fn output_len(&self) -> u64 {
         self.next_output
     }
 
-    /// Input samples received so far.
     pub fn input_frames(&self) -> u64 {
         self.input_total
     }
 
     fn drain(&mut self, out: &mut Vec<f32>, flushing: bool) {
-        // The last output that belongs to the input received so far.
         let total_outputs = (self.input_total * self.out_rate).div_ceil(self.in_rate);
         loop {
             let n = self.next_output;
@@ -111,7 +94,6 @@ impl Resampler {
             out.push(self.sample_at(center, frac));
             self.next_output += 1;
         }
-        // Keep only the history the next output still needs.
         let keep_from = {
             let numerator = self.next_output * self.in_rate;
             ((numerator / self.out_rate) as i64 - self.half_width).max(0) as u64
@@ -183,7 +165,6 @@ fn bessel_i0(x: f64) -> f64 {
     sum
 }
 
-/// Resamples a whole buffer.
 pub fn resample(input: &[f32], in_rate: u32, out_rate: u32) -> Vec<f32> {
     let mut resampler = Resampler::new(in_rate, out_rate);
     let mut out = Vec::with_capacity(input.len() * out_rate as usize / in_rate.max(1) as usize + 8);
@@ -222,7 +203,6 @@ mod tests {
                 (level - 0.5 / 2f32.sqrt()).abs() < 0.005,
                 "rate {rate}: {level}"
             );
-            // Same phase as the ideal 16 kHz tone (no delay).
             let ideal = tone(1000.0, 16_000, 1.0);
             let error = rms(&out[1000..15_000]
                 .iter()

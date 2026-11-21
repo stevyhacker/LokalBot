@@ -92,8 +92,6 @@ final class RedesignContractTests: XCTestCase {
         let day = Calendar.current.startOfDay(for: Date())
         let hits = (0..<2_000).map { ActivityStore.OCRHit(snapshotID: Int64($0 + 1),
             ts: day.addingTimeInterval(Double($0 * 30)), app: "Editor", windowTitle: "Long session", snippet: "evidence") }
-        // Relevance order can be unrelated to chronology, including a bridge
-        // between initially distant hits. Source grouping must still be complete.
         let ranked = [hits[1_999], hits[0]] + Array(hits[1..<1_999])
         let groups = RecallSearch.screenGroups(ranked)
         XCTAssertEqual(groups.count, 1)
@@ -104,11 +102,8 @@ final class RedesignContractTests: XCTestCase {
         XCTAssertEqual(RecallSearch.screenGroups([other] + ranked).map { $0.primary.snapshotID }, [2_001, 2_000])
     }
 
-    /// Recall fills snippets one session at a time; the groups must equal
-    /// filling every hit first, including sessions an unreadable hit splits.
     func testLazilyFilledScreenGroupsMatchFillingEveryHit() {
         let day = Calendar.current.startOfDay(for: Date())
-        // A new seed on every run, named in each failure so the round can be run again.
         let seed = UInt64.random(in: 0...UInt64.max)
         for round in 0..<20 {
             var generator = SeededGenerator(state: seed &+ UInt64(round))
@@ -120,7 +115,6 @@ final class RedesignContractTests: XCTestCase {
                                             ts: day.addingTimeInterval(minute * 60), app: "App \(window % 3)",
                                             windowTitle: window >= 9 ? "" : "Window \(window)", snippet: "")
             }
-            // Every fifth hit has no snippet; in windows 9–11, which have no title, it is unreadable.
             let fill: ([ActivityStore.OCRHit]) -> [ActivityStore.OCRHit] = { batch in
                 batch.map { hit in
                     var filled = hit
@@ -253,7 +247,6 @@ final class RedesignContractTests: XCTestCase {
     }
 }
 
-/// SplitMix64: a random sequence that a printed seed reproduces.
 private struct SeededGenerator: RandomNumberGenerator {
     var state: UInt64
 

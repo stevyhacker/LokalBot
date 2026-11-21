@@ -1,28 +1,11 @@
-//! `install-skill` (`LokalBotCLIInstaller.swift`) for Linux and Windows.
-//!
-//! Linux: `~/.local/bin/lokalbot-cli` links to this binary; the skill is
-//! written once under `~/.local/share/lokalbot-cli/skill` and linked from
-//! `~/.agents/skills/lokalbot-cli` and `~/.claude/skills/lokalbot-cli`
-//! (copied with `--copy`). Windows: the binary is copied to
-//! `%LOCALAPPDATA%\Programs\LokalBot\bin` and the skill copied into the same
-//! skill folders under `%USERPROFILE%`. When this binary already sits at the
-//! command path (`packaging/linux/install.sh` copies it there and the app runs
-//! it from there), or an identical copy does, it is left in place and only the
-//! skill is written. Paths this installer does not own are never replaced.
-
 use std::path::{Path, PathBuf};
 
 use anyhow::{Context as _, Result, bail};
 
-/// The bundled agent skill (the macOS app ships the same file).
 pub const SKILL: &str = include_str!("../../../../.agents/skills/lokalbot-cli/SKILL.md");
 pub const COPY_MARKER: &str = ".lokalbot-skill-copy";
 const PATH_EXPORT_LINE: &str = "export PATH=\"$HOME/.local/bin:$PATH\"";
 
-/// Where `install-skill` puts the command for `home`:
-/// `~/.local/bin/lokalbot-cli` on Linux and
-/// `%LOCALAPPDATA%\Programs\LokalBot\bin\lokalbot-cli.exe` on Windows, outside
-/// the library folder.
 pub fn command_path(home: &Path) -> PathBuf {
     if cfg!(windows) {
         std::env::var_os("LOCALAPPDATA")
@@ -37,14 +20,10 @@ pub fn command_path(home: &Path) -> PathBuf {
     }
 }
 
-/// [`command_path`] for the current user, which the app shows in Settings and
-/// in its MCP setup commands.
 pub fn command_path_for_current_user() -> Option<PathBuf> {
     directories::BaseDirs::new().map(|d| command_path(d.home_dir()))
 }
 
-/// Whether the command's folder is on PATH or already added to the shell's
-/// startup file, for the PATH button in Settings.
 pub fn on_path_for_current_user() -> bool {
     directories::BaseDirs::new().is_none_or(|d| {
         let installer = Installer::new(d.home_dir().to_path_buf(), PathBuf::new());
@@ -52,8 +31,6 @@ pub fn on_path_for_current_user() -> bool {
     })
 }
 
-/// [`Installer::is_installed`] for the current user (the Agent CLI status in
-/// Settings).
 pub fn installed_for_current_user() -> bool {
     directories::BaseDirs::new()
         .is_some_and(|d| Installer::new(d.home_dir().to_path_buf(), PathBuf::new()).is_installed())
@@ -61,11 +38,8 @@ pub fn installed_for_current_user() -> bool {
 
 pub struct Installer {
     pub home: PathBuf,
-    /// The binary to install (this executable).
     pub binary: PathBuf,
-    /// Where the installed command lives.
     pub bin_link: PathBuf,
-    /// The skill source folder owned by the installer (link mode).
     pub skill_source: PathBuf,
     pub skill_link: PathBuf,
     pub claude_skill_link: PathBuf,
@@ -99,7 +73,6 @@ impl Installer {
         }
     }
 
-    /// The skill with this platform's paths in place of the macOS ones.
     pub fn skill_text(&self) -> String {
         SKILL.replace(
             "/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli",
@@ -124,7 +97,6 @@ impl Installer {
             };
         }
         if path == self.bin_link {
-            // Windows installs a copy into a folder only this installer uses.
             return cfg!(windows) && path.is_file();
         }
         path.is_dir() && path.join(COPY_MARKER).is_file()
@@ -134,9 +106,6 @@ impl Installer {
         path.exists() || std::fs::symlink_metadata(path).is_ok()
     }
 
-    /// Whether `install-skill` has run: the command is there and so is a skill
-    /// this installer wrote. install.sh puts the command in place without the
-    /// skill, so the command alone does not count.
     pub fn is_installed(&self) -> bool {
         self.bin_link.is_file()
             && [&self.skill_link, &self.claude_skill_link]
@@ -144,9 +113,6 @@ impl Installer {
                 .any(|skill| self.is_owned(skill) && skill.join("SKILL.md").is_file())
     }
 
-    /// Whether the command path already runs this binary: it is the same file
-    /// (install.sh's copy that the app runs, or an earlier link to it), or a
-    /// regular file with the same contents. Either way it is left as it is.
     fn binary_in_place(&self) -> bool {
         let Ok(installed) = std::fs::canonicalize(&self.bin_link) else {
             return false;
@@ -229,7 +195,6 @@ impl Installer {
         Ok(())
     }
 
-    /// Removes only what this installer created.
     pub fn uninstall(&self) -> Result<()> {
         for path in [&self.bin_link, &self.skill_link, &self.claude_skill_link] {
             if self.is_owned(path) {
@@ -243,7 +208,6 @@ impl Installer {
         Ok(())
     }
 
-    /// `~/.zshrc` for zsh and `~/.bashrc` otherwise.
     fn shell_startup_file(&self) -> PathBuf {
         let zsh = std::env::var("SHELL").is_ok_and(|shell| shell.ends_with("zsh"));
         self.home.join(if zsh { ".zshrc" } else { ".bashrc" })
@@ -254,9 +218,6 @@ impl Installer {
             .is_ok_and(|text| text.contains(PATH_EXPORT_LINE))
     }
 
-    /// Puts the command's folder on PATH (`addLocalBinToPath`) and says where.
-    /// Linux adds a line to the shell's startup file; Windows changes the user's
-    /// PATH, which leaves the system-wide one alone.
     pub fn add_bin_to_path(&self) -> Result<String> {
         if cfg!(windows) {
             let dir = self
@@ -296,7 +257,6 @@ impl Installer {
         Ok(name)
     }
 
-    /// The text `install-skill` prints.
     pub fn installed_message(&self) -> String {
         let mut text = format!(
             "Installed:\n  {}\n  {}\n  {}\n\nClaude Code picks the skill up automatically; point other agents\nat one of the skill directories above.\n\nMCP clients (Claude Desktop, ...) can add the same library with:\n  claude mcp add lokalbot -- {} mcp",
@@ -330,7 +290,6 @@ impl Installer {
     }
 }
 
-/// Compares two files byte for byte without reading either one whole.
 fn same_contents(a: &Path, b: &Path) -> std::io::Result<bool> {
     use std::io::Read as _;
     let (mut a, mut b) = (std::fs::File::open(a)?, std::fs::File::open(b)?);
@@ -383,8 +342,6 @@ mod tests {
         assert!(text.starts_with("alias ll='ls -l'\n"));
     }
 
-    /// An installer with every path inside `dir`, so a test never touches the
-    /// real home folder or `%LOCALAPPDATA%`.
     fn installer_in(dir: &Path, binary: PathBuf) -> Installer {
         let home = dir.join("home");
         let mut installer = Installer::new(home.clone(), binary);
@@ -418,8 +375,6 @@ mod tests {
 
     #[test]
     fn keeps_the_binary_that_already_sits_at_the_command_path() {
-        // install.sh copies lokalbot-cli to the command path and the app runs
-        // that copy with `install-skill`.
         let dir = tempfile::tempdir().unwrap();
         let mut installer = installer_in(dir.path(), PathBuf::new());
         write(&installer.bin_link, b"bin");
@@ -434,14 +389,12 @@ mod tests {
         installer.uninstall().unwrap();
         assert!(!Installer::exists(&installer.skill_link));
         if cfg!(unix) {
-            // install.sh's copy is left for `install.sh --uninstall`.
             assert_eq!(std::fs::read(&installer.bin_link).unwrap(), b"bin");
         }
     }
 
     #[test]
     fn keeps_an_identical_copy_at_the_command_path() {
-        // install.sh's copy while the app runs from the extracted archive.
         let dir = tempfile::tempdir().unwrap();
         let binary = dir.path().join("archive").join("lokalbot-cli");
         write(&binary, b"bin");
@@ -458,7 +411,6 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let mut installer = installer_in(dir.path(), PathBuf::new());
         assert!(!installer.is_installed());
-        // install.sh's copy alone is not an installed Agent CLI.
         write(&installer.bin_link, b"bin");
         assert!(!installer.is_installed());
         installer.binary = installer.bin_link.clone();
@@ -466,7 +418,6 @@ mod tests {
         assert!(installer.is_installed());
         installer.uninstall().unwrap();
         assert!(!installer.is_installed());
-        // Someone else's skill folder does not count either.
         write(&installer.bin_link, b"bin");
         write(&installer.claude_skill_link.join("SKILL.md"), b"mine");
         assert!(!installer.is_installed());

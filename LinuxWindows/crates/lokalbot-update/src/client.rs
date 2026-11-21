@@ -1,5 +1,3 @@
-//! Checking the feed and preparing an update: download, verify, unpack.
-
 use std::io::Read as _;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::AtomicBool;
@@ -9,11 +7,8 @@ use crate::feed::{self, Feed, FeedError, MAX_FEED_BYTES, Offer};
 use crate::signature::PublicKey;
 use crate::version::Version;
 
-/// Dry runs only: a feed on this computer, and the key that signed it.
 pub const FEED_URL_ENV: &str = "LOKALBOT_UPDATE_FEED_URL";
 pub const PUBLIC_KEY_ENV: &str = "LOKALBOT_UPDATE_PUBLIC_KEY";
-/// Dry runs only: treat this process as an older version. The relaunched
-/// copy reports its real version.
 pub const CURRENT_VERSION_ENV: &str = "LOKALBOT_UPDATE_CURRENT_VERSION";
 
 #[derive(Debug, thiserror::Error)]
@@ -24,18 +19,15 @@ pub enum UpdateError {
     Feed(#[from] FeedError),
     #[error("could not download the update: {0}")]
     Download(String),
-    /// Size, SHA-256, signature or archive contents did not match.
     #[error("the update failed its integrity check and was discarded: {0}")]
     Integrity(String),
     #[error("could not unpack the update: {0}")]
     Unpack(String),
 }
 
-/// What the feed offers.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Check {
     UpToDate,
-    /// The latest release has no feed for this platform (yet).
     Unpublished,
     Newer(Box<Release>),
 }
@@ -44,26 +36,20 @@ pub enum Check {
 pub struct Release {
     pub feed: Feed,
     pub version: Version,
-    /// False when this copy is older than the feed's minimum version.
     pub installable: bool,
 }
 
-/// One copy's update source and the key it trusts.
 #[derive(Clone, Debug)]
 pub struct Updater {
     platform: &'static str,
     feed_url: String,
     public_key: PublicKey,
-    /// A dry-run feed on this computer may use plain HTTP.
     allow_loopback_http: bool,
     current: Version,
     work_dir: PathBuf,
 }
 
 impl Updater {
-    /// The updater for this build, downloading into `work_dir`. `None` in
-    /// debug builds (unless a dry-run feed is set) and on platforms without
-    /// published archives.
     pub fn for_this_build(work_dir: PathBuf) -> Option<Self> {
         Self::configure(
             work_dir,
@@ -98,8 +84,6 @@ impl Updater {
         log::info!("update feed overridden: {url}");
         updater.feed_url = url;
         updater.allow_loopback_http = local;
-        // A different key or version is only for testing against a feed on
-        // this computer, never one from the network.
         if let Some(key) = env(PUBLIC_KEY_ENV) {
             match (local, PublicKey::from_base64(&key)) {
                 (true, Ok(key)) => updater.public_key = key,
@@ -150,14 +134,11 @@ impl Updater {
         &self.work_dir
     }
 
-    /// Fetches and validates the feed. Blocking.
     pub fn check(&self) -> Result<Check, UpdateError> {
         let agent = ureq::Agent::new_with_config(
             ureq::Agent::config_builder()
                 .https_only(!self.allow_loopback_http)
                 .http_status_as_error(false)
-                // GitHub redirects twice to its download host; a dry-run
-                // server on this computer has no reason to redirect at all.
                 .max_redirects(if self.allow_loopback_http { 0 } else { 5 })
                 .user_agent(concat!("LokalBot/", env!("CARGO_PKG_VERSION")))
                 .timeout_connect(Some(Duration::from_secs(15)))
@@ -199,9 +180,6 @@ impl Updater {
         })
     }
 
-    /// Downloads the release's archive, checks its size, SHA-256 and
-    /// signature, and only then unpacks it. Returns the unpacked
-    /// `LokalBot-<version>-<platform>` folder. Blocking.
     pub fn prepare(
         &self,
         release: &Release,
@@ -244,8 +222,6 @@ impl Updater {
             let _ = std::fs::remove_dir_all(&unpacked);
             UpdateError::Unpack(format!("{err:#}"))
         })?;
-        // The signed archive names its version: a feed cannot relabel an
-        // older signed archive as this release.
         let folder = unpacked.join(feed.folder_name());
         let only_folder = std::fs::read_dir(&unpacked)
             .map(|entries| entries.flatten().count() == 1)
@@ -260,8 +236,6 @@ impl Updater {
         Ok(folder)
     }
 
-    /// Deletes downloads and unpacked updates (at startup, and once one is
-    /// installed).
     pub fn clear_work_dir(&self) {
         match std::fs::remove_dir_all(&self.work_dir) {
             Err(err) if err.kind() != std::io::ErrorKind::NotFound => {
@@ -287,7 +261,6 @@ mod tests {
     const SEED: [u8; 32] = [3; 32];
     const OTHER_SEED: [u8; 32] = [4; 32];
 
-    /// Serves files over plain HTTP on 127.0.0.1 for the life of the test.
     #[derive(Clone)]
     struct Server {
         port: u16,
@@ -375,7 +348,6 @@ mod tests {
         )
     }
 
-    /// Publishes `archive` as `version` and returns the feed the server serves.
     fn publish(server: &Server, version: &str, archive: &[u8], signer: &SecretKey) -> Feed {
         let name = feed::archive_name(version, PLATFORM);
         server.put(&format!("/download/{name}"), archive.to_vec());
@@ -450,7 +422,6 @@ mod tests {
             updater(&server, "0.11.0", work.path()).check().unwrap(),
             Check::UpToDate
         );
-        // Below the minimum version: offered, but not installable here.
         let release = newer(&updater(&server, "0.9.6", work.path()));
         assert!(!release.installable);
         server.put("/feed.json", b"not json".to_vec());
@@ -466,8 +437,6 @@ mod tests {
         let work = tempfile::tempdir().unwrap();
         let archive = release_archive("0.10.11");
         let mut feed = publish(&server, "0.10.11", &archive, &key(SEED));
-        // The file served is not the one that was signed; size and digest
-        // are updated to match it, so only the signature can catch it.
         let mut tampered = archive.clone();
         let last = tampered.len() - 1;
         tampered[last] ^= 0xff;
@@ -531,7 +500,6 @@ mod tests {
     fn rejects_an_older_signed_archive_relabelled_as_newer() {
         let server = Server::start();
         let work = tempfile::tempdir().unwrap();
-        // A genuinely signed 0.10.9 archive published under 0.10.11.
         publish(&server, "0.10.11", &release_archive("0.10.9"), &key(SEED));
         let updater = updater(&server, "0.10.10", work.path());
         let release = newer(&updater);
@@ -556,12 +524,10 @@ mod tests {
         let configure = |debug: bool, vars: &[(&'static str, &str)]| {
             Updater::configure(work.path().into(), PLATFORM, debug, &env(vars))
         };
-        // Release builds use GitHub and the embedded key.
         let release = configure(false, &[]).unwrap();
         assert_eq!(release.feed_url(), crate::feed_url(PLATFORM));
         assert_eq!(release.public_key, PublicKey::embedded());
         assert!(!release.allow_loopback_http);
-        // Debug builds stay off unless a dry-run feed is set.
         assert!(configure(true, &[]).is_none());
         let other = key(OTHER_SEED).public_key().to_base64();
         let local = configure(
@@ -576,7 +542,6 @@ mod tests {
         assert!(local.allow_loopback_http);
         assert_eq!(local.public_key.to_base64(), other);
         assert_eq!(local.current(), Version::new(0, 9, 0));
-        // A key or version override never applies to a feed off this computer.
         let remote = configure(
             false,
             &[
@@ -590,7 +555,6 @@ mod tests {
         assert_eq!(remote.public_key, PublicKey::embedded());
         assert_eq!(remote.current(), Version::current());
         assert!(!remote.allow_loopback_http);
-        // Plain HTTP elsewhere is refused outright.
         let refused = configure(false, &[(FEED_URL_ENV, "http://example.com/feed.json")]).unwrap();
         assert_eq!(refused.feed_url(), crate::feed_url(PLATFORM));
     }

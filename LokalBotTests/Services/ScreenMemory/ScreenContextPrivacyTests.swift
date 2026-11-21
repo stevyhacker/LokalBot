@@ -20,7 +20,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
     }
 
     func testRedactsEnvStyleNamesProviderTokensAndURLPasswords() {
-        // Assembled at run time so the source never holds a token-shaped literal.
         let stripe = "sk_" + "live_" + String(repeating: "a", count: 24)
         let slack = "xox" + "b-" + String(repeating: "1", count: 12) + "-" + String(repeating: "b", count: 12)
         let google = "AI" + "za" + String(repeating: "c", count: 35)
@@ -143,7 +142,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
     }
 
     func testScreenCaptureAcceptsUnknownFocusOnlyWithoutVisibleSecureFields() {
-        // Chrome exposes window titles and text but not keyboard focus.
         var chrome = ScreenContextPrivacy.Observation(
             appName: "Google Chrome", bundleIdentifier: "com.google.Chrome",
             windowTitle: "Meet - Product Standup", sourceURL: nil, focusedSecureField: nil)
@@ -194,9 +192,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
                        "Focus moving into a secure field during capture discards the pixels")
     }
 
-    /// Since the 2026-09-24 privacy fixes, any second web area or one without
-    /// an address made the page's own address unknown. Chrome exposes every
-    /// frame as a web area, so almost no Chrome capture kept its URL.
     func testPageKeepsItsAddressWhenChromeExposesFramesAsWebAreas() {
         typealias Reader = ScreenAccessibilityReader
         let gmail = Reader.pageAddress(
@@ -367,9 +362,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertNil(result.snapshot)
     }
 
-    /// Walks read each element's attributes in one call; an attribute the
-    /// element lacks comes back as an error value. A subrole that could not be
-    /// read must leave the secure-field state unknown, never plain.
     func testBatchedElementReadKeepsUnreadableSecureFieldStateUnknown() throws {
         func error(_ code: AXError) throws -> AnyObject {
             var value = code
@@ -398,7 +390,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertEqual(node.error(names[4]), .cannotComplete)
     }
 
-    /// Text reads are skipped where the visible-text policy would drop them.
     func testVisibleTextPolicyPreconditionMatchesItsResult() {
         let viewport = CGRect(x: 0, y: 0, width: 100, height: 100)
         for frame in [CGRect(x: 10, y: 10, width: 20, height: 10), CGRect(x: 200, y: 200, width: 20, height: 10),
@@ -413,9 +404,6 @@ final class ScreenContextPrivacyTests: XCTestCase {
         }
     }
 
-    /// macOS answers an app's accessibility queries about itself in-process on
-    /// the calling thread, which runs SwiftUI off the main actor and traps.
-    /// Sampling while LokalBot is frontmost must never reach the resolver.
     func testScreenAccessibilityReaderNeverResolvesLokalBotItself() async {
         let calls = LockedCounter()
         let reader = ScreenAccessibilityReader(deadlineMilliseconds: 50) { _ in

@@ -13,7 +13,6 @@ import me.dotenv.lokalbot.companion.data.UploadOutcome
 import me.dotenv.lokalbot.companion.data.UploadProgress
 import me.dotenv.lokalbot.companion.recording.AudioCapture
 
-/** The sample library as if paired with a computer: it can record, and keeps recordings in memory. */
 class PairedTestLibrary(
     private val library: FixtureRepository = TestLibrary.repository(),
     rows: List<DeviceRecording> = emptyList(),
@@ -86,7 +85,6 @@ class PairedTestLibrary(
     }
 }
 
-/** A microphone that hears what it's told and writes nothing. */
 class FakeCapture(private val failToStart: Boolean = false) : AudioCapture {
     var startedAt: String? = null
         private set

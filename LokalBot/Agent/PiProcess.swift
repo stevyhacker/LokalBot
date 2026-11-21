@@ -22,9 +22,6 @@ enum PiProcessError: LocalizedError {
     }
 }
 
-/// A bounded, serial stdin channel. DispatchIO owns the duplicated descriptor,
-/// so writes never block the PiProcess actor and `close()` can cancel an
-/// in-flight write even when the child has stopped draining its pipe.
 final class PiStdinWriter: @unchecked Sendable {
     private struct WriteRequest {
         let id: UInt64
@@ -73,8 +70,6 @@ final class PiStdinWriter: @unchecked Sendable {
         }
     }
 
-    /// This does not wait behind an outstanding write. `.stop` asks DispatchIO
-    /// to abort active I/O and makes every queued caller fail immediately.
     func close() {
         queue.async { [self] in closeOnQueue() }
     }
@@ -153,13 +148,6 @@ final class PiStdinWriter: @unchecked Sendable {
     }
 }
 
-/// Owns one pi subprocess: spawns it from a PiLaunchPlan, feeds stdout
-/// bytes through PiJSONLFrameSplitter (LF-only framing — see the splitter's
-/// doc comment), exposes complete frames as an AsyncStream, and supervises
-/// shutdown (SIGTERM → 2s grace → SIGKILL). Mirrors the Process-handling
-/// approach in LlamaServer, as an actor because send/stop race with the
-/// termination handler. Stdin is delegated to PiStdinWriter so pipe
-/// backpressure cannot pin this actor and prevent shutdown.
 actor PiProcess {
 
     private let plan: PiLaunchPlan
@@ -262,7 +250,7 @@ actor PiProcess {
         guard isRunning else { return }
         stdinWriter?.close()
         process.terminate()
-        for _ in 0..<20 where process.isRunning {   // 2s grace
+        for _ in 0..<20 where process.isRunning {
             try? await Task.sleep(for: .milliseconds(100))
         }
         if process.isRunning {
@@ -271,8 +259,6 @@ actor PiProcess {
         handleExit()
         await stdoutTask?.value
     }
-
-    // MARK: - Private
 
     private func consumeStdout(_ data: Data) {
         for frame in splitter.append(data) {

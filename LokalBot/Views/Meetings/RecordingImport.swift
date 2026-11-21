@@ -1,7 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The open panel behind every "Import Recording…" control.
 enum RecordingImportPanel {
     @MainActor static func choose(into app: AppState) {
         let panel = NSOpenPanel()
@@ -15,9 +14,6 @@ enum RecordingImportPanel {
     }
 }
 
-/// The open panel behind Recording → Import Meetings From. The person picks
-/// the app's export or data folder; LokalBot adds the meetings it doesn't
-/// have yet. Choosing is the consent, so nothing asks again.
 enum ExternalImportPanel {
     @MainActor static func choose(_ source: ExternalMeetingSource, into app: AppState) {
         let panel = NSOpenPanel()
@@ -35,8 +31,6 @@ enum ExternalImportPanel {
     }
 }
 
-/// Accepts audio and video files dropped onto a view and imports them as
-/// meetings. Other files are refused with a short explanation.
 private struct RecordingImportDropTarget: ViewModifier {
     let app: AppState
     @State private var targeted = false

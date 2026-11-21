@@ -75,7 +75,6 @@ def main():
         for name, request in prompts.items():
             began = time.time()
             reply = post("/completion", {
-                # Probabilities before sampling: the model's own softmax over its vocabulary.
                 "prompt": request["prompt"], "n_predict": 10, "n_probs": 6, "temperature": 0,
                 "cache_prompt": False, "stop": ["\n"],
             })

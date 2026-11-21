@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// A native pull-down menu with explicit accessibility actions. SwiftUI's
-/// macOS 15 Menu proxy omits Press/Show Menu on these workspace controls.
 struct WorkspaceMenu: NSViewRepresentable {
     struct Item {
         var title: String
@@ -20,16 +18,10 @@ struct WorkspaceMenu: NSViewRepresentable {
     var label: String?
     var identifier = ""
     let items: [Item]
-    /// Composer rows match their neighboring SwiftUI controls' type.
     var font: NSFont = .systemFont(ofSize: NSFont.smallSystemFontSize)
-    /// False lays the menu, undrawn, over a label the caller draws itself (a
-    /// colored chip, say). Clicks and assistive tools still reach the native
-    /// button, which then fills whatever space it is given.
     var drawsButton = true
     @Environment(\.isEnabled) private var isEnabled
 
-    /// AppKit gives the menu its button's font. A symbol button shows no
-    /// text, so its menu keeps the standard menu size.
     private var buttonFont: NSFont { symbol == nil ? font : .menuFont(ofSize: 0) }
 
     func makeCoordinator() -> Coordinator { Coordinator() }
@@ -50,8 +42,6 @@ struct WorkspaceMenu: NSViewRepresentable {
         let fingerprint = [title, symbol ?? ""] + flattened.map {
             "\($0.identifier)|\($0.title)|\($0.enabled)|\($0.selected)|\($0.children.count)"
         }
-        // Playback updates frequently. Keep an open menu intact when only
-        // closure captures changed, while always using the latest callbacks.
         if coordinator.fingerprint != fingerprint {
             coordinator.fingerprint = fingerprint
             let menu = NSMenu()
@@ -105,8 +95,6 @@ struct WorkspaceMenu: NSViewRepresentable {
     }
 
     final class PopUpButton: NSPopUpButton {
-        /// Skips the button's own drawing and changes nothing else, so clicks
-        /// and assistive tools meet the same control as a drawn menu.
         var drawsNothing = false
 
         override func draw(_ dirtyRect: NSRect) {
@@ -115,8 +103,6 @@ struct WorkspaceMenu: NSViewRepresentable {
 
         override func accessibilityPerformPress() -> Bool {
             guard isEnabled else { return false }
-            // Menu tracking is synchronous. Return to the accessibility
-            // client before starting it so that client can choose an item.
             DispatchQueue.main.async { [weak self] in self?.performClick(nil) }
             return true
         }

@@ -1,5 +1,3 @@
-//! Answering questions in Ask, and writing project notes.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{Duration, Instant};
@@ -80,8 +78,6 @@ impl AskWorker {
 }
 
 impl AskWorker {
-    /// Rewrites a meeting's follow-up outline with Think. Like macOS, only a
-    /// model running on this PC may write it; the outline stays available.
     pub fn write_follow_up(&self, meeting_id: Uuid) {
         let shared = self.shared.clone();
         let models = self.models.clone();
@@ -129,7 +125,6 @@ impl AskWorker {
     }
 }
 
-/// One question as it was sent.
 struct Question<'a> {
     conversation_id: Uuid,
     text: &'a str,
@@ -173,10 +168,6 @@ fn answer(
     )
 }
 
-/// `ChatViewModel.sendResolved` and `run`. The question is saved as it is sent,
-/// so a failed or stopped answer leaves it in the conversation with an error
-/// turn to retry; `Err` means nothing could be saved at all. `model` answers from
-/// the turns allowed to reach it.
 fn run_question(
     library: &Library,
     settings: &Settings,
@@ -210,8 +201,6 @@ fn run_question(
         lokalbot_core::remove_failed_turn(&mut conversation.messages, failed);
     }
     let saved = question_scope(scope);
-    // "Remember …" is saved locally, without a model call or a model. With an
-    // attached screen it stays a question about that screen.
     if !scope.attached_screens
         && settings.ask_memory_enabled
         && let Some(statement) = personal::remember_statement(text)
@@ -219,7 +208,6 @@ fn run_question(
         remember(library, emit, &mut conversation, text, &statement, &saved);
         return Ok(());
     }
-    // Only complete pairs asked within this question's boundary reach the model.
     let history = lokalbot_core::finalized_history(&conversation.messages, &saved);
     conversation
         .messages
@@ -249,7 +237,6 @@ fn run_question(
             failed_turn(friendly_failure(&err), &saved)
         }
     };
-    // Deleted while it was being answered: it stays deleted.
     if !library.conversation_exists(conversation_id) {
         return Ok(());
     }
@@ -259,8 +246,6 @@ fn run_question(
     Ok(())
 }
 
-/// What a stopped turn says (`finalizeInterruptedTurn`). What arrived before
-/// Stop isn't kept: an answer cut short shouldn't read as a finished one.
 const STOPPED_TURN: &str = "Response stopped. Retry when you're ready.";
 
 fn failed_turn(text: String, saved: &QuestionScope) -> ChatMessage {
@@ -270,8 +255,6 @@ fn failed_turn(text: String, saved: &QuestionScope) -> ChatMessage {
     }
 }
 
-/// `ChatViewModel.friendlyFailureMessage`. A refusal keeps its reason: only the
-/// person can change what's refused, and it holds nothing from the library.
 fn friendly_failure(err: &anyhow::Error) -> String {
     use lokalbot_ai::AiError;
     const UNKNOWN: &str = "The assistant could not complete that request. Check the selected model in Settings, then try again.";
@@ -296,8 +279,6 @@ fn friendly_failure(err: &anyhow::Error) -> String {
     }
 }
 
-/// Everything that needs the model: its answer and the Personal Context items it
-/// was given.
 fn ask_model(
     shared: &Shared,
     models: &Models,
@@ -343,15 +324,12 @@ fn ask_model(
         personal_context: ambient.personal_context,
         work_memory: ambient.work_memory,
         search_by_meaning: settings.semantic_search_enabled,
-        // Files only while it's on with a folder: then `search_files` is offered.
         include_files: scope.include_files && settings.file_search_enabled,
         file_folders: if scope.include_files && settings.file_search_enabled {
             settings.file_search_folders.clone()
         } else {
             Vec::new()
         },
-        // Agent notes only while they are being read and some are saved: then
-        // `search_agent_notes` is offered.
         include_agent_notes: scope.include_agent_notes
             && settings.coding_agent_notes_enabled
             && lokalbot_core::agent_notes::NotesIndex::new(library.paths().root()).exists(),
@@ -384,8 +362,6 @@ fn ask_model(
             progress(&text, &activity, None);
         }
     };
-    // Each tool call is a model call: a CPU-only or small-window model
-    // answers in one retrieve-first turn instead.
     let reply = if lokalbot_ai::ask_agent::uses_tool_loop(&think) {
         lokalbot_ai::ask_agent::answer_with_tools(
             &think,
@@ -410,8 +386,6 @@ fn ask_model(
     Ok((reply, used_claims))
 }
 
-/// The boundary to save with a question. A caller that named none gets the
-/// sources it enabled and the ids it bound, so nothing reads as "everything".
 fn question_scope(scope: &AskScope) -> QuestionScope {
     if !scope.saved.sources.is_empty() {
         return scope.saved.clone();
@@ -434,8 +408,6 @@ fn question_scope(scope: &AskScope) -> QuestionScope {
     }
 }
 
-/// A failed save keeps the answer on screen for this run instead of losing it;
-/// Ask says it isn't saved.
 fn save(library: &Library, emit: &dyn Fn(EngineEvent), conversation: &Conversation) {
     if let Err(err) = library.save_conversation(conversation) {
         log::warn!("saving a conversation failed: {err:#}");
@@ -448,7 +420,6 @@ fn save(library: &Library, emit: &dyn Fn(EngineEvent), conversation: &Conversati
     }
 }
 
-/// `ChatViewModel.remember`: the statement and its receipt, or why it wasn't kept.
 fn remember(
     library: &Library,
     emit: &dyn Fn(EngineEvent),
@@ -487,11 +458,6 @@ struct Ambient {
     work_memory: String,
 }
 
-/// A question limited to some sources or days doesn't get what was distilled from
-/// everything: work memory and learned items would carry content past its
-/// boundary. The person's own statements carry no source, so they still apply.
-/// Leaving out agent notes limits nothing while none are being read, so
-/// questions asked before that source existed stay as they were.
 fn is_unscoped(scope: &AskScope, reads_agent_notes: bool) -> bool {
     scope.meeting_ids.is_empty()
         && scope.screen_ids.is_empty()
@@ -542,7 +508,6 @@ fn ambient_context(
     (ambient, used)
 }
 
-/// The assistant hears a file's moment through the person's transcription model.
 fn moment_words(shared: &Shared) -> lokalbot_ai::ask::MomentWords {
     let hear = shared.moments.lock().clone();
     lokalbot_ai::ask::MomentWords(hear.map(|moments| {
@@ -551,8 +516,6 @@ fn moment_words(shared: &Shared) -> lokalbot_ai::ask::MomentWords {
     }))
 }
 
-/// Screen context the person attached, as primary evidence for the model, while
-/// the conversation shows only their question (`ScreenAskContext.prompt`).
 fn attached_screen_context(
     library: &lokalbot_core::Library,
     scope: &lokalbot_ai::ask::AskScope,
@@ -615,7 +578,6 @@ fn title_for(question: &str) -> String {
 mod tests {
     use super::*;
 
-    /// A library with a chat key, and what `run_question` asks the model.
     struct Fixture {
         _dir: tempfile::TempDir,
         library: Library,
@@ -637,8 +599,6 @@ mod tests {
             }
         }
 
-        /// Sends a question. `answer` plays the model; the turns it was given
-        /// come back.
         fn ask(
             &self,
             text: &str,
@@ -671,7 +631,6 @@ mod tests {
                 },
                 |history| {
                     asked = Some(history.iter().map(|m| m.text.clone()).collect());
-                    // The question is on disk before the model hears it.
                     let saved = self.messages();
                     assert_eq!(saved.last().unwrap().text, text);
                     assert_eq!(saved.last().unwrap().role, ChatRole::User);
@@ -712,8 +671,6 @@ mod tests {
         }
     }
 
-    /// The model never hears an earlier, wider answer in a narrower question, and
-    /// each turn keeps the boundary it was asked within.
     #[test]
     fn a_narrower_question_doesnt_hear_earlier_wider_answers() {
         let f = Fixture::new();
@@ -763,7 +720,6 @@ mod tests {
         assert_eq!(saved[1].source_scopes, [AskSourceScope::Meetings]);
         assert!(lokalbot_core::can_retry(&saved, saved[1].id, false));
 
-        // Not part of what the model hears next, and asked again without doubling.
         let asked = f.ask("Decided?", &scope, Some(saved[1].id), Ok("Redis."));
         assert_eq!(asked, Some(Vec::new()));
         assert_eq!(f.texts(), ["Decided?", "Redis."]);
@@ -849,7 +805,6 @@ mod tests {
         assert_eq!(turn.source_scopes, saved.sources);
         assert_eq!(turn.day_scope_key, saved.day_scope_key);
         assert_eq!(turn.meeting_ids, saved.meeting_ids);
-        // The Mac reads this text to show a stopped turn.
         assert!(turn.text.to_lowercase().starts_with("response stopped"));
     }
 
@@ -883,7 +838,6 @@ mod tests {
             .contains("secret")
         );
         assert!(friendly(AiError::ServerStart("x".into())).contains("could not start"));
-        // A refusal keeps its reason, so the person can act on it.
         assert_eq!(
             friendly(AiError::ConsentRequired("Use HTTPS.".into())),
             "Use HTTPS."
@@ -931,7 +885,6 @@ mod tests {
         };
         assert!(is_unscoped(&all, true));
         assert!(is_unscoped(&all, false));
-        // A question from before agent notes existed names every other source.
         let before_notes = AskScope {
             include_agent_notes: false,
             ..all.clone()

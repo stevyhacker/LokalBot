@@ -2,8 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Input monitor
-
 final class CotypingInputMonitorTests: XCTestCase {
     func testAcceptOwnershipRequiresVisibleSuggestionAndLiveSession() {
         XCTAssertFalse(CotypingAcceptanceOwnershipPolicy.shouldOwnAcceptKey(

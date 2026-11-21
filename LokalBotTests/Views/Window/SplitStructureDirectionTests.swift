@@ -3,11 +3,6 @@ import SwiftUI
 import XCTest
 @testable import LokalBot
 
-/// On hosted macOS 26, opening Settings after launching in Urdu or Egyptian
-/// Arabic quit the app: a split view appearing in a right-to-left
-/// NavigationSplitView's detail never finished updating its constraints. There
-/// the splits are built left-to-right and their panes keep the interface's
-/// direction.
 @MainActor
 final class SplitStructureDirectionTests: XCTestCase {
     private final class Seen {
@@ -28,10 +23,6 @@ final class SplitStructureDirectionTests: XCTestCase {
         ((view as? NSSplitView).map { [$0] } ?? []) + view.subviews.flatMap { splits(in: $0) }
     }
 
-    /// The main window's shape: a sidebar and, in the detail, a list beside a
-    /// page, in a right-to-left interface with the splits held left-to-right.
-    /// The arrangement without the hold is never hosted: hosted unit tests run
-    /// on macOS 26, where it is the one that fails.
     private func host() async -> (window: NSWindow, seen: Seen) {
         let seen = Seen()
         let root = NavigationSplitView {
@@ -80,7 +71,6 @@ final class SplitStructureDirectionTests: XCTestCase {
             XCTAssertEqual(split.userInterfaceLayoutDirection, .leftToRight)
         }
         XCTAssertEqual(seen.paneDirections, ["sidebar": .rightToLeft, "list": .rightToLeft, "page": .rightToLeft])
-        // The list is the detail's first pane, beside the sidebar on the left.
         let inner = try XCTUnwrap(all.last)
         XCTAssertLessThan(inner.arrangedSubviews[0].frame.minX, inner.arrangedSubviews[1].frame.minX)
     }

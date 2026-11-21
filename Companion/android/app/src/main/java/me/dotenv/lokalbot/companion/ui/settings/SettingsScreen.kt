@@ -72,7 +72,6 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTokens
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** What Settings needs from outside the library. */
 data class SettingsActions(
     val appLockEnabled: Boolean = false,
     val appLockAvailable: Boolean = true,
@@ -89,7 +88,6 @@ class SettingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
 
-    /** Recordings that haven't reached the computer, which removing this device deletes. */
     val unsentRecordings: StateFlow<Int> = repository.recordings
         .map { rows -> rows.count { it.state != RecordingState.Uploaded } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, 0)

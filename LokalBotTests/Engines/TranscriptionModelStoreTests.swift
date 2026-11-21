@@ -3,9 +3,6 @@ import FluidAudio
 @testable import LokalBot
 
 final class TranscriptionModelStoreTests: XCTestCase {
-    /// Granite Speech 5 TurboCTC was removed: a saved selection, by raw value
-    /// or by its old display name, decodes as Parakeet v2 instead of resetting
-    /// the settings as corrupted.
     func testRemovedGraniteTurboSelectionDecodesAsParakeetV2() throws {
         for raw in ["granite-speech-5-turbo", "Granite Speech 5 fast (English)"] {
             let data = try JSONEncoder().encode([raw])
@@ -16,8 +13,6 @@ final class TranscriptionModelStoreTests: XCTestCase {
                                                       from: Data(#"["no-such-model"]"#.utf8)))
     }
 
-    /// The retired Granite Turbo folder is deleted by exact path; other model
-    /// folders and a symlink in its place are left alone.
     func testRetiredModelFoldersAreRemovedByExactPath() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-retired-\(UUID().uuidString)", isDirectory: true)
@@ -132,8 +127,6 @@ final class TranscriptionModelStoreTests: XCTestCase {
         XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
     }
 
-    /// Both tiers run on llama.cpp now: their GGUFs count as downloaded, the
-    /// old MLX weights alone do not, and deleting a tier removes both.
     func testQwenTiersAreTheirGGUFPairsAndDeletionAlsoRemovesTheOldMLXWeights() throws {
         for (choice, weights) in [(TranscriptionModelChoice.qwenASR17B, QwenLlamaASR.accuracy),
                                   (.qwenASR06B, QwenLlamaASR.compact)] {
@@ -182,7 +175,6 @@ final class TranscriptionModelStoreTests: XCTestCase {
         let legacyRoot = try XCTUnwrap(environment.legacyWhisperKitRepoRoot)
         let legacyModel = try writeWhisperModel(in: legacyRoot)
 
-        // Readiness runs at launch and must not reach into ~/Documents.
         XCTAssertFalse(TranscriptionModelStore.isDownloaded(
             .whisperLarge,
             environment: environment))
@@ -216,9 +208,6 @@ final class TranscriptionModelStoreTests: XCTestCase {
             atPath: legacyModel.appendingPathComponent("config.json").path))
     }
 
-    /// Whisper prepares on every app start for people who use it, so once
-    /// Application Support has a model the legacy ~/Documents cache is not
-    /// even listed: listing it makes macOS ask for Documents access.
     func testWhisperMigrationSkipsTheLegacyCacheOnceApplicationSupportHasAModel() throws {
         let (root, environment) = try makeEnvironment()
         defer { try? FileManager.default.removeItem(at: root) }
@@ -316,8 +305,6 @@ final class TranscriptionModelStoreTests: XCTestCase {
         }
     }
 
-    /// FluidAudio counts a compiled model only when it is a folder with its
-    /// `coremldata.bin` and no `*.partial` download left inside.
     private func writeFluidAudioComponent(_ url: URL) throws {
         guard url.pathExtension == "mlmodelc" else { return try writeEmptyFile(url) }
         try writeEmptyFile(url.appendingPathComponent("coremldata.bin"))

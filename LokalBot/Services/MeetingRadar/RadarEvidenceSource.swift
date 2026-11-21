@@ -1,16 +1,10 @@
 import Foundation
 
-/// Finds passages from earlier meetings that the newest live lines may agree
-/// or conflict with. Search runs on this Mac; only the passages it returns
-/// are added to the radar request.
 @MainActor
 protocol RadarEvidenceSource: AnyObject {
     func evidence(for text: String, meeting: Meeting, limit: Int) async -> [RadarEvidence]
 }
 
-/// Keyword search over transcripts, summaries, and saved outcomes, plus the
-/// semantic index when it is on, limited to meetings that started before the
-/// one being recorded.
 @MainActor
 final class LibraryRadarEvidenceSource: RadarEvidenceSource {
     private let meetings: () -> [Meeting]
@@ -19,7 +13,6 @@ final class LibraryRadarEvidenceSource: RadarEvidenceSource {
     private let settings: () -> AppSettings
 
     static let maximumPassageCharacters = 280
-    /// Enough of the newest speech to find the topic without diluting it.
     static let maximumQueryCharacters = 600
 
     init(meetings: @escaping () -> [Meeting], searchIndex: SearchIndex,
@@ -52,8 +45,6 @@ final class LibraryRadarEvidenceSource: RadarEvidenceSource {
                                        text: passage))
         }
 
-        // Saved decisions and actions first: they are what a new line most
-        // often contradicts.
         let keyword = searchIndex.search(query, limit: limit * 2, matchAll: false,
                                          dropStopWords: true, meetingIDs: allowed)
         for hit in keyword.sorted(by: { Self.rank($0.kind) < Self.rank($1.kind) }) where hit.kind != .title {

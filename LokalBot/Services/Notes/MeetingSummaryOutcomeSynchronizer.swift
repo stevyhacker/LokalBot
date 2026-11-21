@@ -1,8 +1,5 @@
 import Foundation
 
-/// Keeps outcome sections in `summary.md` aligned with the grounded artifact
-/// used by the Decisions and Action items cards. The narrative model still
-/// owns the recap, but it cannot independently invent or omit outcomes.
 enum MeetingSummaryOutcomeSynchronizer {
     private static let decisionsHeading = "## Decisions"
     private static let actionItemsHeading = "## Action items"
@@ -12,9 +9,6 @@ enum MeetingSummaryOutcomeSynchronizer {
         var lines: [String]
     }
 
-    /// A failed regeneration may still produce verified outcomes. Keep an
-    /// earlier recap aligned with the cards, but never manufacture a completed
-    /// summary when only the independent outcomes pass succeeded.
     static func synchronizeExisting(in folder: URL, outcomes: MeetingOutcomes, template: NoteTemplate) throws {
         let url = folder.appendingPathComponent("summary.md")
         guard FileManager.default.fileExists(atPath: url.path) else { return }
@@ -23,11 +17,6 @@ enum MeetingSummaryOutcomeSynchronizer {
         try Data(updated.utf8).write(to: url, options: .atomic)
     }
 
-    /// A correction to an action's owner, text, or due date changes only the
-    /// action list. A summary rendered from claims keeps the rest: each line
-    /// is reported speech whose speaker comes from the transcript, which a
-    /// correction leaves unchanged. Returns false when the saved summary has
-    /// no claims behind it, so its prose may still name the old owner.
     static func applyActionCorrections(in folder: URL, outcomes: MeetingOutcomes) throws -> Bool {
         let url = folder.appendingPathComponent("summary.md")
         guard FileManager.default.fileExists(atPath: folder.appendingPathComponent("summary-claims.json").path),
@@ -48,9 +37,6 @@ enum MeetingSummaryOutcomeSynchronizer {
             controlling: template == .meeting ? [decisionsHeading, actionItemsHeading] : [actionItemsHeading])
     }
 
-    /// The summary with its action list replaced by `lines`. Meeting note
-    /// exports use it to show corrections and completed actions, which
-    /// `summary.md` does not record.
     static func replacingActionItems(in summary: String, with lines: [String]) -> String {
         replacing([MarkdownBlock(heading: actionItemsHeading, lines: [actionItemsHeading, ""] + lines)],
                   in: summary)
@@ -68,8 +54,6 @@ enum MeetingSummaryOutcomeSynchronizer {
         }, in: summary)
     }
 
-    /// Puts `rendered` where the first of its sections was, dropping the
-    /// summary's own copies; sections the summary lacks are appended.
     private static func replacing(_ rendered: [MarkdownBlock], in summary: String) -> String {
         let controlledSet = Set(rendered.compactMap(\.heading))
         let sourceBlocks = parseBlocks(summary)

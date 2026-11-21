@@ -1,18 +1,10 @@
 import Foundation
 
-/// One remote attendee from the calendar event matched to a meeting.
-///
-/// The email address is retained only in local meeting metadata so the rename
-/// UI can distinguish attendees with the same display name. Transcript aliases
-/// persist the opaque `id`, never the email address.
 struct CalendarParticipantIdentity: Codable, Equatable, Hashable, Identifiable, Sendable {
     let id: String
     let name: String?
     let emailAddress: String?
 
-    /// An editable picker suggestion, never an automatic speaker identity.
-    /// EventKit often supplies an address without a display name. Keep that
-    /// absence in metadata so automatic naming cannot treat this guess as fact.
     var suggestedSpeakerName: String? {
         if let name { return name }
         guard let address = emailAddress,
@@ -41,9 +33,6 @@ struct CalendarParticipantIdentity: Codable, Equatable, Hashable, Identifiable, 
         self.emailAddress = normalizedEmail
     }
 
-    /// EventKit represents attendee addresses as participant URLs. Accept only
-    /// `mailto:` so opaque calendar/provider identifiers are never mistaken for
-    /// email addresses.
     static func emailAddress(from participantURL: URL?) -> String? {
         guard let participantURL,
               participantURL.scheme?.caseInsensitiveCompare("mailto") == .orderedSame else {
@@ -71,8 +60,6 @@ struct CalendarParticipantIdentity: Codable, Equatable, Hashable, Identifiable, 
         return email
     }
 
-    /// Deduplicates identities by email first and by name only when an email is
-    /// unavailable. A same-name/different-email pair remains distinct.
     static func normalized(_ identities: [CalendarParticipantIdentity])
         -> [CalendarParticipantIdentity] {
         var result: [CalendarParticipantIdentity] = []

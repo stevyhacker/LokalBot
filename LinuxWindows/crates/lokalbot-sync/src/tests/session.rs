@@ -13,7 +13,6 @@ use crate::{AskListener, ClientConfig, OpOutcome, SyncClient, SyncError};
 
 const DECK: &str = "act-1f2e3d4c";
 
-/// Messages until one matches, skipping pings.
 fn recv_until(
     channel: &Channel,
     inbox: &mut Inbox,
@@ -52,7 +51,6 @@ fn set_status_op(op_id: &str, status: &str) -> Value {
     })
 }
 
-/// The Mac applies status ops to the fixture meeting and republishes it.
 fn apply_status_ops(host: &Host) {
     host.delegate.on_op(|server, op| {
         let applied = Host::set_status(
@@ -97,7 +95,6 @@ fn a_paired_phone_receives_the_whole_library() {
     let manifest: Value = serde_json::from_str(&phone.client.manifest().unwrap().unwrap()).unwrap();
     assert_eq!(manifest["libraryName"], "Sample library");
 
-    // Nothing changed, nothing sent.
     let again = phone.client.sync(vec![]).unwrap();
     assert_eq!(
         (again.received, again.deleted, again.cursor),
@@ -133,10 +130,8 @@ fn an_unknown_device_is_dropped_during_the_handshake() {
     let private = crate::keys::key_array(&stranger.private_key, "k").unwrap();
     let mut handshake = session_handshake(&private, Some(&host.server.public_key())).unwrap();
     conn.write_handshake(&mut handshake).unwrap();
-    // The Mac closes without sending a single byte back.
     assert!(matches!(conn.recv_packet(), Err(SyncError::Io(_))));
 
-    // A copy of a paired phone's store with another key cannot sync either.
     let phone = Phone::paired(&host);
     let impostor = SyncClient::new(ClientConfig {
         db_path: phone
@@ -224,7 +219,6 @@ fn records_an_op_rebuilt_arrive_before_its_result() {
         matches!(m, Message::OpResult { .. })
     });
 
-    // The empty catch-up, then the rebuilt meeting, then the result.
     let records: Vec<(usize, &Vec<Envelope>, bool)> = seen
         .iter()
         .enumerate()
@@ -339,7 +333,6 @@ fn an_unmatched_op_reverts_and_keeps_a_note() {
     assert_eq!(row["syncNote"]["message"], "The action changed on the Mac.");
     assert_eq!(phone.client.status().unwrap().pending_ops, 0);
 
-    // A new version of the meeting from the Mac retires the note.
     Host::set_status(&host.server, DESIGN_REVIEW, "act-58ab2e19", "open");
     phone.client.sync(vec![]).unwrap();
     assert!(phone.action(DESIGN_REVIEW, DECK).get("syncNote").is_none());
@@ -373,7 +366,6 @@ fn offline_changes_wait_for_the_mac_and_coalesce() {
     );
     assert_eq!(phone.action(DESIGN_REVIEW, DECK)["pending"], true);
 
-    // The Mac comes back on another port; Bonjour would report it.
     host.server.start().unwrap();
     let address = format!("127.0.0.1:{}", host.server.bound_port());
     let report = phone.client.sync(vec![address]).unwrap();
@@ -440,7 +432,6 @@ fn sample_ask_answers_from_the_real_store_without_connecting() {
     let request = question("sample-q1");
     phone.client.queue_question(request.clone()).unwrap();
 
-    // Even if an address is supplied, asking the sample must never connect.
     let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
     listener.set_nonblocking(true).unwrap();
     let deltas = Arc::new(Mutex::new(Vec::new()));
@@ -513,7 +504,6 @@ fn sample_ask_handles_unknown_topics_without_changing_unpaired_behavior() {
 
 #[test]
 fn sample_ask_ios_suggestions_return_cited_fixture_facts() {
-    // Keep these prompts in sync with AskModel.suggestions(for: .sample).
     let cases = [
         (
             "What came up about onboarding?",
@@ -618,7 +608,6 @@ fn asking_streams_the_answer_and_keeps_it() {
                 "engineLabel": "Test engine", "location": "mac", "answeredAt": "2026-10-31T07:15:02.000Z"
             });
             sink.done(result.to_string());
-            // Late calls are ignored.
             sink.delta("ignored".into());
             sink.failed("ignored".into());
         });
@@ -658,7 +647,6 @@ fn asking_streams_the_answer_and_keeps_it() {
     );
     assert!(phone.client.queued_questions().unwrap().is_empty());
 
-    // Newest first.
     phone
         .client
         .ask(question("q2"), vec![], Box::new(Collector(Arc::default())))
@@ -671,8 +659,6 @@ fn asking_streams_the_answer_and_keeps_it() {
 
 #[test]
 fn a_slow_answer_without_text_keeps_the_connection() {
-    // The Mac's Ask agent can think for minutes before writing a word; pings
-    // must keep the session open past the idle timeout.
     let host = Host::new();
     host.delegate.on_ask(|request, sink| {
         std::thread::spawn(move || {
@@ -716,7 +702,6 @@ fn a_failed_answer_is_an_error_and_is_not_kept() {
     );
     assert!(phone.client.ask_history(0).unwrap().is_empty());
 
-    // An unreadable result is reported as a failure too.
     host.delegate.on_ask(|_, sink| sink.done("not json".into()));
     assert!(matches!(
         phone
@@ -726,7 +711,6 @@ fn a_failed_answer_is_an_error_and_is_not_kept() {
     ));
 }
 
-/// The Mac's answer to `request`: "Three " at once, "steps." after `pause`.
 fn answer_slowly(
     asked: &Arc<AtomicUsize>,
     pause: Duration,
@@ -747,8 +731,6 @@ fn answer_slowly(
     }
 }
 
-/// A phone that stops waiting for the next part of an answer after `wait`,
-/// as a locked phone or a lost Wi-Fi connection does.
 fn impatient(phone: &Phone, wait: Duration) {
     phone.client.set_tuning(crate::wire::Tuning {
         ask_timeout: wait,
@@ -769,12 +751,9 @@ fn an_answer_the_phone_left_is_finished_and_picked_up() {
         .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
         .unwrap_err();
     assert!(matches!(error, SyncError::Interrupted(_)), "{error:?}");
-    // The question waits in the queue, and nothing is in the history yet.
     assert_eq!(phone.client.queued_questions().unwrap().len(), 1);
     assert!(phone.client.ask_history(0).unwrap().is_empty());
 
-    // The Mac finishes without the phone; asking again gets the whole
-    // answer at once and does not ask the Mac a second time.
     std::thread::sleep(Duration::from_millis(1200));
     impatient(&phone, Duration::from_secs(5));
     let deltas = Arc::new(Mutex::new(Vec::new()));
@@ -793,7 +772,6 @@ fn an_answer_the_phone_left_is_finished_and_picked_up() {
     assert!(phone.client.queued_questions().unwrap().is_empty());
     assert_eq!(phone.client.ask_history(0).unwrap().len(), 1);
 
-    // Picking it up again keeps one copy in the history.
     phone
         .client
         .ask(question("q1"), vec![], Box::new(Collector(Arc::default())))
@@ -817,7 +795,6 @@ fn asking_again_while_the_mac_is_answering_continues_the_answer() {
         Err(SyncError::Interrupted(_))
     ));
 
-    // Back while the Mac is still writing: the text so far, then the rest.
     impatient(&phone, Duration::from_secs(5));
     let deltas = Arc::new(Mutex::new(Vec::new()));
     let result = phone
@@ -850,12 +827,10 @@ fn kept_answers_are_per_device_and_expire() {
     ask(&phone);
     assert_eq!(asked.load(Ordering::SeqCst), 1);
 
-    // Another device's question with the same id is its own.
     let tablet = Phone::paired(&host);
     ask(&tablet);
     assert_eq!(asked.load(Ordering::SeqCst), 2);
 
-    // Past the retention the Mac answers afresh.
     host.server.set_tuning(crate::wire::Tuning {
         answer_retention: Duration::ZERO,
         ..fast_tuning()
@@ -891,12 +866,10 @@ fn queued_questions_leave_the_queue_only_once_answered() {
     phone.client.queue_question(question("q1")).unwrap();
     phone.client.queue_question(question("q2")).unwrap();
 
-    // A sync never sends queued questions.
     phone.client.sync(vec![]).unwrap();
     assert_eq!(asked.load(Ordering::SeqCst), 0);
     assert_eq!(queued(&phone), ["q1", "q2"]);
 
-    // A failed answer keeps the question queued.
     let ask = |phone: &Phone, id: &str, extra: Vec<String>| {
         phone
             .client
@@ -909,7 +882,6 @@ fn queued_questions_leave_the_queue_only_once_answered() {
     assert_eq!(asked.load(Ordering::SeqCst), 1);
     assert_eq!(queued(&phone), ["q1", "q2"]);
 
-    // So does an unreachable Mac.
     host.server.stop();
     assert!(matches!(
         ask(&phone, "q1", vec![]),
@@ -917,7 +889,6 @@ fn queued_questions_leave_the_queue_only_once_answered() {
     ));
     assert_eq!(queued(&phone), ["q1", "q2"]);
 
-    // An answer removes exactly that question and keeps the answer.
     host.server.start().unwrap();
     host.delegate.on_ask(|request, sink| {
         let result = json!({ "requestId": request["requestId"], "answer": "Three steps.", "citations": [],
@@ -928,7 +899,6 @@ fn queued_questions_leave_the_queue_only_once_answered() {
     ask(&phone, "q1", vec![address.clone()]).unwrap();
     assert_eq!(queued(&phone), ["q2"]);
     assert_eq!(phone.client.ask_history(0).unwrap().len(), 1);
-    // Asking something that was never queued leaves the queue alone.
     ask(&phone, "q3", vec![address]).unwrap();
     assert_eq!(queued(&phone), ["q2"]);
 }
@@ -962,7 +932,6 @@ fn records_published_while_connected_are_pushed() {
     let host = Host::new();
     let phone = Phone::paired(&host);
     let (channel, mut inbox) = phone.client.open_live().unwrap();
-    // A day after the fixture's newest.
     let date = days_after_latest(1);
     let day = json!({ "date": date, "timeline": { "trackedSeconds": 60, "sessions": [] }, "meetingIds": [] });
     assert!(
@@ -1018,7 +987,6 @@ fn an_interrupted_catch_up_repeats_safely() {
     assert!(!done, "a small batch size splits the catch-up");
     assert!(!items.is_empty() && items.len() < 19);
     phone.client.apply_batch(items, None).unwrap();
-    // The connection drops before the catch-up finishes.
     channel.close();
     drop(inbox);
     assert_eq!(phone.client.status().unwrap().cursor, 0);
@@ -1070,8 +1038,6 @@ fn catch_up_is_newest_first_in_batches() {
             .unwrap()
     };
     assert!(position("meeting") < position("transcript"));
-    // Every batch but the last is at most the batch size, unless it holds a
-    // single larger record.
     for message in &seen[..seen.len() - 1] {
         if let Message::Records { items, done, .. } = message {
             assert!(!done);
@@ -1163,7 +1129,6 @@ fn quiet_connections_are_closed() {
     host.server.set_tuning(tuning);
     let phone = Phone::paired(&host);
     let (channel, mut inbox) = phone.client.open_session("ask", 0).unwrap();
-    // Read without ever sending: the Mac's pings arrive, then it gives up.
     let started = Instant::now();
     while inbox.poll(&channel).is_ok() {
         assert!(

@@ -1,7 +1,5 @@
 import Foundation
 
-/// The answer to a question or problem raised in the call, found in the
-/// person's own work while the call goes on.
 struct RadarAnswer: Codable, Equatable, Sendable {
     struct Source: Codable, Equatable, Identifiable, Sendable {
         enum Kind: String, Codable, Sendable {
@@ -9,11 +7,8 @@ struct RadarAnswer: Codable, Equatable, Sendable {
         }
 
         var kind: Kind
-        /// A file line, `#398`, a meeting, a document name.
         var title: String
-        /// Words from the source, as read; the answer was kept because they are there.
         var quote: String
-        /// A GitHub or file URL to open.
         var link: String?
         var meetingID: UUID?
         var time: Double?
@@ -24,22 +19,16 @@ struct RadarAnswer: Codable, Equatable, Sendable {
     var text: String
     var sources: [Source]
     var model: String
-    /// From the question being caught to the answer.
     var seconds: Double
-    /// Where it looked, in order, for the card's "how it found this".
     var steps: [String]
 }
 
-/// The meeting a question came from, as the answer prompt sees it.
 struct LiveAnswerMeeting: Sendable {
     var title: String
     var date: Date
-    /// The last few lines before the question, as "Me: …" and "Others: …".
     var recentLines: [String]
 }
 
-/// Context labelled for citing: what LokalBot already remembers, given to
-/// the model up front.
 struct LiveAnswerContext: Sendable {
     var kind: RadarAnswer.Source.Kind
     var title: String
@@ -47,8 +36,6 @@ struct LiveAnswerContext: Sendable {
     var meetingID: UUID?
 }
 
-/// Where live answers read: the memory given up front, the library's own
-/// tools (meetings, actions, screen text), and the person's folders.
 @MainActor
 protocol LiveAnswerEnvironment: AnyObject {
     func context(for question: String, meeting: LiveAnswerMeeting) async -> [LiveAnswerContext]
@@ -57,10 +44,6 @@ protocol LiveAnswerEnvironment: AnyObject {
     func runLibraryTool(_ call: ChatToolCall) async -> LiveAnswerToolOutput
 }
 
-/// One live answer: memory first, then up to a few read-only tool calls, on
-/// the Think model chosen in Settings → Models. Every source the answer cites
-/// must contain its quote, checked here against what the tools returned, so
-/// an answer can't rest on something nobody read.
 enum LiveAnswerSession {
     typealias Call = @MainActor (_ messages: [[String: Any]], _ tools: [[String: Any]], _ model: String)
         async throws -> MuseChatClient.Reply
@@ -73,7 +56,6 @@ enum LiveAnswerSession {
         var usage = MuseChatClient.Usage()
         var turns = 0
         var seconds = 0.0
-        /// Why there is no answer: the model's reason, or what failed.
         var reason: String?
         var steps: [String] = []
     }
@@ -211,7 +193,6 @@ enum LiveAnswerSession {
                 default:
                     let step = stepText(toolCall.name, arguments)
                     progress(step)
-                    // The card lists the steps once it has an answer, without the ellipsis.
                     outcome.steps.append(step.hasSuffix("…") ? String(step.dropLast()) : step)
                     let output: LiveAnswerToolOutput
                     if libraryTools.contains(toolCall.name) {
@@ -239,7 +220,6 @@ enum LiveAnswerSession {
         return finish()
     }
 
-    /// What the card says before a tool finishes.
     static func stepText(_ name: String, _ arguments: [String: Any]) -> String {
         let query = (arguments["query"] as? String).map { "“\($0)”" } ?? ""
         switch name {
@@ -257,9 +237,6 @@ enum LiveAnswerSession {
         }
     }
 
-    /// The answer, keeping only sources whose quote is in what they name.
-    /// A source inside a multi-line result takes the line it was found on
-    /// (a file line, a commit, a pull request) as its title and link.
     static func ground(_ arguments: [String: Any], references: [String: LiveAnswerToolOutput], model: String,
                        steps: [String]) -> RadarAnswer? {
         guard let text = (arguments["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty,
@@ -282,8 +259,6 @@ enum LiveAnswerSession {
         return RadarAnswer(text: text, sources: Array(sources.prefix(3)), model: model, seconds: 0, steps: steps)
     }
 
-    /// The radar's rule for quotes: the whole quote after normalizing, or
-    /// most of a longer quote's words on one line.
     static func quoteIsIn(_ quote: String, text: String) -> Bool {
         RadarScreenAnswers.quoteIsOnScreen(quote, text: text)
     }

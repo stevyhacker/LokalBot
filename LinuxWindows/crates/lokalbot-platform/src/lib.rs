@@ -1,13 +1,3 @@
-//! Operating-system integration for LokalBot on Linux and Windows: activity
-//! sampling, privacy rules, single instance and IPC, global shortcuts, text
-//! insertion, autocomplete's field reading and key handling, the tray,
-//! notifications, launch at login, meeting detection, calendars, screen
-//! context capture and opening files.
-//!
-//! Everything compiles on both systems and degrades with an explanation where
-//! a desktop cannot provide something (for example GNOME on Wayland without a
-//! window-information extension).
-
 pub mod access;
 pub mod activity;
 pub mod agent_links;
@@ -38,8 +28,6 @@ mod process;
 #[cfg(windows)]
 mod win32_loop;
 
-/// Application id shared with the GPUI app (`cx.set_app_identity`, Wayland
-/// `app_id`). Portals and Windows notifications use it.
 pub const APP_ID: &str = "com.lokalbot.LokalBot";
 
 pub use activity::{ActivitySource, activity_source};

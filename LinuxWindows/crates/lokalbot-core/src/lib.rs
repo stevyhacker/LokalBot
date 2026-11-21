@@ -1,12 +1,3 @@
-//! LokalBot's local library for Linux and Windows.
-//!
-//! The on-disk format follows the macOS app (`LokalBot/Services/Storage/StorageManager.swift`):
-//! one folder per meeting with `meta.json`, `transcript.json`, `summary.md`,
-//! `outcomes.json` and friends, plus `lokalbotv3.sqlite` for search indexes,
-//! activity blocks and screen context. A library written by either app can be
-//! read by the other; audio tracks are the one difference (`mic.wav`/`system.wav`
-//! here, `mic.m4a`/`system.m4a` on macOS), and each app reads the other's.
-
 pub mod access;
 pub mod action_completion;
 pub mod actions;

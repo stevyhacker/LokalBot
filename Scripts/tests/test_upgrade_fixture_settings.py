@@ -20,8 +20,6 @@ class UpgradeSettingsTests(unittest.TestCase):
                 self.assertTrue(value["dreamingEnabled"])
 
     def test_only_0_9_0_and_0_9_1_carry_the_old_automation_approval(self):
-        # The separate approval for scheduled remote runs existed only in
-        # 0.9.0 and 0.9.1; 0.9.2 removed it (#113).
         for version in settings.committed_versions():
             with self.subTest(version=version):
                 carried = "approvedRemoteAutomationOrigins" in json.loads(settings.profile(version))
@@ -37,7 +35,6 @@ class UpgradeSettingsTests(unittest.TestCase):
         self.assertEqual(set(versions), folders)
         self.assertEqual(versions, sorted(versions, key=settings._tuple))
         self.assertEqual(versions[0], "0.6.2")
-        # 0.10.10 sorts after 0.10.9, not after 0.10.1.
         self.assertLess(versions.index("0.10.9"), versions.index("0.10.10"))
 
     def test_plan_builds_the_requested_release_or_the_committed_fixtures(self):

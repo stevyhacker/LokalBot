@@ -36,9 +36,6 @@ struct ModelRecording: Codable, Equatable {
         return encoder
     }
 
-    /// Every committed recording in the test bundle. Recordings live in one
-    /// `<vendor>__<model>` folder per model; other files (the purpose
-    /// markers) sit beside those folders.
     static func committed() throws -> [ModelRecording] {
         guard let root = Bundle(for: RecordingTextEngine.self).url(
             forResource: "model-recordings", withExtension: nil, subdirectory: "Fixtures") else { return [] }
@@ -48,7 +45,6 @@ struct ModelRecording: Codable, Equatable {
             .map { try decoder.decode(ModelRecording.self, from: Data(contentsOf: $0)) }
     }
 
-    /// Stub rules that answer each purpose's requests in recorded order.
     func stubRules() -> [[String: Any]] {
         var seen: [ModelRequestPurpose: Int] = [:]
         return calls.map { call in
@@ -63,8 +59,6 @@ struct ModelRecording: Codable, Equatable {
     }
 }
 
-/// Wraps `OpenAICompatibleEngine`, builds requests with LokalBot's own
-/// `makeChatRequest`, sends them non-streaming, and records the raw result.
 final class RecordingTextEngine: TextEngine, @unchecked Sendable {
     private let base: OpenAICompatibleEngine
     private let lock = NSLock()

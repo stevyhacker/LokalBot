@@ -1,14 +1,7 @@
 import Foundation
 
-/// Pure session-vs-live-field reconciliation: is the live field still the one
-/// a session/generation was built against, did the host publish typing that
-/// advances the session, and when should the coordinator wait for a slow host
-/// to publish an insertion instead of tearing the session down. All functions
-/// are pure over value types; the coordinator supplies the live state.
 enum CotypingSessionReconciler {
 
-    /// True when the host published a field state different from `baseline` —
-    /// the signal that a keystroke landed and generation may proceed.
     static func hostPublishDidMove(from baseline: CotypingField?, to current: CotypingField?) -> Bool {
         guard let baseline else { return current != nil }
         guard let current else { return true }
@@ -21,12 +14,6 @@ enum CotypingSessionReconciler {
                 != CotypingFieldIdentity.suggestionAnchor(for: baseline)
     }
 
-    /// True when `liveField` is plausibly the same editable field `session` was
-    /// generated against: same process/role, compatible focused-field identity
-    /// when AX exposes one, and live text still anchored to the session prefix
-    /// (which only grows as we accept words). Guards against accepting a stale
-    /// suggestion after focus moved to another field in the same app, where the
-    /// PID alone would still match.
     static func isContinuation(of session: CotypingSession, liveField: CotypingField?) -> Bool {
         guard let liveField, liveField.processID == session.field.processID else { return false }
         guard liveField.bundleID == session.field.bundleID, liveField.role == session.field.role else { return false }
@@ -111,10 +98,6 @@ enum CotypingSessionReconciler {
         return true
     }
 
-    /// Destructive replacement suggestions (correction, emoji, macro) require
-    /// the exact field snapshot that produced the visible ghost. Unlike a normal
-    /// continuation, they must not tolerate text growth or a best-effort
-    /// same-process fallback because they delete existing host text.
     static func isExactAcceptanceTarget(
         _ session: CotypingSession,
         liveField: CotypingField?
@@ -122,11 +105,6 @@ enum CotypingSessionReconciler {
         isCurrentGenerationTarget(session.field, liveField: liveField)
     }
 
-    /// Advances a continuation against the original field baseline. Handles
-    /// both plain typing that matches the suggestion tail (advancing the
-    /// consumed prefix) and the host catching up to an already-optimistically-
-    /// advanced session (typed is empty). Typing through keeps the rest of the
-    /// session, including whether it may be topped up, exactly as an accept does.
     static func sessionReconciledByPublishedTyping(
         _ session: CotypingSession,
         liveField: CotypingField?
@@ -177,8 +155,6 @@ enum CotypingSessionReconciler {
         return session.advanced(by: typedCharacters.count)
     }
 
-    /// A regenerated suggestion that merely re-suggests the chunk the user just
-    /// accepted (host hasn't published the insert yet) must not be shown.
     static func isStaleAcceptanceEcho(
         resultText: String,
         acceptedChunk: String,
@@ -190,8 +166,6 @@ enum CotypingSessionReconciler {
         guard resultText.trimmingCharacters(in: .whitespacesAndNewlines) == trimmedChunk else { return false }
         return currentPrecedingText == acceptedPrecedingText
     }
-
-    // MARK: - Private
 
     private static func knownFocusIdentityDidMove(
         from baseline: CotypingField,
@@ -244,9 +218,6 @@ struct CotypingReplacementAcceptancePlan: Equatable, Sendable {
     let replacementText: String
 }
 
-/// Builds the destructive edit for a visible non-continuation suggestion only
-/// after exact field and trigger validation. Keeping this pure makes the safety
-/// boundary testable without an Accessibility element or a global event tap.
 enum CotypingReplacementAcceptancePlanner {
     static func plan(
         for session: CotypingSession,

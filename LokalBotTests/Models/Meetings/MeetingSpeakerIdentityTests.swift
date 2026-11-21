@@ -155,8 +155,6 @@ final class SpeakerVoiceMatcherTests: XCTestCase {
         XCTAssertEqual(matches.first?.tier, .automatic)
         XCTAssertEqual(matches.first?.name, "Alex")
     }
-    /// Codec-compressed call chunks disagree with each other, but their average
-    /// is stable; the old all-pairs gate rejected every real call voice.
     func testCallVoiceMatchesByItsAverageWhenSingleChunksDisagree() {
         let noisy = (0..<4).map { index -> SpeakerVoiceSample in
             var embedding = [Float](repeating: 0, count: 256)

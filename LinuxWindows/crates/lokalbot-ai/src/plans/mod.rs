@@ -1,9 +1,3 @@
-//! Think on the user's own ChatGPT, Claude, Antigravity, or Gemini plan
-//! instead of an API key (`Engines/Subscription/`). Signing in alone sends no
-//! content; Think uses a plan only after the user approves its consent entry
-//! ([`SubscriptionPlan::consent_key`]). Plan errors stop the request; nothing
-//! falls back to another provider or billing path.
-
 pub mod antigravity;
 pub mod chatgpt;
 pub mod claude;
@@ -13,9 +7,6 @@ mod loopback;
 
 use lokalbot_core::settings::SubscriptionPlan;
 
-/// Failures a plan reports to the user (`ChatGPTPlanError`,
-/// `ClaudePlanError`, `AntigravityPlanError`, `GeminiPlanError`,
-/// `SubscriptionPlanError`).
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
 pub enum PlanError {
     #[error("Choose a model for your {} under Settings → Models.", .0.title())]
@@ -45,7 +36,6 @@ pub enum PlanError {
     UnsupportedRequest(String),
     #[error("ChatGPT plan configuration error: {0}")]
     Misconfigured(String),
-    /// ChatGPT sign-ins are kept only in the system credential store.
     #[error(
         "LokalBot keeps your ChatGPT sign-in only in the system credential store, which isn't available: {0}"
     )]
@@ -91,7 +81,6 @@ pub enum PlanError {
     GeminiFailed(String),
 }
 
-/// The [`PlanError`] inside an `anyhow::Error`, if any.
 pub fn plan_error(err: &anyhow::Error) -> Option<&PlanError> {
     err.downcast_ref::<PlanError>()
 }

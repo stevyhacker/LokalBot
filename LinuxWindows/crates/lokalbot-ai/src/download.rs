@@ -1,13 +1,3 @@
-//! Verified downloads (`ModelDownloadManager.swift`, `ParallelRangeDownloader.swift`,
-//! `DownloadIntegrity.swift`) and archive extraction.
-//!
-//! A download streams into `<dest>.part`, is checked against its pinned size
-//! and SHA-256 (and GGUF magic for `.gguf`), then renamed into place with a
-//! `<dest>.sha256` sidecar so later launches skip re-hashing. Files of 256 MiB
-//! and more arrive as 64 MiB ranges over up to six connections, each written
-//! at its own offset; a `<dest>.part.json` manifest of finished ranges lets a
-//! failed or cancelled download resume.
-
 use std::collections::BTreeSet;
 use std::fs::{self, File, OpenOptions};
 use std::io::{self, Read, Seek, SeekFrom, Write};
@@ -22,7 +12,6 @@ use sha2::{Digest as _, Sha256};
 
 use crate::error::AiError;
 
-/// One file to fetch: an HTTPS URL, its pinned SHA-256 and exact size.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct DownloadSpec {
     pub url: String,
@@ -43,9 +32,7 @@ pub(crate) struct Options {
     pub minimum_ranged_bytes: u64,
     pub part_bytes: u64,
     pub max_concurrent_parts: usize,
-    /// Tests serve files from a plain-HTTP loopback stub.
     pub allow_loopback_http: bool,
-    /// Where Hugging Face files come from; the settings' choice when `None`.
     pub source: Option<lokalbot_core::settings::ModelDownloadSource>,
 }
 
@@ -61,8 +48,6 @@ impl Default for Options {
     }
 }
 
-/// Downloads `spec` unless it is already installed and verified.
-/// `progress(bytes_done, bytes_total)` runs on the calling thread.
 pub fn download(
     spec: &DownloadSpec,
     cancel: &AtomicBool,
@@ -71,8 +56,6 @@ pub fn download(
     download_with(spec, cancel, progress, &Options::default())
 }
 
-/// [`download`] that also accepts plain `http://` from this computer, for
-/// dry-run update feeds served locally. Size and SHA-256 are still checked.
 pub fn download_allowing_loopback_http(
     spec: &DownloadSpec,
     cancel: &AtomicBool,
@@ -117,7 +100,6 @@ pub(crate) fn download_with(
     )
 }
 
-/// Fetches one source's copy, checks it against the pin and installs it.
 fn download_from(
     spec: &DownloadSpec,
     cancel: &AtomicBool,
@@ -132,7 +114,6 @@ fn download_from(
     let part = with_suffix(&spec.dest, ".part");
     let manifest = with_suffix(&spec.dest, ".part.json");
 
-    // Credit bytes an interrupted attempt already holds.
     let stashed = stashed_bytes(&part, spec.size);
     if let Some(available) = free_space(dir) {
         let needed = spec.size.saturating_sub(stashed);
@@ -205,10 +186,6 @@ fn download_from(
     Ok(())
 }
 
-/// The disk space an interrupted attempt's `.part` file already takes up. A
-/// ranged download gives the file its full length before any byte arrives
-/// (`set_len`), which most Unix filesystems store as a hole, so there only the
-/// allocated blocks count.
 fn stashed_bytes(part: &Path, size: u64) -> u64 {
     let Ok(metadata) = fs::metadata(part) else {
         return 0;
@@ -216,7 +193,6 @@ fn stashed_bytes(part: &Path, size: u64) -> u64 {
     #[cfg(unix)]
     let on_disk = {
         use std::os::unix::fs::MetadataExt as _;
-        // `st_blocks` counts 512-byte units whatever the filesystem's block size.
         metadata.blocks().saturating_mul(512)
     };
     #[cfg(not(unix))]
@@ -224,7 +200,6 @@ fn stashed_bytes(part: &Path, size: u64) -> u64 {
     on_disk.min(metadata.len()).min(size)
 }
 
-/// Why a source may not be downloaded, or `None` (`ModelDownloadManager.sourceRefusal`).
 pub fn source_refusal(url: &str, sha256: &str, allow_loopback_http: bool) -> Option<String> {
     let lower = url.trim().to_ascii_lowercase();
     let https = lower.starts_with("https://");
@@ -258,11 +233,6 @@ fn download_agent(options: &Options) -> ureq::Agent {
         .https_only(!options.allow_loopback_http)
         .http_status_as_error(false)
         .max_redirects(10)
-        // A new connection for every request. ureq would send the GET down
-        // the connection that answered the HEAD probe even when an HTTP/1.0
-        // server (`python -m http.server` for a dry-run update feed) closes
-        // it after one response, failing the download with "Peer
-        // disconnected".
         .max_idle_connections(0)
         .user_agent(concat!("LokalBot/", env!("CARGO_PKG_VERSION")))
         .timeout_connect(Some(Duration::from_secs(30)))
@@ -376,8 +346,6 @@ fn download_ranged(
 ) -> Result<()> {
     let total = spec.size;
     let byte_ranges = ranges(total, options.part_bytes);
-    // A stash is reused only for the same URL, size, part size and server
-    // validator: a changed upstream file is never stitched from two versions.
     let mut completed: BTreeSet<usize> = fs::read(manifest)
         .ok()
         .and_then(|bytes| serde_json::from_slice::<ResumeState>(&bytes).ok())
@@ -524,8 +492,6 @@ fn part_error_is_transient(err: &anyhow::Error) -> bool {
     ) || err.downcast_ref::<io::Error>().is_some()
 }
 
-/// One range, written at its offset as it arrives. A server that ignores
-/// `Range` answers 200 with the whole file; that must never be written here.
 fn fetch_part(
     agent: &ureq::Agent,
     url: &str,
@@ -595,8 +561,6 @@ fn fetch_part(
     result
 }
 
-/// One streamed GET, resuming an earlier `.part` with `Range: bytes=N-`
-/// when the server supports it.
 fn download_single(
     agent: &ureq::Agent,
     spec: &DownloadSpec,
@@ -678,7 +642,6 @@ fn transport_error(err: ureq::Error) -> anyhow::Error {
     }
 }
 
-/// Streaming SHA-256 as lowercase hex.
 pub fn sha256_file(path: &Path, cancel: Option<&AtomicBool>) -> Result<String> {
     let mut file = File::open(path).with_context(|| format!("opening {}", path.display()))?;
     let mut hasher = Sha256::new();
@@ -738,22 +701,17 @@ fn gigabytes(bytes: u64) -> String {
     format!("{:.1} GB", bytes as f64 / 1e9)
 }
 
-/// Bytes available to this user on the volume holding `dir`.
 pub fn free_space(dir: &Path) -> Option<u64> {
     #[cfg(unix)]
     {
         use std::os::unix::ffi::OsStrExt as _;
         let c_path = std::ffi::CString::new(dir.as_os_str().as_bytes()).ok()?;
         let mut stat = std::mem::MaybeUninit::<libc::statvfs>::uninit();
-        // SAFETY: `c_path` is a valid NUL-terminated path and `stat` is a
-        // properly sized out-parameter that statvfs fully initializes on success.
         let rc = unsafe { libc::statvfs(c_path.as_ptr(), stat.as_mut_ptr()) };
         if rc != 0 {
             return None;
         }
-        // SAFETY: statvfs returned 0, so the struct is initialized.
         let stat = unsafe { stat.assume_init() };
-        // The field types vary across Unix targets.
         #[allow(clippy::useless_conversion)]
         let (available, block) = (u64::from(stat.f_bavail), u64::from(stat.f_frsize));
         Some(available.saturating_mul(block))
@@ -767,8 +725,6 @@ pub fn free_space(dir: &Path) -> Option<u64> {
             .chain(std::iter::once(0))
             .collect();
         let mut available = 0u64;
-        // SAFETY: `wide` is NUL-terminated; the out-pointer is a valid u64 and
-        // the other out-parameters are optional (null).
         let ok = unsafe {
             windows_sys::Win32::Storage::FileSystem::GetDiskFreeSpaceExW(
                 wide.as_ptr(),
@@ -786,15 +742,9 @@ pub fn free_space(dir: &Path) -> Option<u64> {
     }
 }
 
-// ---------------------------------------------------------------- archives
-
-/// Extraction stops past this many bytes or entries (archive bombs).
 const MAX_EXTRACTED_BYTES: u64 = 16 * 1024 * 1024 * 1024;
 const MAX_ENTRIES: usize = 200_000;
 
-/// Extracts a `.zip`, `.tar.gz`/`.tgz`, `.tar.bz2`/`.tbz2` or `.tar` into
-/// `dest`. Entries that would land outside `dest` (absolute paths, `..`, links
-/// pointing out) fail the whole extraction.
 pub fn extract_archive(archive: &Path, dest: &Path) -> Result<()> {
     let name = file_name(archive).to_ascii_lowercase();
     fs::create_dir_all(dest).with_context(|| format!("creating {}", dest.display()))?;
@@ -812,7 +762,6 @@ pub fn extract_archive(archive: &Path, dest: &Path) -> Result<()> {
     }
 }
 
-/// A relative path made only of normal components, or `None`.
 fn safe_relative(path: &Path) -> Option<PathBuf> {
     let mut out = PathBuf::new();
     for component in path.components() {
@@ -825,8 +774,6 @@ fn safe_relative(path: &Path) -> Option<PathBuf> {
     (!out.as_os_str().is_empty()).then_some(out)
 }
 
-/// Resolves a link target written relative to `entry`'s folder, lexically,
-/// and returns it relative to the archive root when it stays inside.
 fn link_inside(entry: &Path, target: &Path) -> Option<PathBuf> {
     if target.is_absolute() {
         return None;
@@ -886,7 +833,6 @@ fn extract_tar<R: Read>(reader: R, dest: &Path) -> Result<()> {
         bytes: 0,
         entries: 0,
     };
-    // Hard links and (on Windows) symlinks become copies once their target exists.
     let mut deferred_copies: Vec<(PathBuf, PathBuf)> = Vec::new();
     for entry in archive.entries()? {
         let mut entry = entry?;
@@ -1065,8 +1011,6 @@ mod tests {
         assert!(source_refusal(&pinned, "abc", false).is_some());
     }
 
-    /// Retrying a ranged download skipped the free-space check: the `.part`
-    /// file already had its full length, with almost nothing in it.
     #[test]
     #[cfg(unix)]
     fn a_part_file_sized_up_front_is_credited_only_for_what_it_holds() {
@@ -1077,7 +1021,6 @@ mod tests {
         fs::File::create(&part).unwrap().set_len(size).unwrap();
         assert!(stashed_bytes(&part, size) < 1024 * 1024);
 
-        // A streamed partial holds every byte of its length.
         let mut state = 0x9E37_79B9_7F4A_7C15_u64;
         let noise: Vec<u8> = (0..256 * 1024)
             .map(|_| {
@@ -1140,7 +1083,6 @@ mod tests {
                 .count()
                 >= 7
         );
-        // Installed and verified: nothing is fetched again.
         let before = server.requests().len();
         download_with(&spec, &AtomicBool::new(false), &mut |_, _| {}, &options()).unwrap();
         assert_eq!(server.requests().len(), before);
@@ -1169,10 +1111,6 @@ mod tests {
         assert_eq!(gets[0].header("range").as_deref(), Some("bytes=120-"));
     }
 
-    /// An HTTP/1.0 server, like the `python -m http.server` that serves the
-    /// update checks' dry-run feed, answers one request per connection and
-    /// then closes it. A request sent down that connection again gets no
-    /// answer, so the GET must not reuse the connection of the HEAD probe.
     #[test]
     fn requests_do_not_reuse_a_connection_an_http_1_0_server_closes() {
         use std::io::{BufRead as _, BufReader};
@@ -1208,9 +1146,6 @@ mod tests {
                         let _ = out.write_all(&file);
                     }
                     let _ = out.flush();
-                    // Close only once the client has sent more on this
-                    // connection (or after a while), so the outcome does not
-                    // depend on timing.
                     let _ = reader
                         .get_ref()
                         .set_read_timeout(Some(Duration::from_secs(2)));

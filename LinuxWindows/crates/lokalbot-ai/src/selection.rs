@@ -1,7 +1,3 @@
-//! Selection actions (`SelectionAction.swift`): the built-in actions on text
-//! selected in another app, typed instructions, their prompts, and the work
-//! memory an action marked "with my memory" adds. Nothing here is stored.
-
 use std::collections::BTreeMap;
 
 use anyhow::Result;
@@ -24,35 +20,24 @@ use crate::sanitize::sanitize;
 use crate::think::{ChatRequest, EmbeddingClient};
 
 pub const CUSTOM_ID: &str = "custom";
-/// The selection sent to the model. Longer selections are cut, and the panel
-/// says so.
 pub const SELECTION_CHARACTER_LIMIT: usize = 12_000;
-/// What the memory search looks for: the start of the selection is where a
-/// message usually says what it is about.
 pub const MEMORY_QUERY_CHARACTER_LIMIT: usize = 400;
 const MEMORY_SOURCES: usize = 6;
 const MEMORY_TEXT_LIMIT: usize = 6_000;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActionResult {
-    /// A new version of the selection, offered as a replacement.
     Replacement,
-    /// Text that does not stand in for the selection.
     NewText,
 }
 
-/// A built-in action, or a typed instruction.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Action {
     pub id: &'static str,
-    /// Interface text, except for a typed instruction.
     pub title: String,
-    /// What the model is asked to do, in the prompt's words.
     pub instruction: String,
     pub result: ActionResult,
-    /// Reads matching meetings and work memory before writing.
     pub uses_memory: bool,
-    /// False for actions that only make sense on selected text.
     pub works_without_selection: bool,
 }
 
@@ -143,8 +128,6 @@ impl Action {
         ]
     }
 
-    /// A typed instruction. With a selection it can replace it; without one
-    /// it writes new text at the cursor.
     pub fn custom(instruction: &str, uses_memory: bool) -> Self {
         Self {
             id: CUSTOM_ID,
@@ -160,8 +143,6 @@ impl Action {
         self.id == CUSTOM_ID
     }
 
-    /// Built-in actions whose title contains every typed word, in English or
-    /// in the interface language.
     pub fn matching(
         query: &str,
         has_selection: bool,
@@ -186,7 +167,6 @@ impl Action {
             .collect()
     }
 
-    /// The panel's rows: the matching actions, then the typed instruction.
     pub fn rows(
         query: &str,
         has_selection: bool,
@@ -202,7 +182,6 @@ impl Action {
     }
 }
 
-/// A meeting the memory lookup matched, so a claim can be checked.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct MemorySource {
     pub id: Uuid,
@@ -210,7 +189,6 @@ pub struct MemorySource {
     pub date: Option<DateTime<Utc>>,
 }
 
-/// Retrieved work memory for one request (`SelectionMemoryContext`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct MemoryContext {
     pub excerpts: String,
@@ -252,8 +230,6 @@ pub fn user_prompt(action: &Action, selection: &str, memory: &MemoryContext) -> 
     parts.join("\n\n")
 }
 
-/// No thinking turn: someone is waiting to paste. The output ceiling fits a
-/// long rewritten passage.
 pub fn request(action: &Action, selection: &str, memory: &MemoryContext) -> ChatRequest {
     ChatRequest::new(
         system_prompt(action.uses_memory),
@@ -272,7 +248,6 @@ pub fn clipped_selection(selection: &str) -> String {
         .collect()
 }
 
-/// The text the memory search runs on.
 pub fn memory_query(action: &Action, selection: &str) -> String {
     let selected = selection.trim();
     let base = if selected.is_empty() {
@@ -288,8 +263,6 @@ pub fn memory_query(action: &Action, selection: &str) -> String {
         .collect()
 }
 
-/// Strips reasoning, code fences, and quotation marks the model wrapped
-/// around the whole answer. Applied to partial output too.
 pub fn normalized_output(raw: &str, selection: &str) -> String {
     let mut output = compose_normalized_output(raw);
     let selected_first = selection.trim().chars().next();
@@ -306,8 +279,6 @@ pub fn normalized_output(raw: &str, selection: &str) -> String {
     output
 }
 
-/// Meetings that match the selection, plus the overnight work memory
-/// (`AppState.selectionMemoryContext`). Uses the same search as Ask's tool.
 pub fn memory_context(
     library: &Library,
     embedder: Option<EmbeddingClient>,
@@ -351,7 +322,6 @@ pub fn memory_context(
     })
 }
 
-/// `DreamMemory`, as much of it as the prompt shows.
 #[derive(Debug, Default, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct DreamMemory {
@@ -380,8 +350,6 @@ struct DreamGoal {
     pinned: bool,
 }
 
-/// `ChatPrompt.workMemoryContext`: empty when the overnight review is off,
-/// the file is unreadable, or the memory holds nothing.
 pub fn work_memory_context(json: &[u8], dreaming_enabled: bool) -> String {
     if !dreaming_enabled {
         return String::new();
@@ -398,7 +366,6 @@ pub fn work_memory_context(json: &[u8], dreaming_enabled: bool) -> String {
     sanitize(&work_memory_markdown(&memory), Some(MEMORY_TEXT_LIMIT))
 }
 
-/// `DreamMemory.markdown()`.
 fn work_memory_markdown(memory: &DreamMemory) -> String {
     const NONE: &str = "_None observed yet._";
     let updated = memory
@@ -599,7 +566,6 @@ mod tests {
         assert_eq!(body["chat_template_kwargs"]["enable_thinking"], false);
     }
 
-    /// `memory/memory.json` as `DreamStore` writes it (`.iso8601` dates).
     const MAC_MEMORY: &str = r#"{
       "version": 2,
       "updatedAt": "2026-10-20T04:12:33Z",

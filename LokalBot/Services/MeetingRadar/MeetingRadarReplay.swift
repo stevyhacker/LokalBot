@@ -1,37 +1,5 @@
 import Foundation
 
-/// `LokalBot --radar-replay <fixture.json> [--model <id>] [--interval <s>] [--delay <s>]
-///   [--base-url <url> [--reasoning-line <level>]] [--audio <folder>] [--screens <folder>]
-///   [--answers [--folders <a,b>] [--answer-model <id>]]`
-///
-/// Replays a timed transcript through Live Radar's request, grounding checks,
-/// and Meta Model API client, and prints one JSON line per pass and a summary.
-/// `--base-url` sends the same requests to another OpenAI-compatible server,
-/// such as llama-server running Meta's open-weight Muse Glimmer, which needs
-/// no key; `--reasoning-line` then adds the "Reasoning effort: <level>" line
-/// that Glimmer's chat template reads from the system prompt.
-/// A line becomes visible `delay` seconds after it starts (the live preview's
-/// chunking), and a pass runs every `interval` seconds of meeting time, as in
-/// the app. Earlier-meeting passages come from the fixture instead of the
-/// library, so a run is reproducible. For public or synthetic transcripts
-/// only: the key is read from `META_API_KEY`, never from the Keychain, and
-/// nothing is read from or written to a library.
-///
-/// `--audio` replays the meeting as fast live text does, in real time: the
-/// folder's `me.wav` and `them.wav` (from `Benchmarks/think/MuseRadar/voice_fixture.py`)
-/// stream to Muse Voice Transcribe through the app's client, each finished
-/// turn becomes a line, and a pass follows each turn (`--interval` defaults
-/// to the app's 3 s turn interval). Times are measured on the wall clock.
-///
-/// `--screens` adds screen answers: the folder's `screens.json` lists
-/// synthetic captures (`file`, `capturedAt`, `app`, `windowTitle`), and each
-/// question the radar catches is answered from them as the app does from
-/// screen memory, with the crops made by Vision on this Mac.
-///
-/// `--answers` runs live answers for each question, as the app does: the
-/// fixture's `memory` stands in for what LokalBot remembers, its earlier
-/// passages for meeting search, and `--folders` are read for real (documents,
-/// and code, commits, and GitHub through `gh` in repositories).
 enum MeetingRadarReplay {
     struct Fixture: Decodable {
         struct Line: Decodable {
@@ -54,7 +22,6 @@ enum MeetingRadarReplay {
         let attendees: [String]?
         let lines: [Line]
         let earlier: [Passage]?
-        /// What LokalBot would remember: `kind` is project, action, or memory.
         let memory: [Memory]?
 
         struct Memory: Decodable {
@@ -78,7 +45,6 @@ enum MeetingRadarReplay {
         var answerModel = MetaModelAPI.museWonder.id
     }
 
-    /// Captures from a fixture folder instead of screen memory.
     @MainActor
     final class FixtureScreens: RadarScreenSource {
         struct Entry: Decodable {
@@ -215,7 +181,6 @@ enum MeetingRadarReplay {
                 for id in outcome.answeredIDs {
                     if let index = items.firstIndex(where: { $0.id == id }) { items[index].answered = true }
                 }
-                // Simulated meeting time at which the person would see each item.
                 let shownAt = min(clock, end) + seconds
                 items += outcome.added
                 for question in outcome.added where question.kind == .question {
@@ -237,7 +202,7 @@ enum MeetingRadarReplay {
                 failures += 1
                 FileHandle.standardError.write(Data("radar-replay pass failed: \(error.localizedDescription)\n".utf8))
                 if failures >= 3 { return 1 }
-                clock -= interval // retry the same window
+                clock -= interval
             }
         }
         let seconds = passes.compactMap { $0["seconds"] as? Double }.sorted()
@@ -263,9 +228,6 @@ enum MeetingRadarReplay {
         return 0
     }
 
-    /// Screen answers for a replay: the app's search-and-crop step and
-    /// grounding check, run against fixture captures. Each result is printed
-    /// as a `screenAnswer` line and kept for the summary.
     @MainActor
     final class ScreenAnswerRuns {
         let screens: FixtureScreens?
@@ -286,8 +248,6 @@ enum MeetingRadarReplay {
             self.answerClient = answerClient
         }
 
-        /// Nil without `--screens` or `--answers`. `elapsed` gives the
-        /// wall-clock delay from the question to the answer.
         @discardableResult
         func answer(_ question: RadarItem, elapsed: (@MainActor () -> Double)? = nil) -> Task<Void, Never>? {
             let screen = screenAnswer(question, elapsed: elapsed)
@@ -378,8 +338,6 @@ enum MeetingRadarReplay {
         }
     }
 
-    /// What live answers reads in a replay: the fixture's memory and earlier
-    /// passages, and real folders.
     @MainActor
     final class ReplayLiveAnswers: LiveAnswerEnvironment {
         let fixture: Fixture
@@ -426,7 +384,6 @@ enum MeetingRadarReplay {
         }
     }
 
-    /// Lines from the realtime sessions, kept on the main actor.
     @MainActor
     private final class LiveLines {
         var started: ContinuousClock.Instant?
@@ -461,7 +418,6 @@ enum MeetingRadarReplay {
         let live = LiveLines()
         let streams = tracks.map { speaker, url in
             Task { @MainActor in
-                // About one frame of lead, as from a live microphone.
                 let track = MuseLiveTextTrack(source: url, startFrame: 0, leadSeconds: 0.1)
                 do {
                     try await track.run(key: key, keywords: [], resumeFrom: nil) { output in
@@ -518,7 +474,6 @@ enum MeetingRadarReplay {
                 }
                 items += outcome.added
                 for question in outcome.added where question.kind == .question {
-                    // Beside the passes, as in the app, timed on the wall clock.
                     answers.answer(question) { live.seconds - question.time }
                 }
                 analyzed += fresh

@@ -1,10 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// 2026-11-09: one text-recognition request never returned. Every later one
-/// waited behind it inside Vision, and every caller waited with it.
 final class TextRecognitionQueueTests: XCTestCase {
-    /// A request that does not return until the test lets it.
     private final class Unanswered: @unchecked Sendable {
         private let lock = NSLock()
         private let released = DispatchSemaphore(value: 0)
@@ -42,11 +39,9 @@ final class TextRecognitionQueueTests: XCTestCase {
     }
 
     override func tearDown() {
-        // Frees the queue's thread whatever the test's outcome.
         unanswered.release()
     }
 
-    /// Starts a request that holds the queue and returns once it is running.
     private func holdQueue(_ queue: TextRecognitionQueue, purpose: String = "screen capture",
                            within seconds: TimeInterval = 60) async -> Task<String?, Never> {
         let running = expectation(description: "the request is running")
@@ -169,7 +164,6 @@ final class TextRecognitionQueueTests: XCTestCase {
         }
 
         let first = await holdQueue(queue, purpose: "screen capture")
-        // Waiting when the stall is noticed: answered then, not at its own limit.
         let waiting = Task { await queue.run("autocomplete window text", within: 60) { "never read" } }
         await fulfillment(of: [stalled], timeout: 10)
         XCTAssertEqual(queue.currentStall?.purpose, "screen capture")

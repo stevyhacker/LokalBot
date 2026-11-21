@@ -14,8 +14,6 @@ final class DayDigestSchedulerTests: XCTestCase {
         return try XCTUnwrap(formatter.date(from: value))
     }
 
-    // MARK: - shouldRun policy
-
     func testDoesNotRunBeforeConfiguredHour() throws {
         XCTAssertFalse(DayDigestScheduler.shouldRun(
             at: try date("2026-07-21T17:59:00Z"), hour: 18,
@@ -31,9 +29,6 @@ final class DayDigestSchedulerTests: XCTestCase {
             digestModifiedAt: nil, calendar: calendar))
     }
 
-    /// The journal file's mtime is the durable once-per-day marker: written
-    /// at/after today's target hour (by the scheduler or a manual regenerate)
-    /// means done — including across an app relaunch.
     func testDigestWrittenAfterTargetHourSuppressesTheRun() throws {
         XCTAssertFalse(DayDigestScheduler.shouldRun(
             at: try date("2026-07-21T19:00:00Z"), hour: 18,
@@ -41,8 +36,6 @@ final class DayDigestSchedulerTests: XCTestCase {
             calendar: calendar))
     }
 
-    /// A digest the user generated in the morning is refreshed at the
-    /// scheduled hour so the journal reflects the whole day.
     func testMorningManualDigestIsRefreshedAtScheduledHour() throws {
         XCTAssertTrue(DayDigestScheduler.shouldRun(
             at: try date("2026-07-21T18:00:00Z"), hour: 18,
@@ -51,7 +44,6 @@ final class DayDigestSchedulerTests: XCTestCase {
     }
 
     func testHourIsClampedIntoValidRange() throws {
-        // hour 99 clamps to 23:00 — before it, no run; at it, run.
         XCTAssertFalse(DayDigestScheduler.shouldRun(
             at: try date("2026-07-21T22:59:00Z"), hour: 99,
             digestModifiedAt: nil, calendar: calendar))
@@ -132,8 +124,6 @@ final class DayDigestSchedulerTests: XCTestCase {
                        try date("2026-07-20T00:00:00Z"),
                        "an evening preview is not final until rewritten after midnight")
     }
-
-    // MARK: - Tick behavior
 
     @MainActor
     func testTickCatchesUpMissedDaysWithinSevenDaysOldestFirst() async throws {
@@ -231,8 +221,6 @@ final class DayDigestSchedulerTests: XCTestCase {
     }
 
 
-    /// An empty day is not a failure: the generate closure reports it and the
-    /// scheduler stays quiet, ready to retry once the day has content.
     @MainActor
     func testEmptyDayIsNotReportedAsAnError() async throws {
         let current = try date("2026-07-21T18:00:00Z")
@@ -365,8 +353,6 @@ final class DayDigestSchedulerTests: XCTestCase {
         scheduler.stop()
     }
 
-    /// Every finished meeting cleared the failure backoff on 2026-10-01, so a
-    /// rate-limited provider was asked for the whole digest again at once.
     @MainActor
     func testEvidenceChangeKeepsTheFailureBackoff() async throws {
         var current = try date("2026-07-21T18:00:00Z")
@@ -436,8 +422,6 @@ final class DayDigestSchedulerTests: XCTestCase {
         XCTFail("condition never became true")
     }
 
-    // MARK: - Custom prompt folding
-
     func testEmptyCustomPromptKeepsTheBaseDigestPrompt() {
         XCTAssertEqual(PromptTemplates.dayDigestSystem(custom: ""),
                        PromptTemplates.dayDigestSystem)
@@ -461,7 +445,7 @@ final class DayDigestSchedulerTests: XCTestCase {
             custom: String(repeating: "focus on code reviews ", count: 200))
         let ceiling = PromptTemplates.dayDigestSystem.count
             + PromptTemplates.dayDigestCustomPromptMaxCharacters
-            + 220 // joining + non-conflict clauses
+            + 220
         XCTAssertLessThanOrEqual(system.count, ceiling)
         XCTAssertTrue(system.hasPrefix(PromptTemplates.dayDigestSystem))
     }

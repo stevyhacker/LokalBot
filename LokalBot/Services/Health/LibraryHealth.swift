@@ -48,7 +48,6 @@ struct LibraryHealthReport: Codable, Equatable, Sendable {
     }
 }
 
-/// Everything the evaluator judges, gathered by `LibraryHealthLoader`.
 struct LibraryHealthInput: Sendable {
     struct Recording: Equatable, Sendable {
         var meetingID: UUID
@@ -60,11 +59,9 @@ struct LibraryHealthInput: Sendable {
     struct Schedulers: Equatable, Sendable {
         var automaticInferenceAllowed: Bool
         var digestEnabled: Bool
-        /// Yesterday relative to `now`, as the digest scheduler sees it.
         var previousDay: DayDigestScheduler.PastDay?
         var dreamingEnabled: Bool
         var dreamingHour: Int
-        /// Undreamed eligible days in the catch-up window through yesterday.
         var missingDreamDays: Int
     }
 
@@ -73,21 +70,15 @@ struct LibraryHealthInput: Sendable {
     var blocks: [ActivityBlock]
     var screenCaptureEnabled: Bool
     var captureCountsByApp: [String: Int]
-    /// Private share of each earlier day in the last week that had activity.
     var privateShareHistory: [Double]
     var recordings: [Recording]
-    /// Off means the app never repairs a missing transcript on its own.
     var automaticTranscription = true
     var schedulers: Schedulers
     var digestCoverage: DayDigestCoverage?
 }
 
-/// Judges one day of a library the way a user would notice a problem. Pure,
-/// so the daily run, `--health`, and the day-in-the-life runs share one set
-/// of rules.
 enum LibraryHealthEvaluator {
     static let privateApp = "Private"
-    /// Capture skips LokalBot's own windows and the lock screen by design.
     static let uncapturedApps: Set<String> = ["LokalBot", "LokalBot Dev", "LokalBot UI Test Host", "loginwindow"]
     static let minimumTrackedSecondsForCapture: TimeInterval = 30 * 60
     static let privateShareWarning = 0.15
@@ -109,7 +100,6 @@ enum LibraryHealthEvaluator {
         ])
     }
 
-    /// Blocks overlapping the day, cut to it and sorted by start.
     static func clampedBlocks(_ blocks: [ActivityBlock], to day: DateInterval) -> [ActivityBlock] {
         blocks.compactMap { block -> ActivityBlock? in
             let start = max(block.start, day.start)

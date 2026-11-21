@@ -4,9 +4,6 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import LokalBot
 
-/// The media embedder has to see the pixels the reference sees: transformers'
-/// resize target, then Pillow's bicubic. The fixtures are DigUp's
-/// (`Tests/LlamaRuntimeTests/ImageSizingTests.swift`, MIT), made with PIL.
 final class FileImageSizingTests: XCTestCase {
     func testAZeroSidedImageHasNoTargetSize() {
         XCTAssertNil(FileImageSizing.targetSize(height: 0, width: 1440, budget: 140))
@@ -14,22 +11,18 @@ final class FileImageSizingTests: XCTestCase {
     }
 
     func testTargetSizeFillsTheBudget() {
-        // A 1440×900 screenshot and a 768×768 photo, at the budgets the indexer uses.
         assertSize(height: 900, width: 1440, budget: 280, is: (624, 1008))
         assertSize(height: 900, width: 1440, budget: 140, is: (432, 672))
         assertSize(height: 900, width: 1440, budget: 70, is: (288, 480))
         assertSize(height: 768, width: 768, budget: 280, is: (768, 768))
         assertSize(height: 768, width: 768, budget: 140, is: (528, 528))
-        // Small images grow to fill the budget, as in the reference.
         assertSize(height: 300, width: 300, budget: 140, is: (528, 528))
     }
 
     func testTargetSizeOfAThinImage() {
-        // One side rounds to zero: it gets one 48 px row, the other side capped at the budget.
         assertSize(height: 10, width: 4000, budget: 140, is: (48, 6720))
     }
 
-    /// A 7×5 image resized by PIL (`Image.resize`, BICUBIC).
     private static let source: [UInt8] = [0, 115, 230, 3, 118, 233, 6, 121, 236, 9, 124, 239, 12, 127, 242, 15, 130,
         245, 18, 133, 248, 77, 192, 51, 80, 195, 54, 83, 198, 57, 86, 201, 60, 89, 204, 63, 92, 207, 66, 95, 210, 69,
         154, 13, 128, 157, 16, 131, 160, 19, 134, 163, 22, 137, 166, 25, 140, 169, 28, 143, 172, 31, 146, 231, 90, 205,
@@ -62,8 +55,6 @@ final class FileImageSizingTests: XCTestCase {
         XCTAssertEqual(resize(toWidth: 7, toHeight: 5), Self.source)
     }
 
-    /// The PNG the embedder sends is the budget's size and carries the file's
-    /// pixels unchanged when no resize is needed.
     func testPNGIsSizedForTheBudgetAndKeepsPixels() throws {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
@@ -102,8 +93,6 @@ final class FileImageSizingTests: XCTestCase {
         }
     }
 
-    // MARK: - Helpers
-
     private func assertSize(height: Int, width: Int, budget: Int, is expected: (Int, Int),
                             file: StaticString = #filePath, line: UInt = #line) {
         guard let size = FileImageSizing.targetSize(height: height, width: width, budget: budget) else {
@@ -132,7 +121,6 @@ final class FileImageSizingTests: XCTestCase {
         XCTAssertTrue(CGImageDestinationFinalize(destination))
     }
 
-    /// Decodes PNG bytes back to packed RGB without colour conversion.
     private func decode(_ png: Data) throws -> (width: Int, height: Int, rgb: [UInt8]) {
         let source = try XCTUnwrap(CGImageSourceCreateWithData(png as CFData, nil))
         let image = try XCTUnwrap(CGImageSourceCreateImageAtIndex(source, 0, nil))

@@ -1,7 +1,5 @@
 import Foundation
 
-/// File-backed outcome read model shared by the app, CLI, and MCP server. It
-/// merges immutable extracted outcomes with the user's saved workflow state.
 struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
     let meeting: Meeting
     var outcomes: MeetingOutcomes
@@ -48,9 +46,6 @@ struct MeetingOutcomeProjection: Identifiable, Equatable, Sendable {
         return result
     }
 
-    /// One loader for UI surfaces and background routines. Keeping the merge
-    /// here prevents exports from silently falling back to immutable extraction
-    /// after the user has completed or corrected an action in the app.
     static func load(for meeting: Meeting, root: URL, includingPrevious: Bool = false) -> Self? {
         let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
         let current = MeetingOutcomes.load(from: folder)
@@ -83,8 +78,6 @@ struct OutcomeActionReference: Identifiable, Equatable, Sendable {
     var isThreadExcluded = false
 
     var id: String { "\(meetingID.uuidString):\(action.id)" }
-    /// A corrected due phrase is interpreted from the day the user typed it;
-    /// an extracted phrase from the day of the meeting.
     var dueReferenceDate: Date {
         dueWasCorrected ? (dueCorrectedAt ?? stateUpdatedAt) : meetingStartedAt
     }

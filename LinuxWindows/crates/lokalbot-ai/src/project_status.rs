@@ -1,8 +1,3 @@
-//! A project's "Where it stands" note (`ProjectStatusGenerator.swift`):
-//! grounded in the lines of its recent meetings that name it and the
-//! decisions and actions that name it, cited per meeting, and stamped with
-//! an evidence fingerprint so the page can tell when newer evidence exists.
-
 use std::collections::{HashMap, HashSet};
 
 use anyhow::Result;
@@ -38,7 +33,6 @@ pub enum ProjectStatusError {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeetingEvidence {
     pub id: Uuid,
-    /// "M1" is the newest meeting.
     pub label: String,
     pub title: String,
     pub date: DateTime<Utc>,
@@ -52,9 +46,7 @@ pub struct Evidence {
     pub project_name: String,
     pub other_names: Vec<String>,
     pub meetings: Vec<MeetingEvidence>,
-    /// Open actions from meetings older than the ones listed, sorted.
     pub other_actions: Vec<String>,
-    /// The overnight review's notes on this project.
     pub review_notes: Vec<String>,
 }
 
@@ -68,7 +60,6 @@ impl Evidence {
     }
 }
 
-/// `ProjectStatusGenerator.evidence(for:)`.
 pub fn evidence(project: &ProjectProfile) -> Evidence {
     let mut decisions_by_meeting: HashMap<Uuid, Vec<String>> = HashMap::new();
     for (meeting, decision) in &project.decisions {
@@ -159,7 +150,6 @@ fn action_line(thread: &ActionThread) -> String {
     format!("{} ({})", thread.text, details.join(", "))
 }
 
-/// `SpeakerDisplayName.label`: raw speaker keys read as people.
 fn speaker_label(name: &str) -> String {
     let trimmed = name.trim();
     if trimmed.eq_ignore_ascii_case("them") {
@@ -180,8 +170,6 @@ fn short_date(date: &DateTime<Utc>) -> String {
     date.with_timezone(&Local).format("%b %-d, %Y").to_string()
 }
 
-/// The evidence as prompt text. It carries no date of its own, so its hash
-/// changes only when the evidence does.
 pub fn prompt_context(evidence: &Evidence) -> String {
     let mut header = format!("Project: {}", evidence.project_name);
     if !evidence.other_names.is_empty() {
@@ -222,13 +210,10 @@ pub fn prompt_context(evidence: &Evidence) -> String {
     sanitize(&sections.join("\n\n"), Some(MAXIMUM_CONTEXT_CHARACTERS))
 }
 
-/// SHA-256 (hex) of the prompt context.
 pub fn fingerprint(evidence: &Evidence) -> String {
     hex::encode(Sha256::digest(prompt_context(evidence).as_bytes()))
 }
 
-/// Points cite a meeting label or "review"; the enum is dropped when the
-/// server cannot hold that many values.
 pub fn schema(labels: &[String], enum_limit: Option<usize>) -> Value {
     let mut sources: Vec<String> = labels.to_vec();
     sources.push("review".into());
@@ -269,9 +254,6 @@ struct Reply {
     open_questions: Option<Vec<String>>,
 }
 
-/// Writes the status note for `project`. The library is the source of the
-/// project's evidence (`Library::projects`); the note is returned, not saved
-/// (`Library::save_project_summary` saves it).
 pub fn generate(
     think: &ThinkClient,
     _library: &Library,
@@ -280,7 +262,6 @@ pub fn generate(
     generate_from(think, &evidence(project), &project.id, Utc::now())
 }
 
-/// `ProjectStatusGenerator.generate(evidence:projectID:engine:location:now:)`.
 pub fn generate_from(
     think: &ThinkClient,
     evidence: &Evidence,

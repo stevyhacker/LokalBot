@@ -1,13 +1,3 @@
-//! Ask conversations on disk (`ChatStore`): one sealed file per conversation,
-//! `chats/<UUID>.json.enc`, under the per-install `chat-key`.
-//!
-//! Plaintext `chats/<UUID>.json`, which earlier versions of this app and the
-//! Mac's first versions wrote, still opens and is then re-sealed, and the
-//! plaintext goes only once its sealed copy has landed. An encrypted copy wins
-//! over a leftover plaintext one. A sealed file that can't be opened (the key is
-//! missing, or the library came from another computer) is reported and left
-//! alone: it is never overwritten or replaced by a plaintext copy beside it.
-
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -40,16 +30,12 @@ impl LoadFailure {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatLoad {
-    /// Newest first.
     pub conversations: Vec<Conversation>,
     pub failures: Vec<LoadFailure>,
-    /// Conversations held in memory because they couldn't be saved.
     pub unsaved: Vec<Uuid>,
 }
 
 impl ChatLoad {
-    /// `ChatViewModel.updatePersistenceError`, with this platform's credential
-    /// store in place of the Keychain.
     pub fn problem(&self) -> Option<String> {
         if !self.unsaved.is_empty() {
             return Some(
@@ -99,8 +85,6 @@ fn sealed_name(id: Uuid) -> String {
     format!("{}.json.enc", ids::uuid_upper(&id))
 }
 
-/// Both spellings: the Mac names files in upper case, earlier versions of this
-/// app in lower case.
 fn plaintext_names(id: Uuid) -> [String; 2] {
     [
         format!("{}.json", ids::uuid_upper(&id)),
@@ -116,12 +100,10 @@ fn encode(conversation: &Conversation) -> Result<Vec<u8>> {
 }
 
 impl Library {
-    /// Lets this library seal and open chats. Installed by the engine at start.
     pub fn set_chat_key_source(&self, source: sealed::KeySource) {
         *self.chat_key_slot().write() = Some(source);
     }
 
-    /// The `chat-key`; `create` makes one when none exists.
     pub(crate) fn chat_key(&self, create: bool) -> Result<sealed::SealingKey> {
         let source = self.chat_key_slot().read().clone();
         match source {
@@ -184,7 +166,6 @@ impl Library {
                     .push(LoadFailure::UnreadablePlaintextFile(file_name(path))),
             }
         }
-        // Encrypted copies win if an earlier migration left both files.
         let mut sealed_unopened: Vec<PathBuf> = Vec::new();
         for path in &encrypted {
             let opened = key
@@ -206,7 +187,6 @@ impl Library {
 
         if !self.is_read_only() {
             for (id, path) in legacy {
-                // Re-sealing here would replace a store that can't be opened.
                 if sealed_unopened
                     .iter()
                     .any(|sealed| file_name(sealed).eq_ignore_ascii_case(&sealed_name(id)))
@@ -260,9 +240,6 @@ impl Library {
         write_atomic(&path, &bytes).with_context(|| format!("writing {}", path.display()))
     }
 
-    /// Seals and saves. When that isn't possible the conversation stays in
-    /// memory for this run instead of being written as plaintext, and the error
-    /// says so.
     pub fn save_conversation(&self, conversation: &Conversation) -> Result<()> {
         match self.write_sealed(conversation) {
             Ok(()) => {
@@ -282,11 +259,6 @@ impl Library {
         }
     }
 
-    /// The legacy copy goes first: if that fails the sealed copy is still there
-    /// and the conversation can be deleted again. What was learned from the
-    /// questions in it goes too.
-    /// Whether the conversation is still kept, on disk or held unsaved. An answer
-    /// still being written never brings back one deleted meanwhile.
     pub fn conversation_exists(&self, id: Uuid) -> bool {
         let dir = self.paths().chats_dir();
         self.unsaved_chats().lock().contains_key(&id)
@@ -309,8 +281,6 @@ impl Library {
         Ok(())
     }
 
-    /// For the demo library, which is built before any key exists. The app
-    /// seals it the first time it loads conversations.
     pub(crate) fn write_plaintext_conversation(&self, conversation: &Conversation) -> Result<()> {
         let path = self
             .paths()
@@ -425,16 +395,13 @@ mod tests {
         let foreign = sealed::seal(&OTHER, b"{\"from\":\"the Mac\"}").unwrap();
         let path = chats.join(format!("{ID}.json.enc"));
         fs::write(&path, &foreign).unwrap();
-        // A plaintext copy beside it mustn't replace it either.
         let plain = chats.join(format!("{ID}.json"));
         fs::write(&plain, serde_json::to_vec(&conversation(ID)).unwrap()).unwrap();
 
-        // No key at all: "key unavailable".
         let load = library.load_conversations();
         assert!(load.failures.contains(&LoadFailure::KeyUnavailable));
         assert_eq!(fs::read(&path).unwrap(), foreign);
 
-        // Another key: unreadable, with a message saying the file was kept.
         with_key(&library, KEY);
         let load = library.load_conversations();
         assert!(load.failures.iter().any(|f| f.is_unreadable_file()));
@@ -442,7 +409,6 @@ mod tests {
         assert_eq!(fs::read(&path).unwrap(), foreign);
         assert!(plain.exists());
 
-        // Saving over it is refused, and the answer stays in memory.
         let mut updated = conversation(ID);
         updated.title = "New title".into();
         assert!(library.save_conversation(&updated).is_err());

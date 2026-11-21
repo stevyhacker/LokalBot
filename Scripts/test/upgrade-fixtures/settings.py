@@ -49,8 +49,6 @@ def profile(version):
         "dreamingHour": 4,
         "trackingEnabled": True,
     }
-    # Only 0.9.0 and 0.9.1 had a separate approval for scheduled remote runs;
-    # 0.9.2 removed it (#113).
     if (0, 9, 0) <= _tuple(version) < (0, 9, 2):
         value["approvedRemoteAutomationOrigins"] = ["https://openrouter.ai"]
     return json.dumps(value, sort_keys=True)

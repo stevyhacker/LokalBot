@@ -22,8 +22,6 @@ MODELS = {
     "embeddinggemma-2-Q8_0.gguf": "Semantic search",
 }
 
-# Everything that could capture, learn from, or reach past this library is off;
-# what the scenes need is on and local. Unlisted settings keep their defaults.
 SETTINGS = {
     "summarizerBackend": "Built-in (no setup)",
     "builtInModelID": "qwen3.5-4b",

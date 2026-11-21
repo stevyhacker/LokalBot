@@ -1,17 +1,6 @@
 import Combine
 import Foundation
 
-/// Settings → External Agents: one switch for reading LokalBot data,
-/// with a box for each kind under it. Each kind keeps its own marker in
-/// `control/`, which is what `lokalbot-cli` and its MCP server check, with the
-/// app closed too. The switch only writes and removes those markers: turning
-/// it on grants the ticked kinds; turning it off removes them all and
-/// remembers the boxes and the screen history range for next time.
-///
-/// The switch is on exactly while some kind is granted, so grants made before
-/// it existed (a toggle per kind), or by an agent setup request, show as they
-/// are and nothing widens on upgrade. Changing LokalBot's settings stays a
-/// separate grant.
 @MainActor
 final class AgentReadAccess: ObservableObject {
     enum Kind: String, CaseIterable, Codable, Identifiable, Sendable {
@@ -20,7 +9,6 @@ final class AgentReadAccess: ObservableObject {
         var id: String { rawValue }
     }
 
-    /// The boxes and history range while the switch is off.
     struct Choices: Codable, Equatable, Sendable {
         var kinds: Set<Kind> = [.meetings]
         var screenScope: ScreenMemoryAccessProfile.Scope = .recentWeek
@@ -49,8 +37,6 @@ final class AgentReadAccess: ObservableObject {
         choicesURL = root.appendingPathComponent("control", isDirectory: true)
             .appendingPathComponent(Self.choicesFileName)
         remembered = Self.load(from: choicesURL)
-        // Agent setup and the per-kind managers change grants directly; the
-        // switch and boxes follow them.
         let changes: [ObservableObjectPublisher] = [
             meetings.objectWillChange, screenMemory.objectWillChange,
             personalContext.objectWillChange, files.objectWillChange, agentNotes.objectWillChange,
@@ -60,7 +46,6 @@ final class AgentReadAccess: ObservableObject {
         }
     }
 
-    /// Some kind is granted.
     var isEnabled: Bool { !granted.isEmpty }
 
     var granted: Set<Kind> { Set(Kind.allCases.filter(isGranted)) }
@@ -75,12 +60,10 @@ final class AgentReadAccess: ObservableObject {
         }
     }
 
-    /// What the box shows: granted while the switch is on, remembered while it is off.
     func isTicked(_ kind: Kind) -> Bool {
         isEnabled ? isGranted(kind) : remembered.kinds.contains(kind)
     }
 
-    /// The last ticked box can't be unticked; the switch turns everything off.
     func canUntick(_ kind: Kind) -> Bool {
         !isEnabled || granted != [kind]
     }
@@ -114,13 +97,9 @@ final class AgentReadAccess: ObservableObject {
         grant(kind, ticked)
     }
 
-    /// A feature page's own box for its kind. Ticking it grants exactly that
-    /// kind, turning the main switch on without granting the others;
-    /// unticking the last granted kind turns the switch off.
     func setGranted(_ kind: Kind, _ on: Bool) {
         if on {
             guard !isGranted(kind) else { return }
-            // The history shown while screen memory was off is the one granted.
             if kind == .screenMemory { screenMemory.setScope(remembered.screenScope) }
             grant(kind, true)
         } else if granted == [kind] {

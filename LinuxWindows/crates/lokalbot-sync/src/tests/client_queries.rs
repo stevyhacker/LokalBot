@@ -40,7 +40,6 @@ fn the_sample_library_imports_and_is_marked() {
     assert!(!phone.client.is_sample().unwrap());
     assert_eq!(phone.client.import_records(FIXTURE.into()).unwrap(), 19);
     assert!(phone.client.is_sample().unwrap());
-    // Importing again changes nothing: the versions are the same.
     assert_eq!(phone.client.import_records(FIXTURE.into()).unwrap(), 0);
     assert!(matches!(
         phone.client.import_records("{}".into()),
@@ -70,7 +69,6 @@ fn manifest_meetings_and_transcripts() {
         ]
     );
     assert_eq!(meetings[0]["id"], STANDUP);
-    // The design review's day has three meetings.
     let review_day = meeting_field(DESIGN_REVIEW, "day");
     let that_day = parse(
         phone
@@ -137,7 +135,6 @@ fn days_newest_first() {
         "Waiting on legal review of the pricing tiers."
     );
     assert_eq!(day["timeline"]["sessions"].as_array().unwrap().len(), 6);
-    // The newest day has no digest yet.
     let today: Value =
         serde_json::from_str(&phone.client.day(days[0].clone()).unwrap().unwrap()).unwrap();
     assert!(today.get("digest").is_none());
@@ -156,13 +153,13 @@ fn actions_sort_overdue_first_then_by_due_date() {
     assert_eq!(
         ids(&all, "/action/id"),
         [
-            "act-1f2e3d4c", // overdue
+            "act-1f2e3d4c",
             "act-7c1e40a2",
             "act-a3f61b28",
             "act-4d2c9e07",
             "act-c40f8d62",
             "act-e2a7c915",
-            "act-91b0d3f5", // no due date, newest meeting first
+            "act-91b0d3f5",
             "act-0e5d77c3",
             "act-58ab2e19",
             "act-6b3d0f44",
@@ -183,7 +180,6 @@ fn actions_sort_overdue_first_then_by_due_date() {
     assert_eq!(first["action"]["citations"][0]["start"], 721.4);
     assert!(first.get("syncNote").is_none());
 
-    // A deferred action is not overdue, so overdue open ones go first.
     phone
         .client
         .set_action_status(
@@ -192,7 +188,6 @@ fn actions_sort_overdue_first_then_by_due_date() {
             "deferred".into(),
         )
         .unwrap();
-    // A week on, every open action due within six days is overdue.
     let later = action_ids(&phone, ActionFilter::default(), &days_after_latest(7));
     assert_eq!(
         later[..6],
@@ -297,7 +292,6 @@ fn action_filters() {
         ),
         ["act-1f2e3d4c", "act-7c1e40a2"]
     );
-    // The FFI entry point uses this device's date.
     assert_eq!(
         phone.client.actions(ActionFilter::default()).unwrap().len(),
         10
@@ -387,7 +381,6 @@ fn merged_meetings_are_hidden() {
         !action_ids(&phone, ActionFilter::default(), &days_after_latest(1))
             .contains(&"act-z".to_owned())
     );
-    // A direct lookup still finds it, so links can follow `mergedInto`.
     assert!(phone.client.meeting("merged-1".into()).unwrap().is_some());
 }
 
@@ -411,19 +404,16 @@ fn a_page_of_meetings_counts_only_what_it_shows() {
         })
     };
     let records = json!([
-        // Newer than every sample meeting, but merged away: not on any page.
         meeting(
             "merged-newest",
             "2099-01-02T09:00:00.000Z",
             json!({ "day": "2099-01-02", "mergedInto": STANDUP })
         ),
-        // An explicit null is not merged.
         meeting(
             "unmerged-null",
             "2001-01-01T09:00:00.000Z",
             json!({ "day": "2001-01-01", "mergedInto": null })
         ),
-        // No day: before every day, as an empty one.
         meeting("no-day", "2000-01-01T09:00:00.000Z", json!({})),
     ]);
     assert_eq!(phone.client.import_records(records.to_string()).unwrap(), 3);
@@ -490,7 +480,6 @@ fn a_record_keeps_its_highest_version() {
         .unwrap();
     assert_eq!(title(&phone), None);
     assert!(phone.client.search("second".into(), 5).unwrap().is_empty());
-    // An older version cannot resurrect a tombstone.
     phone
         .client
         .apply_batch(&[envelope(2, "Second", false)], None)
@@ -514,7 +503,6 @@ fn unpairing_erases_everything() {
         .client
         .queue_question(r#"{"requestId":"q2","question":"Who owns pricing?"}"#.into())
         .unwrap();
-    // The same request again replaces it.
     phone
         .client
         .queue_question(r#"{"requestId":"q1","question":"What is still left?"}"#.into())
@@ -540,7 +528,6 @@ fn unpairing_erases_everything() {
     );
     assert!(phone.client.queued_questions().unwrap().is_empty());
     assert!(phone.client.paired_mac().unwrap().is_none());
-    // Neither the file nor its WAL holds any of the old text.
     for name in ["companion.sqlite", "companion.sqlite-wal"] {
         let bytes = std::fs::read(phone.dir.path().join(name)).unwrap_or_default();
         assert!(

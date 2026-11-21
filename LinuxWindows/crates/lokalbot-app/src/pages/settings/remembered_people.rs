@@ -1,6 +1,3 @@
-//! "Remembered people" (`SpeakerVoiceProfileManager`): rename or forget the
-//! encrypted voice profiles naming a speaker creates.
-
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
@@ -131,7 +128,6 @@ impl RememberedPeople {
                         data.update(cx, |data, cx| data.mark_library_changed(cx));
                     }
                     Err(err) => {
-                        // A deletion that didn't happen must not read as done.
                         this.error = Some(
                             lokalbot_i18n::format(
                                 "Change pending: {err}",
@@ -220,7 +216,6 @@ impl Render for RememberedPeople {
         let lb = cx.lb().clone();
         let rows: Vec<AnyElement> = (0..self.people.len())
             .map(|ix| {
-                // Split borrow: rendering a row reads only this person.
                 let person = Person {
                     profile: self.people[ix].profile.clone(),
                     name: self.people[ix].name.clone(),

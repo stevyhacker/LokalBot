@@ -1,18 +1,9 @@
 #!/usr/bin/env bash
-# Builds release binaries and packs them for the current platform into dist/.
-# Linux: LokalBot-<version>-linux-x86_64.tar.gz (with install.sh)
-# Windows (Git Bash or CI): LokalBot-<version>-windows-x86_64.zip
-#
-# VC_REDIST_DIR (Windows): a Microsoft.VC14x.CRT folder to take the Visual C++
-# runtime from, instead of the newest Visual Studio with the C++ build tools.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 VERSION=$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)
-# Self-hosted CI runners keep a warm target directory elsewhere.
 TARGET=${CARGO_TARGET_DIR:-target}
 
-# The x64 Microsoft.VC14x.CRT folder of the newest Visual Studio (or Build
-# Tools) with the C++ build tools, at its default redistributable version.
 vc_redist_dir() {
   local vswhere vs version
   vswhere=$(cygpath -u 'C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe')
@@ -35,9 +26,6 @@ case "$(uname -s)" in
       packaging/linux/com.lokalbot.LokalBot.InputMethod.desktop packaging/linux/install.sh "$STAGE/"
     cp packaging/icons/lokalbot-*.png "$STAGE/icons/"
     cp ../LICENSE "$STAGE/LICENSE" 2>/dev/null || true
-    # The third-party notices and every license text they name (including
-    # LICENSES/rust-crates.md, the statically linked crates) ship with the
-    # binaries.
     cp ../THIRD_PARTY_NOTICES.md "$STAGE/"
     cp -R ../LICENSES "$STAGE/LICENSES"
     tar -C dist -czf "dist/$NAME.tar.gz" "$NAME"
@@ -48,11 +36,6 @@ case "$(uname -s)" in
     STAGE="dist/$NAME"
     rm -rf "$STAGE" && mkdir -p "$STAGE"
     cp "$TARGET/release/lokalbot.exe" "$TARGET/release/lokalbot-cli.exe" "$STAGE/"
-    # llama.cpp's Windows builds import the Visual C++ runtime, which Windows
-    # lacks until something installs the Visual C++ Redistributable. Ship the
-    # build machine's copy, unmodified (Distributable Code under the Visual
-    # Studio license terms); LokalBot copies it beside each llama-server.exe
-    # (lokalbot-ai's runtime.rs).
     CRT=${VC_REDIST_DIR:-$(vc_redist_dir)}
     mkdir -p "$STAGE/vc-runtime"
     for dll in msvcp140.dll vcruntime140.dll vcruntime140_1.dll; do

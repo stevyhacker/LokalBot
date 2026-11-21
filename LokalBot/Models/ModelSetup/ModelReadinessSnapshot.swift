@@ -1,8 +1,5 @@
 import Foundation
 
-/// One honest, UI-ready view of the selected model stack. Core readiness is
-/// limited to Transcribe, Think, and Autocomplete; optional Voice/Embeddings
-/// never make the main stack fail.
 struct ModelReadinessSnapshot: Equatable, Sendable {
     struct DiskState: Sendable {
         var downloadedTranscriptionIDs: Set<String> = []
@@ -43,7 +40,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     var availableBytes: Int64?
     var activeDownloads: Int
     var failedDownloads: Int
-    /// Host of the approved transcription server, when Transcribe uses one.
     var transcriptionHost: String?
 
     var coreReady: Bool {
@@ -84,12 +80,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         return "\(stored) · \(free) free"
     }
 
-    // MARK: Role readiness (shared by automation gates)
-
-    /// True when the selected meeting-transcription model is fully on disk.
-    /// Automation (auto-processing, prewarm) must consult this before running:
-    /// a missing model means a multi-gigabyte download the user never asked
-    /// for at that moment.
     static func transcriptionReady(_ settings: AppSettings) -> Bool {
         TranscriptionModelStore.isDownloaded(
             settings.transcriptionModel,
@@ -100,8 +90,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
                 && AppleSpeechAvailability.hasPreparedAsset(for: settings.transcriptionLanguage))
     }
 
-    /// True when the Think role can run without triggering a model download.
-    /// External endpoints must be approved; Apple Intelligence must be available.
     @MainActor
     static func thinkReady(_ settings: AppSettings, storage: StorageManager) -> Bool {
         guard !InferencePresentation(settings: settings).isBlocked else { return false }
@@ -114,7 +102,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
     }
 
     static func autocompleteReady(_ settings: AppSettings, storage: StorageManager) -> Bool {
-        // A server needs nothing downloaded; it is ready once it is set up.
         guard settings.cotypingBackend == .onDevice else {
             if case .server = settings.cotypingRoute(includingCredentials: false) { return true }
             return false
@@ -125,9 +112,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         return ModelCatalog.localURL(for: entry, storage: storage) != nil
     }
 
-    /// Settings that can change whether a parked meeting may transcribe or
-    /// summarize without downloading anything. AppState uses this to re-check
-    /// parked work immediately after a selection change.
     static func processingReadinessChanged(from old: AppSettings,
                                            to new: AppSettings) -> Bool {
         old.transcriptionModel != new.transcriptionModel
@@ -142,9 +126,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
             || old.openAIBaseURL != new.openAIBaseURL || old.ollamaBaseURL != new.ollamaBaseURL
     }
 
-    /// Total bytes of the core GGUF models (Think when built-in, Autocomplete)
-    /// still missing on disk. The Transcribe model downloads through its
-    /// engine-specific path and is not included — callers name it separately.
     static func missingCoreModelBytes(_ settings: AppSettings, storage: StorageManager) -> Int64 {
         var ids = settings.cotypingBackend == .onDevice ? [settings.cotypingBuiltInModelID] : []
         if settings.summarizerBackend == .builtIn { ids.append(settings.builtInModelID) }
@@ -169,7 +150,6 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
         let thinkReady = settings.summarizerBackend == .builtIn
             ? (diskState?.thinkReady ?? thinkReady(settings, storage: storage))
             : thinkReady(settings, storage: storage)
-        // A server route reads settings only, so a disk check from older settings can't stand in for it.
         let autocompleteReady = settings.cotypingBackend == .onDevice
             ? diskState?.autocompleteReady ?? autocompleteReady(settings, storage: storage)
             : autocompleteReady(settings, storage: storage)

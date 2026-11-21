@@ -28,7 +28,6 @@ import me.dotenv.lokalbot.companion.ui.theme.BrandColors
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/** One coloured share of the day. */
 data class BarSegment(val name: String, val seconds: Double, val color: Color)
 
 @Composable
@@ -41,7 +40,6 @@ fun rememberSegments(durations: List<NamedDuration>, maxSegments: Int = 6): List
         if (rest > 0) listOf(BarSegment(BrandColors.OTHER, rest, BrandColors.nameColor(BrandColors.OTHER, palette))) else emptyList()
 }
 
-/** The activity overview bar: a capsule split by share of tracked time (`ProportionBar`). */
 @Composable
 fun ProportionBar(segments: List<BarSegment>, modifier: Modifier = Modifier, height: Dp = 10.dp) {
     val track = LokalBotTheme.palette.chipFill
@@ -63,7 +61,6 @@ fun ProportionBar(segments: List<BarSegment>, modifier: Modifier = Modifier, hei
     }
 }
 
-/** Dot, name and time for each segment, wrapping on narrow screens. */
 @Composable
 fun BarLegend(segments: List<BarSegment>, modifier: Modifier = Modifier) {
     FlowRow(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {

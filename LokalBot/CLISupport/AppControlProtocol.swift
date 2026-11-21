@@ -1,15 +1,9 @@
 import Foundation
 
-/// The CLI's requests to the running app over the control socket: one JSON
-/// object per line, one request per connection. See
-/// Docs/designs/cli-configuration-design-2026-10-17.md.
 enum AppControlProtocol {
     static let version = 1
     static let maximumMessageBytes = 1_048_576
 
-    /// Passed by `lokalbot-cli` when it starts the app for a request, so the
-    /// app comes up in the menu bar like a login launch instead of opening
-    /// its main window.
     static let backgroundLaunchArgument = "--lokalbot-background-launch"
 
     static func isBackgroundLaunch(
@@ -18,7 +12,6 @@ enum AppControlProtocol {
         arguments.contains(backgroundLaunchArgument)
     }
 
-    /// Settings sections `open settings <name>` accepts besides setting keys.
     static let settingsDestinations = [
         "models", "permissions", "agentAccess", "screenMemoryAccess", "personalContextAccess",
         "filesAccess", "agentNotesAccess", "settingsControlAccess", "memoryHealth", "resourceMonitor", "autocompleteStatistics",
@@ -50,10 +43,8 @@ enum AppControlProtocol {
         case open
     }
 
-    /// Names `permissions request` accepts.
     static let permissionNames = ["microphone", "accessibility", "screen-recording", "input-monitoring", "calendar"]
 
-    /// Model presets `models preset` and setup plans accept.
     static let modelPresets = ["recommended", "lightweight"]
 }
 
@@ -79,13 +70,9 @@ struct AppControlRequest: Codable, Equatable {
     }
 }
 
-/// A stable error the CLI prints as `[code] message`, like the MCP tools'
-/// `[access_disabled]`.
 struct AppControlError: Codable, Equatable, LocalizedError {
     var code: String
     var message: String
-    /// Structured detail an agent can act on, such as the changes that need
-    /// approval.
     var details: JSONValue?
 
     var errorDescription: String? { "[\(code)] \(message)" }
@@ -110,8 +97,6 @@ struct AppControlError: Codable, Equatable, LocalizedError {
             details: .array(keys.map(JSONValue.string)))
     }
 
-    /// A widening change, or a new API key, waits for the person in LokalBot.
-    /// `details` is the request as `settings.request` reports it.
     static func needsApproval(_ request: JSONValue, asking what: String) -> AppControlError {
         let id = request["id"]?.stringValue ?? "<id>"
         return AppControlError(

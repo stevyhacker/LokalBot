@@ -1,30 +1,14 @@
 import Foundation
 
-/// Which spoken openings count as a writing request that may use context.
-/// Production uses `.production`; the replay benchmark compares the others
-/// (Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window). `relays`
-/// answered more requests but routed "Tell him I am running 10 minutes late"
-/// as one and copied a screen fact into it; `referencedRelays` never did.
 enum DictationRequestRouting: String, Codable, Sendable, CaseIterable {
-    /// The original command list ("reply", "draft", "napiši", …).
     case commands
-    /// Also skips leading filler ("hey", "okay so", "dobro") and accepts relay
-    /// verbs aimed at someone else: "tell him…", "let her know…", "email
-    /// Marko…", "reci mu…", never "tell me…" or "javi mi…".
     case relays
-    /// Like `relays`, but a relay verb counts only when the request also
-    /// points at context ("…from the message above", "…iz poruke").
     case referencedRelays
 
     static let production: Self = .referencedRelays
 }
 
-/// Dictation has its own grants. Reuse the current-source lookup without
-/// enabling Autocomplete or inheriting its permissions or writing history.
 enum DictationGrounding {
-    /// Context can complete an explicit writing instruction. A direct sentence
-    /// must not acquire claims from nearby messages, even in Compose mode.
-    /// Unknown/ambiguous phrasing conservatively gets ordinary cleanup.
     static func requestsContext(_ speech: String, routing: DictationRequestRouting = .production) -> Bool {
         switch routing {
         case .commands: return requestsContextByCommand(speech)
@@ -80,8 +64,6 @@ enum DictationGrounding {
         let command = words[index]
         if commandWords.contains(command) { return true }
         let next = index + 1 < words.count ? words[index + 1] : nil
-        // A capitalized second word is a name ("Email Marko…"); lower-case
-        // "email works" is a sentence about email.
         let namesSomeone = index + 1 < original.count && original[index + 1].first?.isUppercase == true
             && words[index + 1] != "i"
         let aimedElsewhere = next.map { otherPeople.contains($0) } == true || namesSomeone
@@ -123,7 +105,6 @@ enum DictationGrounding {
 
     static func field(speech: String, screen: DictationScreenContext?,
                       visible: CotypingVisibleContext.Snapshot?) -> CotypingField {
-        // This query is a spoken writing request, not typed shell/code input.
         var field = CotypingField(appName: "Dictation", processID: 0, role: "AXTextArea",
                                   precedingText: speech, trailingText: "", selectionLength: 0,
                                   caretRect: .zero, isSecure: false, caretIsExact: true,

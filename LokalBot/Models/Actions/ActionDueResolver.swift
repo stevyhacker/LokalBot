@@ -1,13 +1,5 @@
 import Foundation
 
-/// Deterministically turns a spoken due phrase into a local calendar day,
-/// using the day the phrase was said as the reference. It never asks a model
-/// and never guesses: phrases outside the supported grammar stay unresolved.
-///
-/// Ranges resolve to their last day ("next week" is the Friday of next week,
-/// "end of Q3" is September 30), so an action is not reported overdue while
-/// the stated window is still open. The original phrase is always shown
-/// beside the resolved date, and a user's due correction replaces both.
 enum ActionDueResolver {
     static func resolve(_ phrase: String?, spokenAt: Date,
                         calendar: Calendar = .current) -> Date? {
@@ -20,7 +12,6 @@ enum ActionDueResolver {
         if matches(text, #"^(?:(?:by|before|until|till) )?(?:the )?(?:today|tonight|end of (?:the )?day|eod|close of business|cob|danas|do kraja dana)$"#) {
             return spokenDay
         }
-        // "During the day" and its kin mean later the same day.
         if matches(text, #"^(?:(?:during|later|sometime|over|within) (?:the )?day(?: today)?|(?:later|sometime) today|today during the day|(?:this|today) (?:morning|afternoon|evening)|(?:danas )?(?:tokom|u toku) dana|kasnije danas)$"#) {
             return spokenDay
         }
@@ -47,8 +38,6 @@ enum ActionDueResolver {
         if let monthDay = monthDay(text, from: spokenDay, calendar: calendar) { return monthDay }
         return nil
     }
-
-    // MARK: - Grammar
 
     private static let leading = #"^(?:(?:by|before|until|till|on|due|this|do|u) )?(?:the )?"#
 
@@ -84,13 +73,10 @@ enum ActionDueResolver {
         let current = calendar.component(.weekday, from: day)
         let modifier = groups[0].trimmingCharacters(in: .whitespaces)
         var offset = (target - current + 7) % 7
-        // "This Friday" said on a Friday is that day; a bare or "next"
-        // weekday said on the same weekday means the following week.
         if offset == 0, modifier != "this" { offset = 7 }
         guard var date = calendar.date(byAdding: .day, value: offset, to: day) else { return nil }
         if ["next", "sledeci", "sledeći"].contains(modifier),
            calendar.isDate(date, equalTo: day, toGranularity: .weekOfYear) {
-            // "Next Friday" said on a Tuesday means Friday of the following week.
             date = calendar.date(byAdding: .day, value: 7, to: date) ?? date
         }
         return date
@@ -169,7 +155,6 @@ enum ActionDueResolver {
             return date
         }
         guard var date = make(year) else { return nil }
-        // Without a year, a date well before the meeting refers to next year.
         if explicitYear == nil,
            let cutoff = calendar.date(byAdding: .day, value: -31, to: day), date < cutoff {
             year += 1
@@ -188,14 +173,10 @@ enum ActionDueResolver {
         return date
     }
 
-    // MARK: - Calendar helpers
-
     private static func endOfWorkWeek(containing day: Date, calendar: Calendar) -> Date? {
         let weekday = calendar.component(.weekday, from: day)
-        // Friday is weekday 6 in the Gregorian numbering used by Foundation.
         let offset = 6 - weekday
         if offset >= 0 { return calendar.date(byAdding: .day, value: offset, to: day) }
-        // Saturday: the working week already ended; keep the stated day.
         return day
     }
 
@@ -204,8 +185,6 @@ enum ActionDueResolver {
         return calendar.date(byAdding: .day, value: -1, to: interval.end)
             .map { calendar.startOfDay(for: $0) }
     }
-
-    // MARK: - Text helpers
 
     private static func normalized(_ phrase: String) -> String {
         phrase.lowercased()
@@ -219,7 +198,6 @@ enum ActionDueResolver {
         text.range(of: pattern, options: .regularExpression) != nil
     }
 
-    /// Returns every capture group, with unmatched optional groups as "".
     private static func captures(_ text: String, _ pattern: String) -> [String]? {
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) else {

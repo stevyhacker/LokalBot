@@ -1,13 +1,3 @@
-//! Projects (`ProjectsWorkspaceView.swift`, `ProjectPageView.swift`): the
-//! projects you track, plus suggestions (names that recur across meetings
-//! and overnight review projects nobody tracks yet). The list shows tracked
-//! projects by last activity, then suggestions with where each came from.
-//! A tracked project's page leads with "Where it stands", the one block a
-//! model wrote, then the facts that name the project: your actions, what is
-//! waiting on others, decisions and meetings; window time, people and names
-//! sit in a side column. A suggestion's page opens on the decision, and a
-//! project nothing names yet is one message.
-
 mod detail;
 mod list;
 mod model;
@@ -43,25 +33,18 @@ pub struct ProjectsPage {
     curation: ProjectCuration,
     loaded: bool,
     loaded_revision: Option<u64>,
-    /// The project the page shows; with nothing chosen, the first row.
     selected: Option<String>,
     search: Entity<InputState>,
     query: String,
     name_input: Entity<InputState>,
     other_names_input: Entity<InputState>,
-    /// "Looks done?" suggestions, by thread.
     hints: HashMap<String, CompletionHint>,
-    /// The tracked project and library revision last offered an automatic
-    /// note, so one is asked for when the project or its evidence changes.
     note_considered: Option<(String, Option<u64>)>,
-    /// The page's own state, reset when another project opens.
     shows_all_others: bool,
     shows_all_meetings: bool,
     list_scroll: ScrollHandle,
     detail_scroll: ScrollHandle,
-    /// The whole page, for the toolbar's compact form.
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// The project's pane, for where the side column goes.
     detail_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     _subscriptions: Vec<Subscription>,
 }
@@ -192,8 +175,6 @@ impl ProjectsPage {
         cx.notify();
     }
 
-    /// `ProjectStore.track`: adds a tracked project and opens it, or opens the
-    /// one already known by that name.
     fn track(&mut self, name: &str, other_names: Vec<String>, cx: &mut Context<Self>) {
         let cleaned = name.split_whitespace().collect::<Vec<_>>().join(" ");
         if cleaned.is_empty() {
@@ -218,7 +199,6 @@ impl ProjectsPage {
         self.save_curation(curation, Some(selection_id(id)), cx);
     }
 
-    /// `ProjectStore.update`: the project's name and other names.
     fn rename(&mut self, id: Uuid, name: &str, other_names: Vec<String>, cx: &mut Context<Self>) {
         let cleaned = name.split_whitespace().collect::<Vec<_>>().join(" ");
         if cleaned.is_empty() {
@@ -233,8 +213,6 @@ impl ProjectsPage {
         self.save_curation(curation, None, cx);
     }
 
-    /// Stopping is an explicit removal: the project's note goes with it
-    /// (`ProjectStore.stopTracking`).
     fn stop_tracking(&mut self, id: Uuid, cx: &mut Context<Self>) {
         let mut curation = self.curation.clone();
         curation.tracked.retain(|p| p.id != id);
@@ -243,8 +221,6 @@ impl ProjectsPage {
         self.remove_note(id, cx);
     }
 
-    /// `ProjectStore.merge`: the source's names move to the target, and its
-    /// note is discarded.
     fn merge(&mut self, source: Uuid, target: Uuid, cx: &mut Context<Self>) {
         let mut curation = self.curation.clone();
         if curation.merge(source, target) {
@@ -253,8 +229,6 @@ impl ProjectsPage {
         }
     }
 
-    /// `ProjectStore.addName`: a suggestion becomes a name of a tracked
-    /// project, which opens.
     fn add_name(&mut self, name: &str, target: Uuid, cx: &mut Context<Self>) {
         let mut curation = self.curation.clone();
         if curation.add_name(name, target) {
@@ -272,9 +246,6 @@ impl ProjectsPage {
         .detach();
     }
 
-    /// "Not a project": the name is no longer suggested. The open suggestion
-    /// makes way for the next one; hiding another row from its menu leaves
-    /// the page where it is.
     fn hide_suggestion(&mut self, project: &ProjectProfile, cx: &mut Context<Self>) {
         let key = lokalbot_core::people::normalized(&project.name);
         if key.is_empty() || self.curation.hidden_names.contains(&key) {
@@ -311,8 +282,6 @@ impl ProjectsPage {
         self.selected = id;
     }
 
-    /// Opens a project another page asked to show; it may sit below the
-    /// fold of the list.
     fn take_focus(&mut self, cx: &mut Context<Self>) {
         if let Some(id) = self.data.update(cx, |data, _| data.project_focus.take()) {
             if let Some(index) = self.list_content(None).child_index(&id) {
@@ -323,7 +292,6 @@ impl ProjectsPage {
         }
     }
 
-    /// A suggestion tracked a moment ago, as the tracked project it became.
     fn settling(&self) -> Option<ProjectProfile> {
         model::settling_profile(self.selected.as_deref(), &self.curation, &self.projects)
     }
@@ -333,9 +301,6 @@ impl ProjectsPage {
         ListContent::build(&shown, &self.curation.hidden_names, &self.query, Utc::now())
     }
 
-    /// The project the page shows and whether it is still settling. With
-    /// nothing chosen, the first row: the most recently active tracked
-    /// project, else the first suggestion.
     fn selected_project(&self) -> Option<(ProjectProfile, bool)> {
         match &self.selected {
             Some(id) => {
@@ -358,9 +323,6 @@ impl ProjectsPage {
         }
     }
 
-    /// Opening a tracked project writes or refreshes its note when that is
-    /// due (`writeProjectSummary(for:automatic:)`); the engine decides. A
-    /// project still settling waits for its own evidence.
     fn consider_note(&mut self, cx: &App) {
         let Some(id) = self
             .selected_project()
@@ -392,9 +354,6 @@ impl ProjectsPage {
             .is_some_and(|b| b.size.width < px(model::COMPACT_TOOLBAR_WIDTH))
     }
 
-    /// Names a tracked project (`ProjectNameSheet`): "Track a project" from
-    /// the + button, "Names for …" from Edit names…, which starts on other
-    /// names.
     fn open_name_sheet(
         &mut self,
         editing: Option<(Uuid, String, Vec<String>)>,
@@ -495,11 +454,9 @@ impl ProjectsPage {
                     ),
             )
         });
-        // Typing starts in the name, or in other names when adding one.
         focus.update(cx, |input, cx| input.focus(window, cx));
     }
 
-    /// Edit names on a tracked project.
     fn edit_names(
         &mut self,
         project: &ProjectProfile,
@@ -512,9 +469,6 @@ impl ProjectsPage {
         }
     }
 
-    /// Ask about the project, words and icon while the toolbar has room and
-    /// the icon alone when it does not (a project nothing names has nothing
-    /// to ask about); then the "…" menu for a tracked project.
     fn render_toolbar(&self, project: &ProjectProfile, cx: &mut Context<Self>) -> AnyElement {
         let mut items = h_flex().gap(px(4.)).items_center();
         if !model::is_empty(project) {
@@ -562,7 +516,6 @@ impl ProjectsPage {
     }
 }
 
-/// "Looks done?" for the open work of yours on each project, only with consent.
 fn hints_for(
     library: &lokalbot_core::Library,
     projects: &[ProjectProfile],
@@ -578,7 +531,6 @@ fn hints_for(
     library.action_completion_hints(&threads, Utc::now())
 }
 
-/// "Add to a project": one item per tracked project.
 fn add_name_items(
     menu: PopupMenu,
     page: &Entity<ProjectsPage>,
@@ -598,8 +550,6 @@ fn add_name_items(
     menu
 }
 
-/// A row's context menu and the page's "…" menu (`ProjectMenuItems`): names,
-/// merge and stop for a tracked project; the three answers for a suggestion.
 fn project_menu(
     menu: PopupMenu,
     page: &Entity<ProjectsPage>,
@@ -679,8 +629,6 @@ fn project_menu(
 }
 
 impl Page for ProjectsPage {
-    /// The selected project is the window's title, with when it was last
-    /// active beside it.
     fn title(&self, _cx: &App) -> SharedString {
         match self.selected_project() {
             Some((project, _)) => project.name.into(),
@@ -719,8 +667,6 @@ impl Render for ProjectsPage {
                 .text_size(ty::BODY)
                 .text_color(lb.text_secondary)
                 .child(
-                    // A project tracked a moment ago appears after the next
-                    // load.
                     if !self.loaded
                         || self
                             .selected

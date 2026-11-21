@@ -1,10 +1,5 @@
 import Foundation
 
-/// Splits a byte stream into JSONL records per pi's RPC framing rules
-/// (docs/rpc.md): LF (0x0A) is the only record delimiter; one trailing CR
-/// is stripped; U+2028/U+2029 inside JSON strings must NOT split records —
-/// which is why this operates on raw bytes and why `PiProcess` must never
-/// use a String-based line reader.
 struct PiJSONLFrameSplitter {
     static let defaultMaximumFrameBytes = 4 * 1_024 * 1_024
 
@@ -16,7 +11,6 @@ struct PiJSONLFrameSplitter {
         self.maximumFrameBytes = max(1_024, maximumFrameBytes)
     }
 
-    /// Feed a chunk; returns every complete record it terminates.
     mutating func append(_ chunk: Data) -> [String] {
         buffer.append(chunk)
         var lines: [String] = []
@@ -48,7 +42,6 @@ struct PiJSONLFrameSplitter {
         return lines
     }
 
-    /// Drain an unterminated final record (call on EOF).
     mutating func flush() -> String? {
         defer { buffer.removeAll() }
         guard !discardingOversizedFrame else {

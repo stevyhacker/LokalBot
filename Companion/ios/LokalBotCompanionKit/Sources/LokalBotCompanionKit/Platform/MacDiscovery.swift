@@ -1,24 +1,17 @@
 import Foundation
 import Network
 
-/// Finds LokalBot Macs on the current network: Bonjour `_lokalbot._tcp`,
-/// each instance resolved to an IPv4 `host:port` for the sync core. The TXT
-/// record's `k` (a short hash of the Mac's key) picks out the paired Mac;
-/// the key itself proves it during the handshake.
 public final class MacDiscovery: @unchecked Sendable {
     public static let serviceType = "_lokalbot._tcp"
 
     public struct Instance: Sendable, Hashable {
         public var name: String
-        /// TXT `k`.
         public var fingerprint: String?
         public var address: String
     }
 
     public enum Outcome: Sendable, Equatable {
         case found([Instance])
-        /// Local Network access is off for the app; Tailscale and stored
-        /// addresses still work.
         case localNetworkDenied
     }
 
@@ -26,8 +19,6 @@ public final class MacDiscovery: @unchecked Sendable {
 
     public init() {}
 
-    /// Addresses of the paired Mac first, then any instance without a `k`.
-    /// Other Macs are left out.
     public func addresses(preferringFingerprint fingerprint: String?, browseSeconds: Double = 1.5) async -> [String] {
         guard case .found(let instances) = await discover(browseSeconds: browseSeconds) else { return [] }
         guard let fingerprint else { return instances.map(\.address) }
@@ -81,7 +72,6 @@ public final class MacDiscovery: @unchecked Sendable {
     }
 }
 
-/// One browse; every callback runs on `queue`.
 private final class BrowseRun: @unchecked Sendable {
     private let queue: DispatchQueue
     private let browser = NWBrowser(for: .bonjourWithTXTRecord(type: MacDiscovery.serviceType, domain: nil), using: .tcp)
@@ -97,7 +87,6 @@ private final class BrowseRun: @unchecked Sendable {
         browser.browseResultsChangedHandler = { [self] results, _ in self.results = Array(results) }
         browser.stateUpdateHandler = { [self] state in
             switch state {
-            // kDNSServiceErr_PolicyDenied: the Local Network permission is off.
             case .waiting(.dns(-65570)), .failed(.dns(-65570)): finish(denied: true)
             case .failed: finish(denied: false)
             default: break
@@ -110,7 +99,6 @@ private final class BrowseRun: @unchecked Sendable {
     private func finish(denied: Bool) {
         guard let continuation else { return }
         self.continuation = nil
-        // The handlers keep this run alive while it browses; drop them now.
         browser.browseResultsChangedHandler = nil
         browser.stateUpdateHandler = nil
         browser.cancel()
@@ -118,7 +106,6 @@ private final class BrowseRun: @unchecked Sendable {
     }
 }
 
-/// Opens a connection only to learn the instance's address, then closes it.
 private final class ResolveRun: @unchecked Sendable {
     private let queue: DispatchQueue
     private let connection: NWConnection

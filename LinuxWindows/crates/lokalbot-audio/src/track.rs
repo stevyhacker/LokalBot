@@ -1,7 +1,3 @@
-//! One recorded track: the writer thread that places captured buffers on the
-//! meeting timeline, resamples them to 16 kHz and appends them to the WAV file,
-//! plus the health counters the recording strip reads.
-
 use std::io;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -15,20 +11,13 @@ use parking_lot::Mutex;
 use crate::resample::Resampler;
 use crate::wav::{SAMPLE_RATE, WavWriter};
 
-/// RMS at or above this counts as audible (`SystemAudioRecorder.audibleRMSThreshold`).
 pub(crate) const AUDIBLE_RMS: f32 = 0.0005;
-/// Small clock and scheduling jitter is tolerated without inserting silence
-/// (`RecordingAudioTimeline.jitterTolerance`, 20 ms).
 pub(crate) const JITTER_TOLERANCE_FRAMES: i64 = SAMPLE_RATE as i64 / 50;
-/// A level older than this reads as silence (`AudioLevelMeter.maximumAgeNanoseconds`).
 const LEVEL_MAX_AGE_MS: u64 = 500;
-/// Meter values are the peak over windows of this length.
 const LEVEL_WINDOW: Duration = Duration::from_millis(100);
 const NEVER: u64 = u64::MAX;
-/// Bounded queue between the audio callback and the writer (about 20 s of 10 ms buffers).
 pub(crate) const QUEUE_CAPACITY: usize = 2048;
 
-/// 0 at −55 dBFS (room noise), 1 at −10 dBFS (loud speech), as `AudioLevelMeter.normalized`.
 pub fn normalized_level(rms: f32) -> f32 {
     if rms.is_nan() || rms <= 0.0 {
         return 0.0;
@@ -54,23 +43,17 @@ pub fn rms(samples: &[f32]) -> f32 {
     (sum / samples.len() as f64).sqrt() as f32
 }
 
-/// A captured buffer, already mixed down to mono.
 pub(crate) struct Chunk {
     pub samples: Vec<f32>,
     pub rate: u32,
-    /// When the callback delivered it; the buffer ends at about this instant.
     pub received: Instant,
 }
 
 pub(crate) enum TrackMessage {
     Audio(Chunk),
-    /// Pad to `end` on the timeline, close the file and exit.
-    Finish {
-        end: Instant,
-    },
+    Finish { end: Instant },
 }
 
-/// Counters shared by the capture callback, the writer and the UI.
 pub(crate) struct TrackState {
     origin: Instant,
     level_bits: AtomicU32,
@@ -78,16 +61,10 @@ pub(crate) struct TrackState {
     last_audio_ms: AtomicU64,
     last_audible_ms: AtomicU64,
     dropped_buffers: AtomicU64,
-    /// The capture stream exists and has not reported a fatal error.
     pub running: AtomicBool,
-    /// The source was attached at least once.
     pub attached: AtomicBool,
-    /// 0 while healthy; otherwise the current reconnection attempt.
     pub recovering_attempt: AtomicU32,
-    /// When a lost source last came back.
     recovered_at_ms: AtomicU64,
-    /// WASAPI loopback delivers no packets while nothing plays; a quiet but
-    /// healthy stream then reads as silent rather than stalled.
     pub silent_without_packets: AtomicBool,
     pub degraded: Mutex<Option<String>>,
 }
@@ -118,12 +95,10 @@ impl TrackState {
         self.ms(Instant::now())
     }
 
-    /// A lost source came back.
     pub fn note_recovery(&self) {
         self.recovered_at_ms.store(self.now_ms(), Ordering::Relaxed);
     }
 
-    /// How long ago a lost source last came back.
     pub fn since_recovery_ms(&self) -> Option<u64> {
         let at = self.recovered_at_ms.load(Ordering::Relaxed);
         (at != NEVER).then(|| self.now_ms().saturating_sub(at))
@@ -142,7 +117,6 @@ impl TrackState {
         self.level_at_ms.store(self.ms(at), Ordering::Relaxed);
     }
 
-    /// Milliseconds since the last delivered buffer, or `None` if none arrived yet.
     pub fn since_audio_ms(&self) -> Option<u64> {
         let at = self.last_audio_ms.load(Ordering::Relaxed);
         (at != NEVER).then(|| self.now_ms().saturating_sub(at))
@@ -162,7 +136,6 @@ impl TrackState {
     }
 }
 
-/// Feeds a capture callback's buffers to a track. Cheap to clone; never blocks.
 #[derive(Clone)]
 pub(crate) struct ChunkSink {
     tx: Sender<TrackMessage>,
@@ -178,14 +151,11 @@ impl ChunkSink {
         &self.state
     }
 
-    /// Only the Linux sound-server capture lacks capture timestamps.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     pub fn push(&self, samples: Vec<f32>, rate: u32) {
         self.push_captured(samples, rate, None);
     }
 
-    /// `latency` is how long ago the buffer's first frame was captured, when
-    /// the backend knows it; the buffer is then placed by capture time.
     pub fn push_captured(&self, samples: Vec<f32>, rate: u32, latency: Option<Duration>) {
         if samples.is_empty() || rate == 0 {
             return;
@@ -211,9 +181,6 @@ impl ChunkSink {
     }
 }
 
-/// Places buffers on the shared meeting timeline: silence fills any gap
-/// longer than the jitter tolerance before a buffer, so a late start, a
-/// reconnect or a quiet loopback never shifts later speech earlier.
 pub(crate) struct Timeline {
     origin: Instant,
     resampler: Option<Resampler>,
@@ -231,8 +198,6 @@ impl Timeline {
         }
     }
 
-    /// Frame on the 16 kHz timeline where a buffer of `frames` at `rate`,
-    /// delivered at `received`, began.
     fn start_frame(&self, received: Instant, frames: usize, rate: u32) -> i64 {
         let end = received
             .saturating_duration_since(self.origin)
@@ -241,8 +206,6 @@ impl Timeline {
         (start * SAMPLE_RATE as f64).round() as i64
     }
 
-    /// Appends one buffer through `write`, padding and resampling as needed.
-    /// `written` is the number of frames already in the output.
     pub fn place(
         &mut self,
         chunk: &Chunk,
@@ -257,13 +220,11 @@ impl Timeline {
         }
         let start = self.start_frame(chunk.received, chunk.samples.len(), chunk.rate);
         let pending = self.resampler.as_ref().map_or(0, |r| {
-            // Output the resampler still owes for input it has already seen.
             let owed = (r.input_frames() * SAMPLE_RATE as u64).div_ceil(chunk.rate as u64);
             owed.saturating_sub(r.output_len())
         });
         let missing = start - (written + pending) as i64;
         if missing > JITTER_TOLERANCE_FRAMES {
-            // A gap: finish the previous run, fill the silence, restart cleanly.
             self.flush(out, &mut written)?;
             let missing = start - written as i64;
             if missing > 0 {
@@ -297,7 +258,6 @@ impl Timeline {
         Ok(())
     }
 
-    /// Flushes the resampler and pads the track to `end`.
     pub fn finish(
         &mut self,
         end: Instant,
@@ -322,7 +282,6 @@ pub(crate) enum Segment<'a> {
     Silence(u64),
 }
 
-/// A track being written to disk.
 pub(crate) struct TrackWriter {
     pub path: PathBuf,
     pub state: Arc<TrackState>,
@@ -351,7 +310,6 @@ impl TrackWriter {
         ChunkSink::new(self.tx.clone(), Arc::clone(&self.state))
     }
 
-    /// Pads to `end`, closes the file and returns its length in frames.
     pub fn finish(mut self, end: Instant) -> io::Result<u64> {
         let _ = self.tx.send(TrackMessage::Finish { end });
         match self.handle.take() {
@@ -374,7 +332,6 @@ impl Drop for TrackWriter {
     }
 }
 
-/// Updates a track's health counters and meter for each delivered buffer.
 pub(crate) struct LevelMeter {
     peak: f32,
     window_start: Option<Instant>,
@@ -494,7 +451,6 @@ mod tests {
         let mut out = Collector {
             samples: Vec::new(),
         };
-        // First buffer covers 1.00–1.01 s at 48 kHz.
         for i in 0..100u64 {
             let c = chunk(origin, 1010 + i * 10, 480, 48_000, 0.5);
             let written = out.samples.len() as u64;
@@ -506,7 +462,6 @@ mod tests {
                 out.write(s)
             })
             .unwrap();
-        // ~1 s of silence, then ~1 s of signal, total ~2.01 s.
         assert!(
             (out.samples.len() as i64 - 32_160).abs() <= 400,
             "{}",
@@ -527,7 +482,6 @@ mod tests {
             samples: Vec::new(),
         };
         for i in 0..200u64 {
-            // ±5 ms of delivery jitter around a steady 10 ms cadence at 16 kHz.
             let jitter = if i % 2 == 0 { 5 } else { 0 };
             let c = chunk(origin, 10 + i * 10 + jitter, 160, 16_000, 0.5);
             let written = out.samples.len() as u64;
@@ -549,7 +503,6 @@ mod tests {
             let written = out.samples.len() as u64;
             timeline.place(&c, written, &mut |s| out.write(s)).unwrap();
         }
-        // Device reconnects: nothing between 0.5 s and 3.0 s.
         for i in 0..50u64 {
             let c = chunk(origin, 3010 + i * 10, 160, 16_000, -0.5);
             let written = out.samples.len() as u64;

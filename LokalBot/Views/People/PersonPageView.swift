@@ -1,15 +1,8 @@
 import SwiftUI
 
-/// One person's page. The next calendar meeting with them leads when there
-/// is one, then what is open between you, what the last meeting said, and
-/// what you decided together. Projects, meetings and other names sit in a
-/// side column, so a long history fits one screen and someone met once has a
-/// short page. A section with nothing in it is not shown.
 struct PersonDetailView: View {
     @EnvironmentObject var app: AppState
     let person: PersonProfile
-    /// The next calendar meeting with the person in the coming week. Nil
-    /// without Calendar access, and then the page starts with open work.
     var nextMeeting: PersonUpcomingMeeting?
     @State private var showsAllDecisions = false
     @State private var showsAllSeries = false
@@ -48,7 +41,6 @@ struct PersonDetailView: View {
         .accessibilityIdentifier("person.detail")
     }
 
-    /// "today", "yesterday", "3 days ago", then a date.
     static func relativeDay(_ date: Date, now: Date = Date(), calendar: Calendar = .current) -> String {
         let days = calendar.dateComponents([.day], from: calendar.startOfDay(for: date),
                                            to: calendar.startOfDay(for: now)).day ?? 0
@@ -60,10 +52,6 @@ struct PersonDetailView: View {
         }
     }
 
-    // MARK: - Open work
-
-    /// One section, two labelled parts: what the user owes, then what the
-    /// person owes. Stale work keeps its "Still open?" line.
     @ViewBuilder private var openWork: some View {
         if person.openCount > 0 {
             VStack(alignment: .leading, spacing: 0) {
@@ -96,8 +84,6 @@ struct PersonDetailView: View {
         }
     }
 
-    // MARK: - Last time
-
     @ViewBuilder private var lastTime: some View {
         if let notes {
             VStack(alignment: .leading, spacing: 9) {
@@ -124,8 +110,6 @@ struct PersonDetailView: View {
             .accessibilityIdentifier("person.lastTime")
         }
     }
-
-    // MARK: - Decisions
 
     @ViewBuilder private var decisions: some View {
         if !person.decisions.isEmpty {
@@ -160,8 +144,6 @@ struct PersonDetailView: View {
             .accessibilityIdentifier("person.decisions")
         }
     }
-
-    // MARK: - Side column
 
     @ViewBuilder private var projects: some View {
         if !person.projects.isEmpty {
@@ -233,9 +215,6 @@ struct PersonDetailView: View {
     }
 }
 
-/// The next calendar meeting with the person: when, its title, who else is
-/// invited, and Prepare, which hands the person's notes and open work to
-/// Agent.
 private struct PersonNextMeetingCard: View {
     @EnvironmentObject private var app: AppState
     let meeting: PersonUpcomingMeeting
@@ -292,8 +271,6 @@ private struct PersonNextMeetingCard: View {
     }
 }
 
-/// One line from meeting notes, with who said it when that is not the
-/// person, and the moment in the call, which plays from there.
 private struct NotePointRow: View {
     let point: PersonProfile.NotePoint
     let open: (TimeInterval?) -> Void
@@ -317,9 +294,6 @@ private struct NotePointRow: View {
     }
 }
 
-/// A meeting title in the side column: a single meeting opens, and a series
-/// opens to list each date. A call recorded in parts is one meeting that
-/// opens its longest recording.
 private struct MeetingSeriesRow: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     let series: PersonProfile.Series

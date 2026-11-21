@@ -1,31 +1,16 @@
 import CoreGraphics
 import Foundation
 
-/// Derives the string keys that identify "the same field" across focus
-/// snapshots. All field-identity derivations live here so the schemes cannot
-/// drift apart between the anchor cache, prewarm dedupe, and reconciliation.
 enum CotypingFieldIdentity {
 
-    /// Identity for anchoring a suggestion to one concrete focused field across
-    /// host publishes. The AX identity is the strongest signal; apps that do not
-    /// expose one fall back to the field frame, then surface metadata. Content is
-    /// deliberately excluded so typing through a suggestion keeps the anchor.
     static func suggestionAnchor(for field: CotypingField) -> String {
         fieldIdentity(for: field)
     }
 
-    /// Identity for deduplicating engine prewarms per focused field. Prefers
-    /// the AX focus identity, falls back to the input frame, then to
-    /// window/placeholder text.
     static func prewarm(for field: CotypingField) -> String {
         fieldIdentity(for: field)
     }
 
-    /// Identity for reusing the background sampled behind a field's ghost:
-    /// the app, kind of field, window title and frame. Not the app alone: a
-    /// browser shows light and dark pages, and a reading from a light page drew
-    /// black ghosts on dark ones. Not the element: Chrome hands out a new one
-    /// on every read, which would sample again for every suggestion.
     static func background(for field: CotypingField) -> String {
         [
             String(field.processID),

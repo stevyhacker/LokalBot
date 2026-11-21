@@ -2,10 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Persistence for the Chat section's conversation history: the on-disk
-/// round-trip through `ChatStore`, that the transient `isPending` flag is never
-/// written (while `isError` and tool `activity` are), and that `loadAll`
-/// returns conversations most-recently-updated first.
 @MainActor
 final class ChatStoreTests: XCTestCase {
 

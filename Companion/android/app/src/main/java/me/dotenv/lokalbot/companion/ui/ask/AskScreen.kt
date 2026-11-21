@@ -119,12 +119,6 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTokens
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 
-/**
- * Ask: the Mac's editorial reading layout (no bubbles, the question in
- * semibold, numbered teal source badges) with the composer docked below.
- * Tabletop posture puts the answer on the upright half and the composer on
- * the flat half.
- */
 @Composable
 fun AskScreen(repository: CompanionRepository) {
     val viewModel = viewModel(key = "ask-${repository.id}") { AskViewModel(repository) }
@@ -141,7 +135,6 @@ fun AskScreen(repository: CompanionRepository) {
             navigator.askDraft = null
         }
     }
-    // Back from the lock screen or another app: pick up an answer the Mac kept writing.
     LifecycleStartEffect(viewModel) {
         viewModel.resumeWaiting()
         onStopOrDispose {}
@@ -363,7 +356,6 @@ private fun TurnView(turn: AskTurnState, actions: TurnActions) {
     }
 }
 
-/** Where the answer was produced: teal for the Mac's own engine, amber for an approved remote one. */
 @Composable
 private fun AnswerLocationLine(result: AskResult, isSample: Boolean) {
     val palette = LokalBotTheme.palette
@@ -438,7 +430,6 @@ private fun Unreachable(turn: AskTurnState, actions: TurnActions) {
     }
 }
 
-/** A search snippet with the words the sync core marked as matches in semibold, as on iPhone. */
 private fun highlighted(snippet: String, matchColor: Color): AnnotatedString = buildAnnotatedString {
     for (part in SearchSnippet.parts(snippet)) {
         if (part.isMatch) {
@@ -490,7 +481,6 @@ private fun Composer(
             TextField(
                 value = draft,
                 onValueChange = onDraft,
-                // A hardware Enter sends; Shift+Enter starts a new line.
                 modifier = Modifier.weight(1f).onPreviewKeyEvent { event ->
                     val enter = event.key == Key.Enter || event.key == Key.NumPadEnter
                     if (!enter || event.isShiftPressed) return@onPreviewKeyEvent false

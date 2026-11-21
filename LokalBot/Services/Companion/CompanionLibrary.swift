@@ -1,23 +1,15 @@
 import Foundation
 
-/// What one companion build reads from the library, loaded off the main
-/// actor straight from the library files, the way the CLI reads them. Nothing
-/// here writes: a build never repairs metadata or recovers pending writes.
 struct CompanionLibrary {
     let root: URL
     let activityDatabaseURL: URL
     let scope: CompanionSharing.RecordScope
     let now: Date
     let calendar: Calendar
-    /// Every meeting on disk, merged sources included.
     let allMeetings: [Meeting]
-    /// The person's own finished meetings inside the history window, newest
-    /// first. Merged sources, the sample meeting, and a meeting still being
-    /// recorded are left out.
     let meetings: [Meeting]
     let projections: [UUID: MeetingOutcomeProjection]
     let people: [PersonProfile]
-    /// Tracked projects only: their UUIDs are the record keys.
     let projects: [ProjectProfile]
     let projectSummaries: [UUID: ProjectStatusSummary]
 
@@ -27,8 +19,6 @@ struct CompanionLibrary {
             && history.contains(meeting.startedAt, now: now, calendar: calendar)
     }
 
-    /// `meetings` and `projections`, when given, are used instead of reading
-    /// them again; projections are still loaded for meetings they lack.
     static func load(
         root: URL,
         activityDatabaseURL: URL? = nil,
@@ -55,8 +45,6 @@ struct CompanionLibrary {
         var people: [PersonProfile] = []
         var projects: [ProjectProfile] = []
         if needsOutcomes {
-            // Dream memory is never read: its projects and review notes stay
-            // on the Mac, so only tracked projects and recurring topics remain.
             let profiles = WorkMemoryConnections.profiles(for: .init(
                 meetings: shared,
                 projections: shared.compactMap { projections[$0.id] },

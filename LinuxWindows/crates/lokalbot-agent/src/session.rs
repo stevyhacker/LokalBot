@@ -1,15 +1,3 @@
-//! One Agent Mode task (`AgentSessionController.swift`): starts pi through a
-//! [`Launcher`], folds its events into the transcript, round-trips tool
-//! approvals between pi's confirm dialogs and the UI, and keeps the host
-//! queue of follow-ups.
-//!
-//! The macOS controller is a main-actor object whose `await`s let other
-//! events through. Here it is a plain state machine owned by the UI thread:
-//! every slow step (model warm-up, spawning, an RPC acknowledgement, a
-//! process stop) runs elsewhere and comes back as a [`SessionInput`] through
-//! the task's inbox, tagged with the lifecycle generation it belongs to, so a
-//! stale completion can never revive a closed or restarted task.
-
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -70,7 +58,6 @@ impl LaunchMode {
     }
 }
 
-/// What an acknowledgement belongs to.
 #[derive(Clone, Debug)]
 pub enum RequestTag {
     Prompt {
@@ -85,7 +72,6 @@ pub enum RequestTag {
     },
 }
 
-/// Why a launch failed. Configuration problems send the user to Models.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum LaunchError {
     Configuration(String),
@@ -100,21 +86,16 @@ impl LaunchError {
     }
 }
 
-/// A started pi, handed back by the launcher.
 pub struct Launched {
     pub client: RpcClient<RequestTag>,
     pub process: Option<Arc<PiProcess>>,
     pub lease: Option<lokalbot_ai::Lease>,
-    /// The ChatGPT plan relay pi talks to; it stops when dropped.
     pub relay: Option<Relay>,
-    /// The scoped `lokalbot-cli` grant to revoke when the task stops.
     pub capability: Option<String>,
     pub endpoint: LlmEndpoint,
-    /// Real pi reports its session file; test transports do not.
     pub reports_session_file: bool,
 }
 
-/// Everything a launch needs from the task.
 #[derive(Clone, Debug)]
 pub struct LaunchRequest {
     pub settings: Settings,
@@ -124,7 +105,6 @@ pub struct LaunchRequest {
     pub private_roots: Vec<PathBuf>,
 }
 
-/// Starts pi off the UI thread. `done` runs exactly once.
 pub trait Launcher: Send + Sync {
     fn launch(
         &self,
@@ -134,13 +114,10 @@ pub trait Launcher: Send + Sync {
     );
 }
 
-/// Completions and pi traffic for one task.
 pub enum SessionInput {
     Client(ClientMessage<RequestTag>),
     Launched(Result<Launched, LaunchError>),
-    /// A shutdown's process stop finished.
     Stopped,
-    /// A failure's process stop finished.
     FailureTornDown {
         message: String,
         recovery: RecoveryAction,
@@ -151,7 +128,6 @@ pub enum SessionInput {
     },
 }
 
-/// A [`SessionInput`] addressed to one task.
 pub struct TaskInput {
     pub task: Uuid,
     pub generation: u64,
@@ -160,7 +136,6 @@ pub struct TaskInput {
 
 pub type Inbox = async_channel::Sender<TaskInput>;
 
-/// What every task shares.
 pub struct AgentEnvironment {
     pub library: Library,
     pub dirs: AgentDirectories,
@@ -174,8 +149,6 @@ impl AgentEnvironment {
         self.settings.read().clone()
     }
 
-    /// The library, its agent folders and the runtime: never an implicit
-    /// working folder, and file-tool changes to them always ask.
     pub fn private_roots(&self) -> Vec<PathBuf> {
         vec![
             self.dirs.library_root().to_path_buf(),
@@ -185,7 +158,6 @@ impl AgentEnvironment {
     }
 }
 
-/// The reasoning levels the launched model accepts.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ReasoningChoices {
     pub levels: Vec<ReasoningLevel>,
@@ -205,7 +177,6 @@ impl ReasoningChoices {
         !self.levels.is_empty()
     }
 
-    /// The supported level nearest below `level`, else the lowest one.
     pub fn clamp(&self, level: ReasoningLevel) -> Option<ReasoningLevel> {
         if level == ReasoningLevel::Automatic || self.levels.is_empty() {
             return None;
@@ -262,17 +233,13 @@ fn reasoning_key(level: ReasoningLevel) -> &'static str {
     }
 }
 
-/// The file an approval request names, as its card describes it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ApprovalFile {
     pub target: crate::presentation::FileTarget,
-    /// Part of LokalBot's own data: a change there is only ever allowed once.
     pub is_protected: bool,
-    /// The file is already there, so a write replaces it.
     pub exists: bool,
 }
 
-/// One task.
 pub struct AgentSession {
     env: Arc<AgentEnvironment>,
     task: Uuid,
@@ -282,9 +249,7 @@ pub struct AgentSession {
     pub recovery_action: Option<RecoveryAction>,
     pub session_title: Option<String>,
     pub active_session_file: Option<PathBuf>,
-    /// Bound to the launched connection, even if Settings change later.
     pub model_context: Option<ModelContext>,
-    /// The levels the launched model accepts; `None` until a launch.
     pub reasoning_choices: Option<ReasoningChoices>,
     pub workspace: PathBuf,
     pub draft: String,
@@ -299,10 +264,7 @@ pub struct AgentSession {
     pub failed_prompt: Option<QueuedPrompt>,
     pub composer_error: Option<String>,
     approval_mode: ApprovalMode,
-    /// True after Stop ended a turn, until the next message or turn.
     was_stopped: bool,
-    /// For each write step seen as it started, whether its file was already
-    /// there. It tells a new file from a replaced one afterwards.
     write_target_existed: HashMap<String, bool>,
 
     last_submitted_prompt: Option<QueuedPrompt>,
@@ -313,20 +275,14 @@ pub struct AgentSession {
     client: Option<RpcClient<RequestTag>>,
     process: Option<Arc<PiProcess>>,
     lease: Option<lokalbot_ai::Lease>,
-    /// Runs from launch until shutdown or failure, like the lease.
     relay: Option<Relay>,
     capability: Option<String>,
     next_request_id: u64,
     launch_mode: LaunchMode,
     generation: u64,
-    /// A failure's process stop is still running; `Failed` is published, and
-    /// a restart allowed, only after it finishes.
     failure_teardown_in_progress: bool,
-    /// Shutdown stops still running; a start waits for them so two pi
-    /// processes never share one session file.
     stops_pending: usize,
     start_after_stop: bool,
-    /// A message submitted before the runtime was ready.
     pending_submission: Option<PendingSubmission>,
     reasoning_level_file: PathBuf,
     written_reasoning_level: Option<ReasoningLevel>,
@@ -392,8 +348,6 @@ impl AgentSession {
         }
     }
 
-    // ------------------------------------------------------------ queries
-
     pub fn task(&self) -> Uuid {
         self.task
     }
@@ -429,19 +383,14 @@ impl AgentSession {
         self.pending_submission.is_some()
     }
 
-    /// True after Stop ended a turn, until the next message or turn.
     pub fn was_stopped(&self) -> bool {
         self.was_stopped
     }
 
-    /// Whether the file a write step named was already there when the step
-    /// started; `None` for a step not seen starting (restored history).
     pub fn write_target_existed(&self, step_id: &str) -> Option<bool> {
         self.write_target_existed.get(step_id).copied()
     }
 
-    /// True only while the task's model is known to run on this computer:
-    /// the launched connection's, or before launch none (it is not known).
     pub fn model_runs_on_this_computer(&self) -> bool {
         matches!(
             self.model_context.as_ref().map(|m| &m.destination),
@@ -449,7 +398,6 @@ impl AgentSession {
         )
     }
 
-    /// "Needs approval", "Working…", "Saved", …
     pub fn task_status(&self) -> &'static str {
         if !self.folder.pending_approval_ids().is_empty() {
             return "Needs approval";
@@ -475,7 +423,6 @@ impl AgentSession {
         self.env.dirs.sessions()
     }
 
-    /// The model a new launch would use, or the launched one.
     pub fn presented_model(&self) -> ModelContext {
         self.model_context
             .clone()
@@ -549,9 +496,6 @@ impl AgentSession {
             )
     }
 
-    /// The file an approval request names (`approvalTarget`): a relative
-    /// path starts at the folder the request came from, and where it sits is
-    /// judged against this task's working folder. `None` when it names none.
     pub fn approval_file(&self, request: &ApprovalRequest) -> Option<ApprovalFile> {
         let path = request.path.as_deref()?;
         let origin = request
@@ -565,7 +509,6 @@ impl AgentSession {
             &self.workspace,
             &self.workspace_display_name(),
         );
-        // Inside LokalBot's library, runtime, saved tasks or app.
         let is_protected = self.policy.protected_write_roots.iter().any(|root| {
             policy::canonical_path(root).is_none_or(|root| policy::is_within(&target.path, &root))
         });
@@ -576,9 +519,6 @@ impl AgentSession {
         })
     }
 
-    // ---------------------------------------------------------- lifecycle
-
-    /// Prepares the working folder and asks the launcher for pi.
     pub fn start(&mut self) {
         if self.stops_pending > 0 {
             self.start_after_stop = true;
@@ -625,9 +565,6 @@ impl AgentSession {
         );
     }
 
-    /// pi traffic for this generation. Text deltas are the only messages
-    /// dropped when the inbox is full; anything else waits, and pi honors the
-    /// backpressure on its stdout.
     fn client_sink(&self, generation: u64) -> Sink<RequestTag> {
         let inbox = self.inbox.clone();
         let task = self.task;
@@ -651,8 +588,6 @@ impl AgentSession {
         })
     }
 
-    /// Stops this task's pi and returns to idle. The process stop finishes in
-    /// the background; a later start waits for it.
     pub fn shutdown(&mut self) {
         self.generation += 1;
         self.queue_is_paused = true;
@@ -660,7 +595,6 @@ impl AgentSession {
         self.is_stopping = false;
         self.pending_submission = None;
         self.cancel_pending_approvals();
-        // Revoke library access before the stop's grace period.
         self.revoke_capability();
         self.client = None;
         if let Some(process) = self.process.take() {
@@ -692,8 +626,6 @@ impl AgentSession {
         self.state = SessionState::Idle;
     }
 
-    /// App quit: asks pi to stop without waiting. The caller then waits once
-    /// for every task and kills what is left.
     pub fn begin_quit(&mut self) -> Option<Arc<PiProcess>> {
         self.generation += 1;
         self.cancel_pending_approvals();
@@ -709,7 +641,6 @@ impl AgentSession {
         process
     }
 
-    /// Pauses an idle runtime without losing the saved task, draft or preview.
     pub fn park(&mut self) -> bool {
         if matches!(self.state, SessionState::Running | SessionState::Starting) || self.is_sending {
             return false;
@@ -729,7 +660,6 @@ impl AgentSession {
         true
     }
 
-    /// Shows a saved conversation without starting anything (read off the UI thread).
     pub fn load_saved_preview(&mut self, session: SavedSession) {
         if self.has_live_runtime() {
             return;
@@ -750,7 +680,6 @@ impl AgentSession {
             });
     }
 
-    /// Applies a preview read on this thread (start needs it immediately).
     pub fn load_saved_preview_now(&mut self, session: &SavedSession) -> Result<(), String> {
         let preview =
             archive::preview(session, &self.env.dirs.sessions()).map_err(|e| e.to_string())?;
@@ -796,10 +725,6 @@ impl AgentSession {
         self.start();
     }
 
-    // ---------------------------------------------------------- prompting
-
-    /// Composer submission: queues a follow-up while running, sends when
-    /// ready, or starts the task and sends once it is ready.
     pub fn submit(&mut self, steer: bool) {
         let text = self.draft.trim().to_string();
         if text.is_empty() || self.is_stopping || self.state == SessionState::Starting {
@@ -853,7 +778,6 @@ impl AgentSession {
         }
     }
 
-    /// Sends one prompt. False when it could not be sent (nothing was sent).
     pub fn send(
         &mut self,
         prompt: &str,
@@ -878,8 +802,6 @@ impl AgentSession {
                 self.composer_error = Some(reason);
                 return false;
             }
-            // The relay's loopback URL passes the origin check; the plan has
-            // its own approval.
             if let Some(plan) = self.connected_plan
                 && !plan.is_approved(&settings)
             {
@@ -939,8 +861,6 @@ impl AgentSession {
         true
     }
 
-    /// Follow-ups stay in the host queue until delivery, so cancelling and
-    /// editing them are real operations.
     pub fn queue_draft(&mut self) {
         let text = self.draft.trim().to_string();
         if text.is_empty() || self.queued_prompts.len() >= 20 {
@@ -1066,10 +986,6 @@ impl AgentSession {
         }
     }
 
-    /// "Send now" on one queued message (`sendQueuedNow`): as a steering
-    /// message while the agent works, as the next message when it is ready.
-    /// An idle or failed task starts and sends it first. The message keeps
-    /// its place when it cannot be sent.
     pub fn send_queued_now(&mut self, id: Uuid) {
         let Some(index) = self.queued_prompts.iter().position(|p| p.id == id) else {
             return;
@@ -1098,7 +1014,6 @@ impl AgentSession {
         }
     }
 
-    /// "Send next": resumes the queue, starting the task when it is idle.
     pub fn send_next_queued(&mut self) {
         if self.queued_prompts.is_empty() {
             return;
@@ -1117,8 +1032,6 @@ impl AgentSession {
         }
     }
 
-    /// Stops the current turn. pi's confirmation promise has no abort signal,
-    /// so waiting approvals are cancelled first or the abort waits forever.
     pub fn abort(&mut self) {
         self.queue_is_paused = true;
         let Some(client) = self.client.clone() else {
@@ -1136,11 +1049,6 @@ impl AgentSession {
         client.request(PiCommand::Abort { id }, RequestTag::Abort);
     }
 
-    // ---------------------------------------------------------- approvals
-
-    /// Remembers the mode app-wide and answers waiting cards it now allows.
-    /// Changing modes clears per-tool session exceptions so a downgrade
-    /// takes effect.
     pub fn set_approval_mode(&mut self, mode: ApprovalMode) {
         if self.approval_mode == mode {
             return;
@@ -1172,7 +1080,6 @@ impl AgentSession {
         }
     }
 
-    /// The unattended harness may approve workspace file changes only.
     pub fn approve_workspace_file_changes_for_automation(&mut self) {
         self.policy.approve_workspace_file_changes_for_automation();
     }
@@ -1218,9 +1125,6 @@ impl AgentSession {
         self.publish();
     }
 
-    // ------------------------------------------------------------- inputs
-
-    /// Applies one completion. Returns true when anything visible changed.
     pub fn handle(&mut self, generation: u64, input: SessionInput) -> bool {
         match input {
             SessionInput::Stopped => {
@@ -1360,8 +1264,6 @@ impl AgentSession {
             self.failed_prompt = self.last_submitted_prompt.clone();
         }
         self.publish();
-        // agent_end can precede automatic retry or compaction; pi emits
-        // agent_settled only once the whole run is idle.
         if event == PiEvent::AgentSettled {
             self.maybe_deliver_queued();
         }
@@ -1408,8 +1310,6 @@ impl AgentSession {
             });
             return;
         }
-        // Library lookups skip approval only with a model known to run on
-        // this computer; the bound connection decides, never later Settings.
         self.policy.model_runs_on_this_computer = self.model_runs_on_this_computer();
         match self.policy.verdict(
             &approval.tool,
@@ -1463,7 +1363,6 @@ impl AgentSession {
                         if self.turn_error.is_none() {
                             self.failed_prompt = None;
                         }
-                        // The acknowledgement can arrive after agent_settled.
                         if self.state == SessionState::Ready {
                             self.maybe_deliver_queued();
                         }
@@ -1587,10 +1486,6 @@ impl AgentSession {
         self.publish();
     }
 
-    // --------------------------------------------------------- reasoning
-
-    /// After the Agent or Think reasoning setting changed: a running agent
-    /// uses the new level from its next model call.
     pub fn reasoning_level_did_change(&mut self) {
         if self.reasoning_choices.is_some() {
             self.write_reasoning_level();
@@ -1619,8 +1514,6 @@ impl AgentSession {
         &self.reasoning_level_file
     }
 
-    // ------------------------------------------------------------ helpers
-
     fn publish(&mut self) {
         self.folder.enforce_resource_limits();
     }
@@ -1639,21 +1532,17 @@ impl AgentSession {
         }
     }
 
-    /// Releases the built-in model's lease and stops the plan relay.
     fn release_model_connection(&mut self) {
         self.lease = None;
         self.relay = None;
     }
 
     fn reset_approval_policy(&mut self) {
-        // Session allowances end at lifecycle boundaries; the mode is an app
-        // preference and survives closing or resuming a task.
         self.policy.reset_session();
         self.policy.mode = self.approval_mode;
         self.policy.model_runs_on_this_computer = self.model_runs_on_this_computer();
     }
 
-    /// Remembers, before a write runs, whether its file is already there.
     fn note_write_target(&mut self, call_id: &str, tool: &str, args_json: &str) {
         if !tool.eq_ignore_ascii_case("write") {
             return;
@@ -1670,9 +1559,6 @@ impl AgentSession {
             .insert(call_id.to_string(), exists);
     }
 
-    /// Invalidates the generation before the process stop, so frames already
-    /// buffered cannot revive the task, and keeps restart disabled until the
-    /// old process has actually ended.
     fn transition_to_failure(&mut self, message: String, recovery: RecoveryAction) {
         if self.failure_teardown_in_progress || self.state == SessionState::Idle || self.is_failed()
         {
@@ -1746,8 +1632,6 @@ impl AgentSession {
         });
     }
 
-    /// Before model loading or capability issuance, including resumed tasks.
-    /// An old working folder is never migrated silently.
     pub fn prepare_workspace(&self) -> Result<(), String> {
         if let Some(notice) = self.workspace_access_notice() {
             return Err(notice.into());
@@ -1776,7 +1660,6 @@ impl Drop for AgentSession {
     }
 }
 
-/// Stops a launch that finished after its task moved on.
 fn discard(launched: Launched, env: &AgentEnvironment) {
     if let Some(token) = &launched.capability {
         let _ = lokalbot_core::access::revoke_agent_capability(env.library.paths(), token);
@@ -1791,14 +1674,10 @@ fn discard(launched: Launched, env: &AgentEnvironment) {
     }
 }
 
-/// Why a launched remote endpoint may no longer receive context
-/// (`InferenceEndpointPolicy.validate` before each send).
 fn remote_block(base: &str, settings: &Settings) -> Option<String> {
     lokalbot_core::access::remote_block_reason(base, &settings.approved_remote_inference_origins)
 }
 
-/// Our extension sends title `lokalbot_tool_approval` with structured
-/// fields; older payloads with only a summary stay readable.
 pub fn parse_approval_payload(request: &PiUiRequest) -> ApprovalRequest {
     if request.title.as_deref() == Some("lokalbot_tool_approval")
         && let Some(payload) = request
@@ -1858,7 +1737,6 @@ pub fn parse_approval_payload(request: &PiUiRequest) -> ApprovalRequest {
     }
 }
 
-/// `get_messages` data as (role, text, terminal failure).
 fn history_messages(data: Option<serde_json::Value>) -> Vec<(String, String, Option<String>)> {
     let Some(messages) = data
         .as_ref()
@@ -1892,7 +1770,6 @@ fn history_messages(data: Option<serde_json::Value>) -> Vec<(String, String, Opt
         .collect()
 }
 
-/// The first line, cut at a word near 36 characters.
 pub fn make_session_title(prompt: &str) -> String {
     let first = prompt.lines().next().unwrap_or(prompt).trim();
     if first.chars().count() <= 36 {
@@ -1903,7 +1780,6 @@ pub fn make_session_title(prompt: &str) -> String {
     format!("{}…", cut.trim_end())
 }
 
-/// Whether pi has a session whose working folder is `workspace`.
 pub fn has_resumable_session(directory: &Path, workspace: &Path) -> bool {
     let Ok(entries) = std::fs::read_dir(directory) else {
         return false;

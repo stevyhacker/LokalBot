@@ -1,13 +1,5 @@
 import Foundation
 
-/// Removes a microphone segment only when a complete, precisely timed remote
-/// segment carries the same utterance at the same time.
-///
-/// This is intentionally conservative. Segment overlap cannot localize a phrase
-/// within a long ASR block, and partially trimming text without word timestamps
-/// would leave the surviving words attached to false evidence timestamps. An
-/// ambiguous segment therefore survives unchanged; the raw system track remains
-/// the clean source when a whole mic span is proven to be speaker bleed.
 enum SpeakerBleedFilter {
 
     struct Result {
@@ -15,27 +7,16 @@ enum SpeakerBleedFilter {
         var removedSegments: Int
         var removedWords: Int
         var suspectedIndices: Set<Int> = []
-        /// Whole-span lexical matches eligible for an independent audio check.
-        /// A microphone's default user identity must not hide these candidates.
         var acousticCandidateIndices: Set<Int> = []
 
         var changed: Bool { removedSegments > 0 || !suspectedIndices.isEmpty }
     }
 
-    /// Longer blocks may be whole-track or fixed-window fallbacks even when
-    /// their outer timestamps are known. Do not make destructive decisions on
-    /// text whose words could be far apart inside the block.
     static let maximumComparableSpanDuration: TimeInterval = 15
-    /// Independent ASR passes can place the same utterance boundary slightly
-    /// differently, but both edges must still describe the same short span.
     static let maximumBoundaryDrift: TimeInterval = 0.75
     static let minimumAlignedCoverage = 0.85
-    /// A few generic words are plausible simultaneous speech, not proof of echo.
     static let minimumWordTokenCount = 4
-    /// Ideographic tokens are characters and carry less evidence than words.
     static let minimumIdeographicTokenCount = 8
-    /// Hard bounds keep this synchronous pipeline step linear and predictable on
-    /// the main actor, including for malformed or legacy transcript content.
     static let maximumComparableTextBytes = 4_096
     static let maximumComparableTokenCount = 256
     static let maximumCandidateSegments = 8
@@ -85,10 +66,6 @@ enum SpeakerBleedFilter {
             if !segment.resolvedAttribution.hasIdentityDecision {
                 acousticCandidateIndices.insert(index)
             }
-            // A genuine repetition can have identical words and timing.
-            // Preserve it unless the waveform independently supports removal.
-            // A microphone default is not an explicit speaker confirmation
-            // and must not prevent independently proven echo removal.
             if !acousticallyVerifiedIndices.contains(index) || segment.resolvedAttribution.hasIdentityDecision {
                 var retained = segment
                 if !segment.resolvedAttribution.hasIdentityDecision {
@@ -114,17 +91,9 @@ enum SpeakerBleedFilter {
                       acousticCandidateIndices: acousticCandidateIndices)
     }
 
-    /// Share of a microphone utterance's words that must appear in one
-    /// time-overlapping remote utterance for ownership evidence to treat it as
-    /// possible speaker echo.
     static let minimumEchoWordCoverage = 0.8
-    /// Independent ASR passes may cut the same echoed utterance differently.
     static let maximumEchoTimeGap: TimeInterval = 2
 
-    /// Microphone segments that mostly repeat simultaneous remote speech.
-    /// Unlike `filter`, this needs no exact span or token equality and never
-    /// deletes text; callers only withhold the microphone's default identity,
-    /// so a remote participant's words cannot become the user's evidence.
     static func nearDuplicateEchoIndices(in transcript: Transcript) -> Set<Int> {
         let remote = transcript.segments.compactMap { segment -> (start: Double, end: Double, words: Set<String>)? in
             guard segment.resolvedAttribution.source == .system || canonical(segment.speaker).hasPrefix("them"),
@@ -141,8 +110,6 @@ enum SpeakerBleedFilter {
                   !attribution.hasIdentityDecision, attribution.method != .suspectedEcho,
                   segment.start.isFinite, segment.end.isFinite,
                   let tokens = evidenceTokens(in: segment.text) else { continue }
-            // Remote spans are bounded by fixed transcription windows, so a
-            // generous look-back plus a candidate cap keeps this linear.
             var candidate = starts.partitioningIndex { $0 >= segment.start - 60 }
             var scanned = 0
             while candidate < remote.count, remote[candidate].start <= segment.end + maximumEchoTimeGap,
@@ -172,8 +139,6 @@ enum SpeakerBleedFilter {
 
         while index < remote.count, remote[index].segment.start <= latestStart {
             scanned += 1
-            // Crowded or pathological timing is ambiguous. Stop before work can
-            // grow with an unbounded same-timestamp segment set.
             guard scanned <= maximumCandidateSegments else { return false }
             let candidate = remote[index]
             if spansAreAligned(segment, candidate.segment), candidate.tokens == tokens {
@@ -228,9 +193,6 @@ enum SpeakerBleedFilter {
         return tokens.count >= minimum ? tokens : nil
     }
 
-    /// Case- and punctuation-insensitive lexical tokens for whole-span equality.
-    /// Apostrophes inside a word stay inside it, so short contractions cannot
-    /// manufacture enough tokens to bypass the generic-utterance guard.
     static func comparisonTokens(in text: String) -> [Token]? {
         guard text.utf8.prefix(maximumComparableTextBytes + 1).count
                 <= maximumComparableTextBytes else { return nil }
@@ -275,14 +237,14 @@ enum SpeakerBleedFilter {
     static func isIdeographic(_ character: Character) -> Bool {
         guard let scalar = character.unicodeScalars.first else { return false }
         switch scalar.value {
-        case 0x3040...0x30FF,    // Hiragana and Katakana
-             0x31F0...0x31FF,    // Katakana phonetic extensions
-             0x3400...0x4DBF,    // CJK Unified Ideographs Extension A
-             0x4E00...0x9FFF,    // CJK Unified Ideographs
-             0xF900...0xFAFF,    // CJK Compatibility Ideographs
-             0xFF66...0xFF9D,    // Halfwidth Katakana
-             0x20000...0x2FA1F,  // Extensions B-F/I + compatibility supplement
-             0x30000...0x323AF:  // Extensions G and H
+        case 0x3040...0x30FF,
+             0x31F0...0x31FF,
+             0x3400...0x4DBF,
+             0x4E00...0x9FFF,
+             0xF900...0xFAFF,
+             0xFF66...0xFF9D,
+             0x20000...0x2FA1F,
+             0x30000...0x323AF:
             return true
         default:
             return false
@@ -299,8 +261,6 @@ enum SpeakerBleedFilter {
 }
 
 extension Transcript {
-    /// Ownership-evidence snapshot: likely microphone echo keeps its words and
-    /// segment IDs but loses the microphone's default identity.
     func markingSuspectedEcho() -> Transcript {
         let indices = SpeakerBleedFilter.nearDuplicateEchoIndices(in: self)
         guard !indices.isEmpty else { return self }
@@ -313,7 +273,6 @@ extension Transcript {
 }
 
 private extension Array where Element == Double {
-    /// First index whose value satisfies `predicate` in an ascending array.
     func partitioningIndex(where predicate: (Double) -> Bool) -> Int {
         var lower = 0, upper = count
         while lower < upper {

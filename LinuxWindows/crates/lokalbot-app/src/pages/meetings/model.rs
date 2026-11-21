@@ -1,7 +1,3 @@
-//! What the meeting workspace shows, loaded off the main thread: the meeting
-//! files plus everything derived from them for display (speaker names and
-//! colors, the recap, actions with the user's corrections, transcript rows).
-
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -13,7 +9,6 @@ use lokalbot_core::{
     OutcomeSourceCitation, Transcript,
 };
 
-/// A meeting's files and their display projection.
 pub struct MeetingDoc {
     pub meeting: Meeting,
     pub folder: PathBuf,
@@ -24,62 +19,39 @@ pub struct MeetingDoc {
     pub has_audio: bool,
     pub mic: Option<PathBuf>,
     pub system: Option<PathBuf>,
-    /// Waveform overview, when the audio could be read.
     pub peaks: Option<Arc<[f32]>>,
     pub actions: Vec<MeetingAction>,
     pub decisions: Vec<Decision>,
     pub questions: Vec<String>,
-    /// Outcomes are saved for this meeting (`projection != nil`).
     pub has_projection: bool,
     pub recap: Vec<String>,
-    /// The summary's provenance line ("Duration 32m  ·  App Zoom").
     pub summary_meta: Option<String>,
     pub summary_body: String,
     pub rows: Vec<TranscriptRow>,
     pub review: Vec<ReviewSpeaker>,
-    /// The sealed speaker journal, when this computer can open it. Private:
-    /// it only ever reaches the speaker sheet and the recognized-voices line.
     pub identity: Option<lokalbot_core::voice::IdentityState>,
     pub speaker_notice: Option<String>,
-    /// Unnamed call speakers that match a remembered person.
     pub recognized: Vec<(String, lokalbot_core::voice::NameMatch)>,
-    /// The transcript or speakers changed since the notes were written.
     pub notes_need_refresh: bool,
-    /// Notes still being written, shown in place of final ones.
     pub partial_progress: Option<SharedString>,
-    /// The outcomes a refresh moved aside: what the summary shows until the
-    /// new notes are written (`previousReviewProjection`).
     pub previous_actions: Vec<MeetingAction>,
     pub previous_decisions: Vec<Decision>,
     pub previous_questions: Vec<String>,
     pub has_previous_projection: bool,
-    /// Who spoke, you first: the title block's speaker line.
     pub speakers: Vec<super::presentation::Speaker>,
-    /// Seconds of speech per speaker key.
     pub speech: HashMap<String, f64>,
-    /// The name the transcript saves for each speaker key.
     pub stored_names: HashMap<String, String>,
-    /// Calendar guests and name hints to name voices from.
     pub suggestions: Vec<lokalbot_core::calendar::SpeakerSuggestion>,
-    /// Invited people's names, for action owners.
     pub invited: Vec<String>,
-    /// Speakers named by voice recognition rather than by a person.
     pub recognized_before: HashSet<String>,
-    /// Saved edits that didn't match a regenerated action: text and detail.
     pub unmatched_edits: Vec<(String, String)>,
-    /// `recording-health.json` reports a problem.
     pub capture_needs_attention: bool,
-    /// Crash audio from a Mac whose checkpoints were never verified.
     pub recovery_needs_attention: bool,
     pub additional_audio: f64,
-    /// What was on screen during the meeting.
     pub screen: lokalbot_core::meeting_screen::MeetingScreenContext,
 }
 
 impl MeetingDoc {
-    /// The outcomes the page shows: the saved ones, or while none are saved
-    /// the ones a refresh moved aside, which stay readable until it finishes
-    /// (`shownProjection`).
     pub fn shows_previous(&self) -> bool {
         !self.has_projection && self.has_previous_projection
     }
@@ -108,12 +80,10 @@ impl MeetingDoc {
         }
     }
 
-    /// The Summary tab has something to lead with (`hasSummaryContent`).
     pub fn has_summary_content(&self) -> bool {
         self.has_summary() || self.has_projection || self.has_previous_projection
     }
 
-    /// Call voices still waiting for a name.
     pub fn unnamed(&self) -> impl Iterator<Item = &super::presentation::Speaker> {
         self.speakers.iter().filter(|s| s.needs_name)
     }
@@ -130,7 +100,6 @@ impl MeetingDoc {
             .is_some_and(|t| !t.segments.is_empty())
     }
 
-    /// Row index whose segment contains `seconds` (or the nearest before it).
     pub fn row_at(&self, seconds: f64) -> Option<usize> {
         self.rows
             .iter()
@@ -139,7 +108,6 @@ impl MeetingDoc {
     }
 }
 
-/// An extracted action with the user's saved corrections applied.
 #[derive(Clone, Debug)]
 pub struct MeetingAction {
     pub id: String,
@@ -148,13 +116,10 @@ pub struct MeetingAction {
     pub owner: Option<String>,
     pub owner_label: Option<String>,
     pub due: Option<String>,
-    /// "Due Fri, Oct 2 · said “Friday”".
     pub due_label: Option<String>,
-    /// The day the due phrase resolves to, for its colour.
     pub resolved_due_date: Option<NaiveDate>,
     pub status: ActionStatus,
     pub citation: Option<OutcomeSourceCitation>,
-    /// Yours: it goes under "For you" and shows no owner.
     pub is_for_user: bool,
 }
 
@@ -179,8 +144,6 @@ pub struct ReviewSpeaker {
     pub action_count: usize,
 }
 
-/// Display names and colors for a transcript's speakers
-/// (`MeetingSpeakerPresentation.swift`).
 #[derive(Default, Clone, Debug)]
 pub struct Speakers {
     order: Vec<String>,
@@ -231,7 +194,6 @@ impl Speakers {
             .unwrap_or_else(|| display_label(&Transcript::default_speaker_name(&key), false))
     }
 
-    /// The voice is yours.
     pub fn is_user(&self, speaker: &str) -> bool {
         self.users
             .contains(&Transcript::canonical_speaker_key(speaker))
@@ -244,7 +206,6 @@ impl Speakers {
             .unwrap_or(1)
     }
 
-    /// An action owner as people should read it ("You", "Other speaker").
     pub fn owner(&self, value: &str, is_for_user: bool) -> String {
         display_label(
             value,
@@ -253,9 +214,6 @@ impl Speakers {
     }
 }
 
-/// `SpeakerDisplayName.label`: "Me" (as the user) reads "You", "Them" reads
-/// "Other speaker" and "Them 2" reads "Speaker 2". The stored owner
-/// "Unresolved speaker" also reads in the interface language.
 pub fn display_label(name: &str, is_user: bool) -> String {
     let trimmed = name.trim();
     let lower = trimmed.to_lowercase();
@@ -302,8 +260,6 @@ fn is_placeholder_name(name: &str) -> bool {
             .is_some_and(|n| n.chars().all(|c| c.is_ascii_digit()))
 }
 
-/// An action with corrections applied (`Library::meeting_actions`), labelled
-/// for display.
 pub fn meeting_action(reference: ActionReference, speakers: &Speakers) -> MeetingAction {
     let owner_label = reference
         .owner
@@ -329,7 +285,6 @@ pub fn meeting_action(reference: ActionReference, speakers: &Speakers) -> Meetin
     }
 }
 
-/// Reads and projects one meeting. Runs on a background thread.
 pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
     let folder = library.meeting_dir(&meeting);
     let transcript = library.transcript(&meeting).unwrap_or_else(|err| {
@@ -339,7 +294,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
     let partial = transcript
         .as_ref()
         .and_then(|t| lokalbot_ai::notes::partial::MeetingNotesPartial::load(&folder, t));
-    // Finished parts show in place of final notes while the rest is written.
     let summary = match &partial {
         Some(partial) => Some(lokalbot_ai::notes::render::synchronize(
             &partial.summary,
@@ -353,8 +307,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         Some(partial) => Some(partial.outcomes.clone()),
         None => library.outcomes(&meeting).ok().flatten(),
     };
-    // The WAV tracks this app records, or the `.m4a` a macOS library keeps:
-    // the player and the waveform read both.
     let audio = library.audio(&meeting);
     let mic = audio.mic.clone();
     let system = audio.system.clone();
@@ -375,8 +327,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
     let speakers = Speakers::new(transcript.as_ref());
     let references = match &partial {
         Some(partial) => {
-            // Saved edits follow the actions they match, as they will when
-            // the notes finish.
             let previous = library
                 .outcomes(&meeting)
                 .ok()
@@ -447,7 +397,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
             )
         })
         .unwrap_or_default();
-    // Voices with action-linked speech first, from the previous notes if need be.
     let review = transcript
         .as_ref()
         .map(|t| {
@@ -461,7 +410,6 @@ pub fn load(library: &Library, meeting: Meeting) -> MeetingDoc {
         .unwrap_or_default();
 
     let memory = lokalbot_engine::voice::memory(library);
-    // No journal means no reason to open the credential store.
     let identity = folder
         .join(lokalbot_core::voice::EVIDENCE_FOLDER)
         .join(lokalbot_core::voice::IDENTITY_FILE)
@@ -671,8 +619,6 @@ fn review_speakers(
     items
 }
 
-/// Lifts the "**Duration:** 32m · **App:** Zoom" provenance line out of the
-/// summary body (`SummaryPresentation.split`).
 pub fn split_summary(markdown: &str) -> (Option<String>, String) {
     let lines: Vec<&str> = markdown.lines().collect();
     for (index, line) in lines.iter().enumerate().take(4) {
@@ -719,8 +665,6 @@ fn metadata_items(line: &str) -> Option<Vec<(String, String)>> {
     (!items.is_empty()).then_some(items)
 }
 
-/// The recap preview (`SummaryPresentation.recap`): the TL;DR section, or the
-/// first prose paragraph.
 pub fn recap(markdown: &str) -> Option<String> {
     let (_, body) = split_summary(markdown);
     let lines: Vec<&str> = body.lines().collect();
@@ -767,7 +711,6 @@ fn recap_text(section: &str) -> Option<String> {
             for bullet in ["- ", "* ", "• "] {
                 if let Some(rest) = trimmed.strip_prefix(bullet) {
                     let rest = rest.trim_start();
-                    // Drop a leading "**Label:**" from bullets.
                     let rest = rest
                         .strip_prefix("**")
                         .and_then(|r| r.split_once(":**").map(|(_, after)| after.trim_start()))
@@ -784,7 +727,6 @@ fn recap_text(section: &str) -> Option<String> {
     (!text.is_empty()).then_some(text)
 }
 
-/// Removes a trailing " — [00:12]" citation.
 fn strip_trailing_stamp(line: &str) -> String {
     let trimmed = line.trim_end();
     if let Some(open) = trimmed.rfind('[')
@@ -800,7 +742,6 @@ fn strip_trailing_stamp(line: &str) -> String {
     trimmed.to_string()
 }
 
-/// One recap point per non-empty line.
 pub fn recap_points(text: &str) -> Vec<String> {
     text.lines()
         .map(str::trim)
@@ -809,9 +750,6 @@ pub fn recap_points(text: &str) -> Vec<String> {
         .collect()
 }
 
-// ------------------------------------------------------------------ labels
-
-/// "Oct 8, 2026 at 11:57 AM".
 pub fn date_label(at: DateTime<Utc>) -> String {
     at.with_timezone(&Local)
         .format_localized(
@@ -821,7 +759,6 @@ pub fn date_label(at: DateTime<Utc>) -> String {
         .to_string()
 }
 
-/// Duration chip text: "2 min", "1 hr 5 min" (minutes floored, as on macOS).
 pub fn duration_label(meeting: &Meeting) -> String {
     let minutes = (meeting.duration_seconds() / 60.).floor() as u64;
     if minutes >= 60 {
@@ -837,9 +774,6 @@ pub fn duration_label(meeting: &Meeting) -> String {
     }
 }
 
-/// List row metadata, "10:57 AM · 2 min · Zoom": when, how long, then where
-/// (`MeetingDetailPresentation.rowSubtitle`). Merged meetings omit the app;
-/// the sample says what it is where a meeting names its app.
 pub fn row_detail(meeting: &Meeting, live: bool) -> String {
     let time = if live {
         lokalbot_i18n::tr("in progress").to_string()
@@ -867,9 +801,6 @@ pub fn row_detail(meeting: &Meeting, live: bool) -> String {
     super::presentation::row_subtitle(&time, &duration, source.as_deref())
 }
 
-// ------------------------------------------------------------------ export
-
-/// The meeting as Markdown: title, metadata, notes, summary and transcript.
 pub fn meeting_markdown(doc: &MeetingDoc) -> String {
     let meeting = &doc.meeting;
     let mut out = format!("# {}\n\n", meeting.display_title());
@@ -914,8 +845,6 @@ pub fn transcript_text(doc: &MeetingDoc) -> String {
         .join("\n")
 }
 
-/// The meetings a delete may remove: never the one being recorded, whose
-/// folder the recorder is still writing into.
 pub(super) fn deletable(ids: Vec<uuid::Uuid>, recording: Option<uuid::Uuid>) -> Vec<uuid::Uuid> {
     ids.into_iter()
         .filter(|id| Some(*id) != recording)

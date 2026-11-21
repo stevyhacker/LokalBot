@@ -66,7 +66,6 @@ fun MeetingsScreen(repository: CompanionRepository) {
     val link = navigator.meetingLink
     ListDetailLayout(
         openRequest = link?.meetingId,
-        // A link with a moment stays until the transcript has scrolled to it.
         onOpenRequestHandled = { if (navigator.meetingLink?.at == null) navigator.meetingLink = null },
         list = { pane -> MeetingList(repository, pane) },
         detail = { key, back ->
@@ -103,7 +102,6 @@ private fun MeetingList(repository: CompanionRepository, pane: ListPaneState) {
             Column(Modifier.padding(bottom = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 PageHeader(
                     title = stringResource(R.string.nav_meetings),
-                    // Until the list has reached its end, only how many are listed is known.
                     subtitle = if (state.hasMore) stringResource(R.string.meetings_count_more, state.total)
                     else pluralStringResource(R.plurals.meetings_count, state.total, state.total),
                     actions = {
@@ -149,7 +147,6 @@ private fun MeetingList(repository: CompanionRepository, pane: ListPaneState) {
         }
         if (state.hasMore) {
             item(key = "more") {
-                // Reaching the end of what's listed loads the meetings before it.
                 LaunchedEffect(state) { viewModel.showMore() }
                 Box(Modifier.fillMaxWidth().padding(vertical = 16.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
@@ -178,12 +175,6 @@ private fun MeetingList(repository: CompanionRepository, pane: ListPaneState) {
     }
 }
 
-/**
- * The quiet search field used above lists. On a touchscreen it takes focus only
- * when pressed: the pane scaffold gives its pane focus on arrival, which would
- * otherwise land here and open the keyboard, including on the way back from
- * recording. Accessibility services and keyboards don't press, so they can always.
- */
 @Composable
 fun SearchField(value: String, onValueChange: (String) -> Unit, placeholder: String, modifier: Modifier = Modifier) {
     val palette = LokalBotTheme.palette

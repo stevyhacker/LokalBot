@@ -1,11 +1,6 @@
 import Foundation
 
-/// Small, relevant facts from explicitly enabled saved sources. This is a
-/// retrieval policy, not a second language-model call or a persistent profile.
 enum CotypingMemoryContext {
-    /// The writing tool's own grants are the whole permission to read saved
-    /// facts. Whether new overnight reviews are scheduled is a separate choice
-    /// and is deliberately not consulted here.
     struct Policy: Equatable, Sendable {
         var meetings: Bool
         var screenDerived: Bool
@@ -46,27 +41,16 @@ enum CotypingMemoryContext {
         var sourceTitles: [String] { Array(Set(items.map(\.title))).sorted() }
     }
 
-    /// What the writing is about, kept apart by where each word came from. The
-    /// conversation above the field may name a saved topic, but only the
-    /// user's own words can show that a saved sentence is about the same thing.
     struct Query: Equatable, Sendable {
-        /// Distinctive words from the draft and, when enabled, the window title.
         var own: Set<String> = []
-        /// `own` plus distinctive words from the selected visible text.
         var all: Set<String> = []
-        /// Words the draft or title writes as a name: a capital letter or digit
-        /// that does not merely open a sentence.
         var named: Set<String> = []
-        /// `named` plus capitalized sentence openers, which count as names only
-        /// when the saved fact capitalizes the same word.
         var capitalized: Set<String> = []
-        /// Index lookup terms, nearest the caret first.
         var search: [String] = []
 
         init() {}
 
         init(draft: String, title: String = "", visible: String = "", appName: String = "") {
-            // A window title usually ends with its app's name, which is not a topic.
             let appTerms = CotypingMemoryContext.terms(appName)
             let titleWords = CotypingMemoryContext.tokens(title).filter { !appTerms.contains($0) }
             let draftWords = CotypingMemoryContext.tokens(draft)
@@ -78,7 +62,6 @@ enum CotypingMemoryContext {
 
             let draftCapitals = CotypingMemoryContext.capitalizedTerms(in: draft)
             let titleCapitals = CotypingMemoryContext.capitalizedTerms(in: title)
-            // Titles are not prose: every capitalized title word may be a name.
             named = draftCapitals.inside.union(titleCapitals.inside).union(titleCapitals.opening)
             named.subtract(appTerms)
             capitalized = named.union(draftCapitals.opening)
@@ -95,8 +78,6 @@ enum CotypingMemoryContext {
         }
     }
 
-    /// Why a fact was kept: a higher score ranks first, and facts from a named
-    /// source displace ones that only share wording.
     struct Relevance: Equatable, Sendable {
         var score: Int
         var named: Bool
@@ -106,8 +87,6 @@ enum CotypingMemoryContext {
     static let maxItemCharacters = 180
     static let maxSearchTerms = 12
     static let maxAge: TimeInterval = 90 * 24 * 60 * 60
-    // Generic writing/meeting language must not pull an unrelated private fact
-    // into a draft merely because both contain "project", "owner" or "today".
     private static let genericTerms: Set<String> = [
         "please", "thanks", "thank", "hello", "dear", "hi", "team", "notes", "note", "meeting", "meetings",
         "project", "update", "status", "owner", "deadline", "decision", "decisions", "action", "next", "today",
@@ -116,7 +95,6 @@ enum CotypingMemoryContext {
         "planning", "discuss", "discussed", "subject", "topic", "draft", "check", "regarding", "due", "name",
     ]
 
-    /// Folded words in reading order, repeats included.
     static func tokens(_ text: String) -> [String] {
         LibrarySearch.folded(text).components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
@@ -126,7 +104,6 @@ enum CotypingMemoryContext {
         word.count >= 3 && !SearchIndex.stopWords.contains(word) && !genericTerms.contains(word)
     }
 
-    /// A term that can show two texts share a topic. See `everydayTerms`.
     static func isDistinctive(_ word: String) -> Bool {
         isTerm(word) && !everydayTerms.contains(word)
     }
@@ -139,9 +116,6 @@ enum CotypingMemoryContext {
         Set(tokens(text).filter(isDistinctive))
     }
 
-    /// Distinctive words written with a capital letter or a digit. `opening`
-    /// holds the ones that start a sentence or line, where the capital alone
-    /// does not make the word a name.
     static func capitalizedTerms(in text: String) -> (inside: Set<String>, opening: Set<String>) {
         var inside = Set<String>()
         var opening = Set<String>()
@@ -173,7 +147,6 @@ enum CotypingMemoryContext {
         return (inside, opening)
     }
 
-    /// The part of the nearby text a lookup may search, nearest the field.
     static let maxVisibleQueryCharacters = 600
 
     static func query(for field: CotypingField, includeTitle: Bool, includeVisibleContext: Bool = true) -> Query {
@@ -183,28 +156,18 @@ enum CotypingMemoryContext {
                                                    isIntegratedTerminal: field.isIntegratedTerminal)) else { return Query() }
         let draft = String(field.precedingText.suffix(500))
         let title = includeTitle ? field.windowTitle ?? "" : ""
-        // Only the already-authorized, spatially selected live excerpts can add
-        // search terms. This connects a short reply to a project named above it.
-        // Whole-window text ends with the lines nearest the field; the rest of
-        // the window (sidebars, lists) would name far too much.
         let visible = includeVisibleContext
             ? String((field.visibleContext?.text ?? "").suffix(maxVisibleQueryCharacters)) : ""
         guard ScreenContextPrivacy.redact([draft, title, visible].joined(separator: " ")).count == 0 else { return Query() }
         return Query(draft: draft, title: title, visible: visible, appName: field.appName)
     }
 
-    /// A source is named when at least half of its title's distinctive words
-    /// appear in the draft, window title or visible conversation. One shared
-    /// word of a long title is too little to pull in everything filed under it.
     static func names(title: String, query: Query) -> Int? {
         let titleTerms = distinctiveTerms(title)
         let shared = titleTerms.intersection(query.all).count
         return shared > 0 && shared * 2 >= titleTerms.count ? shared : nil
     }
 
-    /// A line from notes that adds no word to its source's title: a heading or
-    /// the title itself. Judged against the title and never against the draft,
-    /// so a fact stays a fact when the draft already mentions its answer.
     static func isHeading(_ text: String, of title: String) -> Bool {
         let titleWords = Set(tokens(title))
         return !tokens(text).contains { word in
@@ -212,16 +175,6 @@ enum CotypingMemoryContext {
         }
     }
 
-    /// Whether a saved fact has earned a place in the prompt, and how firmly.
-    ///
-    /// - A notes line must not be a heading (see `isHeading`). Work-memory
-    ///   entries are statements already, even when one is its own title.
-    /// - Its source is named (see `names`), or
-    /// - the fact shares two distinctive words with the user's own draft or
-    ///   window title, one of them written as a name, or three when none is.
-    ///
-    /// Everyday wording never counts as shared: two common words in a generic
-    /// sentence used to be enough to borrow a date from an unrelated meeting.
     static func relevance(text: String, title: String, query: Query,
                           allowBodyMatch: Bool = true, isStatement: Bool = false) -> Relevance? {
         guard isStatement || !isHeading(text, of: title) else { return nil }
@@ -260,22 +213,17 @@ enum CotypingMemoryContext {
                   let relevance = relevance(text: text, title: title, query: query,
                                             allowBodyMatch: allowBodyMatch,
                                             isStatement: item.isWorkMemory) else { continue }
-            // Prefer short facts; keep the prompt budget independent of source size.
             var selected = item
             selected.text = PromptContextSanitizer.sanitize(text, maxCharacters: maxItemCharacters)
             selected.title = String(title.prefix(80))
             ranked.append((selected, relevance.score, relevance.named))
         }
-        // If a named topic is recognized, generic sentence overlap in another
-        // project's facts must not add a second, conflicting name or deadline.
         if ranked.contains(where: { $0.2 }) { ranked.removeAll { !$0.2 } }
         ranked.sort {
             if $0.1 != $1.1 { return $0.1 > $1.1 }
             if $0.0.updatedAt != $1.0.updatedAt { return $0.0.updatedAt > $1.0.updatedAt }
             return $0.0.id < $1.0.id
         }
-        // An older version of the same named topic must not contradict the
-        // current one. Multiple snippets from the current source remain useful.
         let newest = Dictionary(grouping: ranked.map(\.0), by: { LibrarySearch.folded($0.title) })
             .mapValues { $0.map(\.updatedAt).max() ?? Date.distantPast }
         var seen = Set<String>()

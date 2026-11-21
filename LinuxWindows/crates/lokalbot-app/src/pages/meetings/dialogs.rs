@@ -1,6 +1,3 @@
-//! Sheets of the meeting workspace: delete confirmation, action correction,
-//! naming a speaker, merging meetings and undoing a merge, and boundaries.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::calendar::{Calendar, CalendarEvent, CalendarState, Date};
@@ -21,7 +18,6 @@ use crate::state::{AppData, AppEvent, MeetingTab};
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::Ico;
 
-/// "Delete N meeting(s)?" with the macOS wording.
 pub(crate) fn confirm_delete(
     data: Entity<AppData>,
     ids: Vec<Uuid>,
@@ -89,16 +85,9 @@ pub(crate) fn confirm_delete(
     });
 }
 
-// ------------------------------------------------------------ correction
-
-/// The stored owner for the user's own action, as macOS writes it. The core,
-/// follow-ups and notes read only this value as the user.
 const OWNER_ME: &str = "Me";
-/// Stored as macOS writes it, shown in the interface language.
 const OWNER_UNRESOLVED: &str = "Unresolved speaker";
 
-/// The owner menu as (label, stored value): labels follow the interface
-/// language, stored values never do.
 fn owner_choices(language: &str, suggestions: &[String]) -> Vec<(SharedString, String)> {
     let tr = |key: &'static str| lokalbot_i18n::translate(language, key);
     let mut choices = vec![(tr("You").into(), OWNER_ME.to_string())];
@@ -115,7 +104,6 @@ fn owner_choices(language: &str, suggestions: &[String]) -> Vec<(SharedString, S
     choices
 }
 
-/// The owner menu's title for the owner field's value.
 fn owner_title(language: &str, owner: &str) -> SharedString {
     let tr = |key: &'static str| lokalbot_i18n::translate(language, key);
     let trimmed = owner.trim();
@@ -138,7 +126,6 @@ pub(crate) struct CorrectionSheet {
     text: Entity<InputState>,
     owner: Entity<InputState>,
     due: Entity<InputState>,
-    /// The Actions workspace's "Resolve date" (`ActionEditorSheet`).
     resolve: Option<Entity<CalendarState>>,
     resolved_day: Option<chrono::NaiveDate>,
     error: Option<SharedString>,
@@ -157,7 +144,6 @@ impl CorrectionSheet {
         Self::open_sheet(data, meeting, action, speakers, None, window, cx)
     }
 
-    /// The sheet with a date picker, starting at `resolved` or today.
     pub(crate) fn open_with_date(
         data: Entity<AppData>,
         meeting: Meeting,
@@ -242,7 +228,6 @@ impl CorrectionSheet {
         });
     }
 
-    /// "Use date": the due phrase becomes the chosen day, as `YYYY-MM-DD`.
     fn use_resolved_date(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(day) = self.resolved_day else {
             return;
@@ -471,21 +456,16 @@ impl Render for CorrectionSheet {
     }
 }
 
-// --------------------------------------------------------- name speaker
-
 pub(crate) struct NameSpeakerSheet {
     data: Entity<AppData>,
     meeting: Meeting,
     transcript: Transcript,
     speaker: ReviewSpeaker,
     name: Entity<InputState>,
-    /// Calendar guests and name hints to choose from.
     pub(super) suggestions: super::speaker_suggestions::SpeakerSuggestions,
     error: Option<SharedString>,
-    /// The sealed speaker journal, for the review controls.
     pub(super) identity: Option<lokalbot_core::voice::IdentityState>,
     pub(super) notice: Option<String>,
-    /// The remembered person chosen from Suggested Names.
     pub(super) profile_id: Option<uuid::Uuid>,
     pub(super) busy: bool,
     pub(super) page: gpui_kit::WeakEntity<super::MeetingsPage>,
@@ -520,8 +500,6 @@ impl NameSpeakerSheet {
                 &transcript,
                 &speaker.key,
             );
-            // Typing searches the suggestions; Enter fills in the top match,
-            // then saves.
             cx.subscribe_in(
                 &name,
                 window,
@@ -583,9 +561,7 @@ impl NameSpeakerSheet {
             DecisionAction::Reset
         };
         let mut choice = Choice::new(&self.speaker.key, alias, action);
-        // The chosen calendar guest's opaque id, never the address.
         choice.calendar_identity_id = self.suggestions.identity_for_save();
-        // A suggestion's person only while the name still is that suggestion.
         let chosen = self.profile_id.take();
         choice.profile_id = chosen.filter(|profile| {
             self.identity.as_ref().is_some_and(|state| {
@@ -603,8 +579,6 @@ impl NameSpeakerSheet {
         self.perform(choice, window, cx);
     }
 
-    /// Runs one speaker choice and saves the transcript it gives. Anything
-    /// that changes who spoke closes the sheet and teaches the voice.
     pub(super) fn perform(
         &mut self,
         choice: lokalbot_core::voice::Choice,
@@ -676,8 +650,6 @@ impl NameSpeakerSheet {
         &self.speaker.key
     }
 
-    /// Whether this voice can be confirmed as one person, and whether it
-    /// comes from the personal microphone.
     pub(super) fn speaker_identity_facts(&self) -> (bool, bool) {
         let key = &self.speaker.key;
         let from_microphone = self.transcript.segments.iter().any(|segment| {
@@ -695,7 +667,6 @@ impl NameSpeakerSheet {
         Some(self.name.read(cx).value().trim().to_string()).filter(|name| !name.is_empty())
     }
 
-    /// Fills the name from a suggested or previously used name.
     pub(super) fn fill_name(
         &mut self,
         name: String,
@@ -711,7 +682,6 @@ impl NameSpeakerSheet {
         cx.notify();
     }
 
-    /// `onDeleteEvidence`: names and remembered voices stay.
     pub(super) fn delete_evidence(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let library = self.data.read(cx).library.clone();
         let meeting = self.meeting.clone();
@@ -736,7 +706,6 @@ impl NameSpeakerSheet {
 }
 
 impl NameSpeakerSheet {
-    /// Fills the name from a suggestion and remembers which guest it was.
     pub(super) fn choose_suggestion(
         &mut self,
         index: usize,
@@ -837,10 +806,6 @@ impl Render for NameSpeakerSheet {
     }
 }
 
-// ---------------------------------------------------------------- merge
-
-/// "Merge meetings" (`MeetingMergeSheet.swift`): one new meeting from the
-/// selected ones, with their originals folded into it.
 pub(crate) struct MergeSheet {
     data: Entity<AppData>,
     meetings: Vec<Meeting>,
@@ -923,8 +888,6 @@ impl MergeSheet {
                 Ok(merged) => {
                     data.update(cx, |data, cx| {
                         if summarize {
-                            // A partial merged transcript must never satisfy the
-                            // summary: transcribe the joined audio first.
                             data.request(
                                 AppEvent::ProcessMeeting {
                                     meeting_id: merged.meeting.id,
@@ -1179,7 +1142,6 @@ impl Render for MergeSheet {
     }
 }
 
-/// "Undo this merge?" (`MeetingWorkspaceView`'s confirmation).
 pub(crate) fn confirm_undo_merge(
     data: Entity<AppData>,
     meeting: &Meeting,
@@ -1234,10 +1196,6 @@ pub(crate) fn confirm_undo_merge(
     });
 }
 
-// ------------------------------------------------------------ boundaries
-
-/// "Meeting boundaries" (`MeetingBoundaryEditor.swift`): which part of the
-/// recording belongs to the meeting, on the original playback timeline.
 pub(crate) struct BoundarySheet {
     data: Entity<AppData>,
     meeting: Meeting,
@@ -1247,7 +1205,6 @@ pub(crate) struct BoundarySheet {
     error: Option<SharedString>,
 }
 
-/// Seconds as typed: "150", "150.5", or "2:30".
 fn parse_seconds(raw: &str) -> Option<f64> {
     let raw = raw.trim().replace(',', ".");
     raw.parse::<f64>()

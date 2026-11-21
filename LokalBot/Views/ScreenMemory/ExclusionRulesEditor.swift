@@ -114,8 +114,6 @@ struct ExclusionRulesEditor: View {
         }
     }
 
-    /// The real app icon when LokalBot can resolve it; a plain symbol otherwise.
-    /// An empty rounded square read as an unchecked checkbox.
     @ViewBuilder private func ruleIcon(_ rule: String) -> some View {
         if kind == .applications, let icon = QuickRecallApplicationIconResolver.icon(for: rule) {
             Image(nsImage: icon).resizable().frame(width: 16, height: 16)
@@ -158,8 +156,6 @@ struct ExclusionRulesEditor: View {
         panel.directoryURL = URL(fileURLWithPath: "/Applications")
         panel.allowsMultipleSelection = false
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        // The file name ("Passwords") is not the name the app runs under in
-        // every language ("Passwörter"); its bundle identifier is.
         draft = Bundle(url: url)?.bundleIdentifier ?? url.deletingPathExtension().lastPathComponent
         add()
     }

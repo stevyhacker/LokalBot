@@ -1,9 +1,3 @@
-//! How the microphone and call tracks line up (`RecordingAudioTiming`).
-//!
-//! A Mac keeps `audio-timing.json` with clock anchors. This app writes both
-//! tracks on one shared meeting timeline, padding any gap with silence, so a
-//! `.wav` recording needs no anchors: the same second is the same second.
-
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -50,8 +44,6 @@ fn version_one() -> u32 {
 }
 
 impl RecordingAudioTiming {
-    /// Maps both bounds through one continuous span on each track. Padding
-    /// and device gaps have no anchors, so this never extrapolates across them.
     pub fn reference_range(&self, start: f64, end: f64) -> Option<TurnAnchor> {
         if !start.is_finite() || !end.is_finite() || end <= start {
             return None;
@@ -83,7 +75,6 @@ impl RecordingAudioTiming {
             .then_some(range)
     }
 
-    /// The next point where a continuous span starts or ends.
     pub fn next_boundary(&self, position: f64) -> Option<f64> {
         const EPSILON: f64 = 0.000_01;
         let mut boundary = f64::INFINITY;
@@ -119,19 +110,14 @@ impl RecordingAudioTiming {
     }
 }
 
-/// What is known about how a meeting's two tracks line up.
 #[derive(Clone, Debug, PartialEq)]
 pub enum TrackClock {
-    /// A Mac's clock anchors.
     Anchored(RecordingAudioTiming),
-    /// This app's WAV tracks, already on one timeline.
     SharedTimeline,
-    /// An older recording with neither.
     Unknown,
 }
 
 impl TrackClock {
-    /// The range of the call track played during `start..end` on the microphone.
     pub fn reference_range(&self, start: f64, end: f64) -> Option<TurnAnchor> {
         match self {
             Self::Anchored(timing) => timing.reference_range(start, end),
@@ -155,7 +141,6 @@ impl TrackClock {
     }
 }
 
-/// The clock of the tracks in a meeting folder.
 pub fn reference_clock(folder: &Path) -> TrackClock {
     if let Some(timing) = std::fs::read(folder.join(TIMING_FILE))
         .ok()
@@ -163,8 +148,6 @@ pub fn reference_clock(folder: &Path) -> TrackClock {
     {
         return TrackClock::Anchored(timing);
     }
-    // This app pads both WAV tracks to one timeline and writes no anchors.
-    // Without this, a microphone voice could never pass the quiet-call check.
     if folder.join(crate::library::MIC_TRACK).is_file() {
         TrackClock::SharedTimeline
     } else {

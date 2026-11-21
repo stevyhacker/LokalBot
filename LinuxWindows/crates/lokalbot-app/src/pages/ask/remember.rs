@@ -1,7 +1,3 @@
-//! What Personal Context adds to a conversation (`RememberReceiptCard`,
-//! `PersonalContextDisclosure`): the receipt after "Remember …", with Undo, and
-//! the list of what an answer was given.
-
 use std::collections::{HashMap, HashSet};
 
 use gpui_kit::component::button::{Button, ButtonVariants as _};
@@ -21,15 +17,12 @@ use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico};
 
-/// What the page knows about saved claims.
 #[derive(Default)]
 pub(super) struct RememberState {
     pub(super) claims: HashMap<Uuid, Claim>,
 }
 
 impl AskPage {
-    /// Runs one edit off the main thread. One that could not be saved says
-    /// so, as in Settings → About you: Undo must not look done.
     fn edit_claim(
         &mut self,
         change: impl FnOnce(&lokalbot_core::Library) -> Result<(), EditError> + Send + 'static,
@@ -192,8 +185,6 @@ impl AskPage {
         v_flex().w_full().child(card)
     }
 
-    /// The sources list's last row (`PersonalContextRow`): what the person told
-    /// LokalBot about themselves that went into this answer.
     pub(super) fn render_used_claims(
         &mut self,
         message_id: Uuid,

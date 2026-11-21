@@ -1,9 +1,5 @@
 import Foundation
 
-/// Read-only action threads for the CLI and MCP server. It uses the app's
-/// projection and thread clustering, so saved corrections, completion, and
-/// deferral apply here exactly as they do in LokalBot. Owners are the names
-/// written into outcomes; attendee emails and speaker evidence never appear.
 enum ActionItemsReport {
     static let defaultDays = 30
     static let maximumDays = 365
@@ -67,7 +63,6 @@ enum ActionItemsReport {
         let cutoff = calendar.date(byAdding: .day, value: -max(1, filter.days), to: now) ?? now
         let scoped = meetings.filter { meeting in
             if let meetingID = filter.meetingID { return meeting.id == meetingID }
-            // The sample meeting's actions are made up: only listed when asked for by id.
             return meeting.isOwnWork && meeting.startedAt >= cutoff
         }
         let references = scoped

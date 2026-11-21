@@ -2,8 +2,6 @@ import CoreGraphics
 import XCTest
 @testable import LokalBot
 
-/// Behavioral tests for the pure logic added with the Cotabby-derived subsystems.
-/// Everything here is deterministic and runs off the main actor.
 final class ReuseSubsystemsTests: XCTestCase {
 
     private final class ResolverThreadProbe: @unchecked Sendable {
@@ -101,8 +99,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertTrue(budget.canRetry)
     }
 
-    // MARK: - SettingsSearchRanker
-
     func testSearchEmptyQueryMatchesEverything() {
         XCTAssertTrue(SettingsSearchRanker.matches(query: "", haystack: ["Updates", "sparkle"]))
         XCTAssertTrue(SettingsSearchRanker.matches(query: "   ", haystack: []))
@@ -114,10 +110,8 @@ final class ReuseSubsystemsTests: XCTestCase {
     }
 
     func testSearchRequiresAllTokensPresent() {
-        // Both tokens appear (across different haystack entries) → match.
         XCTAssertTrue(SettingsSearchRanker.matches(query: "auto update",
                                                    haystack: ["Updates", "automatic check"]))
-        // One token missing → no match.
         XCTAssertFalse(SettingsSearchRanker.matches(query: "auto banana",
                                                     haystack: ["Updates", "automatic check"]))
     }
@@ -140,8 +134,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertTrue(SettingsSearchRanker.matches(query: "live transcript",
                                                    haystack: ["Dictation", "live", "transcript", "streaming"]))
     }
-
-    // MARK: - DictationLiveTranscript
 
     func testDictationLiveTranscriptKeepsTrailingWordsTentative() {
         let preview = DictationLiveTranscript.preview(
@@ -347,8 +339,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertFalse(threadProbe.wasOnMainThread)
     }
 
-    // MARK: - Dictation compose
-
     func testDictationWindowSelectorPrefersFocusedTitleOverLargerWindow() {
         let candidates = [
             DictationWindowCandidate(
@@ -471,8 +461,6 @@ final class ReuseSubsystemsTests: XCTestCase {
             "Friday afternoon works for me.")
     }
 
-    // MARK: - ModelFit
-
     private func capability(gb: UInt64, appleSilicon: Bool = true) -> HardwareCapability {
         HardwareCapability(physicalMemoryBytes: gb * 1_073_741_824, isAppleSilicon: appleSilicon)
     }
@@ -482,17 +470,13 @@ final class ReuseSubsystemsTests: XCTestCase {
     }
 
     func testModelFitTightInMidBand() {
-        // 8 GB → comfortable ≤4.8, too-large >6.4. 4 GB model needs ~5.2 → tight.
         XCTAssertEqual(ModelFit.evaluate(modelSizeGB: 4.0, capability: capability(gb: 8)), .tight)
     }
 
     func testModelFitTooLargeBeyondHeadroom() {
-        // 8 GB, 6 GB model needs ~7.8 > 6.4 → too large.
         XCTAssertEqual(ModelFit.evaluate(modelSizeGB: 6.0, capability: capability(gb: 8)), .tooLarge)
         XCTAssertNotNil(ModelFit.tooLarge.advisory)
     }
-
-    // MARK: - DownloadOutcomeClassifier
 
     func testClassifySuccessRequiresGGUFAndOKStatus() {
         XCTAssertEqual(DownloadOutcomeClassifier.classify(httpStatus: 200, error: nil, looksLikeGGUF: true), .success)
@@ -536,8 +520,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertTrue(ParallelRangeDownloader.ranges(totalBytes: 10, partSize: 0).isEmpty)
     }
 
-    /// Two attempts at the same URL must land on the same stash so a retry
-    /// resumes; different URLs must never share one.
     func testParallelRangeDownloaderStashNameIsStablePerURL() throws {
         let a = try XCTUnwrap(URL(string: "https://example.com/model.gguf"))
         let b = try XCTUnwrap(URL(string: "https://example.com/other.gguf"))
@@ -547,9 +529,6 @@ final class ReuseSubsystemsTests: XCTestCase {
                           ParallelRangeDownloader.stashName(for: b))
     }
 
-    /// The disk-space precheck credits stashed bytes against the expected
-    /// download size, so the count must read the actual partial for that URL
-    /// (by allocated size) and be 0 — never an error — when nothing is stashed.
     func testParallelRangeDownloaderCountsStashedBytesForItsURLOnly() throws {
         let url = try XCTUnwrap(URL(string: "https://example.com/model.gguf"))
         let other = try XCTUnwrap(URL(string: "https://example.com/other.gguf"))
@@ -603,8 +582,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertNotEqual(file.fileName, sameLeafElsewhere.fileName)
     }
 
-    // MARK: - DiskSpacePrecheck
-
     func testDiskSpacePrecheckPassesWithRoom() {
         XCTAssertNil(DiskSpacePrecheck.advisory(
             expectedBytes: 1_000_000_000,
@@ -618,8 +595,6 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertTrue(message?.contains("free disk space") == true)
     }
 
-    /// Unknown size or unreadable volume must not block a download — the
-    /// precheck is an early courtesy, not a gate that can wedge shut.
     func testDiskSpacePrecheckSkipsWhenSizesUnknown() {
         XCTAssertNil(DiskSpacePrecheck.advisory(expectedBytes: nil, availableBytes: 1))
         XCTAssertNil(DiskSpacePrecheck.advisory(expectedBytes: 0, availableBytes: 1))
@@ -635,13 +610,9 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertTrue(message?.contains("free disk space") == true)
     }
 
-    /// An unreadable volume must not block recording — same courtesy-not-gate
-    /// posture as the download precheck.
     func testRecordingAdvisorySkipsWhenVolumeUnreadable() {
         XCTAssertNil(DiskSpacePrecheck.recordingAdvisory(availableBytes: nil))
     }
-
-    // MARK: - TokenCountEstimator / WordCountFormatter
 
     func testTokenEstimateZeroForEmptyAndMonotonic() {
         XCTAssertEqual(TokenCountEstimator.estimate(""), 0)
@@ -657,13 +628,11 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertEqual(WordCountFormatter.format(words: 1234), "1,234 words")
     }
 
-    // MARK: - PromptContextSanitizer
-
     func testSanitizerCollapsesBlankLinesAndStripsControlChars() {
         let dirty = "a\u{0007}b\n\n\n\nc"
         let clean = PromptContextSanitizer.sanitize(dirty)
         XCTAssertFalse(clean.contains("\u{0007}"))
-        XCTAssertFalse(clean.contains("\n\n\n"))   // at most one blank line between paragraphs
+        XCTAssertFalse(clean.contains("\n\n\n"))
     }
 
     func testSanitizerHonoursMaxCharacters() {
@@ -671,13 +640,11 @@ final class ReuseSubsystemsTests: XCTestCase {
         XCTAssertLessThanOrEqual(capped.count, 20)
     }
 
-    // MARK: - AppleIntelligenceEngine prompt composition (pure helpers)
-
     func testComposePromptJoinsContextAndDropsBlanks() {
         let composed = AppleIntelligenceEngine.composePrompt(prompt: "TASK", context: ["A", "", "B"])
         XCTAssertTrue(composed.contains("A"))
         XCTAssertTrue(composed.contains("B"))
-        XCTAssertTrue(composed.hasSuffix("TASK"))   // task instruction must survive at the tail
+        XCTAssertTrue(composed.hasSuffix("TASK"))
         XCTAssertFalse(composed.contains("\n\n\n"))
     }
 

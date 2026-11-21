@@ -1,6 +1,5 @@
 import Foundation
 
-/// Combines picker choices, never speaker attribution or persisted identities.
 struct MeetingSpeakerSuggestion: Identifiable {
     let id: String
     let name: String?
@@ -23,7 +22,6 @@ struct MeetingSpeakerSuggestion: Identifiable {
         calendar: [CalendarParticipantIdentity],
         hints: [String]
     ) -> [Self] {
-        // Same-named guests stay separate: each keeps its own calendar identity.
         var result: [Self] = calendar.indices.map { index in
             let candidate = calendar[index]
             return Self(id: "calendar:\(candidate.id)", name: candidate.suggestedSpeakerName,
@@ -39,11 +37,8 @@ struct MeetingSpeakerSuggestion: Identifiable {
         return result
     }
 
-    /// Every query word must appear in the name or email address, ignoring
-    /// case and accents, so "petrovic ana" finds "Ana Petrović".
     func matches(_ query: String) -> Bool {
         let text = [name, calendar?.emailAddress].compactMap { $0 }.joined(separator: " ")
-        // "đ" has no accent-free decomposition; people type it as "d" or "dj".
         return ["d", "dj"].contains { stroke in
             let haystack = Self.searchKey(text, stroke: stroke)
             return Self.searchKey(query, stroke: stroke).split(whereSeparator: \.isWhitespace)

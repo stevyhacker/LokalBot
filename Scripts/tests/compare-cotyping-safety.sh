@@ -32,9 +32,6 @@ export PATH="$fixture_root/bin:$PATH"
 export COTYPING_TEST_LOG="$fixture_root/actions"
 export COTYPING_TEST_RUNNING=LokalBot
 
-# Every check below is a plain `[ ]` or `grep`: macOS's own bash (3.2) does not
-# stop a `set -e` script when a bare `[[ ]]` is false.
-
 if bash "$repo_root/Scripts/cotyping/run-cotyping-side-by-side.command" \
     > "$fixture_root/wrapper-result" 2>&1; then
   printf 'Expected a running production LokalBot to block the wrapper.\n' >&2
@@ -63,9 +60,6 @@ if grep -Eq -e 'TextEdit|termination' "$COTYPING_TEST_LOG"; then
   exit 1
 fi
 
-# Drive one mocked prompt through the success path. Every capture/read/accept/
-# close operation must carry the document id returned by the creation call;
-# the script must never fall back to the largest or generic front window.
 cat > "$fixture_root/bin/pgrep" <<'SH'
 #!/usr/bin/env bash
 if [[ "${2:-}" == "Cotabby" ]]; then

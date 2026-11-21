@@ -1,8 +1,3 @@
-//! Looking closer at a day: the session's moments with Find and an app filter
-//! (`SessionMomentBrowser.swift`), one activity block with its related moments
-//! (`activityPreview`), and the hour-indexed day track (`CaptureTrackView`).
-//! Thumbnails are decrypted in memory only and released with the day.
-
 use chrono::{DateTime, Local, Timelike as _, Utc};
 use gpui_kit::component::button::Button;
 use gpui_kit::component::input::Input;
@@ -27,15 +22,12 @@ use crate::ui::{self, Ico};
 use crate::windows::screen_image::{self, ScreenImage};
 
 const THUMBNAIL_PIXELS: u32 = 240;
-/// Decrypted thumbnails kept for a day; later rows show an icon instead.
 const MAX_THUMBNAILS: usize = 32;
 const POINTS_PER_HOUR: f32 = 108.;
 const GUTTER: f32 = 56.;
-/// Related moments an activity block lists.
 const RELATED_MOMENTS: usize = 6;
 
 impl TimelinePage {
-    /// A moment's small image, loading it the first time it is asked for.
     pub(super) fn thumbnail(
         &self,
         moment: &ScreenMoment,
@@ -75,7 +67,6 @@ impl TimelinePage {
         None
     }
 
-    /// Forgets the day's thumbnails; their textures are freed on the next frame.
     pub(super) fn release_thumbnails(&mut self) {
         let thumbnails = std::mem::take(&mut *self.thumbnails.borrow_mut());
         for image in thumbnails.into_values().flatten() {
@@ -85,7 +76,6 @@ impl TimelinePage {
         }
     }
 
-    /// A moment's row: thumbnail, what it shows, when (`relatedMomentRow`).
     pub(super) fn moment_row(
         &self,
         id: impl Into<ElementId>,
@@ -177,9 +167,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// Every moment of the session, findable by window, document or retained
-    /// text, and by app (`SessionMomentBrowser`). "Show all N" in the Screen
-    /// moments panel opens it.
     pub(super) fn render_moment_browser(
         &self,
         moments: &[&ScreenMoment],
@@ -261,8 +248,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// One activity block (`activityPreview`): its app, time and title with
-    /// the app's day in two figures, then the moments kept during it.
     pub(super) fn render_block(
         &self,
         model: &DayModel,
@@ -393,8 +378,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// The day on an hour-indexed track, with meetings in a lane of their own
-    /// so they never hide the activity they overlap (`CaptureTrackView`).
     pub(super) fn render_track(&self, model: &DayModel, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let now = Utc::now();
@@ -550,7 +533,6 @@ impl TimelinePage {
             .into_any_element()
     }
 
-    /// Representative moments of a session, spaced evenly across its scenes.
     pub(super) fn session_scenes<'a>(
         model: &'a DayModel,
         session: &WorkSession,
@@ -563,7 +545,6 @@ impl TimelinePage {
     }
 }
 
-/// Where the track starts (the first item's hour) and how many hours it covers.
 fn track_extent(
     ranges: &[(DateTime<Utc>, DateTime<Utc>)],
     now: DateTime<Utc>,
@@ -584,7 +565,6 @@ fn track_extent(
     (start, hours.max(1))
 }
 
-/// A positioned block on the track; its text fits its height.
 #[allow(clippy::too_many_arguments)]
 fn track_block(
     id: impl Into<ElementId>,

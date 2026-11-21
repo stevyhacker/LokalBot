@@ -3,22 +3,15 @@
 // (LICENSES/AGPL-3.0.txt). Modified for LokalBot since 23 June 2026.
 // See THIRD_PARTY_NOTICES.md.
 
-//! Inline `:shortcode:` emoji (`CotypingEmoji`): a curated catalog instead
-//! of gemoji. A `:` opens a query only at a word boundary, so `http://`,
-//! `12:30` and `foo::bar` never trigger. Both `:roc` (open, prefix match,
-//! two characters at least) and `:rocket:` (closed, exact) work.
-
 use super::text::{grapheme_count, is_word_char};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct EmojiMatch {
-    /// User-perceived characters of the typed `:query` or `:query:`.
     pub typed_length: usize,
     pub glyph: &'static str,
     pub shortcode: &'static str,
 }
 
-/// The best emoji for the `:query` right before the caret.
 pub fn match_trailing(before: &str) -> Option<EmojiMatch> {
     let token = scan_trailing_token(before)?;
     if !token.closed && token.query.chars().count() < 2 {
@@ -32,7 +25,6 @@ pub fn match_trailing(before: &str) -> Option<EmojiMatch> {
     })
 }
 
-/// The ghost text macOS shows for an emoji: the glyph and its shortcode.
 pub fn ghost(before: &str, suggestion: &str) -> Option<String> {
     let hit = match_trailing(before)?;
     (hit.glyph == suggestion).then(|| format!("{} :{}:", hit.glyph, hit.shortcode))
@@ -60,7 +52,6 @@ fn scan_trailing_token(text: &str) -> Option<Token<'_>> {
     if query.is_empty() {
         return None;
     }
-    // A word boundary before the opening colon: the start or whitespace.
     if opener
         .chars()
         .next_back()
@@ -75,7 +66,6 @@ fn scan_trailing_token(text: &str) -> Option<Token<'_>> {
     })
 }
 
-/// The alias characters gemoji allows (`+1`, `-1`, `e-mail`).
 fn is_name_char(c: char) -> bool {
     is_word_char(c) || matches!(c, '_' | '+' | '-')
 }
@@ -92,14 +82,12 @@ fn best_match(raw: &str, exact_only: bool) -> Option<(&'static str, &'static str
     if exact_only {
         return None;
     }
-    // The catalog is ordered most-common first, so the first prefix match wins.
     CATALOG
         .iter()
         .find(|(code, _)| code.starts_with(&query))
         .copied()
 }
 
-/// What people type for an intent → the canonical shortcode, exact only.
 const SYNONYMS: [(&str, &str); 15] = [
     ("thumbsup", "+1"),
     ("thumbsdown", "-1"),
@@ -118,10 +106,8 @@ const SYNONYMS: [(&str, &str); 15] = [
     ("done", "white_check_mark"),
 ];
 
-/// Ordered roughly by popularity.
 #[rustfmt::skip]
 const CATALOG: &[(&str, &str)] = &[
-    // Faces
     ("joy", "😂"), ("rofl", "🤣"), ("smile", "😄"), ("smiley", "😃"), ("grin", "😁"),
     ("laughing", "😆"), ("sweat_smile", "😅"), ("slightly_smiling_face", "🙂"),
     ("wink", "😉"), ("blush", "😊"), ("heart_eyes", "😍"), ("kissing_heart", "😘"),
@@ -136,30 +122,24 @@ const CATALOG: &[(&str, &str)] = &[
     ("exploding_head", "🤯"), ("partying_face", "🥳"), ("pleading_face", "🥺"),
     ("cowboy_hat_face", "🤠"), ("smiling_imp", "😈"), ("skull", "💀"), ("ghost", "👻"),
     ("alien", "👽"), ("robot", "🤖"), ("poop", "💩"), ("clown_face", "🤡"),
-    // Hearts
     ("heart", "❤️"), ("orange_heart", "🧡"), ("yellow_heart", "💛"), ("green_heart", "💚"),
     ("blue_heart", "💙"), ("purple_heart", "💜"), ("black_heart", "🖤"), ("broken_heart", "💔"),
     ("two_hearts", "💕"), ("sparkling_heart", "💖"), ("heartpulse", "💗"), ("heartbeat", "💓"),
     ("cupid", "💘"), ("gift_heart", "💝"),
-    // Hands
     ("+1", "👍"), ("-1", "👎"), ("ok_hand", "👌"), ("punch", "👊"), ("fist", "✊"),
     ("v", "✌️"), ("wave", "👋"), ("raised_hands", "🙌"), ("pray", "🙏"), ("clap", "👏"),
     ("muscle", "💪"), ("point_up", "☝️"), ("point_down", "👇"), ("point_left", "👈"),
     ("point_right", "👉"), ("handshake", "🤝"), ("writing_hand", "✍️"), ("nail_care", "💅"),
-    // Symbols and emphasis
     ("fire", "🔥"), ("star", "⭐"), ("star2", "🌟"), ("sparkles", "✨"), ("zap", "⚡"),
     ("boom", "💥"), ("dizzy", "💫"), ("sweat_drops", "💦"), ("droplet", "💧"), ("dash", "💨"),
     ("100", "💯"), ("white_check_mark", "✅"), ("heavy_check_mark", "✔️"), ("x", "❌"),
     ("warning", "⚠️"), ("question", "❓"), ("exclamation", "❗"), ("eyes", "👀"), ("brain", "🧠"),
-    // Celebration and objects
     ("tada", "🎉"), ("confetti_ball", "🎊"), ("balloon", "🎈"), ("gift", "🎁"),
     ("trophy", "🏆"), ("medal", "🏅"), ("crown", "👑"), ("gem", "💎"), ("rocket", "🚀"),
     ("bulb", "💡"), ("lock", "🔒"), ("key", "🔑"), ("mag", "🔍"),
-    // Food and nature
     ("coffee", "☕"), ("beer", "🍺"), ("beers", "🍻"), ("pizza", "🍕"), ("hamburger", "🍔"),
     ("birthday", "🎂"), ("sunny", "☀️"), ("moon", "🌙"), ("rainbow", "🌈"),
     ("snowflake", "❄️"), ("dog", "🐶"), ("cat", "🐱"),
-    // Communication
     ("musical_note", "🎵"), ("notes", "🎶"), ("calendar", "📅"), ("email", "📧"),
     ("phone", "📱"), ("computer", "💻"), ("checkered_flag", "🏁"),
 ];

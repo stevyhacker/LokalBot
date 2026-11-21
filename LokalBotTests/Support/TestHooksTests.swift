@@ -35,8 +35,6 @@ final class TestHooksTests: XCTestCase {
                        .searchScreen(query: "connection pool"))
     }
 
-    /// Boundary reviews re-transcribe sliced regions of a track; the golden
-    /// engine answers a slice with that region's segments, relative to it.
     func testGoldenEngineAnswersARegionSliceRelativeToItsStart() async throws {
         let golden = FileManager.default.temporaryDirectory
             .appendingPathComponent("golden-\(UUID().uuidString)", isDirectory: true)

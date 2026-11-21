@@ -1,7 +1,3 @@
-//! The setup card (`AgentView.installCard`): what Agent Mode is, what setup
-//! downloads, and the explicit "Set Up Agent Mode" action. Nothing is
-//! downloaded until the user asks.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::progress::Progress;
@@ -141,8 +137,6 @@ impl AgentPage {
                         .text_size(ty::BODY)
                         .line_height(px(21.))
                         .text_color(lb.supporting)
-                        // Wrapped in logical order, so Arabic and Urdu stay
-                        // inside the column.
                         .child(crate::ui::text::paragraph(description)),
                 )
                 .when_some(shell_note, |this, note| this.child(note))

@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `settings.set` against a real `AppState`: what applies, what is refused,
-/// and that the audit log and Undo see every applied change.
 @MainActor
 final class AppControlSettingsWriteTests: XCTestCase {
     private var app: AppState!

@@ -1,21 +1,9 @@
-//! Reading the clipboard for autocomplete's prompt
-//! (`CotypingClipboardProvider`). Markers for concealed copies are checked
-//! before asking the clipboard's owner for any text, and a change while
-//! reading drops the whole read. The text is held only until the next copy,
-//! never written anywhere. On Wayland nothing is read: only LokalBot's own
-//! practice editor runs there, and it uses no clipboard context.
-
-/// One clipboard state.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ClipboardRead {
-    /// Moves when the clipboard's contents change.
     pub change_count: u64,
     pub text: String,
 }
 
-/// `org.nspasteboard`'s types as the Mac checks them, plus what password
-/// managers set on these platforms (X11's KDE hint, Windows' monitor and
-/// history opt-outs). Compared lowercased.
 const SENSITIVE_TYPES: [&str; 9] = [
     "org.nspasteboard.concealedtype",
     "org.nspasteboard.transienttype",
@@ -28,7 +16,6 @@ const SENSITIVE_TYPES: [&str; 9] = [
     "clipboard viewer ignore",
 ];
 
-/// Whether a list of clipboard types holds text and nothing concealed.
 #[cfg(any(target_os = "linux", test))]
 fn allows<'a>(types: impl IntoIterator<Item = &'a str>, is_text: impl Fn(&str) -> bool) -> bool {
     let mut has_text = false;
@@ -41,12 +28,9 @@ fn allows<'a>(types: impl IntoIterator<Item = &'a str>, is_text: impl Fn(&str) -
     has_text
 }
 
-/// Reads the clipboard, keeping the last read until its change count moves,
-/// so a read is rare however fast the typing.
 #[derive(Default)]
 pub struct ClipboardReader {
     backend: Option<backend::Backend>,
-    /// The last change count looked at and what it held.
     last: Option<(u64, Option<String>)>,
     started: bool,
 }
@@ -56,8 +40,6 @@ impl ClipboardReader {
         Self::default()
     }
 
-    /// The current clipboard, or `None` when it holds nothing readable or
-    /// something concealed, or when this desktop has no way to read it.
     pub fn read(&mut self) -> Option<ClipboardRead> {
         if !self.started {
             self.started = true;
@@ -76,7 +58,6 @@ impl ClipboardReader {
         })
     }
 
-    /// Lets go of the text and the connection.
     pub fn forget(&mut self) {
         *self = Self::default();
     }
@@ -96,11 +77,8 @@ mod backend {
 
     use super::allows;
 
-    /// A clipboard owner that takes longer than this is not waited for: this
-    /// runs on the autocomplete worker.
     const OWNER_TIMEOUT: Duration = Duration::from_millis(150);
     const MAX_TARGETS: usize = 64;
-    /// Larger text arrives in increments, which is not worth following here.
     const MAX_TEXT_WORDS: u32 = 256 * 1024;
 
     pub(super) struct Backend {
@@ -175,8 +153,6 @@ mod backend {
             self.count
         }
 
-        /// Asks the owner to convert the clipboard to `target` and reads the
-        /// result. `None` when there is no answer in time.
         fn convert(&mut self, target: Atom) -> Option<(Atom, Vec<u8>, u32)> {
             self.conn
                 .convert_selection(
@@ -242,8 +218,6 @@ mod backend {
             Some(names)
         }
 
-        /// `CotypingClipboardProvider.snapshot`: types, text, then the types
-        /// again, with the change count unmoved throughout.
         pub(super) fn snapshot(&mut self, count: u64) -> Option<String> {
             let is_text = |name: &str| name == "UTF8_STRING";
             let types = self.types()?;
@@ -290,9 +264,7 @@ mod backend {
 
     use super::SENSITIVE_TYPES;
 
-    /// `CF_UNICODETEXT`.
     const UNICODE_TEXT: u32 = 13;
-    /// Their registered names, as password managers and Windows spell them.
     const SENSITIVE_FORMATS: [&str; 4] = [
         "ExcludeClipboardContentFromMonitorProcessing",
         "CanIncludeInClipboardHistory",
@@ -303,8 +275,6 @@ mod backend {
     pub(super) struct Backend;
 
     fn holds_text_and_nothing_concealed() -> bool {
-        // SAFETY: no pointers beyond the strings that outlive each call; these
-        // calls do not open the clipboard, so its owner is not asked for text.
         unsafe {
             let concealed = SENSITIVE_FORMATS
                 .iter()
@@ -323,7 +293,6 @@ mod backend {
         }
 
         pub(super) fn change_count(&mut self) -> u64 {
-            // SAFETY: no arguments; returns 0 without clipboard access.
             u64::from(unsafe { GetClipboardSequenceNumber() })
         }
 
@@ -376,8 +345,6 @@ mod tests {
         assert!(!allows(["Clipboard Viewer Ignore", "UTF8_STRING"], text));
     }
 
-    /// Reads a real selection owner: runs only with an X display, such as
-    /// under `xvfb-run`.
     #[cfg(target_os = "linux")]
     #[test]
     fn reads_an_x11_owner_and_refuses_a_password_manager() {
@@ -470,7 +437,6 @@ mod tests {
         let mut reader = ClipboardReader::new();
         let first = reader.read().expect("the owner answers");
         assert_eq!(first.text, "the cutover plan");
-        // The same state is answered without asking the owner again.
         assert_eq!(reader.read(), Some(first));
         concealed.store(true, std::sync::atomic::Ordering::Relaxed);
         let mut fresh = ClipboardReader::new();

@@ -1,11 +1,5 @@
 import Foundation
 
-/// Replaces every personal string in a capture trace with a structure-
-/// preserving placeholder before the trace is written. Letters become
-/// consonants (so any vowel in a scrubbed field reveals unscrubbed text),
-/// digits stay digits, punctuation stays, so detection patterns such as Meet
-/// codes survive while content does not. Keep `allowlist` equal to
-/// `Scripts/test/record-capture/scrub-allowlist.json`.
 struct CaptureTraceScrubber {
     static let version = 1
 
@@ -13,8 +7,6 @@ struct CaptureTraceScrubber {
         let vocabulary: Set<String>
         let appNames: Set<String>
         let meetingHosts: Set<String>
-        /// Detection-relevant apps; their helper processes (an allowed ID
-        /// followed by ".") are kept too.
         let bundleIDs: Set<String>
         let bundlePrefixes: [String]
     }
@@ -76,7 +68,6 @@ struct CaptureTraceScrubber {
             event.read = read
         }
         if var browser = event.browser {
-            // Fail closed: an unparseable scrubbed URL never keeps the original.
             browser.url = URL(string: scrubURL(browser.url.absoluteString)) ?? URL(fileURLWithPath: "/")
             event.browser = browser
         }

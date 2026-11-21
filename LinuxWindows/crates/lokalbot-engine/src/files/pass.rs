@@ -1,8 +1,3 @@
-//! Extracts and embeds whatever is pending (`Indexer`): pending files first,
-//! screenshots first and newest first; long PDFs and documents get their first
-//! step, and the rest after everything else. Per-file problems are recorded on the
-//! file; a server that can't answer stops the pass, and files stay pending.
-
 use std::collections::{BTreeMap, HashSet};
 use std::path::Path;
 use std::time::Instant;
@@ -19,7 +14,6 @@ use super::image_sizing;
 use super::media::{self, ImageFailure};
 use super::pdf;
 
-/// The model calls a pass makes. One at a time, and they wait.
 pub trait Embed {
     fn source(&self) -> String;
     fn embed_texts(&self, texts: &[String]) -> Result<Vec<Vec<f32>>, MediaError>;
@@ -45,13 +39,10 @@ impl Embed for MediaEmbedder {
     }
 }
 
-/// Screenshots' words, for keyword search. Without the model there are no words:
-/// a screenshot then has its picture vector and its name.
 pub trait ReadText {
     fn text_of(&mut self, rgb: &image_sizing::Rgb) -> String;
 }
 
-/// Reads no words.
 pub struct NoText;
 
 impl ReadText for NoText {
@@ -60,7 +51,6 @@ impl ReadText for NoText {
     }
 }
 
-/// What a pass was stopped by: the embedder went away. Files stay pending.
 #[derive(Debug)]
 pub struct WorkerGone(pub String);
 
@@ -76,10 +66,8 @@ fn gone(err: MediaError) -> anyhow::Error {
     WorkerGone(err.to_string()).into()
 }
 
-/// How a call to the model ended, for one file.
 enum Outcome<T> {
     Ok(T),
-    /// This input fails alone.
     Rejected(String),
 }
 
@@ -94,19 +82,15 @@ fn outcome<T>(result: Result<T, MediaError>) -> Result<Outcome<T>> {
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct PassOutcome {
     pub files_read: usize,
-    /// Seconds the model and the readers worked.
     pub seconds: f64,
-    /// Files still waiting afterwards.
     pub left: usize,
 }
 
-/// Progress from a pass.
 pub enum PassProgress {
     Files { done: usize, total: usize },
     LongFiles { left: usize },
 }
 
-/// One job's worth of reading, done ahead of the model.
 enum Payload {
     Nothing,
     Images(Vec<ReadyImage>),
@@ -122,8 +106,6 @@ enum Payload {
         total: usize,
         characters: usize,
     },
-    /// Decoded while the model embeds, a window at a time: long recordings never
-    /// sit in memory whole.
     Audio,
     Video,
 }
@@ -139,17 +121,14 @@ struct ReadyImage {
 
 struct Prepared {
     payload: Payload,
-    /// Files already settled while reading: slot, state, detail.
     outcomes: Vec<(usize, &'static str, String)>,
 }
 
 struct Job {
     files: Vec<FileRecord>,
-    /// A long file's later step (`Job.step`): the pages or chunks to read, from 0.
     step: Option<std::ops::Range<usize>>,
 }
 
-/// Images and screenshots go to the model 8 at a time; other files one by one.
 fn batches(queue: Vec<FileRecord>) -> Vec<Vec<FileRecord>> {
     let mut out: Vec<Vec<FileRecord>> = Vec::new();
     for file in queue {
@@ -167,10 +146,6 @@ fn batches(queue: Vec<FileRecord>) -> Vec<Vec<FileRecord>> {
     out
 }
 
-/// A scan, or a page that's mostly a picture: its words come from OCR, for keyword
-/// search only (an invoice number on a scan, as on a screenshot), and its meaning stays
-/// the picture's vector. Not for a text layer that came out in glyph order, which OCR
-/// can't read either.
 fn read_scan(page: &mut pdf::Page, budget: u32, words: &mut dyn ReadText) {
     let Some(scan) = page.scan.take() else {
         return;
@@ -188,8 +163,6 @@ fn read_scan(page: &mut pdf::Page, budget: u32, words: &mut dyn ReadText) {
     }
 }
 
-/// A pass's source of decoded long documents, kept while their steps go by: the
-/// PDF parser reads a whole file at a time.
 #[derive(Default)]
 struct PdfCache {
     path: String,
@@ -311,7 +284,6 @@ fn prepare(
     Prepared { payload, outcomes }
 }
 
-/// One pass over one index.
 pub struct Pass<'a> {
     pub index: &'a FileIndex,
     pub options: &'a IndexOptions,
@@ -351,8 +323,6 @@ impl<'a> Pass<'a> {
         )
     }
 
-    /// Compares the index with the current model and settings; a change empties
-    /// it, since vectors from different settings can't be compared.
     pub fn check_model(&self) -> Result<()> {
         let now = self.fingerprint();
         if let Some(indexed) = self.index.meta("fingerprint")?
@@ -366,7 +336,6 @@ impl<'a> Pass<'a> {
         Ok(())
     }
 
-    /// Set once the model has made something: the index now holds its vectors.
     fn note_embedding(&mut self) -> Result<()> {
         if !self.embedding_started {
             self.check_model()?;
@@ -379,7 +348,6 @@ impl<'a> Pass<'a> {
         Ok(())
     }
 
-    /// Processes pending files (`only`: just these). Returns how many were read.
     pub fn run(
         &mut self,
         only: Option<&HashSet<i64>>,
@@ -414,8 +382,6 @@ impl<'a> Pass<'a> {
         Ok((read, seconds))
     }
 
-    /// The later pass: the rest of long PDFs and documents, a step at a time.
-    /// Each step is saved as one transaction, so stopping loses nothing.
     pub fn finish_long_files(
         &mut self,
         should_stop: &mut dyn FnMut() -> bool,
@@ -489,7 +455,6 @@ impl<'a> Pass<'a> {
         }
     }
 
-    /// A long file that can't be read any further keeps what was read of it.
     fn stop_reading(&self, job: &Job, why: &str) -> Result<&'static str> {
         let file = &job.files[0];
         let place = job.step.as_ref().map_or(0, |step| step.start);
@@ -510,8 +475,6 @@ impl<'a> Pass<'a> {
         Ok("done")
     }
 
-    /// Writes one job's results. Returns the slots read; a server that can't
-    /// answer stops the pass.
     fn commit(&mut self, job: &Job, prepared: Prepared) -> Result<Vec<usize>> {
         let mut read: Vec<usize> = Vec::new();
         for (slot, state, detail) in &prepared.outcomes {
@@ -610,8 +573,6 @@ impl<'a> Pass<'a> {
                     None,
                     Some(vector),
                 )?;
-                // The words on screen are for keyword search: codes, names and
-                // errors typed exactly. Meaning comes from the picture alone.
                 if !item.words.is_empty() {
                     self.index.add_segment(
                         file.id,
@@ -642,8 +603,6 @@ impl<'a> Pass<'a> {
         Ok(read)
     }
 
-    /// Pages `read` of a PDF. A long one stays `partial` with `read_to` and
-    /// `read_end` in its info until its last step.
     fn pdf(
         &mut self,
         file: &FileRecord,
@@ -712,7 +671,6 @@ impl<'a> Pass<'a> {
                 .and_then(|at| text_vectors.get(at))
         };
         self.index.transaction(|| {
-            // Meaning only: the garbled words are never shown or matched.
             for (page, vector) in garbled.iter().zip(&garbled_vectors) {
                 self.index.add_segment(
                     file.id,
@@ -751,7 +709,6 @@ impl<'a> Pass<'a> {
             for (page, vector) in pictured.iter().zip(&picture_vectors) {
                 let vector = match vector {
                     Outcome::Ok(vector) => Some(vector.as_slice()),
-                    // The picture fails alone; any words still count.
                     Outcome::Rejected(why) => {
                         log::debug!("file search: page {} rejected: {why}", page.number);
                         None
@@ -802,7 +759,6 @@ impl<'a> Pass<'a> {
         })
     }
 
-    /// Chunks `read` of a document, the way `pdf` reads pages.
     fn doc(
         &mut self,
         file: &FileRecord,
@@ -817,7 +773,6 @@ impl<'a> Pass<'a> {
                 .finish(file.id, "skipped", Some("no text"), &BTreeMap::new());
         }
         let title = stem(&file.path);
-        // Text that's mostly digits gets keyword search only.
         let worded: Vec<usize> = (0..pieces.len())
             .filter(|at| has_prose(&pieces[*at]))
             .collect();
@@ -874,7 +829,6 @@ impl<'a> Pass<'a> {
         })
     }
 
-    /// A recording's windows, embedded as they are decoded.
     fn embed_sound(&mut self, file: &FileRecord) -> Result<(Vec<Placed>, f64), Failed> {
         let (window, hop) = (self.options.audio_window, self.options.audio_hop);
         let embedder = self.embedder;
@@ -949,7 +903,6 @@ impl<'a> Pass<'a> {
         })
     }
 
-    /// A frame per shot, when ffmpeg can draw them, and the soundtrack.
     fn video(&mut self, file: &FileRecord) -> Result<()> {
         self.note_embedding()?;
         let started = Instant::now();
@@ -984,13 +937,11 @@ impl<'a> Pass<'a> {
         if let Some(err) = stopped {
             return Err(err);
         }
-        // Each kept frame stands for the stretch until the next kept frame.
         for at in 1..frames.len() {
             frames[at - 1].1 = frames[at].0;
         }
         let (windows, sound_seconds) = match self.embed_sound(file) {
             Ok(result) => result,
-            // A video with no sound we can read may still have its frames.
             Err(Failed::File(why)) => {
                 log::debug!("file search: no sound from a video: {why}");
                 (Vec::new(), 0.0)
@@ -1047,7 +998,6 @@ impl<'a> Pass<'a> {
     }
 }
 
-/// A vector and the stretch of a recording or video it stands for.
 type Placed = (f64, f64, Vec<f32>);
 
 enum Failed {
@@ -1073,7 +1023,6 @@ pub(crate) mod tests {
     use parking_lot::Mutex;
     use std::sync::Arc;
 
-    /// A model with one dimension per keyword, in the index's 768.
     #[derive(Default, Clone)]
     pub(crate) struct StubEmbedder {
         pub calls: Arc<Mutex<Vec<String>>>,
@@ -1222,7 +1171,6 @@ pub(crate) mod tests {
         assert_eq!(info["read_to"], "10");
         let total: usize = info["read_end"].parse().unwrap();
         assert!(total > 10);
-        // Stopped before anything else is read: nothing is lost.
         pass.finish_long_files(&mut || true, &mut |_| {}).unwrap();
         assert_eq!(state(&index, id).0, "partial");
         let mut lefts = Vec::new();
@@ -1299,7 +1247,6 @@ pub(crate) mod tests {
         let counts = index.counts().unwrap();
         assert_eq!(counts.vectors, 1, "meaning comes from the picture");
         assert_eq!(counts.segments, 1, "the page, with its words");
-        // The words on the scan find its page.
         let directory = dir.path().join("index");
         let mut searcher = lokalbot_core::files::search::Searcher::new(
             FileIndex::open_read_only(&directory).unwrap(),
@@ -1414,7 +1361,6 @@ pub(crate) mod tests {
         assert_eq!(index.counts().unwrap().vectors, 2);
     }
 
-    /// Runs only where ffmpeg is installed, which is what frames need.
     #[test]
     fn video_becomes_frames_and_sound() {
         let Some(tool) = media::ffmpeg() else {

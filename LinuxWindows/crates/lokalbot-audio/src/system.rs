@@ -1,14 +1,3 @@
-//! System audio ("Them"): the meeting app's sound when it can be separated
-//! (`app_audio`), otherwise what the computer plays, captured from the default
-//! output device and followed when the user switches outputs.
-//!
-//! - Linux: the default sink's monitor through the PulseAudio protocol (works
-//!   with PulseAudio and PipeWire's pipewire-pulse), asking the server for
-//!   16 kHz mono float. Falls back to `parec`, then `pw-record`. An app's own
-//!   sound is a monitor of each of its sink inputs.
-//! - Windows: WASAPI loopback of the default render endpoint. An app's own
-//!   sound is WASAPI process loopback of its process tree.
-
 use std::sync::Arc;
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -19,11 +8,9 @@ use crate::app_audio::{AppAudioTarget, AppStream, Scope, ScopeChooser};
 use crate::capture::StreamFlags;
 use crate::track::ChunkSink;
 
-/// How often the default output device and the app's streams are checked.
 const DEVICE_POLL: Duration = Duration::from_secs(2);
 
 pub(crate) struct SystemCapture {
-    /// Empty only for the moment a capture is being replaced.
     inner: Option<platform::Capture>,
     sink: ChunkSink,
     flags: Arc<StreamFlags>,
@@ -31,13 +18,10 @@ pub(crate) struct SystemCapture {
     target: Option<AppAudioTarget>,
     chooser: ScopeChooser,
     scope: Scope,
-    /// The app whose sound couldn't be separated, for the recording's warnings.
     tap_problem: Option<String>,
 }
 
 impl SystemCapture {
-    /// Starts on the app's sound when it can be separated, else on the whole
-    /// output. Only a failure of the whole output is an error.
     pub fn start(
         sink: ChunkSink,
         flags: Arc<StreamFlags>,
@@ -65,14 +49,10 @@ impl SystemCapture {
         &self.flags
     }
 
-    /// The app's output streams, or `None` when they can't be read.
     fn app_streams(&self) -> Option<Vec<AppStream>> {
         self.target.as_ref().and_then(platform::app_streams)
     }
 
-    /// Replaces the running capture. The old one stops first, so no buffer is
-    /// written twice; the track's timeline fills the moment between them. A
-    /// tap that won't open falls back to the whole output.
     fn open(&mut self, scope: Scope, streams: Option<&[AppStream]>) -> Result<()> {
         self.inner = None;
         self.flags.reset();
@@ -87,7 +67,6 @@ impl SystemCapture {
             ) {
                 Ok(capture) => {
                     log::info!("audio: capturing system audio from {}", target.app_name);
-                    // A tapped app delivers nothing while it plays nothing.
                     self.sink
                         .state()
                         .silent_without_packets
@@ -106,8 +85,6 @@ impl SystemCapture {
                 }
             }
         }
-        // The default output's monitor delivers silence continuously on Linux;
-        // Windows loopback sets this for itself.
         self.sink
             .state()
             .silent_without_packets
@@ -120,20 +97,16 @@ impl SystemCapture {
         Ok(())
     }
 
-    /// The call this recording belongs to was found. Takes effect at the next poll.
     pub fn set_target(&mut self, target: AppAudioTarget) {
         self.chooser = ScopeChooser::new(platform::tap_supported());
         self.target = Some(target);
         self.last_poll = Instant::now() - DEVICE_POLL;
     }
 
-    /// The app whose sound couldn't be separated, once.
     pub fn take_tap_problem(&mut self) -> Option<String> {
         self.tap_problem.take()
     }
 
-    /// Follows the app's streams and the default output. Returns a note for
-    /// the log when the capture moved.
     pub fn follow(&mut self) -> Option<String> {
         if self.last_poll.elapsed() < DEVICE_POLL {
             return None;
@@ -172,8 +145,6 @@ impl SystemCapture {
         Some(format!("System audio now follows {name}"))
     }
 
-    /// Reopens what is being recorded. A tap that won't reopen becomes the
-    /// whole output here, so only a failure of the whole output is an error.
     pub fn restart(&mut self) -> Result<()> {
         let streams = self.app_streams();
         self.open(self.scope, streams.as_deref())
@@ -202,7 +173,6 @@ mod platform {
 
     const CONNECT_TIMEOUT: Duration = Duration::from_secs(3);
     const PACTL_TIMEOUT: Duration = Duration::from_secs(2);
-    /// 20 ms of 16 kHz mono f32.
     const FRAGMENT_BYTES: u32 = SAMPLE_RATE / 50 * 4;
 
     pub(super) enum Capture {
@@ -211,7 +181,6 @@ mod platform {
         App(AppCapture),
     }
 
-    /// An app's sound can be told apart when `pactl` can list it.
     pub fn tap_supported() -> bool {
         Command::new("pactl")
             .arg("--version")
@@ -222,7 +191,6 @@ mod platform {
             .is_ok_and(|status| status.success())
     }
 
-    /// The target's open, playing sink inputs. `None` when `pactl` can't say.
     pub fn app_streams(target: &AppAudioTarget) -> Option<Vec<AppStream>> {
         let inputs = sink_inputs()?;
         Some(matching_streams(&inputs, target, std::process::id()))
@@ -292,17 +260,12 @@ mod platform {
         pub fn default_device_changed(&self) -> bool {
             match self {
                 Self::Pulse(capture) => capture.default_sink_changed(),
-                // The server resolves @DEFAULT_MONITOR@ once; restart to follow.
                 Self::Process(_) => false,
-                // Each stream is reopened when it moves to another device.
                 Self::App(_) => false,
             }
         }
     }
 
-    /// An app's sound: one monitor of each of its sink inputs, mixed. Nothing
-    /// else on the output reaches these streams, and the app's own routing and
-    /// volume are left alone.
     pub(super) struct AppCapture {
         client: pulseaudio::Client,
         lanes: HashMap<u32, (u32, pulseaudio::RecordStream)>,
@@ -325,9 +288,6 @@ mod platform {
             Ok(capture)
         }
 
-        /// Opens monitors for new streams and closes those of finished ones.
-        /// A stream that moved to another device is reopened there: the server
-        /// ends a monitor when its sink input moves.
         fn sync(&mut self, streams: &[AppStream]) -> Result<()> {
             let gone: Vec<u32> = self
                 .lanes
@@ -354,8 +314,6 @@ mod platform {
                     first_error.get_or_insert(error);
                 }
             }
-            // Nothing to record from at all is a failed tap; one stream that
-            // won't open while others record is not.
             match first_error {
                 Some(error) if self.lanes.is_empty() => Err(error),
                 _ => Ok(()),
@@ -416,7 +374,6 @@ mod platform {
         }
     }
 
-    /// One entry of `pactl list sink-inputs`.
     #[derive(Clone, Debug, Default, PartialEq, Eq)]
     pub(super) struct SinkInput {
         pub index: u32,
@@ -433,12 +390,10 @@ mod platform {
         {
             return Some(inputs);
         }
-        // pactl before PulseAudio 16 has no JSON output.
         let bytes = pactl(&["list", "sink-inputs"])?;
         Some(parse_sink_inputs_text(&String::from_utf8_lossy(&bytes)))
     }
 
-    /// Runs `pactl` in the C locale, and gives up on a hung server.
     fn pactl(args: &[&str]) -> Option<Vec<u8>> {
         let mut child = Command::new("pactl")
             .args(args)
@@ -540,9 +495,6 @@ mod platform {
         inputs
     }
 
-    /// The target's playing sink inputs, in a steady order. A stream counts by
-    /// its process or by the same executable, since a call's sound can come
-    /// from another process of the app. LokalBot's own never does.
     pub(super) fn matching_streams(
         inputs: &[SinkInput],
         target: &AppAudioTarget,
@@ -573,7 +525,6 @@ mod platform {
     }
 
     fn connect() -> Result<pulseaudio::Client> {
-        // The handshake has no socket timeout; never let a hung server block recording.
         let (tx, rx) = mpsc::channel();
         std::thread::spawn(move || {
             let _ = tx.send(pulseaudio::Client::from_env(c"LokalBot"));
@@ -672,7 +623,6 @@ mod platform {
                 .stdout
                 .take()
                 .ok_or_else(|| anyhow!("{program} has no output"))?;
-            // Fail fast when the tool exits at once (no server, unknown device).
             std::thread::sleep(Duration::from_millis(150));
             if let Ok(Some(status)) = child.try_wait() {
                 return Err(anyhow!("{program} exited ({status})"));
@@ -748,7 +698,6 @@ mod platform {
         crate::process_loopback::supported()
     }
 
-    /// The target's process tree's playing sessions. `None` when they can't be read.
     pub fn app_streams(target: &AppAudioTarget) -> Option<Vec<AppStream>> {
         crate::process_loopback::playing_processes(target.pid)
     }
@@ -767,7 +716,6 @@ mod platform {
         pub fn start(sink: ChunkSink, flags: Arc<StreamFlags>) -> Result<Self> {
             let (device, key, name) =
                 default_output().ok_or_else(|| anyhow!("no output device"))?;
-            // Loopback delivers nothing while nothing plays.
             sink.state()
                 .silent_without_packets
                 .store(true, Ordering::Relaxed);
@@ -790,7 +738,6 @@ mod platform {
             Ok(Self::App { _tap })
         }
 
-        /// The process tree follows its own streams.
         pub fn sync_app(&mut self, _streams: &[AppStream]) -> Result<()> {
             Ok(())
         }
@@ -807,7 +754,6 @@ mod platform {
                 Self::Output { key, .. } => {
                     default_output().is_some_and(|(_, current, _)| current != *key)
                 }
-                // Process loopback isn't tied to an output device.
                 Self::App { .. } => false,
             }
         }
@@ -930,8 +876,6 @@ mod tests {
             input(6, 1, true, 400, "chrome"),
             input(5, 1, false, 999, "lokalbot"),
         ];
-        // Another process of the same browser counts; music and a paused
-        // stream don't.
         assert_eq!(
             matching_streams(&inputs, &target(400, "chrome"), 999),
             vec![
@@ -940,12 +884,10 @@ mod tests {
             ]
         );
         assert!(matching_streams(&inputs, &target(1, "zoom"), 999).is_empty());
-        // A renamed process still counts by its pid.
         assert_eq!(
             matching_streams(&inputs, &target(500, "spotify-launcher"), 999),
             vec![AppStream { id: 9, device: 1 }]
         );
-        // LokalBot's own playback never counts, whatever it's called.
         assert!(matching_streams(&inputs, &target(999, "lokalbot"), 999).is_empty());
     }
 }

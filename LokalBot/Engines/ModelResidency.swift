@@ -1,17 +1,5 @@
 import Foundation
 
-/// App-wide ledger of which model weights are resident in memory, with a RAM
-/// budget and least-recently-used eviction. The llama runtimes (`LlamaServer`
-/// instances and the in-process cotyping runtime) register on load, touch on
-/// reuse, and consult `willLoad` before pulling new weights in so the app
-/// never silently stacks a summarizer, an embedder, and a cotyping model past
-/// what the machine can hold.
-///
-/// GGUF rows include weights plus a role-specific cache/KV allowance. Retained
-/// CoreML/MLX reservations are supplied as non-evictable bytes by
-/// `ModelRuntimeRegistry`, so every local model load consults one RAM budget.
-/// Eviction choices live in `ModelResidencyPolicy` (pure, unit-tested); this
-/// class owns the mutable GGUF ledger and the `@Published` UI mirror.
 @MainActor
 final class ModelResidency: ObservableObject {
 
@@ -21,12 +9,7 @@ final class ModelResidency: ObservableObject {
         let id: String
         var label: String
         var bytes: Int64
-        /// Present for out-of-process runtimes so diagnostics can report the
-        /// helper's live footprint. In-process models leave this nil because the
-        /// app footprint cannot be attributed to one model accurately.
         var processIdentifier: pid_t?
-        /// Paired with the PID so a stale row can never be mistaken for an
-        /// unrelated process after macOS reuses that identifier.
         var processStartTime: UInt64?
         var lastUsed: Date
     }
@@ -38,18 +21,9 @@ final class ModelResidency: ObservableObject {
     }
 
     @Published private(set) var residents: [Resident] = []
-    /// Residency ids currently pinned by open inference leases (pushed by
-    /// `InferenceBroker`). Pinned rows are never eviction victims; they still
-    /// count toward the budget. Descriptions are dashboard strings per id,
-    /// e.g. "chat (interactive)".
     @Published private(set) var pinnedIDs: Set<String> = []
     @Published private(set) var leaseDescriptions: [String: [String]] = [:]
-    /// Unload hooks by resident id, kept out of `Resident` so it stays a
-    /// plain Equatable value for the UI.
     private var unloaders: [String: () async -> Void] = [:]
-    /// A runtime can stop and restart while an older shutdown task is still
-    /// finishing. Generations keep that stale task from unregistering the
-    /// replacement model that now occupies the same logical residency id.
     private var registrationGenerations: [String: UUID] = [:]
     private var loadReservations: [UUID: LoadReservation] = [:]
     private var reservationExpiryTasks: [UUID: Task<Void, Never>] = [:]
@@ -58,8 +32,6 @@ final class ModelResidency: ObservableObject {
     private var evictingIDs: Set<String> = []
     private var evictionWaiters: [String: [CheckedContinuation<Void, Never>]] = [:]
 
-    /// Weights budget: half of physical RAM by default, leaving the other
-    /// half for the app, transcription engines, and everything else.
     var budgetBytes: Int64
 
     init(budgetBytes: Int64 = Int64(ProcessInfo.processInfo.physicalMemory / 2)) {
@@ -105,8 +77,6 @@ final class ModelResidency: ObservableObject {
         leaseDescriptions = descriptions
     }
 
-    /// Private runtimes participate in the same governor without requiring a
-    /// broker role. Publish the pin before preparing or using their weights.
     func pin(id: String) async -> UUID {
         let token = UUID()
         directPins[token] = id
@@ -134,17 +104,11 @@ final class ModelResidency: ObservableObject {
         residents.removeAll { $0.id == id }
     }
 
-    /// Removes a row only if it is still the registration created by the
-    /// caller. Used by subprocess shutdown paths, which can finish after a
-    /// replacement process has already registered under the same id.
     func unregister(id: String, ifGenerationMatches generation: UUID) {
         guard registrationGenerations[id] == generation else { return }
         unregister(id: id)
     }
 
-    /// Evict least-recently-used residents (never `id` itself — a model swap
-    /// on the same runtime replaces in place) until `bytes` fits the budget.
-    /// Call right before loading new weights.
     @discardableResult
     func willLoad(id: String, bytes: Int64, reservedBytes: Int64 = 0,
                   currentReservedBytes: (@MainActor () -> Int64)? = nil) async
@@ -156,8 +120,6 @@ final class ModelResidency: ObservableObject {
         while !Task.isCancelled {
             await waitForEvictions(of: evictingIDs)
             guard !Task.isCancelled else { break }
-            // Every unload suspends. Rebuild the plan so a new pin, a smaller
-            // replacement, or another admission cannot leave stale victims.
             let otherPendingBytes = loadReservations.values
                 .filter { $0.id != reservation.id }
                 .reduce(Int64(0)) { Self.saturatingAdd($0, $1.bytes) }
@@ -170,8 +132,6 @@ final class ModelResidency: ObservableObject {
             let unload = unloaders[victim]
             let label = residents.first { $0.id == victim }?.label ?? victim
             lokalbotLog("model residency: evicting \(label) to fit incoming load")
-            // Drop the ledger row first so the victim's own unregister call
-            // (from its unload path) is a harmless no-op.
             evictingIDs.insert(victim)
             unregister(id: victim)
             await unload?()
@@ -214,14 +174,11 @@ final class ModelResidency: ObservableObject {
         return result.overflow ? .max : result.partialValue
     }
 
-    /// File size of the weights at `url` (0 if unreadable) — the bytes every
-    /// caller registers with, so ledger entries stay comparable.
     nonisolated static func weightBytes(at url: URL) -> Int64 {
         ((try? FileManager.default.attributesOfItem(atPath: url.path)[.size]) as? Int64) ?? 0
     }
 }
 
-/// The eviction decision, kept pure for unit tests.
 enum ModelResidencyPolicy {
 
     struct Entry: Equatable {
@@ -230,14 +187,6 @@ enum ModelResidencyPolicy {
         let lastUsed: Date
     }
 
-    /// IDs to evict, least-recently-used first, so the surviving residents
-    /// plus the incoming load fit `budgetBytes`. The incoming id is never a
-    /// victim, and neither is any pinned id — an open inference lease means a
-    /// request is running against those weights right now. Pinned bytes still
-    /// count toward the total, so admission stays honest. When the newcomer
-    /// alone exceeds the budget, everything unpinned is evicted and the load
-    /// proceeds best-effort — refusing to load would break the feature the
-    /// user just asked for.
     static func evictions(residents: [Entry], incomingID: String,
                           incomingBytes: Int64, reservedBytes: Int64 = 0,
                           pinned: Set<String> = [],

@@ -1,21 +1,14 @@
 import Foundation
 
-/// The person's tracked projects, the suggestions they turned down, and the
-/// "Where it stands" notes written for tracked projects, saved under
-/// `projects/` in the library. Small JSON files, written on the main actor.
 @MainActor
 final class ProjectStore: ObservableObject {
     @Published private(set) var curation = ProjectCuration()
     @Published private(set) var summaries: [UUID: ProjectStatusSummary] = [:]
-    /// Tracked projects whose note is being written.
     @Published private(set) var writing: Set<UUID> = []
-    /// The last failure per project, cleared by the next attempt.
     @Published private(set) var errors: [UUID: String] = [:]
     @Published private(set) var lastError: String?
 
     let directory: URL
-    /// Automatic writes already tried this session, by project and evidence,
-    /// so a failing model is not asked again on every visit.
     private var automaticAttempts: Set<String> = []
 
     init(directory: URL) {
@@ -26,10 +19,6 @@ final class ProjectStore: ObservableObject {
     private var curationURL: URL { directory.appendingPathComponent(ProjectCuration.fileName) }
     private var summariesURL: URL { directory.appendingPathComponent(ProjectStatusSummary.fileName) }
 
-    // MARK: - Tracking
-
-    /// Starts tracking a project, or returns the tracked project already
-    /// known by that name.
     @discardableResult
     func track(name: String, otherNames: [String] = []) -> UUID? {
         let cleaned: String = Self.cleanName(name)
@@ -54,8 +43,6 @@ final class ProjectStore: ObservableObject {
         save(curation: updated)
     }
 
-    /// Folds one tracked project into another: its names become the
-    /// target's other names, and its note is discarded.
     func merge(_ sourceID: UUID, into targetID: UUID) {
         guard sourceID != targetID,
               let source = curation.tracked(sourceID),
@@ -69,7 +56,6 @@ final class ProjectStore: ObservableObject {
         removeSummary(for: sourceID)
     }
 
-    /// Adds a suggestion's name to a tracked project.
     func addName(_ name: String, to id: UUID) {
         guard let project = curation.tracked(id) else { return }
         update(id, name: project.name, otherNames: project.otherNames + [name])
@@ -83,7 +69,6 @@ final class ProjectStore: ObservableObject {
         removeSummary(for: id)
     }
 
-    /// "Not a Project": the name is no longer suggested.
     func hideSuggestion(named name: String) {
         let key: String = PeopleDirectory.normalized(name)
         guard !key.isEmpty, !curation.hiddenNames.contains(key) else { return }
@@ -99,12 +84,9 @@ final class ProjectStore: ObservableObject {
         save(curation: updated)
     }
 
-    // MARK: - Where it stands
-
     enum SummaryState: Equatable {
         case missing
         case current
-        /// Newer or changed evidence since the note was written.
         case outdated
     }
 
@@ -114,7 +96,6 @@ final class ProjectStore: ObservableObject {
         return summary.evidenceFingerprint == ProjectStatusGenerator.fingerprint(evidence) ? .current : .outdated
     }
 
-    /// Whether an automatic refresh may run for this project's evidence now.
     func shouldWriteAutomatically(_ project: ProjectProfile) -> Bool {
         guard let id = project.trackedID, !writing.contains(id) else { return false }
         let evidence = ProjectStatusGenerator.evidence(for: project)
@@ -127,8 +108,6 @@ final class ProjectStore: ObservableObject {
         await startWritingSummary(for: project, automatic: automatic, location: location, makeEngine: makeEngine)?.value
     }
 
-    /// Marks the project as being written before returning, so a page opening
-    /// it draws "Writing…" in its first frame instead of "No note yet".
     @discardableResult
     func startWritingSummary(for project: ProjectProfile, automatic: Bool, location: String,
                              makeEngine: @escaping @MainActor () async throws -> TextEngine) -> Task<Void, Never>? {
@@ -149,7 +128,6 @@ final class ProjectStore: ObservableObject {
             let engine = try await makeEngine()
             let summary = try await ProjectStatusGenerator.generate(
                 evidence: evidence, projectID: id, engine: engine, location: location)
-            // The project may have been dropped while the model wrote.
             guard curation.tracked(id) != nil else { return }
             var updated = summaries
             updated[id] = summary
@@ -161,7 +139,6 @@ final class ProjectStore: ObservableObject {
         }
     }
 
-    /// A deleted meeting takes every note that used it along (PRIVACY.md).
     func withdrawSummaries(citing meetingIDs: Set<UUID>) {
         guard !meetingIDs.isEmpty else { return }
         let kept = summaries.filter { $0.value.meetingIDs.allSatisfy { !meetingIDs.contains($0) } }
@@ -169,7 +146,6 @@ final class ProjectStore: ObservableObject {
         save(summaries: kept)
     }
 
-    /// Safety net for meetings removed outside the app's delete path.
     func withdrawSummaries(missingFrom library: Set<UUID>) {
         let cited: Set<UUID> = Set(summaries.values.flatMap(\.meetingIDs))
         withdrawSummaries(citing: cited.subtracting(library))
@@ -181,8 +157,6 @@ final class ProjectStore: ObservableObject {
         updated[id] = nil
         save(summaries: updated)
     }
-
-    // MARK: - Persistence
 
     private func load() {
         let decoder = JSONDecoder()

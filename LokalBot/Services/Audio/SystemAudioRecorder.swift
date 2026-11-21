@@ -4,14 +4,6 @@ import AppKit
 import AudioToolbox
 import CoreAudio
 
-/// Records the audio *output* of one process (the meeting app) using
-/// Core Audio process taps (macOS 14.4+) — the "Them" track.
-///
-/// Pipeline: PID → process AudioObject → CATapDescription → process tap
-/// → private aggregate device containing the tap → IOProc → AAC `.m4a`.
-/// Pattern follows Apple's "Capturing system audio with Core Audio taps"
-/// and insidegui/AudioCap. Requires the "System Audio Recording" TCC
-/// permission (NSAudioCaptureUsageDescription) and no App Sandbox.
 final class SystemAudioRecorder {
 
     enum RecorderError: LocalizedError {
@@ -31,7 +23,6 @@ final class SystemAudioRecorder {
         }
     }
 
-    /// Tests and the UI background host may replace this before any recorder exists.
     static var defaultTapFactory: () -> SystemAudioTap = { CoreAudioProcessTap() }
     private let makeTap: () -> SystemAudioTap
     private var tap: SystemAudioTap?
@@ -41,16 +32,10 @@ final class SystemAudioRecorder {
     private var previewTeeURL: URL?
     private var tapFormat: AVAudioFormat?
     private var outputURL: URL?
-    /// Accessed on the writer queue and preserved across process handoffs.
     private var timeline: RecordingAudioTimeline?
-    /// Set before starting a tap, cleared only after the writer drains.
     var speakerAudioClock: RecordingAudioClock?
-    /// Set and cleared with `speakerAudioClock`. Shared with the microphone
-    /// recorder and kept across process handoffs.
     var soundMeter: RecordingSoundMeter?
     private var framesWritten: AVAudioFramePosition = 0
-    /// Frames delivered by the current tap only. Recovery padding deliberately
-    /// does not advance this counter, so zero identifies a dead attachment.
     private var framesSinceAttach: AVAudioFramePosition = 0
     private var audibleFramesWritten: AVAudioFramePosition = 0
     private var recordingSampleRate: Double = 0
@@ -63,8 +48,6 @@ final class SystemAudioRecorder {
     private static let bufferPoolSize = 16
     private static let pooledBufferFrameCapacity: AVAudioFrameCount = 32_768
 
-    /// IOProc writes hop here so the Core Audio real-time thread never
-    /// blocks on AAC encoding or filesystem I/O. Serial → ordered writes.
     private let ioQueue: DispatchQueue
 
     init(writerQueue: DispatchQueue = DispatchQueue(label: "lokalbot.systemaudio.write", qos: .userInitiated),
@@ -72,19 +55,12 @@ final class SystemAudioRecorder {
         ioQueue = writerQueue
         self.makeTap = makeTap
     }
-    /// The tap callback borrows from this fixed lock-free pool. It never
-    /// allocates an AVAudioPCMBuffer or waits for the writer queue. Set before
-    /// the first tap starts and cleared after the last one stops.
     private var bufferRing: RealtimeBufferRing?
     private let dropLock = NSLock()
 
-    /// Captured app's PID, so we can detect the process terminating and
-    /// stop instead of silently recording a blank track.
     private var capturedPID: pid_t = 0
     private var terminationObserver: NSObjectProtocol?
 
-    /// Fired on the main thread when the captured process exits before
-    /// `stop()` was called (crash, user-quit, browser tab close).
     var onCapturedProcessTerminated: ((pid_t) -> Void)?
 
     struct CaptureHealth: Sendable {
@@ -100,11 +76,8 @@ final class SystemAudioRecorder {
         var writeError: String?
     }
 
-    /// `previewTee` mirrors the capture into a snapshot-safe PCM `.caf` for
-    /// the live meeting transcript — best-effort, never fails the recording.
     func start(capturingPID pid: pid_t, writingTo url: URL, previewTee previewURL: URL? = nil,
                timeline: RecordingAudioTimeline? = nil) throws {
-        // 1. The tap must find the process before any state changes.
         let nextTap = makeTap()
         guard nextTap.resolves(processID: pid) else {
             throw RecorderError.processNotFound
@@ -135,15 +108,9 @@ final class SystemAudioRecorder {
             throw error
         }
 
-        // Latch the PID only after a successful build so cleanup() on a
-        // partial start doesn't leave a stale watcher running.
         installTerminationObserver(for: pid)
     }
 
-    /// Switches the Core Audio process tap to a new PID while keeping the
-    /// existing `system.m4a` writer open. Browser meetings often move output
-    /// between helper processes; closing/reopening the file would discard the
-    /// audio already captured before that handoff.
     func reattach(capturingPID pid: pid_t) throws {
         guard let outputURL else { throw RecorderError.processNotFound }
         let nextTap = makeTap()
@@ -169,7 +136,6 @@ final class SystemAudioRecorder {
         return ioQueue.sync { healthOnWriterQueue(capturedPID: pid) }
     }
 
-    /// Queue behind writes without making the caller wait on the main thread.
     @MainActor
     func captureHealthInBackground() async -> CaptureHealth {
         let pid = capturedPID
@@ -199,7 +165,6 @@ final class SystemAudioRecorder {
     }
 
     private func attachTap(_ nextTap: SystemAudioTap, processID: pid_t, writingTo url: URL) throws {
-        // 2–4. Tap, stream format, and aggregate device (see `SystemAudioTap`).
         tap = nextTap
         let format = try nextTap.attach(processID: processID)
 
@@ -208,8 +173,6 @@ final class SystemAudioRecorder {
         }
         tapFormat = format
 
-        // 5. Output file (PCM → AAC handled by AVAudioFile). Reattaches keep
-        // this writer open so samples already captured remain in the same M4A.
         if recordingSampleRate == 0 {
             let settings: [String: Any] = [
                 AVFormatIDKey: kAudioFormatMPEG4AAC,
@@ -230,10 +193,6 @@ final class SystemAudioRecorder {
             }
         }
 
-        // 6. Tap buffers arrive on the real-time thread. The buffer list is
-        //    only valid for the duration of this callback, and the AAC encoder
-        //    must not run on the real-time audio thread — copy the samples,
-        //    then hop to a serial queue.
         try nextTap.start { [weak self] inInputData, inputTime in
             guard let self, let fmt = self.tapFormat,
                   fmt.commonFormat == .pcmFormatFloat32 else { return }
@@ -250,7 +209,6 @@ final class SystemAudioRecorder {
                 return
             }
             guard Self.copyBufferList(inInputData, into: copy) else {
-                // Only the writer queue returns buffers to the ring.
                 self.ioQueue.async { self.returnBuffer(copy) }
                 self.noteDroppedBuffer()
                 return
@@ -265,9 +223,6 @@ final class SystemAudioRecorder {
             self.ioQueue.async {
                 defer { self.returnBuffer(copy) }
                 do {
-                    // The real-time callback only performs one bounded copy.
-                    // RMS traversal, AAC encoding, preview conversion, and I/O
-                    // all stay on this serial writer queue.
                     let timelineHostStart = self.timeline?.hostTimeOnTimeline(
                         bufferHostTime: bufferHostStart, callbackHostTime: callbackHostTime,
                         callbackInstant: capturedAt) ?? bufferHostStart
@@ -309,9 +264,6 @@ final class SystemAudioRecorder {
             self.terminationObserver = nil
         }
         capturedPID = pid
-        // Watch the captured process: if it dies mid-meeting, the tap goes
-        // silent. Notify upstream so the meeting can end cleanly instead of
-        // producing a `system.m4a` that's half audio, half blank.
         terminationObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.didTerminateApplicationNotification,
             object: nil, queue: .main) { [weak self] note in
@@ -322,23 +274,15 @@ final class SystemAudioRecorder {
         }
     }
 
-    /// Stop the tap/aggregate without closing the file. Used for browser
-    /// helper handoffs where the M4A should keep accumulating samples.
     private func teardownTap() {
         tap?.stopDelivery()
 
-        // Drain any IOProc writes that were already dispatched before we
-        // stopped, preserving sample order before a reattach or file close.
         ioQueue.sync {}
 
         tap?.destroy()
         tap = nil
     }
 
-    /// One canonical close path, used by both `stop()` and startup failures.
-    /// Order matters: stop the IOProc (so no new buffers are dispatched), drain
-    /// the write queue (so in-flight writes finish), release the file ref
-    /// (flushes the AAC encoder), then dismantle Core Audio objects.
     private func cleanup(closeFile: Bool) {
         teardownTap()
         guard closeFile else { return }
@@ -366,9 +310,6 @@ final class SystemAudioRecorder {
         bufferRing = nil
     }
 
-    /// Commit missing meeting time only when a tap actually delivers a buffer.
-    /// This includes initial late attachment, handoffs, and dropped callbacks;
-    /// unsuccessful/dead reattachments cannot inflate capture health.
     private func appendTimelineSilence(before hostTime: Double,
                                        format: AVAudioFormat) throws {
         guard let timeline else { return }
@@ -396,8 +337,6 @@ final class SystemAudioRecorder {
     }
 
     private func noteDroppedBuffer() {
-        // Capture-health accounting is best-effort. Never wait behind its reader
-        // or emit a log from Core Audio's realtime callback.
         guard dropLock.try() else { return }
         droppedBufferCount += 1
         dropLock.unlock()
@@ -418,8 +357,6 @@ final class SystemAudioRecorder {
         bufferRing = RealtimeBufferRing(buffers: prepared)
     }
 
-    /// Runs on Core Audio's real-time callback. Nothing here blocks: an empty
-    /// ring (the writer is far behind) is a dropped-buffer event.
     private func borrowBuffer(frameLength: AVAudioFrameCount) -> AVAudioPCMBuffer? {
         guard frameLength <= Self.pooledBufferFrameCapacity,
               let buffer = bufferRing?.borrow() else { return nil }
@@ -427,7 +364,6 @@ final class SystemAudioRecorder {
         return buffer
     }
 
-    /// Writer queue only.
     private func returnBuffer(_ buffer: AVAudioPCMBuffer) {
         bufferRing?.giveBack(buffer)
     }
@@ -439,19 +375,6 @@ final class SystemAudioRecorder {
             && lhs.isInterleaved == rhs.isInterleaved
     }
 
-    /// Copies `source`'s samples into `destination` buffer-by-buffer via the
-    /// `AudioBufferList` (layout-agnostic) and returns the RMS across all
-    /// channels. `destination.frameLength` must already equal
-    /// `source.frameLength` so its buffer byte sizes are final.
-    ///
-    /// Do NOT rewrite this as per-channel `memcpy`s over `floatChannelData`:
-    /// the process tap delivers *interleaved* stereo, where the channel
-    /// pointers overlap (`data`, `data+1`, stride 2). A contiguous
-    /// `frameLength * 4`-byte copy per channel then moves only the first half
-    /// of each buffer's frames and leaves the second half silent — chopping
-    /// the track at sampleRate/frames Hz (93.75 Hz for 512-frame buffers),
-    /// which plays back as a robotic buzz. Shipped twice; measured on real
-    /// recordings as a 40× level drop in the back half of every 512 frames.
     static func copyAndMeasureRMS(from source: AVAudioPCMBuffer,
                                   into destination: AVAudioPCMBuffer) -> Float {
         let sourceBuffers = UnsafeMutableAudioBufferListPointer(

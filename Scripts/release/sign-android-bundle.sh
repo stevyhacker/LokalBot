@@ -1,21 +1,4 @@
 #!/usr/bin/env bash
-# Signs an Android App Bundle (.aab) with jarsigner and verifies the signer's
-# certificate. Release runs sign with the Play upload key (google-play.yml) and
-# CI signs with a throwaway key (companion-android.yml, google-play.yml PR check)
-# through this same script.
-#
-# Signing stays out of the Gradle build, so no build script runs beside the key.
-#
-#   PLAY_UPLOAD_KEYSTORE_PASSWORD=... Scripts/release/sign-android-bundle.sh \
-#     UNSIGNED.aab OUT.aab KEYSTORE [CERTIFICATE_SHA256]
-#
-# Optional environment variables:
-#   PLAY_UPLOAD_KEY_ALIAS     key alias inside the keystore (auto-detected when
-#                             the keystore holds exactly one PrivateKeyEntry)
-#   PLAY_UPLOAD_KEY_PASSWORD  key password if distinct from the store password
-#
-# With CERTIFICATE_SHA256 it refuses a keystore whose certificate has another
-# digest and leaves no OUT.aab.
 set -euo pipefail
 
 unsigned=${1:?usage: $0 UNSIGNED.aab OUT.aab KEYSTORE [CERTIFICATE_SHA256]}

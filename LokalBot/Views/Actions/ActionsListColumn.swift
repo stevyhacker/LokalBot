@@ -1,8 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// The one row of controls above the Actions list: which status to show, the
-/// Filter menu with its choices as removable chips, and the search field.
 struct ActionsFilterBar: View {
     @Binding var filter: ActionsListFilter
     let chips: [ActionsListFilter.Chip]
@@ -10,8 +8,6 @@ struct ActionsFilterBar: View {
     let meetingTitles: [String]
 
     var body: some View {
-        // One row when it fits. More chips than the row holds go to a row
-        // of their own, and in a narrow list so does the search field.
         ViewThatFits(in: .horizontal) {
             HStack(spacing: 8) {
                 statusPicker
@@ -78,7 +74,6 @@ struct ActionsFilterBar: View {
             }
             .pickerStyle(.inline)
             Divider()
-            // People and Projects only know open and deferred work.
             if !links.people.isEmpty {
                 Picker("Person", selection: optional(\.personID)) {
                     Text("Anyone").tag("")
@@ -128,7 +123,6 @@ struct ActionsFilterBar: View {
         .accessibilityIdentifier("actions.filter")
     }
 
-    /// A Filter menu submenu stores "no choice" as nil; its picker tags it "".
     private func optional(_ keyPath: WritableKeyPath<ActionsListFilter, String?>) -> Binding<String> {
         Binding(get: { filter[keyPath: keyPath] ?? "" },
                 set: { filter[keyPath: keyPath] = $0.isEmpty ? nil : $0 })
@@ -186,16 +180,12 @@ struct ActionsFilterBar: View {
     }
 }
 
-/// The Actions list: the shared action row under the content's headings.
-/// The list is lazy and every row's wording is already in `content`.
 struct ActionsList: View {
     let content: ActionsListContent
-    /// The rows the details pane is about.
     let current: Set<String>
     let emptyText: String
     let offersClearFilters: Bool
     let onClick: (_ id: String, _ command: Bool, _ shift: Bool) -> Void
-    /// Moves the selection one row and returns the row to keep in view.
     let onMove: (_ step: Int, _ extending: Bool) -> String?
     let onSelectAll: () -> Void
     let onCollapse: () -> Void
@@ -255,8 +245,6 @@ struct ActionsList: View {
         .accessibilityLabel("Actions")
     }
 
-    /// The modifier keys held at the click choose between one row, adding a
-    /// row, and a range.
     private func click(_ id: String) {
         let modifiers = NSEvent.modifierFlags
         focused = true
@@ -297,8 +285,6 @@ struct ActionsList: View {
     }
 }
 
-/// "8 open actions haven’t been mentioned in 3 weeks. Review": the quiet bar
-/// under the list that replaces the "Still open?" question on each row.
 struct ActionsStaleBar: View {
     let summary: String
     let onReview: () -> Void

@@ -1,8 +1,3 @@
-//! Text from documents (`DocExtractor`, `OfficeText`, `RTF`, as DigUp's Linux and
-//! Windows builds read them): plain text directly, HTML by stripping tags, docx
-//! and odt from the XML inside their zip, rtf stripped of its control words, and
-//! spreadsheets and presentations from their XML. Legacy .doc isn't read here.
-
 use std::collections::HashMap;
 use std::io::Read as _;
 use std::path::Path;
@@ -10,7 +5,6 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-/// Why a file has no text.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum ReadError {
     Unreadable(String),
@@ -26,10 +20,7 @@ impl std::fmt::Display for ReadError {
     }
 }
 
-/// Larger zip entries aren't inflated: a zip bomb, or XML far past what the index
-/// keeps of a document.
 const MAX_ENTRY_BYTES: u64 = 64 << 20;
-/// Reading stops past what the index keeps of a document.
 const MAX_OFFICE_CHARACTERS: usize = 10_000_000;
 
 pub fn text_of(path: &Path) -> Result<String, ReadError> {
@@ -66,8 +57,6 @@ pub fn text_of(path: &Path) -> Result<String, ReadError> {
     }
 }
 
-/// UTF-8 (with or without a BOM), UTF-16 with a BOM, else Latin-1, as
-/// `String(contentsOf:usedEncoding:)` falls back.
 pub fn read_text(path: &Path) -> Result<String, ReadError> {
     let bytes = std::fs::read(path).map_err(|err| ReadError::Unreadable(err.to_string()))?;
     Ok(decode_text(&bytes))
@@ -113,8 +102,6 @@ pattern!(HTML_NUMERIC, r"&#(x[0-9a-fA-F]+|[0-9]+);");
 pattern!(HTML_SPACES, r"[ \t]+");
 pattern!(HTML_LINES, r"\s*\n\s*");
 
-/// Good enough for search: drops scripts, styles and comments, turns block ends
-/// into line breaks, strips the remaining tags and decodes common entities.
 pub fn plain_text_from_html(html: &str) -> String {
     let mut text = html.to_string();
     for pattern in [&HTML_SCRIPT, &HTML_STYLE, &HTML_COMMENT, &HTML_HEAD] {
@@ -151,8 +138,6 @@ pub fn plain_text_from_html(html: &str) -> String {
     text.trim().to_string()
 }
 
-/// Word-processing XML as the little HTML `plain_text_from_html` reads:
-/// paragraph ends become `</p>`, breaks `<br>`, tabs and spaces a space.
 fn as_html(xml: &str, paragraphs: &[&str], breaks: &[&str], spaces: &[&str]) -> String {
     let mut text = xml.to_string();
     for tag in paragraphs {
@@ -172,8 +157,6 @@ fn as_html(xml: &str, paragraphs: &[&str], breaks: &[&str], spaces: &[&str]) -> 
     text
 }
 
-// ---------------------------------------------------------------------- zip
-
 struct Zip {
     archive: zip::ZipArchive<std::fs::File>,
 }
@@ -187,8 +170,6 @@ impl Zip {
         Ok(Self { archive })
     }
 
-    /// The entry's bytes, or `None` when there's no such entry. The declared size
-    /// is checked before anything is allocated.
     fn data(&mut self, name: &str) -> Result<Option<Vec<u8>>, ReadError> {
         let mut entry = match self.archive.by_name(name) {
             Ok(entry) => entry,
@@ -202,7 +183,6 @@ impl Zip {
             )));
         }
         let mut bytes = Vec::with_capacity(entry.size() as usize);
-        // Never more than was declared, whatever the stream says.
         (&mut entry)
             .take(MAX_ENTRY_BYTES)
             .read_to_end(&mut bytes)
@@ -221,10 +201,7 @@ fn entry_text(path: &Path, name: &str) -> Result<String, ReadError> {
     Ok(String::from_utf8_lossy(&bytes).into_owned())
 }
 
-// ------------------------------------------------------------------- office
-
 fn office_text(path: &Path, ext: &str) -> Result<String, ReadError> {
-    // An Office file with a password is an OLE compound file holding the zip.
     if is_compound_file(path) {
         return Err(ReadError::Locked);
     }
@@ -265,7 +242,6 @@ impl Output {
         }
     }
 
-    /// A blank line between sheets or slides.
     fn paragraph(&mut self) {
         if !self.text.is_empty() && !self.text.ends_with("\n\n") {
             self.text.push('\n');
@@ -273,15 +249,12 @@ impl Output {
     }
 }
 
-/// A tag's name without its namespace prefix: writers don't all use the same ones.
 fn local(name: &str) -> &str {
     name.rsplit(':').next().unwrap_or(name)
 }
 
 type Links = HashMap<String, (String, String)>;
 
-/// Sheets in the workbook's order, cells with their shared strings or their last
-/// computed value.
 fn workbook(zip: &mut Zip, out: &mut Output) -> Result<(), ReadError> {
     let book = main_part(zip, "xl/workbook.xml")?;
     let links = relationships(&book, zip)?;
@@ -325,8 +298,6 @@ fn workbook(zip: &mut Zip, out: &mut Output) -> Result<(), ReadError> {
     Ok(())
 }
 
-/// The table of strings cells point to: each `<si>`'s runs joined, phonetic
-/// readings left out.
 fn shared_strings(xml: &[u8]) -> Vec<String> {
     let mut scan = XmlScanner::new(xml);
     let mut strings = Vec::new();
@@ -402,7 +373,6 @@ fn worksheet(xml: &[u8], shared: &[String], out: &mut Output) {
                             .ok()
                             .and_then(|index| shared.get(index).cloned())
                             .unwrap_or_default(),
-                        // TRUE/FALSE and #N/A say nothing to search for.
                         "b" | "e" => String::new(),
                         _ => value.clone(),
                     };
@@ -426,7 +396,6 @@ fn worksheet(xml: &[u8], shared: &[String], out: &mut Output) {
     }
 }
 
-/// Slides in the presentation's order, each followed by its notes.
 fn presentation(zip: &mut Zip, out: &mut Output) -> Result<(), ReadError> {
     let deck = main_part(zip, "ppt/presentation.xml")?;
     let links = relationships(&deck, zip)?;
@@ -466,7 +435,6 @@ fn presentation(zip: &mut Zip, out: &mut Output) -> Result<(), ReadError> {
     Ok(())
 }
 
-/// A slide or notes page: `<a:t>` runs, a line per paragraph, fields left out.
 fn drawing_text(xml: &[u8], out: &mut Output) {
     let mut scan = XmlScanner::new(xml);
     let (mut paragraph, mut in_text, mut field) = (String::new(), false, 0i32);
@@ -510,8 +478,6 @@ fn main_part(zip: &mut Zip, default: &str) -> Result<String, ReadError> {
         .unwrap_or_else(|| default.to_string()))
 }
 
-/// A part's links by id, from the `_rels` file beside it, with their targets as
-/// zip entry names.
 fn relationships(part: &str, zip: &mut Zip) -> Result<Links, ReadError> {
     let (folder, file) = match part.rsplit_once('/') {
         Some((folder, file)) => (folder, file),
@@ -550,7 +516,6 @@ fn relationships(part: &str, zip: &mut Zip) -> Result<Links, ReadError> {
     Ok(links)
 }
 
-/// Absolute targets start at the package's root, others at the part's folder.
 fn resolve_target(target: &str, folder: &str) -> String {
     let mut path: Vec<&str> = if target.starts_with('/') {
         Vec::new()
@@ -569,7 +534,6 @@ fn resolve_target(target: &str, folder: &str) -> String {
     path.join("/")
 }
 
-/// Each sheet's name, then its rows. Comments' authors and dates are left out.
 fn spreadsheet(xml: &[u8], out: &mut Output) {
     let mut scan = XmlScanner::new(xml);
     let (mut row, mut cell, mut paragraph) = (Vec::<String>::new(), String::new(), String::new());
@@ -643,7 +607,6 @@ fn spreadsheet(xml: &[u8], out: &mut Output) {
     }
 }
 
-/// Each page's text, a line per paragraph. Page numbers and dates are left out.
 fn slides(xml: &[u8], out: &mut Output) {
     let mut scan = XmlScanner::new(xml);
     let mut paragraph = String::new();
@@ -685,8 +648,6 @@ fn slides(xml: &[u8], out: &mut Output) {
     }
 }
 
-// ------------------------------------------------------------------ scanner
-
 enum Event {
     Open {
         name: String,
@@ -694,12 +655,9 @@ enum Event {
         empty: bool,
     },
     Close(String),
-    /// Text between tags; `raw` for CDATA, whose `&` is a plain `&`.
     Text(std::ops::Range<usize>, bool),
 }
 
-/// A small XML reader for the parts of Office files (`XMLScanner`): no DTDs, and
-/// namespace prefixes stay in the names.
 struct XmlScanner<'a> {
     bytes: &'a [u8],
     position: usize,
@@ -730,7 +688,6 @@ impl<'a> XmlScanner<'a> {
                     (find(bytes, b"-->", start + 4).unwrap_or(bytes.len()) + 3).min(bytes.len());
                 continue;
             }
-            // The tag's end: the first `>` outside quotes.
             let (mut end, mut quote) = (start + 1, 0u8);
             while end < bytes.len() {
                 let byte = bytes[end];
@@ -773,8 +730,6 @@ impl<'a> XmlScanner<'a> {
         None
     }
 
-    /// The value of attribute `name`. A name starting with ":" matches any
-    /// prefix (":id" finds "r:id" but not "id").
     fn attribute(&self, name: &str, attributes: std::ops::Range<usize>) -> Option<String> {
         let bytes = self.bytes;
         let wanted = name.as_bytes();
@@ -818,7 +773,6 @@ impl<'a> XmlScanner<'a> {
         None
     }
 
-    /// Text or an attribute's value, with `&amp;`, `&#233;` and the like decoded.
     fn string(&self, range: std::ops::Range<usize>, raw: bool) -> String {
         let text = String::from_utf8_lossy(&self.bytes[range]);
         if raw || !text.contains('&') {
@@ -879,8 +833,6 @@ fn find(bytes: &[u8], needle: &[u8], from: usize) -> Option<usize> {
         .map(|at| at + from)
 }
 
-// ---------------------------------------------------------------------- rtf
-
 const RTF_SKIPPED_GROUPS: &[&str] = &[
     "fonttbl",
     "colortbl",
@@ -910,8 +862,6 @@ const RTF_SKIPPED_GROUPS: &[&str] = &[
     "object",
 ];
 
-/// Rich Text Format, read for its words: control words dropped (paragraphs and
-/// lines kept as line breaks), escapes decoded, destination groups skipped.
 pub fn rtf_text(rtf: &str) -> String {
     let chars: Vec<char> = rtf.chars().collect();
     let mut out = String::new();
@@ -1003,7 +953,6 @@ pub fn rtf_text(rtf: &str) -> String {
                         "bullet" => out.push('•'),
                         "uc" => unicode_skip = number.parse().unwrap_or(1),
                         "u" => {
-                            // A signed 16-bit value; negative ones wrap.
                             if let Ok(value) = number.parse::<i32>()
                                 && (-65536..65536).contains(&value)
                             {
@@ -1041,7 +990,6 @@ pub fn rtf_text(rtf: &str) -> String {
     out
 }
 
-/// Windows-1252's upper half; the rest is Latin-1.
 fn windows_1252(byte: u8) -> char {
     const SPECIALS: [(u8, u32); 27] = [
         (0x80, 0x20AC),

@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Settings → Phones & tablets. Turning sharing on starts a listener for
-/// paired devices on the local network and Tailscale; everything below the
-/// switch only exists while it is on.
 struct CompanionSettingsSections: View {
     @EnvironmentObject private var app: AppState
 
@@ -271,8 +268,6 @@ private struct CompanionPairingPanel: View {
     }
 }
 
-/// The listener's port, applied when editing ends so a half-typed number
-/// never restarts the listener.
 private struct CompanionPortField: View {
     @Binding var port: Int
     @State private var text = ""

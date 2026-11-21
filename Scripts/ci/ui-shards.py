@@ -18,8 +18,6 @@ import time
 
 VISUAL = 'RedesignUITests/testWorkspaceVisualMatrix'
 REDUCED = 'RedesignUITests/testReducedMotionWorkspaceRemainsOperable'
-# Flows with the host's background work running (replayed trace, file audio,
-# model stub) run only in their own shard.
 BACKGROUND = 'BackgroundFlowUITests'
 SMOKE = [
     'RedesignUITests/testHighContrastKeepsActionsAccessible',
@@ -33,12 +31,6 @@ SMOKE = [
 SIZES = ['1000x700', '1180x740', '1440x900']
 ROUTES = ['today', 'actions', 'meeting', 'transcript', 'review', 'timeline', 'search', 'ask',
           'settings', 'models', 'dictation', 'autocomplete', 'agent']
-# The complete suite runs on two macOS runners after the build, about 30 and 35
-# minutes each (2026-11-18 timings). Every runner is another job GitHub can fail
-# to place when hosted macOS capacity is short, and a failed-jobs-only rerun
-# repeats one group, not the suite. Each phase still writes its own report, so
-# verify() checks it as before. Reduce Motion runs last so its preference can't
-# reach another phase even if restoring it fails.
 GROUPS = {
     'runner-1': ['smoke', 'functional-1', 'reduced-motion'],
     'runner-2': ['functional-2', 'visual', 'background'],
@@ -48,8 +40,6 @@ REDUCED_MOTION_DEFAULTS = [('com.apple.universalaccess', 'reduceMotion'),
 
 
 def inventory(root=Path('.')):
-    # XCTest methods are parameterless Swift methods in final XCTestCase classes.
-    # Reject new test syntax rather than silently omitting it from the inventory.
     result = []
     for path in sorted((root / 'LokalBotUITests').rglob('*.swift')):
         current = None
@@ -148,19 +138,13 @@ def reduce_motion(enabled):
 
 def execute(phase, selected=None):
     if phase in GROUPS:
-        # A failed phase doesn't stop the rest of its group.
         codes = [execute(member) for member in GROUPS[phase]]
         return next((code for code in codes if code), 0)
     if phase == 'visual':
-        # Each size keeps its own result, log and report, so verify() and the
-        # evidence look exactly as they did with one runner per size. A failed
-        # size doesn't stop the others.
         codes = [execute(f'visual-{size}') for size in SIZES]
         return next((code for code in codes if code), 0)
     if os.environ.get('CI') != 'true':
         raise ValueError('Shard execution is hosted-only')
-    # Phases that share a runner must not inherit each other's test environment
-    # or accessibility preferences, so both are put back after each phase.
     runs = {path: path.read_bytes() for path in Path('.build/dd/Build/Products').glob('*.xctestrun')}
     try:
         if phase == 'reduced-motion':
@@ -215,9 +199,6 @@ def run_phase(phase, selected):
         tree = json.loads(subprocess.check_output(['xcrun', 'xcresulttool', 'get', 'test-results', 'tests',
                                                   '--path', str(result_path), '--compact']))
         report['tests'] = list(test_results(tree))
-    # Even focused invocations must execute the requested tests. A typo must
-    # never become a green zero-test run; focused checks remain separate from
-    # the complete-suite gate and its 78-capture requirement.
     if code == 0 and (collections.Counter(t for t, status in report['tests']) != collections.Counter(tests)
                       or any(status != 'Passed' for t, status in report['tests'])):
         code = report['exit'] = 1
@@ -238,9 +219,6 @@ def verify(root, phases=None):
         if len(paths) != 1:
             raise ValueError(f'Missing or duplicate report: {phase}')
         report = json.loads(paths[0].read_text())
-        # A failed-jobs-only rerun keeps the reports of the runner that passed in
-        # an earlier attempt of this run. Reports from another run or commit,
-        # or a later attempt than this one, are stale.
         if ((report['commit'], report['run'], report['exit']) != (commit, os.environ['GITHUB_RUN_ID'], 0)
                 or not 1 <= int(report['attempt']) <= attempt):
             raise ValueError(f'Failed or stale shard: {phase}')

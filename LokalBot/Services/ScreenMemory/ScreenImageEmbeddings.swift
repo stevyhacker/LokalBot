@@ -5,59 +5,31 @@ import Foundation
 import ImageIO
 import SQLite3
 
-/// Vectors of what retained screen captures show, so screen search finds a
-/// screen by its picture as well as its text. EmbeddingGemma 2's image encoder
-/// runs on the media embedder Files uses (`FileMediaEmbedderRuntime`). A
-/// capture is decrypted in memory, sized for a 280-token budget
-/// (`FileImageSizing`) and never written to disk.
-///
-/// On the 13 October run over a real library, picture vectors found the right
-/// screen first for 71 of 138 queries, against 52 for screen-text vectors and
-/// 44 for the shipped search (Benchmarks/search/EmbeddingGemma2/2026-10-13-screen-images).
-///
-/// It runs only while search by meaning is on and pictures are captured (Text
-/// + visual context), and only once screens have been searched by meaning, so
-/// nobody downloads the image model for a search they never make. A vector
-/// goes with its pixels: retention clears both (`ActivityStore.clearScreenshotPath`),
-/// and deleting a capture deletes both.
-///
-/// The first pass over a library is a big read, so it is paced while the
-/// person uses the Mac (`IndexPacing`), and on battery a pass stops after the
-/// newest few dozen captures: the rest wait for a charger.
 @MainActor
 final class ScreenImageEmbeddings {
-    /// Model, projector, sizing and request shapes. Any change embeds every
-    /// retained capture again.
     nonisolated static let modelID = "embeddinggemma-2-q8-mmproj-q8-image280-v\(FileMediaEmbedder.vectorVersion)"
     nonisolated static let budget = 280
     nonisolated static let batchSize = 16
-    /// On battery, a pass reads at most this many captures, newest first.
     nonisolated static let batteryLimit = 3 * batchSize
     nonisolated static let vectorBytes = 768 * MemoryLayout<Float>.stride
 
-    /// One pass's embedder: a sized PNG in, a vector out. `embed` blocks; it
-    /// runs off the main actor. `end` lets the model go.
     struct Session: Sendable {
         let embed: @Sendable (Data) throws -> [Float]
         let end: @Sendable () async -> Void
     }
 
     typealias StartSession = @MainActor () async throws -> Session
-    /// Decrypts a capture's pixels into an image; runs off the main actor.
     typealias LoadImage = @Sendable (_ path: String) -> CGImage?
 
     enum PassOutcome: Equatable {
         case skipped
         case finished(embedded: Int)
         case paused
-        /// On battery, with more left after the newest `batteryLimit`.
         case waitingForPower(embedded: Int)
         case failed(String)
     }
 
-    /// Search by meaning is on and pictures are captured.
     var isEnabled: () -> Bool = { false }
-    /// Screens have been searched by meaning on this library.
     var isInUse: () -> Bool = { false }
     var pauseReason: () -> FileSearchService.PauseReason? = { nil }
     var isOnBattery: () -> Bool = { false }
@@ -116,21 +88,16 @@ final class ScreenImageEmbeddings {
         return embeddings
     }
 
-    // MARK: - Scheduling
-
-    /// New captures were stored: one batched pass later covers them all.
     func capturesDidArrive() {
         guard scheduled == nil, running == nil, isEnabled(), isInUse() else { return }
         scheduleRun(after: schedule.newTextDelay)
     }
 
-    /// Launch, or the first search by meaning: catch up on what is waiting.
     func resume() {
         guard isEnabled(), isInUse(), running == nil else { return }
         scheduleRun(after: .seconds(1))
     }
 
-    /// Settings, recording, power or heat changed.
     func conditionsDidChange() {
         if !isEnabled() || pauseReason() != nil {
             stop()
@@ -170,11 +137,6 @@ final class ScreenImageEmbeddings {
         }
     }
 
-    // MARK: - A pass
-
-    /// Embeds retained captures without a picture vector, newest first, until
-    /// none are left, a pause condition appears, the embedder fails, or, on
-    /// battery, `batteryLimit` captures are through.
     @discardableResult
     func runPass() async -> PassOutcome {
         if let running { return await running.value }
@@ -189,8 +151,6 @@ final class ScreenImageEmbeddings {
 
     private enum ItemResult: Sendable {
         case vector([Float])
-        /// The pixels could not be read or the server rejected them: marked,
-        /// so a broken capture isn't tried on every pass.
         case unreadable
         case unavailable(String)
     }
@@ -244,9 +204,6 @@ final class ScreenImageEmbeddings {
                             stop = reason
                             continue
                         }
-                        // The pixels may have been deleted or replaced while
-                        // this batch was embedded: never store a vector for
-                        // pixels that are gone.
                         guard try database.hasRowChecked(
                             "SELECT 1 FROM screenshots WHERE id = ?1 AND path = ?2 AND path != ''",
                             bind: [item.snapshotID, item.path]) else { continue }
@@ -307,7 +264,6 @@ final class ScreenImageEmbeddings {
         }
     }
 
-    /// Captures with a picture vector, for tests and Settings.
     func embeddedCount() -> Int {
         database?.query("""
             SELECT COUNT(*) FROM screen_image_embeddings

@@ -1,7 +1,3 @@
-//! What readers keep between scans (`CodingAgentParseCache.swift`). A summary
-//! holds no window of its own, so a new day or a refresh reuses it and parses
-//! only the lines agents appended since.
-
 use std::any::Any;
 use std::collections::{HashMap, HashSet};
 use std::fs::File;
@@ -15,27 +11,20 @@ use parking_lot::Mutex;
 use super::builder::{EventKind, TimedEvent};
 use super::text::Line;
 
-/// The earliest time a summary can be asked for.
 pub fn distant_past() -> DateTime<Utc> {
     DateTime::<Utc>::MIN_UTC
 }
 
 pub trait FileSummary: Clone + Send + 'static {
-    /// Folds in one complete line, keeping timed records from `start` on.
     fn consume(&mut self, line: Line<'_>, start: DateTime<Utc>);
-    /// Runs after a batch of lines.
     fn finish(&mut self) {}
-    /// Drops timed records before `start`, which no later scan reads.
     fn trim(&mut self, start: DateTime<Utc>);
 }
 
-/// An event as a summary keeps it. Folder, branch and record id live on the
-/// record it came from, so a busy record's events share them.
 #[derive(Clone, Debug)]
 pub struct StoredEvent {
     pub at: DateTime<Utc>,
     pub kind: EventKind,
-    /// The source record's index in its summary, or `-1` for none.
     pub record: i32,
 }
 
@@ -49,7 +38,6 @@ impl TimedEvent for StoredEvent {
     }
 }
 
-/// A transcript that may hold activity inside a window.
 #[derive(Clone, Debug)]
 pub struct CandidateFile {
     pub path: PathBuf,
@@ -58,7 +46,6 @@ pub struct CandidateFile {
     pub size: u64,
 }
 
-/// Codex compresses rollouts it is done with to `<name>.jsonl.zst`.
 pub fn is_compressed(path: &Path) -> bool {
     path.extension().is_some_and(|extension| extension == "zst")
         && path.file_stem().is_some_and(|stem| {
@@ -68,7 +55,6 @@ pub fn is_compressed(path: &Path) -> bool {
         })
 }
 
-/// The path a transcript has uncompressed, which names it either way.
 pub fn plain_path(path: &Path) -> PathBuf {
     if is_compressed(path) {
         path.with_extension("")
@@ -77,11 +63,6 @@ pub fn plain_path(path: &Path) -> PathBuf {
     }
 }
 
-/// A time no later than a compressed rollout's first record. Compressing gives
-/// the file a new creation time, the time it was last written, so the start
-/// comes from its name, `rollout-2026-10-19T08-23-26-<id>.jsonl.zst`. The name
-/// is in the local time where Codex ran, so a day before its date covers every
-/// zone.
 pub fn start_bound(path: &Path) -> SystemTime {
     path.file_name()
         .and_then(|name| name.to_str())
@@ -94,10 +75,6 @@ pub fn start_bound(path: &Path) -> SystemTime {
         .unwrap_or(SystemTime::UNIX_EPOCH)
 }
 
-/// Transcript files that may hold activity inside the window: written since it
-/// began, and created before it ended. Skipping by metadata keeps
-/// multi-gigabyte archives out of every scan. `compressed_rollouts` also takes
-/// Codex's compressed rollouts, `*.jsonl.zst`.
 pub fn candidate_files(
     paths: impl IntoIterator<Item = PathBuf>,
     start: DateTime<Utc>,
@@ -115,7 +92,6 @@ pub fn candidate_files(
             {
                 return None;
             }
-            // `metadata` follows links; only a regular file itself counts.
             let metadata = std::fs::symlink_metadata(&path).ok()?;
             if !metadata.is_file() {
                 return None;
@@ -124,8 +100,6 @@ pub fn candidate_files(
             if DateTime::<Utc>::from(modified) < start {
                 return None;
             }
-            // A compressed file was created when it was compressed, after its
-            // session began.
             let created = if compressed {
                 start_bound(&path).min(modified)
             } else {
@@ -144,23 +118,14 @@ pub fn candidate_files(
         .collect()
 }
 
-/// Both agents only append to their transcripts; a file that shrank, was
-/// replaced, or whose bytes before the resume point changed is parsed again from
-/// the start.
 #[derive(Clone)]
 struct FileState<S> {
     created: SystemTime,
     modified: SystemTime,
     size: u64,
-    /// Bytes folded into `summary`: every complete line. A line still being
-    /// written is read again once its newline arrives.
     offset: u64,
-    /// The bytes just before `offset`.
     boundary: Vec<u8>,
-    /// Records from before this time were not kept, so a scan reaching further
-    /// back parses the file again.
     retained_from: DateTime<Utc>,
-    /// Activity is compacted by local day, so a time zone change reparses.
     utc_offset: i32,
     summary: S,
 }
@@ -196,7 +161,6 @@ impl ParseCache {
         self.states.lock().len()
     }
 
-    /// Forgets files under `root` that a scan no longer selected.
     pub fn prune(&self, keeping: &HashSet<PathBuf>, root: &Path) {
         self.states
             .lock()
@@ -212,10 +176,6 @@ fn read_boundary(file: &mut File, offset: u64) -> std::io::Result<Vec<u8>> {
     Ok(bytes)
 }
 
-/// `file`'s summary for a scan whose window starts at `start`: the cached one
-/// while the file is unchanged, extended by the lines appended since otherwise.
-/// Without a cache the whole file is parsed. The count is `None` when the file
-/// was not opened.
 pub fn summary_of<S: FileSummary>(
     file: &CandidateFile,
     start: DateTime<Utc>,
@@ -310,17 +270,12 @@ pub fn summary_of<S: FileSummary>(
     }
     let mut summary = current.summary;
     if !unfinished.is_empty() {
-        // The last line has no newline yet: read it for this scan only.
         summary.consume(Line(&unfinished), current.retained_from);
         summary.finish();
     }
     Ok((summary, Some(bytes_read)))
 }
 
-/// A compressed transcript is one Codex has finished with, so nothing is
-/// appended to it: it is read whole when it is new or changed, and its summary
-/// is reused while its size and modification time stay the same. Its state's
-/// `size` and `offset` are both the compressed size.
 fn compressed_summary_of<S: FileSummary>(
     file: &CandidateFile,
     start: DateTime<Utc>,
@@ -347,8 +302,6 @@ fn compressed_summary_of<S: FileSummary>(
         }
         return Ok((cached.summary, None));
     }
-    // The decoder reads frame after frame, and fails on a file that ends
-    // inside one.
     let decoder = zstd::stream::read::Decoder::new(File::open(path)?)?;
     let mut reader = BufReader::with_capacity(256 * 1024, decoder);
     let mut summary = empty();

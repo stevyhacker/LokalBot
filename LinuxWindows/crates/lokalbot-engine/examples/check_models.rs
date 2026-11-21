@@ -1,9 +1,3 @@
-//! Runs Check model setup without the UI, as Settings does.
-//!
-//! `cargo run -p lokalbot-engine --example check_models -- <library> [--prepare] [transcribe|think|autocomplete]...`
-//!
-//! `--prepare` downloads what the current settings need for Transcribe first.
-
 use std::time::Duration;
 
 use anyhow::{Result, bail};
@@ -36,7 +30,6 @@ fn main() -> Result<()> {
     let engine = Engine::start(library, settings.clone(), move |event| {
         let _ = sender.send(event);
     })?;
-    // `--download <id>` fetches one model through the chosen download source.
     if let Some(index) = args.iter().position(|arg| arg == "--download") {
         let id = args.get(index + 1).map(String::as_str).unwrap_or_default();
         engine.send(Command::DownloadModel(id.to_string()));

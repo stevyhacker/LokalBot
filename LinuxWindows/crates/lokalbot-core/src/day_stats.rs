@@ -1,6 +1,3 @@
-//! What exports and routines read about a stretch of screen memory
-//! (`SQLiteScreenMemoryReader.savedMoments`, `daySummary`, `appUsage`).
-
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use rusqlite::params;
@@ -9,7 +6,6 @@ use crate::library::Library;
 use crate::time::{from_epoch, to_epoch};
 use crate::timeline::table_exists;
 
-/// A saved moment with its note and the start of its captured text.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SavedMoment {
     pub snapshot_id: i64,

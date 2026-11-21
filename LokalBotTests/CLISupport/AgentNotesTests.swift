@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Coding-agent notes as a searchable source: the saved copy, its search, the
-/// background reader, the external-agent grant, and the Ask tool and citations.
 @MainActor
 final class AgentNotesTests: XCTestCase {
     private var root: URL!
@@ -19,8 +17,6 @@ final class AgentNotesTests: XCTestCase {
     override func tearDownWithError() throws {
         try? FileManager.default.removeItem(at: root)
     }
-
-    // MARK: - Saved copy
 
     func testApplyAddsUpdatesAndRemovesNotesToMatchTheScan() throws {
         let first = try store.apply(scan(release, build), agents: [.claudeCode, .codex])
@@ -71,8 +67,6 @@ final class AgentNotesTests: XCTestCase {
         XCTAssertFalse(index.exists)
     }
 
-    // MARK: - Search
-
     func testSearchPrefersEveryWordThenFallsBackToAnyAndRanksTitlesFirst() throws {
         var mention = build
         mention.id = "c0ffee000003"
@@ -114,8 +108,6 @@ final class AgentNotesTests: XCTestCase {
         XCTAssertEqual(try index.text(of: release.id), release.text)
         XCTAssertNil(try index.hit(id: "000000000000"))
     }
-
-    // MARK: - Background reader
 
     func testIngestorReadsOnlyWhileOnAndDeletesWhenTurnedOff() async throws {
         var configuration = AgentMemoryIngestor.Configuration(enabled: false, agents: [.claudeCode])
@@ -162,8 +154,6 @@ final class AgentNotesTests: XCTestCase {
         settings.codingAgentReadsClaudeCode = false
         XCTAssertFalse(AgentMemoryIngestor.Configuration(settings: settings).reads)
     }
-
-    // MARK: - External agents
 
     func testSearchForAgentsNeedsItsOwnGrantThenSavedNotes() throws {
         let gate = AgentNotesAccessGate(root: root)
@@ -249,8 +239,6 @@ final class AgentNotesTests: XCTestCase {
         XCTAssertTrue(provider.briefing().contains("Tool: search_agent_notes."))
         XCTAssertTrue(provider.briefing(vocabulary: .cli).contains("Command: search-notes."))
     }
-
-    // MARK: - Ask
 
     func testAgentNotesIsPartOfAllSourcesButOfferedOnlyWhileOn() {
         XCTAssertTrue(AskSourceScope.defaults.contains(.agentNotes))
@@ -351,8 +339,6 @@ final class AgentNotesTests: XCTestCase {
             XCTFail("a note row opens the note")
         }
     }
-
-    // MARK: - Fixtures
 
     private var release: AgentMemoryNote {
         AgentMemoryNote(

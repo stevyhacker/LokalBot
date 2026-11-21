@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// The one switch for reading LokalBot data and its boxes: it writes and
-/// removes the per-kind markers agents check, remembers the boxes while off,
-/// and never widens a grant made before it existed.
 @MainActor
 final class AgentReadAccessTests: XCTestCase {
     private var root: URL!
@@ -53,7 +50,7 @@ final class AgentReadAccessTests: XCTestCase {
         }
         XCTAssertTrue(access.isTicked(.files), "the boxes are remembered")
 
-        let later = makeAccess()   // a relaunch reads the remembered boxes
+        let later = makeAccess()
         later.setEnabled(true)
         XCTAssertEqual(later.granted, [.meetings, .screenMemory, .files])
         XCTAssertEqual(ScreenMemoryAccessGate(root: root).profile.scope, .today)
@@ -96,8 +93,6 @@ final class AgentReadAccessTests: XCTestCase {
         XCTAssertEqual(access.granted, [.files])
     }
 
-    /// A feature page's own box grants that kind alone: ticking Files on the
-    /// Files page never lets agents read meetings too.
     func testAPageBoxGrantsOnlyItsKindAndTheLastOneTurnsTheSwitchOff() {
         let access = makeAccess()
         access.setScreenScope(.today)

@@ -1,16 +1,3 @@
-//! Persistence for the overnight review (`DreamStore.swift`), inside the
-//! library:
-//!
-//!   dreams/<yyyy-MM-dd>.json    the report; its presence marks the day reviewed
-//!   dreams/<yyyy-MM-dd>.md      the same report, readable
-//!   memory/memory.json          work memory
-//!   memory/memory.md            the same memory, readable
-//!
-//! Every check-then-write runs under the advisory `.dream-store.lock`, which the
-//! Mac takes too. Withdrawing changed evidence first records its intent in
-//! `.dream-revocation-pending.json`: while that file exists nothing may read
-//! overnight memory, so a failed cleanup can't leave old facts in use.
-
 use std::collections::{BTreeMap, BTreeSet, HashMap};
 use std::fs;
 use std::path::{Path, PathBuf};
@@ -33,7 +20,6 @@ const MEMORY_MARKDOWN: &str = "memory/memory.md";
 
 #[derive(Debug, thiserror::Error)]
 pub enum StoreError {
-    /// What this review read changed while it ran, so it must not be saved.
     #[error("The review was overtaken by a change to what it read.")]
     Cancelled,
     #[error(
@@ -56,14 +42,12 @@ impl From<std::io::Error> for StoreError {
 
 pub type StoreResult<T> = Result<T, StoreError>;
 
-/// A work-memory item the person can pin, by the merge's case-insensitive keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MemoryEntry {
     Project(String),
     Goal(String),
 }
 
-/// One revocation's durable intent, as the Mac writes it.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct PendingInvalidation {
@@ -71,8 +55,6 @@ struct PendingInvalidation {
     id: Uuid,
     #[serde(default)]
     days: BTreeSet<String>,
-    /// Days whose screen, activity, coding-agent or digest evidence changed
-    /// without touching a meeting.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     activity_days: Option<BTreeSet<String>>,
     #[serde(default)]
@@ -104,9 +86,6 @@ impl PendingInvalidation {
     }
 }
 
-/// Revocations this process couldn't finish. Nothing reads overnight memory for
-/// these roots until a retry succeeds, even if the record itself couldn't be
-/// written (`blockedRoots`, `pendingInvalidations`).
 static BLOCKED: Mutex<Option<HashMap<PathBuf, PendingInvalidation>>> = Mutex::new(None);
 
 pub(crate) fn is_blocked(root: &Path) -> bool {
@@ -116,7 +95,6 @@ pub(crate) fn is_blocked(root: &Path) -> bool {
         .is_some_and(|blocked| blocked.contains_key(root))
 }
 
-/// One change to withdraw.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct Revocation {
     pub days: BTreeSet<String>,
@@ -151,8 +129,6 @@ impl DreamStore {
         self.root.join(PENDING_FILE)
     }
 
-    // ---------------------------------------------------------------- state
-
     fn evidence_available(&self) -> bool {
         !is_blocked(&self.root) && !self.pending_path().exists()
     }
@@ -173,8 +149,6 @@ impl DreamStore {
         Ok(read_json(&self.pending_path())?.unwrap_or_default())
     }
 
-    /// Capture this before compiling evidence, and require it when committing.
-    /// A revocation left unfinished is finished first.
     pub fn evidence_revision(&self) -> StoreResult<u64> {
         let _lock = StoreLock::acquire(&self.root)?;
         let mut durable = self.intents()?;
@@ -183,9 +157,6 @@ impl DreamStore {
             if !intent.awaiting_source_mutation {
                 continue;
             }
-            // Holding the lock proves a lock-protected mutation is over. This
-            // app only writes those, so an unprotected one is from a Mac run
-            // that isn't this process, and its write can't be coming here.
             let ours = intent.owner_process_id == Some(std::process::id() as i32);
             if intent.protected_by_mutation_lock != Some(true) && ours {
                 return Err(StoreError::RetractionIncomplete);
@@ -201,7 +172,6 @@ impl DreamStore {
             .as_ref()
             .and_then(|blocked| blocked.get(&self.root).cloned());
         if in_memory.is_some() || !durable.is_empty() {
-            // Recovery treats activity-only days as day-wide: conservative.
             let mut merged = in_memory.unwrap_or_default();
             for intent in &durable {
                 merged.merge(intent);
@@ -222,9 +192,6 @@ impl DreamStore {
         Ok(self.state()?.revision)
     }
 
-    /// For evidence-backed data kept elsewhere (learned personal items): the
-    /// current state, or `None` while a revocation is pending or the state
-    /// can't be read, so callers withhold that data meanwhile.
     pub fn evidence_check(&self) -> Option<EvidenceState> {
         let _lock = StoreLock::acquire(&self.root).ok()?;
         if !self.evidence_available() {
@@ -232,8 +199,6 @@ impl DreamStore {
         }
         self.state().ok()
     }
-
-    // -------------------------------------------------------------- reports
 
     fn invalidated(&self, provenance: Option<&Provenance>, state: &EvidenceState) -> bool {
         state.invalidates(provenance)
@@ -260,7 +225,6 @@ impl DreamStore {
         self.report(key).is_some()
     }
 
-    /// The newest valid report by reviewed day.
     pub fn latest_report(&self) -> Option<DreamReport> {
         let mut names: Vec<String> = fs::read_dir(self.dreams_dir())
             .ok()?
@@ -277,8 +241,6 @@ impl DreamStore {
         Ok(())
     }
 
-    /// The JSON is the scheduler's completion marker, so its Markdown sibling is
-    /// durable before the marker appears.
     fn write_report_locked(&self, report: &DreamReport) -> StoreResult<()> {
         self.write_markdown(&report.markdown(), &self.report_markdown_path(&report.day))?;
         write_json(&self.report_path(&report.day), report)?;
@@ -298,18 +260,14 @@ impl DreamStore {
         for path in [self.report_path(key), self.report_markdown_path(key)] {
             remove_if_present(&path)?;
         }
-        // Week and month lines drawn from this day go with it.
         rollup::remove_covering(key, &self.root);
         Ok(())
     }
 
-    /// Removes a report so the scheduler rebuilds that day.
     pub fn invalidate_report(&self, key: &str) -> StoreResult<()> {
         let _lock = StoreLock::acquire(&self.root)?;
         self.remove_report_locked(key)
     }
-
-    // --------------------------------------------------------------- memory
 
     fn memory_path(&self) -> PathBuf {
         self.root.join(MEMORY_FILE)
@@ -349,8 +307,6 @@ impl DreamStore {
         self.write_memory_locked(memory, &self.state()?)
     }
 
-    /// Reloads before changing a pin, so a page can't overwrite memory a review
-    /// wrote since it appeared. `None` when the entry no longer exists.
     pub fn set_pinned(
         &self,
         pinned: bool,
@@ -398,10 +354,6 @@ impl DreamStore {
         Ok(Some(memory))
     }
 
-    /// One whole review. Only the sources it read decide whether it is stale, so
-    /// a change to another day's evidence doesn't discard the run. Memory is
-    /// retracted against the current state as it is written, then the report,
-    /// with its JSON marker last: an earlier failure leaves the day to retry.
     pub fn save_generated(
         &self,
         report: &DreamReport,
@@ -437,8 +389,6 @@ impl DreamStore {
         self.write_report_locked(report)
     }
 
-    /// Clear work memory: every report and the memory, pins included. Scheduled
-    /// retention never removes them, so this and source deletion are how they go.
     pub fn clear_all(&self) -> StoreResult<()> {
         let _lock = StoreLock::acquire(&self.root)?;
         let mut state = self.state()?;
@@ -462,11 +412,6 @@ impl DreamStore {
         Ok(())
     }
 
-    // ----------------------------------------------------------- revocation
-
-    /// `DreamStore.invalidateEvidence`: the intent is durable before the state
-    /// advances, and memory and reports are cleaned up after it. Returns the
-    /// report days removed. Pins affect retention, never source revocation.
     pub fn invalidate_evidence(
         &self,
         revocation: &Revocation,
@@ -476,7 +421,6 @@ impl DreamStore {
         self.revoke_locked(revocation, at)
     }
 
-    /// With the store lock held.
     pub(crate) fn revoke_locked(
         &self,
         revocation: &Revocation,
@@ -505,7 +449,6 @@ impl DreamStore {
         match self.commit_revocation(pending.clone(), at) {
             Ok(keys) => Ok(keys),
             Err(err) => {
-                // Don't let another store read old facts or start a review.
                 BLOCKED
                     .lock()
                     .get_or_insert_with(HashMap::new)
@@ -540,8 +483,6 @@ impl DreamStore {
             }
         }
         intents.push(pending.clone());
-        // The intent precedes the state: a fresh process mustn't mistake a
-        // failed state write for no change.
         write_json(&self.pending_path(), &intents)?;
 
         let mut state = self.state()?;
@@ -567,8 +508,6 @@ impl DreamStore {
         }
         write_json(&self.root.join(EVIDENCE_FILE), &state)?;
 
-        // A file this version can't decode stays as it is: every reader filters
-        // it by the state just written, and it mustn't stop a deletion.
         match self.read_memory_locked(&state) {
             Ok(Some(mut memory)) => {
                 memory.updated_at = at;
@@ -609,8 +548,6 @@ impl DreamStore {
     }
 }
 
-/// `DreamMemory.retractingEvidence`. Source revocation overrides pinning, and an
-/// item without provenance goes with the first change rather than guessing.
 fn retracting(mut memory: DreamMemory, state: &EvidenceState) -> DreamMemory {
     if state.revision == 0 {
         return memory;

@@ -1,16 +1,10 @@
 import XCTest
 @testable import LokalBot
 
-/// Pure-logic coverage for the llama-server lifecycle owner. Booting the real
-/// subprocess belongs to e2e; these tests pin the invariants the rest of the
-/// app builds on: loopback-only base URLs, the three distinct roles/ports, and
-/// the /v1/models response parsing that health checks depend on.
 final class LlamaServerTests: XCTestCase {
 
     func testOutputTailSaysWhyAStartFailed() {
         let tail = LlamaServerOutputTail()
-        // Chunks split lines, as pipe reads do.
-        // The shape of llama-server's real output for a corrupt model file.
         tail.append(Data("0.00.077.101 I llama_model_loader: loaded meta data\n0.00.077.284 E gguf_init_from_reader: failed ".utf8))
         tail.append(Data("to read header\n0.00.077.456 E llama_model_load_from_file_impl: failed to load model\n".utf8))
         tail.append(Data("0.00.077.732 E srv  llama_server: exiting due to model loading error".utf8))
@@ -22,7 +16,6 @@ final class LlamaServerTests: XCTestCase {
         XCTAssertEqual(tail.reason, "gguf_init_from_reader: failed to read header")
     }
 
-    /// Once the server answers requests, its errors can quote request text.
     func testOutputTailKeepsOnlyCrashLinesOnceServing() {
         let tail = LlamaServerOutputTail()
         tail.serverIsReady()
@@ -50,9 +43,6 @@ final class LlamaServerTests: XCTestCase {
         XCTAssertEqual(tail.lines.last?.count, LlamaServerOutputTail.maximumLineCharacters)
     }
 
-    /// The privacy story requires every built-in server to be reachable only
-    /// via loopback. A non-loopback base URL here would be a data-exfiltration
-    /// bug, not a configuration choice.
     func testSharedServersAreLoopbackOnlyAndOnDistinctPorts() {
         let servers: [(LlamaServer, LlamaServerRole)] = [
             (.shared, .main), (.embedder, .embedder), (.cotyping, .cotyping),
@@ -101,9 +91,6 @@ final class LlamaServerTests: XCTestCase {
     }
 
     func testAuthenticationTokenIsStableAndHighEntropy() async {
-        // A private instance on an unused port: the token path is derived from
-        // the port, so this never touches the production token files.
-        // The persisted token file is removed on both ends of the test.
         let port = 59_871
         let tokenFile = AppDirectories.localServerSupport
             .appendingPathComponent("llama-server-\(port).auth-token")
@@ -119,8 +106,6 @@ final class LlamaServerTests: XCTestCase {
         XCTAssertFalse(first.contains("-"))
     }
 
-    /// Opt-in native replay; never downloads models or touches production
-    /// ports. Audio, responses and timing artifacts stay in the private folder.
     func testLocalGraniteRegionReplayKeepsOneProcess() async throws {
         struct Manifest: Decodable {
             struct Window: Decodable { var start: Double; var end: Double }

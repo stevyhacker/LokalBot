@@ -1,7 +1,3 @@
-//! The rolling live transcript while dictating (`DictationLiveTranscript`,
-//! `DictationPreviewWindowPlanner`, `DictationPreviewTextStitcher`), and the
-//! check that pasted text reached its field (`DictationInsertionCheck`).
-
 use unicode_segmentation::UnicodeSegmentation as _;
 
 use crate::notes::view::normalized_text;
@@ -16,7 +12,6 @@ const MIN_OVERLAP_WORDS: usize = 2;
 const MAX_OVERLAP_GRAPHEMES: usize = 64;
 const MIN_OVERLAP_GRAPHEMES: usize = 4;
 
-/// The text the live panel shows: settled words and the tail that may change.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct LiveTranscript {
     pub committed: String,
@@ -35,8 +30,6 @@ impl LiveTranscript {
         }
     }
 
-    /// Whole sentences are settled; without one, all but the last six of more
-    /// than eight words.
     pub fn preview(text: &str) -> Self {
         let normalized = normalized_text(text);
         if normalized.is_empty() {
@@ -70,16 +63,12 @@ impl LiveTranscript {
     }
 }
 
-/// One preview pass's audio, in seconds.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct WindowRange {
     pub start: f64,
     pub end: f64,
 }
 
-/// Each pass starts slightly before the last one ended, so the model hears
-/// enough to finish a word that crossed the boundary, without decoding the
-/// whole growing recording again.
 pub fn window_range(previous_end: f64, current_end: f64) -> Option<WindowRange> {
     let previous = previous_end.max(0.0);
     if current_end <= previous {
@@ -91,19 +80,14 @@ pub fn window_range(previous_end: f64, current_end: f64) -> Option<WindowRange> 
     })
 }
 
-/// Audio that must have arrived since the last pass before another runs.
 pub fn minimum_advance(duration: f64) -> f64 {
     if duration < 10.0 { 1.25 } else { 2.0 }
 }
 
-/// How long to rest after a pass, as a longer recording costs more.
 pub fn interval_after(duration: f64) -> f64 {
     (duration / 8.0).clamp(1.4, 4.0)
 }
 
-/// Joins overlapping windows. The newest window replaces the matched suffix,
-/// so revised capitalization or punctuation at the boundary wins; a window
-/// with no trustworthy overlap is appended rather than risking visible speech.
 pub fn stitch(previous: &str, incoming: &str) -> String {
     let old_text = normalized_text(previous);
     let new_text = normalized_text(incoming);
@@ -130,9 +114,6 @@ pub fn stitch(previous: &str, incoming: &str) -> String {
             }
         }
     }
-    // The character fallback is for unsegmented scripts only. On ordinary
-    // text it mistakes a word's suffix for the start of another word
-    // (broadcast / cast iron).
     if (old_words.len() == 1 || new_words.len() == 1)
         && has_unsegmented_script(&old_text)
         && has_unsegmented_script(&new_text)
@@ -149,8 +130,6 @@ struct SemanticGrapheme {
     unsegmented: bool,
 }
 
-/// Ignores punctuation and spacing while matching, keeping each grapheme's
-/// place so the output has the newest window verbatim from the overlap on.
 fn semantic_graphemes(text: &str) -> Vec<SemanticGrapheme> {
     text.grapheme_indices(true)
         .filter_map(|(start, grapheme)| {
@@ -187,26 +166,23 @@ fn has_unsegmented_script(text: &str) -> bool {
     text.chars().any(is_unsegmented_script)
 }
 
-/// Scripts that commonly omit spaces between words. Deliberately narrower
-/// than "non-Latin": Arabic, Cyrillic and Devanagari use word separators.
 fn is_unsegmented_script(c: char) -> bool {
     matches!(u32::from(c),
-        0x0E00..=0x0EFF // Thai and Lao
-        | 0x1000..=0x109F // Myanmar
-        | 0x1780..=0x17FF // Khmer
-        | 0x3040..=0x30FF // Hiragana and Katakana
-        | 0x31F0..=0x31FF // Katakana phonetic extensions
-        | 0x3400..=0x4DBF // CJK extension A
-        | 0x4E00..=0x9FFF // CJK unified ideographs
-        | 0xA9E0..=0xA9FF // Myanmar extended-B
-        | 0xAA60..=0xAA7F // Myanmar extended-A
-        | 0xF900..=0xFAFF // CJK compatibility ideographs
-        | 0xFF66..=0xFF9F // Halfwidth Katakana
-        | 0x20000..=0x2FA1F // CJK extensions and compatibility supplement
-        | 0x30000..=0x323AF) // CJK extensions G through I
+        0x0E00..=0x0EFF
+        | 0x1000..=0x109F
+        | 0x1780..=0x17FF
+        | 0x3040..=0x30FF
+        | 0x31F0..=0x31FF
+        | 0x3400..=0x4DBF
+        | 0x4E00..=0x9FFF
+        | 0xA9E0..=0xA9FF
+        | 0xAA60..=0xAA7F
+        | 0xF900..=0xFAFF
+        | 0xFF66..=0xFF9F
+        | 0x20000..=0x2FA1F
+        | 0x30000..=0x323AF)
 }
 
-/// Case and diacritics folded, letters and digits only.
 fn word_key(word: &str) -> String {
     lokalbot_core::ids::fold(word)
         .chars()
@@ -214,24 +190,16 @@ fn word_key(word: &str) -> String {
         .collect()
 }
 
-/// Whether pasted dictation reached the field (`DictationInsertionVerdict`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum InsertionVerdict {
     Landed,
     Missing,
-    /// The field could not be read; nothing is claimed.
     Unknown,
 }
 
-/// When to read the field after the paste, in milliseconds. An app can take a
-/// moment to publish the change.
 pub const READ_DELAYS_MS: [u64; 3] = [250, 650, 1_200];
-/// Letters and digits from the end of the insertion that must appear.
 const PROBE_LENGTH: usize = 24;
 
-/// Compares letters and digits only, so spacing, punctuation, emoji and
-/// Markdown changes do not matter, and scripts without spaces between words
-/// match inside a longer run.
 pub fn insertion_verdict(text_before_caret: Option<&str>, inserted: &str) -> InsertionVerdict {
     let Some(before) = text_before_caret else {
         return InsertionVerdict::Unknown;
@@ -331,7 +299,6 @@ mod tests {
             stitch("completely different", "words arrive here"),
             "completely different words arrive here"
         );
-        // One shared word is not enough, and word suffixes never match.
         assert_eq!(
             stitch("the broadcast", "cast iron pans"),
             "the broadcast cast iron pans"

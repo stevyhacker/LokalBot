@@ -1,7 +1,5 @@
 import XCTest
 
-/// Runs only on the hosted UI runner. The fixture opts out of model warm-up,
-/// subprocesses, capabilities, real tool execution, and network requests.
 final class AgentModeUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -53,7 +51,6 @@ final class AgentModeUITests: XCTestCase {
     func testStarterOnlyPrefillsAndRuntimeWaitsForExplicitSend() {
         XCTAssertTrue(UITestHarness.waitUntil { self.taskRowText.contains("Not started") },
                       "A new task's row says it has not started")
-        // A new task opens with its heading, what the agent may do, and the starters.
         XCTAssertTrue(app.descendants(matching: .any)["agent.capability"].exists)
         app.buttons["agent.starter.followUp"].click()
         XCTAssertTrue(UITestHarness.waitUntil { (self.composer.value as? String)?.contains("Draft a follow-up") == true })
@@ -138,7 +135,6 @@ final class AgentModeUITests: XCTestCase {
         XCTAssertTrue(find.waitForExistence(timeout: 4)); find.click(); find.typeText("Agent result")
         XCTAssertTrue(app.staticTexts["1 of 1"].waitForExistence(timeout: 3))
         app.buttons["Close find"].click()
-        // Copy, retry and more belong to the answer a turn ends with, so end the turn first.
         XCTAssertFalse(responseMore.exists, "What the agent says while it works has no actions")
         app.buttons["agent.approve.deny"].click()
         app.buttons["agent.stop"].click()
@@ -192,15 +188,12 @@ final class AgentModeUITests: XCTestCase {
         let transcript = app.scrollViews["agent.transcript"]
         XCTAssertGreaterThanOrEqual(transcript.frame.height, 140,
                                     "The expanded approval must leave room to read the conversation")
-        // The conversation ends with a line that points at the approval card.
         let pointer = app.descendants(matching: .any)["agent.awaitingAnswer"]
         XCTAssertTrue(pointer.waitForExistence(timeout: 4))
         UITestHarness.scrollTo(pointer, in: app, within: transcript)
         let visibleAnswer = answer.frame.intersection(transcript.frame.insetBy(dx: 8, dy: 8))
         XCTAssertFalse(visibleAnswer.isNull, "The response must be visible before selecting it")
         XCTAssertGreaterThan(visibleAnswer.height, 12)
-        // A long text view can extend beyond its scroll viewport. XCTest's
-        // default center click can otherwise land on the fixed approval dock.
         answer.coordinate(withNormalizedOffset: .zero).withOffset(CGVector(
             dx: visibleAnswer.minX - answer.frame.minX + 4,
             dy: visibleAnswer.midY - answer.frame.minY)).click()
@@ -213,14 +206,11 @@ final class AgentModeUITests: XCTestCase {
             return copied.contains("Agent result\n") && copied.contains("• Parent\n")
                 && copied.contains("let value = 1") && copied.contains("Agent │ Ready")
         }, "Selection must span the complete answer without separate selection islands")
-        // Clear the pasted draft so the capture shows the conversation hierarchy.
         composer.typeKey("a", modifierFlags: .command)
         composer.typeKey(.delete, modifierFlags: [])
         snapshot("agent-response-hierarchy")
     }
 
-    /// Exercise an actual edge drag after opening long history. A startup
-    /// capture at a small size misses content-driven native window minimums.
     func testLongSavedConversationCanShrinkWithoutClippingActions() throws {
         app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         let directory = fixture.root.appendingPathComponent("agent/sessions")
@@ -245,9 +235,6 @@ final class AgentModeUITests: XCTestCase {
             let answer = app.descendants(matching: .any)["agent.assistant"]
             XCTAssertTrue(answer.waitForExistence(timeout: 4))
 
-            // With the sidebar shown, Agent's floor is the sidebar (216 pt, about
-            // 8 pt more on macOS 26.6) + task column 200 + conversation 350 +
-            // divider: about 751 pt on macOS 15, 767-775 pt on macOS 26 and later.
             resizeWindow(to: 780)
             let retry = app.buttons["Retry response"].firstMatch
             let more = responseMore
@@ -266,7 +253,6 @@ final class AgentModeUITests: XCTestCase {
             app.typeKey(.escape, modifierFlags: [])
             snapshot("agent-compact-780-\(appearance)")
 
-            // Query the toolbar's direct child to avoid its nested AX wrapper.
             app.windows["main.window"].toolbars.firstMatch.children(matching: .button)
                 .matching(NSPredicate(format: "label CONTAINS[c] 'sidebar'")).firstMatch.click()
             XCTAssertTrue(UITestHarness.waitUntil {
@@ -310,9 +296,6 @@ final class AgentModeUITests: XCTestCase {
     private var taskRow: XCUIElement {
         app.descendants(matching: .any).matching(NSPredicate(format: "identifier BEGINSWITH 'agent.task.'")).firstMatch
     }
-    /// What VoiceOver reads for the first task row: its title and its status.
-    /// The row is one static text, and macOS reports a static text's words
-    /// as its value, not its label.
     private var taskRowText: String {
         let row = taskRow
         return [row.label, row.value as? String ?? ""].joined(separator: " ")

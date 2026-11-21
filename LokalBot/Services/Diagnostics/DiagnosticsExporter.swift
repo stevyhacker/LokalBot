@@ -15,11 +15,6 @@ enum DiagnosticsPaths {
     }
 }
 
-/// Builds the Export Diagnostics archive: recent logs, health reports,
-/// settings without secrets, library row counts, and capture traces (already
-/// scrubbed when written). It never reads the meetings folder, screenshots, or
-/// OCR text, so meeting audio, transcripts, notes, and screen content cannot
-/// end up in the archive.
 enum DiagnosticsExporter {
     struct Sources: Sendable {
         var logURLs: [URL]
@@ -105,8 +100,6 @@ enum DiagnosticsExporter {
         encoder.dateEncodingStrategy = .iso8601
         try encoder.encode(manifest).write(to: staging.appendingPathComponent("manifest.json"), options: .atomic)
 
-        // Build the archive beside the staging folder, then swap it in: an
-        // earlier archive is replaced only once the new one exists.
         let archive = parent.appendingPathComponent("diagnostics.zip")
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
@@ -137,7 +130,6 @@ enum DiagnosticsExporter {
         return urls.count
     }
 
-    /// Row counts only; never row contents.
     static func libraryCounts(databaseURL: URL) -> [String: Int]? {
         guard FileManager.default.fileExists(atPath: databaseURL.path) else { return nil }
         var handle: OpaquePointer?

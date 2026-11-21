@@ -1,16 +1,9 @@
 import AppKit
 import SwiftUI
 
-/// Settings → Privacy & permissions: the one place that asks for macOS
-/// permissions and shows what leaves this Mac. Each permission says which
-/// features use it and where it stands; each server that receives something
-/// is listed with the control that revokes it; sharing with agents and with
-/// phones is summed up and opens its own page, where its consent lives.
-/// PRIVACY.md is the contract for every sentence here.
 struct SettingsPrivacySections: View {
     @EnvironmentObject private var app: AppState
     let status: SettingsStatus
-    /// Observed for the error a Calendar request can end with.
     @ObservedObject var calendar: EventKitCalendarEventProvider
     @State private var libraryBytes: Int64?
     @State private var revokingOrigin: String?
@@ -46,7 +39,6 @@ struct SettingsPrivacySections: View {
                     Text("Anything else")
                     SettingsHelp("Model downloads, update checks, and Agent Mode’s one-time setup use the internet. So does Gmail, once you connect it.")
                 }
-                // On one row, so the confirmations are presented once.
                 .remoteOriginRevocation(app: app, inference: $revokingOrigin, transcription: $revokingTranscriptionOrigin)
             }
             Section("Where it’s kept") {
@@ -65,8 +57,6 @@ struct SettingsPrivacySections: View {
         }
         .task { libraryBytes = await SettingsLibrarySize.measure(root: app.storage.rootURL) }
     }
-
-    // MARK: - Permissions
 
     private func permissionRow(_ permission: SettingsPermission) -> some View {
         let access = status.access(permission)
@@ -92,8 +82,6 @@ struct SettingsPrivacySections: View {
                                   identifier: "settings.permission.\(permission.rawValue).allow")
             case .notNeeded:
                 Text("Not needed now").settingsSecondary()
-                // Still offered: a feature turned on later, or Autocomplete
-                // reading the focused window, uses it once it is granted.
                 SettingsFixButton(title: status.allowTitle(permission), action: .allow(permission), link: true,
                                   identifier: "settings.permission.\(permission.rawValue).allow")
             }
@@ -113,10 +101,6 @@ struct SettingsPrivacySections: View {
         }
     }
 
-    // MARK: - What leaves this Mac
-
-    /// Every origin approved to receive something, with its Revoke, and the
-    /// server Autocomplete sends typing to.
     @ViewBuilder private var onlineModels: some View {
         let settings = app.settings
         let autocompleteHost = settings.cotypingLeavesThisMac ? settings.cotypingConfiguredServerURL?.host : nil
@@ -209,7 +193,6 @@ struct SettingsPrivacySections: View {
         }
     }
 
-    /// A summary that opens the page where the sharing is set up and agreed to.
     private func pageRow<Detail: View>(_ page: AppState.SettingsTab, title: String,
                                        @ViewBuilder detail: () -> Detail) -> some View {
         Button { SettingsStatusActions.perform(.open(page, focus: nil), in: app) } label: {
@@ -229,10 +212,6 @@ struct SettingsPrivacySections: View {
     }
 }
 
-// MARK: - Revoking a server
-
-/// The two confirmations that revoke a server's approval, shared by Models
-/// and Privacy & permissions so both revoke the same way.
 private struct RemoteOriginRevocation: ViewModifier {
     @ObservedObject var app: AppState
     @Binding var inference: String?
@@ -265,7 +244,6 @@ private struct RemoteOriginRevocation: ViewModifier {
 }
 
 extension View {
-    /// Confirms and carries out revoking a Think or transcription server.
     func remoteOriginRevocation(app: AppState, inference: Binding<String?>,
                                 transcription: Binding<String?>) -> some View {
         modifier(RemoteOriginRevocation(app: app, inference: inference, transcription: transcription))

@@ -1,9 +1,5 @@
 import Foundation
 
-/// Finds the action a phone's op names. Action ids are content hashes, so
-/// reprocessing a meeting can change them while the phone still holds the
-/// old one; the op's text snapshot then finds the action when exactly one
-/// matches. Anything else is reported back as unmatched, never guessed.
 enum CompanionOpMatcher {
     enum Match: Equatable {
         case byID(String)
@@ -33,10 +29,6 @@ enum CompanionOpMatcher {
     }
 }
 
-/// Applies `action.setStatus` ops from paired devices through the same
-/// `OutcomeIndex` path as the Actions list, so the outcome state, the action
-/// threads, and every derived surface update exactly as for a click on the
-/// Mac.
 @MainActor
 final class CompanionOpApplier {
     private let outcomes: OutcomeIndex
@@ -47,7 +39,6 @@ final class CompanionOpApplier {
         self.meetings = meetings
     }
 
-    /// The op's meeting when it parsed, for the republish that follows.
     struct Outcome: Equatable {
         var result: CompanionOpResult
         var meetingID: UUID?

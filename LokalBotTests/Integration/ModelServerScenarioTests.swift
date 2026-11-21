@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Digest and Ask through the real `OpenAICompatibleEngine` (OpenRouter
-/// dialect) against the scenario stub, so request shaping and recovery are
-/// exercised end to end.
 final class ModelServerScenarioTests: XCTestCase {
     private var server: ModelStubServer!
 
@@ -88,8 +85,6 @@ final class ModelServerScenarioTests: XCTestCase {
         XCTAssertEqual(requests[0].user, requests[1].user)
     }
 
-    /// A model that always reasons rejects `none`; the chosen level must not
-    /// fail the request, and the retry must be the only extra call.
     func testRejectedReasoningLevelRetriesOnceAtLow() async throws {
         try await server.load([
             StubRule.http(400, message: "reasoning_effort 'none' is not supported for this model", nth: 1),
@@ -121,7 +116,7 @@ final class ModelServerScenarioTests: XCTestCase {
 
     func testReasoningHeavyModelFitsOnTheLargerRetry() async throws {
         try await server.load([
-            StubRule.reasoning(focusJSON, tokens: 2_030, system: focus), // ~40-token answer no longer fits in 2,048
+            StubRule.reasoning(focusJSON, tokens: 2_030, system: focus),
             StubRule.reply(digestJSON, system: aggregate),
         ])
         let result = try await DayDigestOverviewGenerator.generateResult(
@@ -176,8 +171,6 @@ final class ModelServerScenarioTests: XCTestCase {
         XCTAssertEqual(answer, "Late but fine.")
     }
 
-    /// A refused streamed request reported "empty error response": the
-    /// error was built without reading the body the provider sent.
     func testARefusedStreamKeepsTheProvidersReason() async throws {
         try await server.load([StubRule.http(402, message: "Insufficient credits for this request")])
         do {
@@ -199,7 +192,6 @@ final class ModelServerScenarioTests: XCTestCase {
             _ = try await agent.respond(history: [], latest: "Status?") { _ in }
             XCTFail("a dropped stream must not produce an answer")
         } catch {
-            // Expected: the engine reports the lost connection.
         }
     }
 }

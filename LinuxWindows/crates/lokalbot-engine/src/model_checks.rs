@@ -1,7 +1,3 @@
-//! Checks that a role's model responds, using sample content
-//! (`ModelCheckController`). Checks confirm the path ran; they don't measure
-//! accuracy. No meeting, screen or clipboard content is used.
-
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
@@ -17,8 +13,6 @@ use sha2::{Digest as _, Sha256};
 use crate::models::{Models, RUNTIME_ID};
 use crate::{ConnectionCheck, EngineEvent, ModelCheckResult, ModelCheckStatus, ModelRole, Shared};
 
-/// The first ten seconds of a synthetic recording made with macOS `say`
-/// (`Resources/ModelChecks`). It holds no meeting or personal audio.
 const SPOKEN_SAMPLE: &[u8] = include_bytes!("../assets/model-check-speech.wav");
 const WAV_HEADER_BYTES: usize = 44;
 
@@ -30,8 +24,6 @@ fn spoken_samples() -> Vec<f32> {
         .collect()
 }
 
-/// Identifies just the configuration a role's check exercises, so unrelated
-/// changes don't invalidate its result (`ModelCheckIdentity`).
 pub(crate) fn identity(role: ModelRole, settings: &Settings, api_key: &str) -> Vec<String> {
     let entry_identity = |id: &str| match lokalbot_ai::catalog::entry(id) {
         Some(entry) => format!("{id}\n{}\n{}\n{}", entry.file, entry.url(), entry.sha256),
@@ -99,7 +91,6 @@ pub(crate) fn identity(role: ModelRole, settings: &Settings, api_key: &str) -> V
     }
 }
 
-/// What "Check connection" compares before it publishes (`hasChanges`).
 fn connection_identity(settings: &Settings, backend: SummarizerBackend) -> Vec<String> {
     let mut config = settings.clone();
     config.summarizer_backend = backend;
@@ -110,7 +101,6 @@ fn connection_identity(settings: &Settings, backend: SummarizerBackend) -> Vec<S
     )
 }
 
-/// A check that found words only in a spoken sample's answer passes.
 fn has_words(text: &str) -> bool {
     text.chars().any(char::is_alphabetic)
 }
@@ -124,7 +114,6 @@ struct Inner {
     shared: Arc<Shared>,
     models: Models,
     status: Mutex<ModelCheckStatus>,
-    /// Changes when a run is cancelled or superseded.
     generation: AtomicU64,
     connection_generation: AtomicU64,
 }
@@ -171,7 +160,6 @@ impl ModelChecks {
         });
     }
 
-    /// Stops publishing. A request already sent runs out on its own.
     pub fn cancel(&self) {
         self.inner.generation.fetch_add(1, Ordering::Relaxed);
         self.inner.update(|status| {
@@ -180,7 +168,6 @@ impl ModelChecks {
         });
     }
 
-    /// Results whose configuration changed no longer say anything.
     pub fn settings_changed(&self) {
         let settings = self.inner.shared.settings();
         let key = openai_key_for(&settings);
@@ -215,7 +202,6 @@ impl ModelChecks {
             if inner.connection_generation.load(Ordering::Relaxed) != token {
                 return;
             }
-            // The form changed while this ran, so the answer is about old values.
             let latest = inner.shared.settings();
             let same = before == connection_identity(&latest, backend);
             let (reply, error) = match result {
@@ -253,7 +239,6 @@ impl Inner {
         self.shared.emit(EngineEvent::ModelChecks(snapshot));
     }
 
-    /// `ModelRoles.snapshot[role].isReady`: nothing left to download or approve.
     fn is_ready(&self, role: ModelRole) -> bool {
         let settings = self.shared.settings();
         match role {
@@ -352,7 +337,6 @@ impl Inner {
         Ok(reply)
     }
 
-    /// `previewSuggestion(precedingText:sampleOnly:)`: fixed text, no field read.
     fn check_autocomplete(&self, config: &Settings) -> Result<()> {
         let client = lokalbot_ai::CompletionClient::from_settings(&self.shared.runtime, config)?;
         let request = lokalbot_ai::CompletionRequest::cotyping(
@@ -372,7 +356,6 @@ mod tests {
     fn the_spoken_sample_is_the_macs_ten_seconds() {
         assert_eq!(&SPOKEN_SAMPLE[..4], b"RIFF");
         assert_eq!(&SPOKEN_SAMPLE[36..40], b"data");
-        // 16 kHz, mono, 16-bit.
         assert_eq!(
             u32::from_le_bytes(SPOKEN_SAMPLE[24..28].try_into().unwrap()),
             16_000

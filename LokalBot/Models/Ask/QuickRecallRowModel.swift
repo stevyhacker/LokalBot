@@ -1,43 +1,29 @@
 import Foundation
 
-/// One row of the Quick Recall window: a meeting, a screen moment, a file, a
-/// saved agent note or a command. Line one is the title, a grey qualifier
-/// (the app, the folder, a meeting's length) and when; line two is the
-/// matching line, starting with who said it for a meeting.
 struct QuickRecallRowModel: Identifiable {
     enum Destination {
         case screen(Int64)
         case meeting(SearchIndex.Hit)
-        /// A recent meeting, opened at its start.
         case recentMeeting(UUID)
         case file(FileSearchHit)
         case agentNote(AgentNoteHit)
-        /// A `PaletteCommand` id.
         case command(String)
     }
 
-    /// What leads the row.
     enum Lead: Equatable {
-        /// A screen moment's thumbnail.
         case thumbnail(Int64)
-        /// A tile with an SF Symbol: a meeting's waveform, a command's icon.
         case symbol(String)
-        /// The file's own icon, which shows its type.
         case file(path: String)
-        /// The red dot of Record now.
         case recording
     }
 
     let id: String
     let lead: Lead
     let title: String
-    /// Grey text after the title.
     let qualifier: String?
-    /// Who said the matching line, or which part of the meeting it is from.
     let speaker: String?
     let snippet: String?
     let timestamp: Date?
-    /// A command's keyboard shortcut, shown where a result shows when.
     let shortcut: String?
     let isSaved: Bool
     let destination: Destination
@@ -62,10 +48,8 @@ struct QuickRecallRowModel: Identifiable {
         return snapshotID
     }
 
-    /// The qualifier under the name earlier callers use.
     var subtitle: String { qualifier ?? "" }
 
-    /// The matching line without its search markers, led by who said it.
     var plainSnippet: String? {
         guard let snippet else { return nil }
         let text = SnippetHighlighter.segments(snippet).map(\.text).joined()
@@ -91,7 +75,6 @@ struct QuickRecallRowModel: Identifiable {
             id: "screen.\(snapshotID)",
             lead: .thumbnail(snapshotID),
             title: title,
-            // A window without a title is named by its app; do not say it twice.
             qualifier: title == appName ? nil : appName,
             snippet: snippet,
             timestamp: timestamp,
@@ -99,8 +82,6 @@ struct QuickRecallRowModel: Identifiable {
             destination: .screen(snapshotID))
     }
 
-    /// `speaker` is who said the matching line, or the part of the meeting it
-    /// came from (`meetingLead`).
     static func meeting(hit: SearchIndex.Hit, title: String, speaker: String?, timestamp: Date?) -> Self {
         .init(
             id: "meeting.\(hit.meetingID).\(hit.kind.rawValue).\(hit.start)",
@@ -112,9 +93,6 @@ struct QuickRecallRowModel: Identifiable {
             destination: .meeting(hit))
     }
 
-    /// What starts a meeting's matching line: the speaker of a transcript
-    /// line when the search hit names one, otherwise where the words are
-    /// (your notes, the summary, an outcome). A title match needs neither.
     static func meetingLead(_ hit: SearchIndex.Hit, localize: (String) -> String = { $0 }) -> String? {
         switch hit.kind {
         case .segment:
@@ -127,7 +105,6 @@ struct QuickRecallRowModel: Identifiable {
         }
     }
 
-    /// A recent meeting before anything is typed: its title, length and start.
     static func recentMeeting(id: UUID, title: String, duration: String?, startedAt: Date) -> Self {
         .init(
             id: "recent.meeting.\(id.uuidString)",
@@ -161,8 +138,6 @@ struct QuickRecallRowModel: Identifiable {
             destination: .file(hit))
     }
 
-    /// Where in the file the matching line is: a PDF's page, or the time in
-    /// a recording or video.
     static func fileLead(_ hit: FileSearchHit, localize: (String) -> String = { $0 }) -> String? {
         if let page = hit.page { return String(format: localize("Page %lld"), page) }
         if let seconds = hit.seconds { return Transcript.shortStamp(seconds) }
@@ -179,10 +154,6 @@ struct QuickRecallRowModel: Identifiable {
             destination: .command(command.id))
     }
 
-    /// Saved keyword matches lead the Screens group. Use their own matching
-    /// capture, even when another capture is the group's primary search result.
-    /// A saved capture related only by meaning keeps its ranked place, so it
-    /// cannot bury a capture that contains the searched words.
     static func screens(
         groups: [ScreenRecallGroup],
         savedMoments: [ActivityStore.SavedMoment],
@@ -201,7 +172,6 @@ struct QuickRecallRowModel: Identifiable {
         }
         let savedIDs = Set(savedRows.compactMap(\.snapshotID))
         let otherRows = groups.compactMap { group -> Self? in
-            // A saved capture already represents this source group.
             guard !group.matches.contains(where: { savedIDs.contains($0.snapshotID) }),
                   let hit = group.matches.first else { return nil }
             if let moment = savedByID[hit.snapshotID] { return saved(moment, hit: hit) }

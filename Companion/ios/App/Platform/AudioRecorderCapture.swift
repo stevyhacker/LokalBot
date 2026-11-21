@@ -2,10 +2,6 @@ import AVFoundation
 import LokalBotCompanionKit
 import os
 
-/// The microphone, through `AVAudioRecorder`. The `.aac` extension makes it
-/// write an ADTS stream, whose frames each carry a header, so the file is
-/// readable however recording ends. It keeps recording with the screen locked
-/// or the app in the background (the `audio` background mode).
 @MainActor
 final class AudioRecorderCapture: NSObject, AudioCapture {
     var onEvent: ((AudioCaptureEvent) -> Void)?
@@ -13,8 +9,6 @@ final class AudioRecorderCapture: NSObject, AudioCapture {
     private var recorder: AVAudioRecorder?
     private var observers: [NSObjectProtocol] = []
 
-    /// Speech at this rate gives the same AAC quality the Mac records, at
-    /// about 29 MB an hour.
     private static let settings: [String: Any] = [
         AVFormatIDKey: kAudioFormatMPEG4AAC,
         AVSampleRateKey: 48_000,
@@ -27,7 +21,6 @@ final class AudioRecorderCapture: NSObject, AudioCapture {
     var level: Float {
         guard let recorder, recorder.isRecording else { return 0 }
         recorder.updateMeters()
-        // -50 dB and below reads as silence.
         return max(0, min(1, (recorder.averagePower(forChannel: 0) + 50) / 50))
     }
 
@@ -83,8 +76,6 @@ final class AudioRecorderCapture: NSObject, AudioCapture {
         ]
     }
 
-    /// The recorder pauses itself when interrupted. When it's allowed to, it
-    /// carries on by itself; otherwise the person resumes from the screen.
     private func interruption(_ type: AVAudioSession.InterruptionType?, shouldResume: Bool) {
         switch type {
         case .began:
@@ -107,7 +98,6 @@ final class AudioRecorderCapture: NSObject, AudioCapture {
 
 extension AudioRecorderCapture: AVAudioRecorderDelegate {
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
-        // Only `stop()` ends recording on purpose, and that clears the delegate.
         Task { @MainActor [weak self] in self?.onEvent?(.failed) }
     }
 

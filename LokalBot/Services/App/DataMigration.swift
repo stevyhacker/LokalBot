@@ -4,44 +4,18 @@ import Security
 import Darwin
 import SQLite3
 
-/// One-shot migrations from previous LokalBot identities to the current app id.
-///
-/// Bundle-id renames re-key every identity-scoped store at once:
-///   • the Application Support data dir   (`~/Library/Application Support/<bundle id>/`)
-///   • the login Keychain                 (service == bundle id)
-///   • UserDefaults                       (the per-bundle-id preference domain)
-///
-/// Without migration a rename would look like total data loss: an empty library,
-/// reset settings, and — worst — screenshots that can no longer be decrypted
-/// because the AES key lived under the old service. This copies all three forward
-/// on first launch after a rename.
-///
-/// MUST run at the very top of process `main()` — before `AppSettings.load()`,
-/// `StorageManager()`, or any Keychain read — so the current stores observe
-/// migrated values and `StorageManager` doesn't create an empty dir first.
-///
-/// The embedded `lokalbot-cli` is a separate binary and does NOT run this; it
-/// reads whatever the app has already migrated. The normal flow launches the app
-/// (which migrates) before the CLI is used.
 enum DataMigration {
 
-    // MARK: Old identities. Keep these frozen; changing them would strand data.
     private static let oldV2BundleID = "com.dotenv.LokalBotV2"
     private static let oldV2SettingsKey = "lokalbotv2.settings"
     private static let oldV2OnboardingKey = "lokalbotv2.onboarding.shown"
     private static let oldV2DBName = "lokalbotv2.sqlite"
     private static let oldV3BundleID = ["com", "dotenv", "LokalBotV3"].joined(separator: ".")
 
-    /// New DB filename — mirrors the `databaseURL` built in `AppState`.
     private static let currentDBName = "lokalbotv3.sqlite"
 
-    /// Generic-password accounts to carry over (service is the bundle id).
-    /// `screenshot-key` is the AES-GCM key that decrypts the screenshot filmstrip
-    /// — losing it makes existing shots unreadable, so it matters most.
     private static let keychainAccounts = ["screenshot-key", "chat-key", "openai-compatible-api-key"]
 
-    /// Set only after every migration phase succeeds. Retained conflicting
-    /// libraries and failed operations remain recoverable on later launches.
     private static let migratedFromV2Flag = "lokalbotv3.migratedFromV2"
     private static let migratedFromV3Flag = "lokalbot.migratedFromDotenvV3"
     private static let recoveredChatKeyFlag = "lokalbot.recoveredLegacyChatKey.v1"
@@ -65,8 +39,6 @@ enum DataMigration {
         case preservedConflict
     }
 
-    /// Injectable secret storage keeps migration orchestration testable without
-    /// reading or mutating the login Keychain. Production always uses `live`.
     struct SecretStore {
         var read: (_ service: String, _ account: String) throws -> Data?
         var write: (_ data: Data, _ service: String, _ account: String) throws -> Void
@@ -76,7 +48,6 @@ enum DataMigration {
             write: { try writeData($0, service: $1, account: $2) })
     }
 
-    /// Migrate old libraries/settings/secrets into the current identity exactly once.
     @discardableResult
     static func runIfNeeded(environment: [String: String] = ProcessInfo.processInfo.environment,
                             defaults: UserDefaults = .standard,
@@ -91,8 +62,6 @@ enum DataMigration {
                        defaults: defaults, secrets: secrets)
     }
 
-    /// The migration itself, without the launch gate (which skips every test
-    /// host). Upgrade tests run it on each release's library.
     static func migrate(appSupport: URL, currentDirectory: URL,
                         defaults: UserDefaults, secrets: SecretStore) -> StartupOutcome {
         let currentDir = currentDirectory
@@ -119,15 +88,8 @@ enum DataMigration {
 
     static func shouldRun(environment: [String: String], defaults: UserDefaults,
                           identity: AppIdentifiers.Identity, arguments: [String]) -> Bool {
-        // Legacy identities belong to the release app. A fresh Dev launch must
-        // never acquire or move the release library and its retention authority.
         guard identity == .release else { return false }
-        // A unit-test run launches the app as its XCTest host, which still
-        // executes main() — never let `xcodebuild test` move the real user
-        // library. XCTest sets XCTestConfigurationFilePath in that process.
         if environment["XCTestConfigurationFilePath"] != nil { return false }
-        // Never migrate under a UI-test / storage-isolation launch either: those
-        // point storage at a throwaway dir, so there's no real library to move.
         if let root = environment["LOKALBOT_STORAGE_ROOT"], !root.isEmpty { return false }
         if let root = defaults.string(forKey: UITestRuntime.storageRootKey), !root.isEmpty { return false }
         if arguments.contains("--lokalbot-storage-root") { return false }
@@ -136,8 +98,6 @@ enum DataMigration {
             || arguments.contains("--lokalbot-ui-test") {
             return false
         }
-        // A copy run from Xcode build products has its own library and must
-        // never move the installed app's data.
         if UITestRuntime.isLocalBuild { return false }
         return true
     }
@@ -218,16 +178,12 @@ enum DataMigration {
 
     enum MigrationResult { case unchanged, migrated, preservedConflict }
 
-    /// Separate phase completion from whether any files happened to move.
-    /// Injection keeps failure tests away from the user's library and Keychain.
     @discardableResult
     static func completeMigration(marker: String, defaults: UserDefaults,
                                   migrateData: () throws -> MigrationResult,
                                   migratePreferences: () throws -> Void,
                                   migrateSecrets: () throws -> Void) -> MigrationAttempt {
         do {
-            // Prepare identity-scoped keys before exposing migrated encrypted
-            // files. A denied Keychain read must leave the old library in place.
             try migratePreferences()
             try migrateSecrets()
             guard try migrateData() != .preservedConflict else {
@@ -241,12 +197,6 @@ enum DataMigration {
         }
     }
 
-    // MARK: - Data directory
-
-    /// Move the whole V2 library to the V3 location and version-rename the DB.
-    /// A move (atomic rename on the same volume) — not a copy — so the multi-GB
-    /// model cache isn't duplicated; the V2 keychain secrets are left intact as a
-    /// fallback. No-op if there's no V2 library or a V3 one already exists.
     @discardableResult
     static func migrateDataDir(from oldDir: URL, to newDir: URL,
                                renamesDatabase: Bool = true,
@@ -264,9 +214,6 @@ enum DataMigration {
         }
     }
 
-    /// `replacePlaceholderDatabase` is a legacy option name. It now permits
-    /// import only when no destination database exists; an empty live database
-    /// is still owned by its current connections and is never replaced.
     static func migrateDataDirChecked(from oldDir: URL, to newDir: URL,
                                       renamesDatabase: Bool = true,
                                       mergeIfDestinationExists: Bool = false,
@@ -281,8 +228,6 @@ enum DataMigration {
         }
         try fm.moveItem(at: oldDir, to: newDir)
         guard renamesDatabase else { return .migrated }
-        // The DB filename embeds the version; rename the file and its WAL/SHM
-        // sidecars so the current app opens the existing index instead of a fresh one.
         let renames = [(oldV2DBName, currentDBName)] + ["-wal", "-shm"].map { (oldV2DBName + $0, currentDBName + $0) }
         var renamed: [(URL, URL)] = []
         do {
@@ -294,8 +239,6 @@ enum DataMigration {
                 renamed.append((src, destination))
             }
         } catch {
-            // Restore the old names before putting the whole library back. If
-            // recovery itself fails the files still remain in the new directory.
             for (source, destination) in renamed.reversed() {
                 try? fm.moveItem(at: destination, to: source)
             }
@@ -311,8 +254,6 @@ enum DataMigration {
                                      fileManager fm: FileManager) throws -> MigrationResult {
         var migrated = false
         if replacePlaceholderDatabase && hasDatabaseConflict(from: oldDir, to: newDir, fileManager: fm) {
-            // Preserve its assets alongside a conflicting legacy database. A
-            // partial merge would make that retained library hard to recover.
             return .preservedConflict
         }
         let items = try fm.contentsOfDirectory(at: oldDir,
@@ -325,8 +266,6 @@ enum DataMigration {
             migrated = try copyMissingItem(from: item, to: destination, fileManager: fm) || migrated
         }
         if replacePlaceholderDatabase {
-            // Install the database last. The source stays intact throughout a
-            // merge, including when a concurrent writer creates the destination.
             let result = try importDatabaseIfMissing(from: oldDir, to: newDir, fileManager: fm)
             guard result != .preservedConflict else { return result }
             migrated = result == .migrated || migrated
@@ -375,9 +314,6 @@ enum DataMigration {
         guard let legacy = SQLiteDatabase(url: oldDB, readOnly: true) else {
             throw SQLiteDatabase.DatabaseError.unavailable(path: oldDB.path)
         }
-        // SQLite's backup API includes committed WAL content and does not move
-        // or checkpoint the old database. If installation fails, both the
-        // source library and this recovery snapshot remain available.
         try legacy.backup(to: incoming)
         guard let snapshot = SQLiteDatabase(url: incoming, readOnly: true),
               try snapshot.queryChecked("PRAGMA quick_check", row: {
@@ -389,10 +325,6 @@ enum DataMigration {
         return try installDatabaseSnapshot(from: incoming, to: newDB) ? .migrated : .preservedConflict
     }
 
-    /// Do not replace even an apparently empty current database. An independent
-    /// SQLite connection can commit immediately after an emptiness check, and
-    /// replacing its inode separates that writer from the active library path.
-    /// RENAME_EXCL makes creation atomic: a concurrent creator wins unchanged.
     static func installDatabaseSnapshot(from source: URL, to destination: URL) throws -> Bool {
         if renamex_np(source.path, destination.path, UInt32(RENAME_EXCL)) == 0 { return true }
         let errorCode = errno
@@ -409,17 +341,11 @@ enum DataMigration {
     }
 
     private static func databaseFilesExist(at url: URL, fileManager fm: FileManager) -> Bool {
-        // Orphaned sidecars also require recovery rather than a new main file.
         ["", "-wal", "-shm", "-journal"].contains {
             fm.fileExists(atPath: url.path + $0)
         }
     }
 
-    // MARK: - UserDefaults
-
-    /// Copy the encoded settings blob (raw — the Codable shape is unchanged by the
-    /// rename) and the "onboarding shown" flag so a migrated user keeps their
-    /// preferences and isn't re-onboarded.
     static func migrateSettings(from old: UserDefaults, to new: UserDefaults,
                                 settingsKey: String = oldV2SettingsKey,
                                 onboardingKey: String = oldV2OnboardingKey) {
@@ -432,12 +358,6 @@ enum DataMigration {
         }
     }
 
-    // MARK: - Keychain
-
-    /// Re-home each generic-password secret under the new service. The cross-app
-    /// read of a V2-created item triggers a one-time macOS "allow access" dialog;
-    /// once copied, the V3 app owns its own item and reads it silently. Reads are
-    /// non-destructive — the V2 items survive as a fallback.
     static func migrateKeychain(from oldService: String, to newService: String,
                                 secrets: SecretStore = .live) throws {
         for account in keychainAccounts {
@@ -453,12 +373,6 @@ enum DataMigration {
         }
     }
 
-    // MARK: - Legacy encrypted screenshots
-
-    /// A successful directory move/copy is not sufficient when the destination
-    /// identity already owns a different screenshot key. Plan path rebases and
-    /// ciphertext rewrites together, validating every input before changing
-    /// either the database or a file.
     private static func recoverLegacyScreenshotKeyIfNeeded(
         currentDir: URL,
         legacyDirectories: [URL],
@@ -496,8 +410,6 @@ enum DataMigration {
                     return data
                 }
                 if current == nil, let preferred = legacy.first {
-                    // The destination item is add-only. If a concurrent process
-                    // creates it first, its value wins and is re-read here.
                     try secrets.write(preferred, currentService, "screenshot-key")
                     current = try secrets.read(currentService, "screenshot-key")
                 }
@@ -510,8 +422,6 @@ enum DataMigration {
                     legacyKeyData: legacy)
             }
 
-            // Opening the writer and rechecking source rows are still preflight:
-            // neither ciphertext nor a stored path has changed yet.
             let pathDatabase = try writableDatabase(
                 at: databaseURL, required: !pathPlan.updates.isEmpty)
             try verifyScreenshotPathPlan(pathPlan, database: pathDatabase)
@@ -774,13 +684,6 @@ enum DataMigration {
         return String(childPath.dropFirst(prefix.count))
     }
 
-    // MARK: - Legacy encrypted chats
-
-    /// Chat encryption shipped before the last identity rename, while the old
-    /// migration omitted `chat-key`. This separate, versioned repair therefore
-    /// runs even for installations whose main migration marker is already set.
-    /// A still-conflicting legacy library keeps this check live so chats copied
-    /// during a later recovery are validated on the next launch.
     private static func recoverLegacyChatKeyIfNeeded(
         currentDir: URL,
         defaults: UserDefaults,
@@ -808,9 +711,6 @@ enum DataMigration {
             let chatDir = currentDir.appendingPathComponent("chats", isDirectory: true)
             let hasEncryptedChats = !(try encryptedChatFiles(in: chatDir)).isEmpty
             if current == nil, let preferred = legacy.first {
-                // SecItemAdd is no-replace. If another process creates the key
-                // concurrently, that current key wins and legacy files are
-                // re-encrypted to it below.
                 try secrets.write(preferred, currentService, "chat-key")
                 current = try secrets.read(currentService, "chat-key")
             }
@@ -860,9 +760,6 @@ enum DataMigration {
             .sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
-    /// Re-seal only files that still use a legacy key. All files are decrypted
-    /// before any write, so an unknown or damaged envelope leaves the directory
-    /// untouched and the retry marker unset. Each replacement is atomic.
     @discardableResult
     static func migrateEncryptedChats(in directory: URL, currentKeyData: Data,
                                       legacyKeyData: [Data],
@@ -925,8 +822,6 @@ enum DataMigration {
         guard status == errSecSuccess || status == errSecDuplicateItem else {
             throw KeychainMigrationError(status: status)
         }
-        // A concurrently created current item wins; never replace an existing
-        // encryption key after a transient read error or a create race.
         guard try readData(service: service, account: account) != nil else {
             throw KeychainMigrationError(status: errSecItemNotFound)
         }

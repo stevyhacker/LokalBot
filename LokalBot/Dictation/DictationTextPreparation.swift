@@ -1,19 +1,14 @@
 import Foundation
 
-/// The intent boundary is shared by production and hermetic runtime tests.
-/// Transcribe cannot construct a language model or request screen context.
 enum DictationTextPreparation {
     struct Result {
         let text: String
         let compositionModel: String?
         var sourceTitles: [String] = []
         var contextIsCurrent: @MainActor () -> Bool = { true }
-        /// What Compose read for this request; nil for Transcribe.
         var contextUse: DictationContextUse?
     }
 
-    /// No thinking turn, a low temperature for faithful cleanup, and an output
-    /// ceiling well above a long dictated message.
     static let composeOptions = TextGenerationOptions(maxTokens: 4_096, reasoningBudgetTokens: 0, temperature: 0.2)
 
     @MainActor
@@ -65,8 +60,6 @@ enum DictationTextPreparation {
         let engine = try await makeEngine(settings)
         try await validate()
         let profile = DictationComposeProfile(personalization: settings.cotypingPersonalization)
-        // Direct speech is text to insert, so it goes to a cleanup prompt as
-        // data rather than to a prompt that may treat it as an instruction.
         let cleansAsData = !usesContext && cleanupPrompt == .transcriptAsData
         let system = cleansAsData ? DictationCleanupPromptText.system(profile: profile) : DictationComposePrompt.system
         let prompt = cleansAsData
@@ -75,8 +68,6 @@ enum DictationTextPreparation {
                 spokenText: speech, context: context, profile: profile,
                 visibleContext: visible?.text, memoryContext: memory.selection.text,
                 windowTextPolicy: windowTextPolicy)
-        // Someone is waiting to insert this text. Without options the built-in
-        // server would allow an 8K-token thinking turn before any visible text.
         let output = try await engine.generate(system: system, prompt: prompt, context: [],
                                                options: Self.composeOptions)
         try await validate()
@@ -97,16 +88,12 @@ enum DictationTextPreparation {
     }
 }
 
-/// Which context a Compose request actually used, shown under Last result so
-/// the context settings can be judged by what they contributed.
 struct DictationContextUse: Equatable, Sendable {
-    /// Context is read only for writing requests ("reply…", "draft…").
     var wasWritingRequest: Bool
     var focusedWindow = false
     var visibleText = false
     var savedFactSources: [String] = []
 
-    /// The line under Last result, in the interface language.
     func summary(localized: (String) -> String = { $0 }) -> String {
         guard wasWritingRequest else {
             return localized("Cleanup only. Context is read only for writing requests such as “reply…” or “draft…”.")

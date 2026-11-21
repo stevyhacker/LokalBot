@@ -1,11 +1,4 @@
 #!/usr/bin/env bash
-# Runs the ignored KDE Plasma live test inside a headless KWin, with the
-# autocomplete input method helper as KWin's input method, a private runtime
-# folder and a D-Bus session. Keys go in through KWin's EIS endpoint. Needs
-# kwin_wayland (Plasma 6), Python with GTK 3 and PyGObject, libei and
-# dbus-run-session. In a container, kwin_wayland needs its file capabilities
-# removed (`setcap -r "$(command -v kwin_wayland)"`).
-# Usage: crates/lokalbot-platform/scripts/live-kwin.sh
 set -euo pipefail
 if [ -z "${LOKALBOT_LIVE_BUS:-}" ]; then
   exec env LOKALBOT_LIVE_BUS=1 dbus-run-session -- "$0" "$@"

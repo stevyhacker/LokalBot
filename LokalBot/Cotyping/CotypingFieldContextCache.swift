@@ -1,10 +1,5 @@
 import Foundation
 
-/// Per-field cache for Accessibility reads that rarely change while one field
-/// keeps focus: its font, its document scope, and the text above it. A value
-/// past its age is still returned while a fresh read runs in the background,
-/// so a keystroke never waits for one. Only a field seen for the first time is
-/// read on the spot.
 final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
     private struct Entry {
         var value: Value
@@ -32,8 +27,6 @@ final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
         refreshQueue = DispatchQueue(label: "me.dotenv.LokalBot.cotyping.\(label)", qos: .utility)
     }
 
-    /// The value for `key`: cached, or read now when the field is new. A
-    /// cached value past its age starts one background `read`.
     func value(forKey key: String, read: @escaping @Sendable () -> Value) -> Value {
         let now = clock()
         lock.lock()
@@ -56,9 +49,6 @@ final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
         return value
     }
 
-    /// Like `value(forKey:read:)`, for a value a read may fail to find, such
-    /// as the font of an empty field. A failed read is not remembered, and a
-    /// failed background read keeps the value already cached.
     func valueIfReadable(forKey key: String, read: @escaping @Sendable () -> Value?) -> Value? {
         let now = clock()
         lock.lock()
@@ -87,12 +77,10 @@ final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
         return value
     }
 
-    /// A cached value without reading anything.
     func cachedValue(forKey key: String) -> Value? {
         lock.withLock { entries[key]?.value }
     }
 
-    /// Forgets every value. Reads already running cannot put theirs back.
     func removeAll() {
         lock.withLock {
             generation &+= 1
@@ -100,7 +88,6 @@ final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
         }
     }
 
-    /// Forgets every value but the one for `key`.
     func removeAll(except key: String?) {
         lock.withLock {
             guard entries.keys.contains(where: { $0 != key }) else { return }
@@ -111,7 +98,6 @@ final class CotypingFieldContextCache<Value: Sendable>: @unchecked Sendable {
         }
     }
 
-    /// Waits for background reads queued so far. For tests.
     func waitForRefreshes() {
         refreshQueue.sync {}
     }

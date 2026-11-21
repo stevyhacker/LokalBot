@@ -1,6 +1,3 @@
-//! Windows besides the main one: Settings, Quick Recall, selection actions,
-//! onboarding and the full-size screen image.
-
 pub mod agent_setup;
 pub mod onboarding;
 pub mod quick_recall;
@@ -11,7 +8,6 @@ pub mod settings_approval;
 
 use gpui_kit::{AnyWindowHandle, App, Global, WeakEntity};
 
-/// Handles of the secondary windows, so they are reused instead of stacked.
 #[derive(Default)]
 struct SecondaryWindows {
     quick_recall: Option<AnyWindowHandle>,
@@ -31,11 +27,6 @@ fn secondary(cx: &mut App) -> &mut SecondaryWindows {
     cx.default_global::<SecondaryWindows>()
 }
 
-/// A Wayland layer surface for a window that floats above the others.
-/// Wayland compositors place ordinary windows themselves, and tiling ones
-/// (Hyprland, Sway, Omarchy) would put a popup in the layout. `None` outside
-/// Wayland. GNOME has no layer shell, so opening one fails there and the
-/// caller falls back to an ordinary window.
 #[cfg(target_os = "linux")]
 pub(crate) fn layer_surface(
     namespace: &str,
@@ -62,16 +53,9 @@ pub(crate) fn layer_surface(
     })
 }
 
-/// How long [`when_focused`] waits for one of LokalBot's windows to take the
-/// keyboard.
 #[cfg(target_os = "linux")]
 const FOCUS_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
 
-/// Runs `open` once one of LokalBot's windows has the keyboard, so a window
-/// opened as `WindowKind::Floating` gets it as its parent: GPUI parents such
-/// a window to the focused one. A main window that has only just opened gets
-/// the keyboard a moment later. Runs at once when no window is open, and
-/// after [`FOCUS_WAIT`] without a parent.
 #[cfg(target_os = "linux")]
 pub(crate) fn when_focused(cx: &mut App, open: impl FnOnce(&mut App) + 'static) {
     if cx.active_window().is_some() || cx.windows().is_empty() {
@@ -88,7 +72,6 @@ pub(crate) fn when_focused(cx: &mut App, open: impl FnOnce(&mut App) + 'static) 
     .detach();
 }
 
-/// Brings a still-open window forward; `false` when it was closed.
 fn activate(handle: Option<AnyWindowHandle>, cx: &mut App) -> bool {
     handle.is_some_and(|handle| {
         handle
@@ -97,14 +80,12 @@ fn activate(handle: Option<AnyWindowHandle>, cx: &mut App) -> bool {
     })
 }
 
-/// Closes the welcome window, if it is open.
 pub fn close_onboarding(cx: &mut App) {
     if let Some(handle) = secondary(cx).onboarding.take() {
         let _ = handle.update(cx, |_, window, _| window.remove_window());
     }
 }
 
-/// Brings the main window forward, reopening it when it was closed to the tray.
 pub fn activate_main(cx: &mut App) {
     crate::desktop::show_main_window(cx);
 }

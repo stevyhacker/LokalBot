@@ -1,56 +1,39 @@
 import Foundation
 import Observation
 
-/// What the recording screen needs from the device's microphone. The app's
-/// implementation wraps `AVAudioRecorder`, writing ADTS AAC straight to `url`,
-/// so whatever has been written stays readable if the app dies.
 @MainActor
 public protocol AudioCapture: AnyObject {
     var onEvent: ((AudioCaptureEvent) -> Void)? { get set }
-    /// Seconds recorded so far, not counting interruptions.
     var currentTime: TimeInterval { get }
-    /// Input level from 0 to 1.
     var level: Float { get }
 
     func requestPermission() async -> Bool
     func start(url: URL) throws
-    /// Picks up after an interruption.
     func resume() throws
-    /// Returns the seconds recorded. The file is complete afterwards.
     func stop() -> TimeInterval
 }
 
 public enum AudioCaptureEvent: Sendable, Equatable {
-    /// A phone call or another app took the microphone; recording is paused.
     case interrupted
     case resumed
-    /// The recorder can't go on. What it wrote is still good.
     case failed
 }
 
-/// One recording from the button to the queue: asks for the microphone, runs
-/// the recorder, and hands the finished file to the store to send. It lives as
-/// long as the app, so recording carries on whatever the screens do.
 @MainActor @Observable
 public final class RecordingModel {
     public enum Phase: Sendable, Equatable {
         case idle
         case recording
-        /// Paused by a call or another app; `resume()` carries on.
         case interrupted
     }
 
     public private(set) var phase = Phase.idle
     public var isPresented = false
-    /// The microphone permission was refused, so Settings is the only way on.
     public private(set) var microphoneDenied = false
     public var errorMessage: String?
     public var title = ""
 
-    /// A call or another app took the microphone. The app says so if nobody
-    /// is looking, because recording may not carry on by itself.
     public var onInterrupted: () -> Void = {}
-    /// The microphone is back and recording again.
     public var onResumed: () -> Void = {}
 
     private let session: CompanionSession
@@ -68,7 +51,6 @@ public final class RecordingModel {
     public var elapsed: TimeInterval { capture.currentTime }
     public var level: Float { capture.level }
 
-    /// Opens the screen, recording at once unless the microphone is refused.
     public func begin() async {
         isPresented = true
         guard !isActive, !isStarting else { return }
@@ -97,7 +79,6 @@ public final class RecordingModel {
         }
     }
 
-    /// Keeps the recording and sends it when the Mac can be reached.
     public func stop() async {
         guard let id = currentID else {
             isPresented = false
@@ -140,9 +121,6 @@ public final class RecordingModel {
         }
     }
 
-    /// There's no Mac to send to any more. What was recorded stays if the Mac
-    /// removed this device, ready for when it pairs again, and removing the
-    /// device from here has already erased it, which makes this a no-op.
     public func sessionModeChanged() {
         guard session.mode != .paired, let id = currentID else { return }
         let duration = capture.stop()
@@ -170,7 +148,6 @@ public final class RecordingModel {
         }
     }
 
-    /// Stays on the screen so the message is seen.
     private func stopAfterFailure() async {
         let message = errorMessage
         await stop()

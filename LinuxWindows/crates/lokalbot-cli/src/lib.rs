@@ -1,8 +1,3 @@
-//! `lokalbot-cli`: read-only access to the LokalBot library, a stdio MCP server
-//! and settings through the running app, with the commands, output and errors
-//! of the macOS helper (`CLI/`, `LokalBot/CLISupport/`). It opens the library
-//! read-only and never writes into `meetings/`.
-
 pub mod ask;
 pub mod briefing;
 pub mod control;
@@ -33,7 +28,6 @@ pub const MAXIMUM_MEETING_COUNT: usize = 1000;
     long_about = "Read your local LokalBot meeting library and inspect app settings.\n\nIntended for coding agents (Claude Code, Codex CLI, Cursor, Gemini) and humans alike. `install-skill` links the CLI into your PATH. Output defaults to JSON; pass --table for plain text. Library commands need meeting access, search-files needs file access, search-notes needs agent-notes access, and personal-context its own access. config, secret, models, permissions, status, doctor, restart, and open need the separate settings access in Settings → AI agents. setup start asks the person for it."
 )]
 pub struct Cli {
-    /// Read another library (same as LOKALBOT_STORAGE_ROOT).
     #[arg(long = "lokalbot-storage-root", global = true, hide = true)]
     pub storage_root: Option<std::path::PathBuf>,
 
@@ -319,19 +313,12 @@ pub enum Command {
     },
 }
 
-/// A failure printed as `Error: <message>`: validation errors exit 64
-/// (ArgumentParser's `ValidationError`), others 1.
 #[derive(Debug)]
 pub enum CliError {
     Validation(String),
     Failure(String),
-    /// A stable error from the running app, printed as `[code] message`.
     Control(lokalbot_core::control::protocol::ControlError),
-    /// Prints `stdout` and exits with `code`, for replies a script reads.
-    Exit {
-        code: i32,
-        stdout: String,
-    },
+    Exit { code: i32, stdout: String },
 }
 
 impl CliError {
@@ -362,8 +349,6 @@ fn validation(message: impl Into<String>) -> CliError {
     CliError::Validation(message.into())
 }
 
-/// A failure agents are told to recognise by its code: `[code] message`, as
-/// the MCP tools, `ask` and the settings commands print it.
 fn coded(code: mcp::ToolErrorCode, message: &str) -> CliError {
     CliError::Failure(format!("[{}] {message}", code.raw()))
 }
@@ -387,12 +372,9 @@ fn day_or_error(value: &str, option: &str) -> Result<chrono::NaiveDate, CliError
     })
 }
 
-/// Runs one command and returns what it prints on stdout.
 pub fn run(cli: Cli) -> Result<String, CliError> {
     let paths = LibraryPaths::resolve(cli.storage_root.as_deref());
     let client = || control::Client::new(paths.clone(), cli.storage_root.clone());
-    // Transcripts label microphone speech as the app does. A Mac library has
-    // no settings file here, so it keeps the default.
     lokalbot_core::SpeakerAttribution::set_microphone_is_user(
         lokalbot_core::Settings::load(&paths.settings_file()).microphone_is_user,
     );
@@ -706,7 +688,6 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
             Ok(report) if table => Ok(notes::table(&report)),
             Ok(report) => Ok(json::pretty(&report, false)),
             Err(notes::Failure::Invalid(message)) => Err(validation(message)),
-            // A switch that is off prints its code, as the MCP tools do.
             Err(failure @ notes::Failure::Disabled) => Err(coded(
                 mcp::ToolErrorCode::AgentNotesAccessDisabled,
                 &failure.message(),
@@ -782,8 +763,6 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
     }
 }
 
-/// Prints JSON or text on standard output; failures exit with status 1 so
-/// scripts notice, after the JSON that says why.
 fn print_ask_outcome(outcome: &ask::Outcome, table: bool) -> Result<String, CliError> {
     if table {
         let text = outcome.tool_result().text;
@@ -804,7 +783,6 @@ fn print_ask_outcome(outcome: &ask::Outcome, table: bool) -> Result<String, CliE
 
 fn read_message_from_stdin() -> Result<String, CliError> {
     use std::io::Read as _;
-    // The engine checks the character limit; this only bounds memory.
     let limit = ask::MAXIMUM_QUESTION_CHARACTERS * 4;
     let mut data = Vec::new();
     std::io::stdin()
@@ -888,7 +866,6 @@ mod tests {
             full.extend(args.iter().copied());
             Cli::try_parse_from(&full).unwrap_or_else(|err| panic!("{args:?}: {err}"));
         }
-        // A key is never an argument.
         assert!(
             Cli::try_parse_from([
                 "lokalbot-cli",
@@ -922,7 +899,6 @@ mod tests {
             "{}",
             err.message()
         );
-        // An unknown key suggests a real one before reaching the app.
         let err = run(parse(&["config", "describe", "theme"])).unwrap_err();
         assert_eq!(err.exit_code(), 64);
         assert!(err.message().contains("appTheme"), "{}", err.message());

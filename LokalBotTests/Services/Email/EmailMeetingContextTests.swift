@@ -32,9 +32,7 @@ final class EmailMeetingContextTests: XCTestCase {
         let meeting = event([("Ana Petrović", "Ana@X.com"), ("Bob", nil), ("Me", GmailFixtures.alias)])
         let threads = EmailMeetingContext.threads(for: meeting, sources: [
             source("a", subject: "Budget", [message("1", from: "ana@x.com", name: "Ana", daysAgo: 2, body: "Numbers attached.")]),
-            // Same display name, different address: not the same person.
             source("b", subject: "Hello", [message("2", from: "ana@other.com", name: "Ana Petrović", daysAgo: 1, body: "Hi")]),
-            // Only your own alias in common: no attendee.
             source("c", subject: "Note", [message("3", from: GmailFixtures.alias, daysAgo: 1, body: "Note", fromMe: true)]),
         ], now: now)
         XCTAssertEqual(threads.map(\.threadID), ["a"])

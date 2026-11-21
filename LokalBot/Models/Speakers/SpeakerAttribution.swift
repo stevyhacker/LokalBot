@@ -8,8 +8,6 @@ struct StatementAttribution: Codable, Equatable, Sendable {
     var quote: String
 }
 
-/// Public, meeting-local provenance. Voice vectors and cross-meeting profile
-/// identifiers remain in the encrypted identity store.
 struct SpeakerAttribution: Codable, Equatable, Sendable {
     enum Source: String, Codable, Sendable { case microphone, system, unknown }
     enum Identity: String, Codable, Sendable { case user, other, unresolved }
@@ -20,18 +18,12 @@ struct SpeakerAttribution: Codable, Equatable, Sendable {
     var identity: Identity
     var method: Method
 
-    /// Settings → “My microphone is me”. On by default: the personal
-    /// microphone belongs to this Mac's user. Shared-room recordings can turn
-    /// it off so microphone voices stay unidentified until confirmed.
     static var microphoneIsUser: Bool {
         get { microphonePreference.withLock { $0 } }
         set { microphonePreference.withLock { $0 = newValue } }
     }
     private static let microphonePreference = OSAllocatedUnfairLock(initialState: true)
 
-    /// Microphone track/diarization/legacy speech follows the preference above,
-    /// including older persisted defaults. Confirmations, voice profiles,
-    /// overlapping voices, and suspected echo keep their own identity.
     var applyingMicrophoneDefault: Self {
         guard source == .microphone,
               [.track, .diarization, .legacy].contains(method) else { return self }
@@ -91,7 +83,6 @@ struct OutcomeAttribution: Codable, Equatable, Sendable {
     var speakerID: String?
     var basis: Basis
     var quote: String?
-    /// Content-free explanation retained even when ownership cannot be applied.
     var rejectionReason: RejectionReason?
 
     func consistent(with forUser: Bool?) -> Self {

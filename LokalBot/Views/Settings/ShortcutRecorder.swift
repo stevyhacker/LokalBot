@@ -1,25 +1,17 @@
 import AppKit
 import SwiftUI
 
-/// Click, then press a new global shortcut: a key with modifiers, or two or
-/// more modifiers pressed together and released (⌃⌥) where `validate` allows
-/// it. Esc cancels. While recording, the global shortcuts are suspended so the
-/// current one can be pressed too.
 struct ShortcutRecorder: View {
     @Binding var shortcut: DictationShortcut
     let defaultShortcut: DictationShortcut
     let accessibilityIdentifier: String
     let changeHelp: LocalizedStringKey
-    /// Why a pressed combination cannot be the shortcut, or nil.
     let validate: (DictationShortcut) -> DictationShortcut.Problem?
-    /// Suspends or resumes the global shortcuts while recording.
     var onRecordingChanged: (Bool) -> Void
 
     @State private var isRecording = false
     @State private var monitor: Any?
     @State private var problem: DictationShortcut.Problem?
-    /// Every modifier held since the last release, so ⌃⌥ is recorded as one
-    /// chord even though its keys go down and up one at a time.
     @State private var chordModifiers: CGEventFlags = []
     @State private var heldModifiers: CGEventFlags = []
 
@@ -106,7 +98,6 @@ struct ShortcutRecorder: View {
             stopRecording()
             return
         }
-        // A key ends the chord: ⌃⌥ then D records ⌃⌥ D, not ⌃⌥.
         chordModifiers = []
         accept(candidate)
     }
@@ -117,7 +108,6 @@ struct ShortcutRecorder: View {
             return
         }
         heldModifiers = []
-        // Resume the current shortcut first, so the new one replaces it.
         stopRecording()
         commit(candidate)
     }
@@ -127,7 +117,6 @@ struct ShortcutRecorder: View {
         if problem == nil { commit(defaultShortcut) }
     }
 
-    /// The app keeps the previous shortcut when the system refuses a new one.
     private func commit(_ candidate: DictationShortcut) {
         shortcut = candidate
         problem = shortcut == candidate ? nil : .unavailable

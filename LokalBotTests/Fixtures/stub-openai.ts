@@ -1,6 +1,3 @@
-// Scenario-driven OpenAI-compatible stub for LokalBot tests. Prints the chosen
-// port on stdout as its first line. Without a loaded scenario it streams the
-// legacy fixed "STUB-REPLY" message (PiIntegrationTests relies on that).
 type Match = { callIndex?: number; systemIncludes?: string; nth?: number };
 type Behaviour =
   | { kind: "reply"; content: string; chunks?: number; finishReason?: string }
@@ -34,7 +31,6 @@ function select(body: any, index: number): Rule | undefined {
     if (m.nth !== undefined) {
       const seen = requests.filter((r) =>
         m.systemIncludes === undefined || systemOf(r.body).includes(m.systemIncludes)).length;
-      // `requests` does not yet include this request: it is number seen + 1.
       if (seen + 1 !== m.nth) continue;
     }
     rule.used = (rule.used ?? 0) + 1;
@@ -95,7 +91,6 @@ async function respond(body: any, behaviour: Behaviour): Promise<Response> {
       return send(behaviour.content.slice(0, keep), "length");
     }
     case "reasoning": {
-      // Ignores reasoning.effort by design: spends a fixed amount first.
       const left = budget - behaviour.reasoningTokens;
       if (left >= tokens(behaviour.content)) return send(behaviour.content, "stop", behaviour.reasoningTokens);
       return send(behaviour.content.slice(0, Math.max(0, left) * 4), "length", behaviour.reasoningTokens);

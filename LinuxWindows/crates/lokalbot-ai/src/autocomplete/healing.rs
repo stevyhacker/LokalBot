@@ -1,37 +1,12 @@
-//! Token healing (`CotypingTokenHealing`) on llama-server.
-//!
-//! A prompt that ends mid-word ("…I wanted to follo") tokenizes unnaturally
-//! at its end, and a small model then treats the fragment as a finished
-//! word. Healing cuts the prompt back to the last word boundary ("…I wanted
-//! to") and makes the cut text (" follo") a decode constraint: generation
-//! must first re-type those bytes through natural tokens (" follow"
-//! overshooting the caret), then runs free. The suggestion is everything
-//! after the constraint. A trailing space is healed the same way, so " is"
-//! is one natural token instead of a lone space token.
-//!
-//! macOS enforces the constraint inside its llama.cpp decode loop. Here it is
-//! a GBNF grammar on the `/completion` request, `root ::= "<cut text>" any*`:
-//! llama.cpp's grammar sampler accepts a token only while its bytes stay on
-//! that path, so " follow" passes for " follo" and " up" does not. macOS also
-//! searches four tokenizations of a fragment for the most probable path;
-//! the grammar picks the best compatible token one step at a time.
-
-/// Longest word fragment worth healing; longer runs (URLs, identifiers)
-/// would spend many constrained steps on text the model should not assist.
 pub const MAX_WORD_LENGTH: usize = 16;
 pub const MAX_SEPARATOR_LENGTH: usize = 8;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Split {
-    /// The prompt cut at the word boundary, separator removed too.
     pub healed_prompt: String,
-    /// The cut text the output must begin with.
     pub required_prefix: String,
 }
 
-/// `CotypingTokenHealing.split`: `None` when the prompt does not end in a
-/// word fragment or spaces after a word, the fragment is too long, or
-/// cutting it would leave no context.
 pub fn split(prompt: &str) -> Option<Split> {
     let last = prompt.chars().next_back()?;
     if last.is_whitespace() && !super::text::is_newline(last) {
@@ -46,8 +21,6 @@ pub fn split(prompt: &str) -> Option<Split> {
         {
             return None;
         }
-        // A finished word followed by a space must not be extended
-        // (cat → cats): replay the space through natural tokens, then hide it.
         return Some(Split {
             healed_prompt: prompt[..start].to_string(),
             required_prefix: prompt[start..].to_string(),
@@ -88,9 +61,6 @@ fn is_word_character(c: char) -> bool {
     super::text::is_word_char(c)
 }
 
-/// The prompt and required prefix a request is sent with
-/// (`LocalLlamaCotypingEngine.healedGeneration`): healing applies when the
-/// caret is inside or right after a word, or after a space.
 pub fn healed_generation(prompt: &str, word_prefix: &str, ends_with_whitespace: bool) -> Split {
     if (!word_prefix.is_empty() || ends_with_whitespace)
         && let Some(split) = split(prompt)
@@ -103,9 +73,6 @@ pub fn healed_generation(prompt: &str, word_prefix: &str, ends_with_whitespace: 
     }
 }
 
-/// The GBNF grammar that makes generation start with `required_prefix` and
-/// lets anything follow. Every character is written as a code point escape,
-/// so no prefix can break out of the string literal.
 pub fn grammar(required_prefix: &str) -> String {
     let mut literal = String::with_capacity(required_prefix.len() * 6);
     for c in required_prefix.chars() {
@@ -119,14 +86,9 @@ pub fn grammar(required_prefix: &str) -> String {
     format!("root ::= \"{literal}\" [^\\x00]*")
 }
 
-/// `CotypingRequiredPrefixMatcher`: one token's bytes against the remaining
-/// required prefix. Bytes, because tokens can split a UTF-8 character.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum PrefixMatch {
-    /// The token lies inside the remaining prefix.
     Consumes(usize),
-    /// The token covers the rest of the prefix and goes on; the extra bytes
-    /// are the first visible text.
     Overshoots(Vec<u8>),
     Mismatch,
 }
@@ -149,8 +111,6 @@ pub fn match_piece(piece: &[u8], remaining: &[u8]) -> PrefixMatch {
     }
 }
 
-/// Whether an overshoot goes on spelling the word (a letter, digit,
-/// apostrophe or the lead byte of a multi-byte character).
 pub fn extends_word(extra: &[u8]) -> bool {
     match extra.first() {
         None => false,

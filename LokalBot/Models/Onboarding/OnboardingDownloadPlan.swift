@@ -1,33 +1,22 @@
 import Foundation
 
-/// Setup's download step: each model's job, its size, and how far along it
-/// is, read from the same role statuses Settings shows.
 struct OnboardingDownloadPlan: Equatable, Sendable {
     enum ModelState: Equatable, Sendable {
         case notStarted
-        /// Nil while the download has not reported how far it is.
         case downloading(Double?)
         case stopped(String)
         case ready
-        /// Nothing downloads for this role (a server or Apple Intelligence),
-        /// and it is not usable yet.
         case needsSetup
     }
 
     struct Model: Equatable, Identifiable, Sendable {
         let role: ModelRole
-        /// The selected model's own name.
         let name: String
-        /// What the download weighs. Nil when nothing downloads here or the
-        /// size is not known in advance.
         let bytes: Int64?
-        /// False for a server or Apple Intelligence.
         let downloads: Bool
         let state: ModelState
         var id: ModelRole { role }
 
-        /// How much of this model is here. Nil while a running download has
-        /// not said, or when the size is unknown; a stopped one counts as none.
         var arrivedBytes: Int64? {
             guard let bytes else { return nil }
             switch state {
@@ -38,7 +27,6 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
             }
         }
 
-        /// Plain words for what the model does.
         var job: String {
             switch role {
             case .transcribe: "Turns speech into text"
@@ -57,30 +45,18 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
     }
 
     enum Phase: Equatable, Sendable {
-        /// Nothing has been asked for yet.
         case before
         case running
-        /// At least one download failed; others may still be running.
         case stopped
-        /// Nothing is left to download.
         case finished
     }
 
-    /// The rows, in order. Autocomplete is listed while it can still be
-    /// chosen and once it is part of the download.
     var models: [Model]
-    /// The roles this download covers.
     var selected: [ModelRole]
     var phase: Phase
-    /// A download is running now, also beside one that stopped.
     var isDownloading: Bool
-    /// Free space on the volume that holds the models.
     var availableBytes: Int64?
-    /// Bytes of the selected models that were not on this Mac when the
-    /// download began. Nil when one of them has no known size.
     var totalBytes: Int64?
-    /// Of `totalBytes`, how much has arrived. Nil when a running download
-    /// has not reported its progress.
     var downloadedBytes: Int64?
 
     init(settings: AppSettings,
@@ -100,7 +76,6 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
                                           status: statuses[.autocomplete] ?? .unavailable)
             let chosen = includeAutocomplete || autocomplete.state != .notStarted
             if chosen { selected.append(.autocomplete) }
-            // Once the download is under way the option is no longer offered.
             if chosen || !started { models.append(autocomplete) }
         }
         self.models = models
@@ -123,34 +98,27 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
         } else if isDownloading {
             phase = .running
         } else if waiting {
-            // Between the button and the first status the download has no state yet.
             phase = started ? .running : .before
         } else {
             phase = .finished
         }
     }
 
-    /// Every selected model can be used now.
     var allReady: Bool {
         models.filter { selected.contains($0.role) }.allSatisfy { $0.state == .ready }
     }
 
-    /// What Download will fetch: the selected models that are not here yet.
-    /// Nil when one of them has no known size.
     var remainingBytes: Int64? {
         let missing = models.filter { selected.contains($0.role) && $0.downloads && $0.state != .ready }
         guard !missing.contains(where: { $0.bytes == nil }) else { return nil }
         return missing.reduce(Int64(0)) { $0 + ($1.bytes ?? 0) }
     }
 
-    /// 0…1 across the whole download, when sizes and progress are known.
     var fraction: Double? {
         guard let totalBytes, totalBytes > 0, let downloadedBytes else { return nil }
         return min(1, max(0, Double(downloadedBytes) / Double(totalBytes)))
     }
 
-    /// Whether the download and the headroom it needs fit in the free space.
-    /// True when either number is unknown.
     var fitsOnDisk: Bool {
         DiskSpacePrecheck.advisory(expectedBytes: remainingBytes, availableBytes: availableBytes) == nil
     }
@@ -166,7 +134,6 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
         switch role {
         case .transcribe:
             name = settings.transcriptionModelDisplayName
-            // Fun-ASR-Nano reads a folder the person already has, and system models live in macOS.
             downloads = !settings.transcriptionModel.isRemote
                 && settings.transcriptionModel != .funASRNano
                 && !settings.transcriptionModel.isBuiltInSystem
@@ -205,9 +172,6 @@ struct OnboardingDownloadPlan: Equatable, Sendable {
     }
 }
 
-/// Time left for a download, from how fast the bytes have been arriving over
-/// the last half minute. It says nothing until it has watched for a few
-/// seconds, and nothing while no bytes arrive.
 struct DownloadTimeEstimator: Equatable, Sendable {
     static let window: TimeInterval = 30
     static let minimumSpan: TimeInterval = 5
@@ -220,7 +184,6 @@ struct DownloadTimeEstimator: Equatable, Sendable {
     private var samples: [Sample] = []
 
     mutating func record(downloadedBytes: Int64, at date: Date) {
-        // A retried download starts over, so earlier speeds no longer apply.
         if let last = samples.last, downloadedBytes < last.bytes || date < last.date { samples.removeAll() }
         samples.append(Sample(date: date, bytes: downloadedBytes))
         samples.removeAll { date.timeIntervalSince($0.date) > Self.window }
@@ -236,7 +199,6 @@ struct DownloadTimeEstimator: Equatable, Sendable {
         return Double(totalBytes - last.bytes) / (Double(arrived) / span)
     }
 
-    /// Whole minutes, never less than one.
     func minutesLeft(totalBytes: Int64) -> Int? {
         secondsLeft(totalBytes: totalBytes).map { max(1, Int(($0 / 60).rounded())) }
     }

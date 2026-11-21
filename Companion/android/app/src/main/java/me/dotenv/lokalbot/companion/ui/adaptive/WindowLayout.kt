@@ -23,15 +23,11 @@ import androidx.window.core.layout.WindowSizeClass
 
 enum class WidthClass { Compact, Medium, Expanded }
 
-/** What the screens need to know about the window: its width class and any fold. */
 data class WindowLayout(
     val adaptiveInfo: WindowAdaptiveInfo,
     val widthClass: WidthClass,
-    /** A vertical fold that separates the screen, as in book posture. */
     val bookHinge: HingeInfo?,
-    /** A horizontal fold with the device half open, as in tabletop posture. */
     val tabletopHinge: HingeInfo?,
-    /** Under 480 dp tall, such as a phone in landscape. */
     val heightCompact: Boolean = false,
 ) {
     companion object {
@@ -57,11 +53,6 @@ data class WindowLayout(
 
 val LocalWindowLayout = staticCompositionLocalOf<WindowLayout> { error("WindowLayout not provided") }
 
-/**
- * A list-detail directive: two panes from medium widths, the list sized to
- * about 40% of the space, and, with a vertical fold, the panes split exactly
- * along the hinge so nothing sits under it.
- */
 @Composable
 fun BoxWithConstraintsScope.rememberPaneDirective(
     layout: WindowLayout,
@@ -95,7 +86,6 @@ fun BoxWithConstraintsScope.rememberPaneDirective(
     )
 }
 
-/** Measures where the pane scaffold starts in the window, so a hinge can be found in its coordinates. */
 @Composable
 fun PaneHost(content: @Composable BoxWithConstraintsScope.(originX: Float) -> Unit) {
     var originX by remember { mutableFloatStateOf(0f) }

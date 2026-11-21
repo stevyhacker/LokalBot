@@ -1,11 +1,6 @@
 import Foundation
 
-/// The user's own Claude Code installation, run unmodified in print mode.
-/// The user signs in to Claude Code through Anthropic's own flow
-/// (`claude`, then `/login`); LokalBot never reads, stores, or forwards
-/// Claude credentials, and never offers a Claude login of its own.
 enum ClaudeCodeCLI {
-    /// Where Claude Code's installers put `claude`, checked after PATH.
     static func candidatePaths(home: String) -> [String] {
         [
             "\(home)/.local/bin/claude",
@@ -18,7 +13,6 @@ enum ClaudeCodeCLI {
         ]
     }
 
-    /// The first executable `claude` on PATH or in a known install location.
     static func locate(environment: [String: String] = ProcessInfo.processInfo.environment,
                        home: String = NSHomeDirectory(),
                        isExecutable: (String) -> Bool = { FileManager.default.isExecutableFile(atPath: $0) }) -> URL? {
@@ -31,8 +25,6 @@ enum ClaudeCodeCLI {
         return nil
     }
 
-    /// An app opened from Finder has a minimal PATH, so a Claude Code under a
-    /// Node version manager is only found through the user's login shell.
     static func locateWithLoginShell(environment: [String: String] = ProcessInfo.processInfo.environment) async -> URL? {
         let shell = environment["SHELL"].flatMap { $0.hasPrefix("/") ? $0 : nil } ?? "/bin/zsh"
         guard FileManager.default.isExecutableFile(atPath: shell),
@@ -47,13 +39,9 @@ enum ClaudeCodeCLI {
         return URL(fileURLWithPath: path)
     }
 
-    /// The child environment: LokalBot's own, with the executable's folder
-    /// first on PATH so an npm-installed `claude` finds its `node`.
     static func environment(for executable: URL,
                             base: [String: String] = ProcessInfo.processInfo.environment) -> [String: String] {
         var environment = base
-        // Started from inside a Claude Code session (development), the child
-        // would otherwise refuse to run as a nested session.
         environment.removeValue(forKey: "CLAUDECODE")
         var path = [executable.deletingLastPathComponent().path]
         path += (base["PATH"] ?? "").split(separator: ":").map(String.init)
@@ -85,8 +73,6 @@ enum ClaudeCodeCLI {
             subscriptionType = json["subscriptionType"] as? String
         }
 
-        /// True when requests draw on a Claude subscription rather than an
-        /// API key or cloud provider configured for Claude Code.
         var usesSubscription: Bool { authMethod == "claude.ai" }
 
         var planName: String? {
@@ -95,7 +81,6 @@ enum ClaudeCodeCLI {
         }
     }
 
-    /// `claude auth status` reports the sign-in without exposing credentials.
     static func authStatus(executable: URL) async throws -> AuthStatus {
         let output = try await ClaudeCodeProcess.run(
             executable: executable, arguments: ["auth", "status"],
@@ -115,7 +100,6 @@ enum ClaudeCodeCLI {
     }
 }
 
-/// Finds Claude Code once per launch; a manual check looks again.
 actor ClaudeCodeLocator {
     static let shared = ClaudeCodeLocator()
     private var cached: URL?
@@ -149,10 +133,6 @@ enum ClaudePlanError: LocalizedError, Equatable, Sendable {
     }
 }
 
-// MARK: - Process
-
-/// Runs one short-lived child process: delegates to `PlanCLIProcess` with
-/// Claude Code error mapping.
 enum ClaudeCodeProcess {
     typealias Output = PlanCLIProcess.Output
 

@@ -18,18 +18,12 @@ import kotlinx.coroutines.launch
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotMotion
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 
-/** What a list pane needs: how to open an item and which one is showing. */
 data class ListPaneState(
     val selectedKey: String?,
     val twoPane: Boolean,
     val open: (String) -> Unit,
 )
 
-/**
- * The Material 3 list-detail scaffold used by Meetings, Actions, People and
- * Projects: one pane on a phone, both on wider windows and on either side of
- * a fold, with predictive back. Selection survives rotation and folding.
- */
 @Composable
 fun ListDetailLayout(
     openRequest: String?,

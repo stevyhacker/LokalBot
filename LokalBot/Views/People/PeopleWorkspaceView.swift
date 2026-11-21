@@ -1,11 +1,5 @@
 import SwiftUI
 
-/// Everyone the user meets, joined across calendar attendees, names applied
-/// to speakers, and action owners. The list is grouped by time only: people
-/// in calendar meetings in the next week, the last two weeks, and earlier.
-/// The page beside it leads with the next meeting, then what is open between
-/// you, what the last meeting said and what you decided together. Names,
-/// merges, and hidden entries the person chose live in `PeopleStore`.
 struct PeopleWorkspaceView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var connections: WorkMemoryConnections
@@ -13,13 +7,10 @@ struct PeopleWorkspaceView: View {
     @SceneStorage("people.query") private var query = ""
     @State private var renaming: PersonProfile?
     @State private var merging: PersonProfile?
-    /// Each person's next calendar meeting in the coming week, by person id.
-    /// Empty without Calendar access.
     @State private var upcoming: [String: PersonUpcomingMeeting] = [:]
     @State private var listCache = PeopleListCache()
     @State private var compactToolbar = false
 
-    /// How often the coming week's calendar is read again while People is open.
     private static let upcomingRefreshSeconds = 60
 
     var body: some View {
@@ -40,16 +31,12 @@ struct PeopleWorkspaceView: View {
                 .splitPaneAccessibilityLabel("Person details")
         }
         .detailSplitMinimumWidth([LBTokens.Metric.contentColumnMinWidth, LBTokens.Metric.contentDetailMinWidth])
-        // The selected person is the window's title; the toolbar draws it
-        // with their avatar and how long you have been meeting.
         .navigationTitle(selected.map { Text(verbatim: $0.name) } ?? Text("People"))
         .toolbar(removing: .title)
         .toolbar { toolbar(selected) }
         .onGeometryChange(for: Bool.self) { $0.size.width < 720 } action: { compactToolbar = $0 }
         .task {
             app.refreshConnections()
-            // The coming week changes slowly; a meeting that has started or
-            // ended still has to leave "Coming up" without a visit elsewhere.
             while !Task.isCancelled {
                 refreshUpcoming()
                 try? await Task.sleep(for: .seconds(Self.upcomingRefreshSeconds))
@@ -73,8 +60,6 @@ struct PeopleWorkspaceView: View {
         }
     }
 
-    /// Reads the calendar only while Calendar use is on and access is
-    /// granted, and matches its events to people by the directory's keys.
     private func refreshUpcoming() {
         let now = Date()
         let matched = PeopleUpcomingMeetings.match(
@@ -86,16 +71,12 @@ struct PeopleWorkspaceView: View {
         if matched != upcoming { upcoming = matched }
     }
 
-    /// A merge keeps the selection: an id folded into someone else finds
-    /// the person it joined. With nothing chosen, the first row's person.
     private func selectedPerson(_ content: PeopleListContent) -> PersonProfile? {
         guard let id = app.selectedPersonID else {
             return content.personIDs.first.flatMap { first in connections.people.first { $0.id == first } }
         }
         return connections.people.first { $0.id == id || $0.memberIDs.contains(id) }
     }
-
-    // MARK: - Page
 
     @ViewBuilder private func detail(_ person: PersonProfile?) -> some View {
         if let person {
@@ -107,8 +88,6 @@ struct PeopleWorkspaceView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
-
-    // MARK: - Toolbar
 
     @ToolbarContentBuilder private func toolbar(_ person: PersonProfile?) -> some ToolbarContent {
         ToolbarItem(placement: .navigation) {
@@ -135,8 +114,6 @@ struct PeopleWorkspaceView: View {
         }
         if let person {
             ToolbarItemGroup(placement: .primaryAction) {
-                // Words and the icon while the toolbar has room, the icon alone
-                // when it does not.
                 if compactToolbar {
                     askButton(person).labelStyle(.iconOnly)
                 } else {
@@ -160,8 +137,6 @@ struct PeopleWorkspaceView: View {
         .accessibilityIdentifier("person.ask")
     }
 
-    /// Prepare and follow-up first, then the corrections: rename, merge,
-    /// separate what was merged, and hide.
     private func menuItems(_ person: PersonProfile) -> [WorkspaceMenu.Item] {
         let language = app.settings.appLanguage
         var items: [WorkspaceMenu.Item] = [
@@ -198,8 +173,6 @@ struct PeopleWorkspaceView: View {
         return items
     }
 
-    /// The newest meeting with outcomes that was small enough to be with
-    /// this person, rather than a team call they happened to attend.
     private func followUpMeeting(_ person: PersonProfile) -> Meeting? {
         person.occasions.lazy
             .map(\.primary)
@@ -210,8 +183,6 @@ struct PeopleWorkspaceView: View {
     }
 }
 
-/// The list column: a search field as its header, then people under Coming
-/// up, Last 2 weeks and Earlier. Hidden entries are restored from its foot.
 struct PeopleListColumn: View {
     @EnvironmentObject var app: AppState
     let content: PeopleListContent
@@ -255,8 +226,6 @@ struct PeopleListColumn: View {
             ScrollViewReader { proxy in
                 List(selection: $app.selectedPersonID) {
                     ForEach(content.sections) { section in
-                        // A heading row, as in the Meetings list: it scrolls
-                        // with its people and arrow keys pass over it.
                         Group {
                             SectionHeader(text: LocalizedStringKey(section.group.title))
                                 .padding(.top, 6)
@@ -297,8 +266,6 @@ struct PeopleListColumn: View {
                 .listStyle(.inset)
                 .tint(Brand.tealFill)
                 .accessibilityIdentifier("people.list")
-                // A person opened from Actions, Projects, a meeting or Ask
-                // may sit far down the list.
                 .onChange(of: app.selectedPersonID) { _, id in
                     if let id { proxy.scrollTo(id) }
                 }
@@ -325,8 +292,6 @@ struct PeopleListColumn: View {
     }
 }
 
-/// Remembers the list for the inputs it was built from: the page redraws far
-/// more often than its people, their calendar or the search change.
 final class PeopleListCache {
     private struct Key: Equatable {
         let people: [PersonProfile]
@@ -353,12 +318,8 @@ final class PeopleListCache {
     }
 }
 
-/// One person in the list: avatar, name and when, then the latest or next
-/// meeting and which way open work runs.
 private struct PersonRow: View {
     let row: PeopleListContent.Row
-    /// From the list's selection, like the meeting rows: the supporting grey
-    /// does not read on the teal highlight.
     var isSelected = false
     let localize: (String) -> String
 
@@ -399,8 +360,6 @@ private struct PersonRow: View {
     }
 }
 
-/// A person's initials on a tint chosen from their name, matching the
-/// speaker colors used in transcripts.
 struct InitialsAvatar: View {
     let name: String
     var size: CGFloat = 30
@@ -432,8 +391,6 @@ struct InitialsAvatar: View {
     }
 }
 
-/// Rename, merge, separate, and hide, on a row's context menu. The page's
-/// own menu in the toolbar lists the same corrections after Prepare.
 private struct PersonMenuItems: View {
     @EnvironmentObject var app: AppState
     let person: PersonProfile
@@ -460,8 +417,6 @@ private struct PersonMenuItems: View {
     }
 }
 
-/// Chooses the name People shows for someone. The names meetings used stay
-/// as other names, and the chosen one is recognized in notes and owners.
 private struct PersonNameSheet: View {
     @Environment(\.dismiss) private var dismiss
     let person: PersonProfile
@@ -510,8 +465,6 @@ private struct PersonNameSheet: View {
     }
 }
 
-/// Folds one person into another: for a name heard wrong, a nickname, or
-/// someone who joined from two addresses.
 private struct PersonMergeSheet: View {
     @Environment(\.dismiss) private var dismiss
     let person: PersonProfile

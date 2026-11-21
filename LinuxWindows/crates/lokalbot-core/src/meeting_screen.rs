@@ -1,8 +1,3 @@
-//! What was on screen while a meeting recorded, aligned to its audio
-//! (`MeetingScreenContext.swift`). Built only from retained screen rows
-//! (titles, document names, URLs and times); pixels and captured text are not
-//! read here. Captures expire with screen retention, so this can shrink.
-
 use std::collections::{HashMap, HashSet};
 
 use chrono::{DateTime, Duration, Utc};
@@ -13,7 +8,6 @@ use crate::library::Library;
 use crate::model::Meeting;
 use crate::timeline::strip_browser_chrome;
 
-/// A long call can touch dozens of windows; these are kept.
 pub const MAXIMUM_MATERIALS: usize = 12;
 
 const CALL_STATUS_MARKERS: [&str; 3] = [
@@ -42,7 +36,6 @@ const LINUX_AND_WINDOWS_BROWSERS: [&str; 6] = [
     "msedge",
     "brave",
 ];
-/// Pages chosen by their query get no link: stored addresses drop it.
 const QUERY_ROUTED_HOSTS: [&str; 6] = [
     "mail.google.com",
     "google.com",
@@ -57,7 +50,6 @@ fn is_browser(app: &str) -> bool {
     BROWSER_APPS.contains(&app.as_str()) || LINUX_AND_WINDOWS_BROWSERS.contains(&app.as_str())
 }
 
-/// One retained `screenshots` row.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ScreenRow {
     pub id: i64,
@@ -69,27 +61,20 @@ pub struct ScreenRow {
     pub document_name: String,
 }
 
-/// One stretch of the same app and window, as it appeared on screen.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Moment {
     pub snapshot_id: i64,
     pub captured_at: DateTime<Utc>,
-    /// Seconds from the start of the meeting's audio.
     pub offset: f64,
-    /// When the next stretch began, or the end of the recording.
     pub end_offset: f64,
     pub app: String,
     pub title: String,
-    /// The site named in a browser tab's title, else a web page's host.
     pub site: Option<String>,
     pub source_url: String,
     pub has_pixels: bool,
-    /// The call itself (its app window or conference tab) was in front.
     pub is_call: bool,
 }
 
-/// A distinct document, page or window referenced during the call, in order
-/// of first appearance.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Material {
     pub id: String,
@@ -98,15 +83,12 @@ pub struct Material {
     pub site: Option<String>,
     pub first_offset: f64,
     pub first_snapshot_id: i64,
-    /// Approximate time in front, from capture to the next change.
     pub seconds_on_screen: f64,
-    /// A web address that reopens this page, when the stored one can.
     pub page_url: Option<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MeetingScreenContext {
-    /// Every stretch in order, including the call's own window.
     pub moments: Vec<Moment>,
     pub materials: Vec<Material>,
 }
@@ -116,7 +98,6 @@ impl MeetingScreenContext {
         self.materials.is_empty()
     }
 
-    /// The stretch in front at an audio position.
     pub fn moment(&self, offset: f64) -> Option<&Moment> {
         let first = self.moments.first()?;
         if offset < first.offset - 1.0 {
@@ -129,8 +110,6 @@ impl MeetingScreenContext {
         self.moments.get(index)
     }
 
-    /// Window and document titles for use as secondary context in notes,
-    /// never the captured text itself.
     pub fn material_titles(&self) -> Vec<String> {
         self.materials
             .iter()
@@ -251,8 +230,6 @@ struct Page {
 
 fn page_for(shot: &ScreenRow) -> Page {
     let browser = is_browser(&shot.app);
-    // A browser's document name is the last piece of the page's URL, not
-    // something the user would recognize.
     let document = shot.document_name.trim();
     if !browser && !document.is_empty() {
         return Page {
@@ -278,9 +255,6 @@ fn page_for(shot: &ScreenRow) -> Page {
     }
 }
 
-/// "Weekly sync - you@example.com - Gmail" reads as the page "Weekly sync" on
-/// "Gmail". Account addresses and unread counts are dropped so revisits of
-/// one page group together.
 fn splitting_site(title: &str) -> Page {
     let last = [" - ", " — ", " – ", " | "]
         .iter()
@@ -314,7 +288,6 @@ fn splitting_site(title: &str) -> Page {
     Page { title: page, site }
 }
 
-/// `^\(\d+\)\s+|\s+\(\d+\)$`.
 fn strip_unread_count(page: &str) -> String {
     let is_count = |text: &str| {
         text.len() > 2
@@ -341,7 +314,6 @@ fn is_account_address(segment: &str) -> bool {
     trimmed.contains('@') && !trimmed.contains(' ') && trimmed.contains('.')
 }
 
-/// The host and the path of an http(s) address.
 fn host_and_path(source_url: &str) -> Option<(String, String)> {
     let (scheme, rest) = source_url.split_once("://")?;
     if !scheme.eq_ignore_ascii_case("https") && !scheme.eq_ignore_ascii_case("http") {
@@ -362,8 +334,6 @@ fn web_host(source_url: &str) -> Option<String> {
     Some(host.strip_prefix("www.").unwrap_or(&host).to_string())
 }
 
-/// Stored addresses drop their query and fragment, so a page chosen by either
-/// gets no link rather than one that opens the wrong page.
 fn reopenable_url(source_url: &str) -> Option<String> {
     let host = web_host(source_url)?.to_lowercase();
     if QUERY_ROUTED_HOSTS.contains(&host.as_str()) {
@@ -380,14 +350,11 @@ fn reopenable_url(source_url: &str) -> Option<String> {
     Some(source_url.to_string())
 }
 
-/// The call itself is not material the user referenced.
 fn is_call_window(shot: &ScreenRow, meeting: &Meeting) -> bool {
     if !shot.source_url.is_empty() && is_meeting_url(&shot.source_url) {
         return true;
     }
     if is_browser(&shot.app) {
-        // Captures can lack the tab's URL. A tab using the camera or
-        // microphone during the meeting is the call, and so is a Meet tab.
         let lower = shot.window_title.to_lowercase();
         let segments: Vec<&str> = lower.split(" - ").collect();
         if segments.iter().any(|s| CALL_STATUS_MARKERS.contains(s)) {
@@ -422,8 +389,6 @@ fn is_blank_page(moment: &Moment) -> bool {
 }
 
 impl Library {
-    /// This meeting's rows and the unlinked ones around it
-    /// (`ActivityStore.screenshots(forMeeting:from:to:)`).
     pub fn meeting_screenshots(
         &self,
         meeting: &Meeting,
@@ -464,8 +429,6 @@ impl Library {
         })
     }
 
-    /// The on-screen context of a meeting. An imported file was not played on
-    /// this computer, so its time on the clock means nothing here.
     pub fn meeting_screen_context(&self, meeting: &Meeting) -> MeetingScreenContext {
         if meeting.is_imported() {
             return MeetingScreenContext::default();
@@ -519,7 +482,6 @@ mod tests {
         meeting
     }
 
-    /// A damaged `meta.json` can carry a length no calendar date can hold.
     #[test]
     fn an_impossible_recorded_length_does_not_panic() {
         let dir = tempfile::tempdir().unwrap();
@@ -540,7 +502,6 @@ mod tests {
                 MeetingScreenContext::default()
             );
         }
-        // An ordinary length still counts from the start.
         let meeting = meeting();
         assert_eq!(
             meeting.started_plus(600.0),
@@ -583,7 +544,6 @@ mod tests {
         assert_eq!(material.title, "Q3 plan");
         assert_eq!(material.site.as_deref(), Some("Google Docs"));
         assert_eq!(material.first_offset, 60.0);
-        // 60→180 and 300→400; revisits add up and the repeat row was one stretch.
         assert_eq!(material.seconds_on_screen, 220.0);
         assert_eq!(context.material_titles(), vec!["Q3 plan (Google Docs)"]);
         assert_eq!(context.moment(130.0).unwrap().snapshot_id, 2);

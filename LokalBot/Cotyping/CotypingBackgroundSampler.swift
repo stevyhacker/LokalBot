@@ -1,22 +1,11 @@
 import AppKit
 import ScreenCaptureKit
 
-/// Samples the average luminance of the host pixels behind the cotyping caret,
-/// reusing the same ScreenCaptureKit engine (and Screen Recording grant) as the
-/// screenshot pipeline. `CGWindowListCreateImage` is unavailable on current
-/// SDKs, so this is the supported way to read what's actually on screen.
-///
-/// The overlay panel sets `sharingType = .none`, so a capture never includes our
-/// own ghost. Results are cached per field and light or dark mode: a field's
-/// background rarely changes, and a fresh capture would recolor the ghost a
-/// moment after it appears. Not per app: one browser shows light and dark pages.
 @MainActor
 final class CotypingBackgroundSampler {
     private var cache: [String: (luminance: CGFloat, at: Date)] = [:]
     private static let cacheTTL: TimeInterval = 300
 
-    /// A still-fresh luminance for the field `fieldKey` names, used to color
-    /// the ghost instantly (no capture, no flash) for repeat suggestions there.
     func cachedLuminance(forField fieldKey: String?, now: Date = Date()) -> CGFloat? {
         guard let key = Self.key(fieldKey), let hit = cache[key],
               now.timeIntervalSince(hit.at) < Self.cacheTTL else { return nil }
@@ -35,9 +24,6 @@ final class CotypingBackgroundSampler {
         return fieldKey + (dark ? "/dark" : "/light")
     }
 
-    /// Capture the strip behind `caretRect` and return its average luminance
-    /// (0…1), caching it for `fieldKey`. `nil` when Screen Recording isn't
-    /// authorized or the capture fails — the caller keeps its AX/appearance guess.
     func sampleLuminance(at caretRect: CGRect, forField fieldKey: String?) async -> CGFloat? {
         guard CGPreflightScreenCaptureAccess(),
               let luminance = await Self.captureLuminance(at: caretRect) else { return nil }
@@ -62,15 +48,6 @@ final class CotypingBackgroundSampler {
         return averageLuminance(of: image)
     }
 
-    /// The strip to the right of the caret, where the ghost draws, in the
-    /// display's top-left point space, captured at its own pixel size.
-    /// ScreenCaptureKit widens a fractional source to whole points, fits it
-    /// inside the output keeping its aspect, and leaves whatever lies off the
-    /// display black. Measured 2026-10-05: a 166×17 pt strip asked for at
-    /// 32×3 came back with its last 2–4 columns black, pulling a white field
-    /// from 0.97 to 0.85. Whole points at the backing scale need no scaling;
-    /// `scalesToFit` makes a scale mismatch stretch rather than leave black
-    /// (without it ScreenCaptureKit only scales down). `nil` off the display.
     nonisolated static func captureConfiguration(
         for caretRect: CGRect, screenFrame: CGRect, backingScale: CGFloat
     ) -> SCStreamConfiguration? {
@@ -91,7 +68,6 @@ final class CotypingBackgroundSampler {
         return config
     }
 
-    /// Mean Rec. 601 luminance of `image`, via a 1×1 downscale that averages it.
     nonisolated static func averageLuminance(of image: CGImage) -> CGFloat? {
         var pixel: [UInt8] = [0, 0, 0, 0]
         guard let ctx = CGContext(

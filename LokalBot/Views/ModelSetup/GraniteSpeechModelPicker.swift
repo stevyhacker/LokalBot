@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// Selects one integrity-pinned Granite Speech GGUF and its matching projector
-/// from a public Hugging Face repository. Generic ASR checkpoints are excluded:
-/// LokalBot's Granite path requires llama.cpp's audio-capable GGUF format.
 struct GraniteSpeechModelPicker: View {
     @Environment(\.dismiss) private var dismiss
     @Binding var selection: GraniteSpeechModelConfiguration

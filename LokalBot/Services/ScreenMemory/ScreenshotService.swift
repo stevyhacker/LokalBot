@@ -5,37 +5,21 @@ import ImageIO
 import Vision
 import CryptoKit
 
-/// Plain-line diagnostics, now routed through swift-log (`AppLog`) which fans
-/// out to stdout + the rotating `<storage>/debug.log`. Kept as a free function
-/// so every existing call site stays unchanged.
 func lokalbotLog(_ message: String) {
     AppLog.line(message)
 }
 
-/// What caused a screen context capture. Raw values are stored in the
-/// `screenshots.capture_trigger` column and shown to search/chat consumers.
 enum ScreenCaptureTrigger: String {
-    /// User switched to a different application (sampler boundary).
     case appSwitch = "app_switch"
-    /// Window/tab/title changed inside the same application.
     case windowChange = "window_change"
-    /// A click completed; coordinates and button identity are never retained.
     case click
-    /// Typing stopped briefly; no key code or typed string is observed here.
     case typingPause = "typing_pause"
-    /// Scrolling settled; deltas and pointer position are not retained.
     case scrollSettled = "scroll_settled"
-    /// The pasteboard generation changed; clipboard contents are never read.
     case clipboardChange = "clipboard_change"
-    /// Idle fallback: nothing captured for the configured interval.
     case interval
-    /// Explicit "Capture now" from the menu bar.
     case manual
 }
 
-/// A fully decoded, size-bounded image that can safely cross back from the
-/// detached thumbnail worker. CGImage is immutable, but older SDK annotations
-/// do not consistently mark it Sendable.
 struct ScreenThumbnailImage: @unchecked Sendable {
     let image: CGImage
 
@@ -44,13 +28,8 @@ struct ScreenThumbnailImage: @unchecked Sendable {
     }
 }
 
-/// Pure rate-limiting policy for event-driven capture. Event triggers respect
-/// a short cooldown so interaction bursts cannot spam extraction; the interval
-/// trigger fires only after the user-configured idle window; manual always wins.
 struct ScreenCapturePolicy {
-    /// Minimum seconds between event-driven captures.
     var eventCooldown: TimeInterval
-    /// When a capture (or dedup-confirmed unchanged screen) was last recorded.
     private(set) var lastCheck: Date?
 
     init(eventCooldown: TimeInterval = 20) {
@@ -74,31 +53,15 @@ struct ScreenCapturePolicy {
     mutating func noteCheck(at now: Date = Date()) { lastCheck = now }
 }
 
-/// Bounds retention work to once per day during normal operation while still
-/// allowing explicit privacy changes to force an immediate pass. Keeping this
-/// policy pure makes sleep/wake and clock-adjustment behavior deterministic in
-/// tests; the service owns only the lightweight timer that asks it periodically.
 struct ScreenshotRetentionSchedule {
     static let pruneInterval: TimeInterval = 86_400
-    /// How often the service asks whether a pass is due.
     static let checkInterval: TimeInterval = 3_600
-    /// How soon a pass that reported an error runs again: by the next check.
-    /// It is a little under the check interval, because the check after a
-    /// failed pass comes exactly one interval later or a few minutes late,
-    /// and "due in an hour" then slipped to the check after that.
     static let retryInterval: TimeInterval = checkInterval - 600
-    /// Failed passes retried in a row before the daily rhythm resumes. A
-    /// failure that never clears must not repeat the library-wide pass, and
-    /// the memory it revokes, every hour.
     static let maximumRetries = 3
     static let markerFileName = ".screen-retention-last-pass"
 
     private(set) var lastPrune: Date?
     private var failedPasses = 0
-    /// Where the last pass is remembered. Without it every launch ran a
-    /// library-wide pass on the main actor and revoked derived journals and
-    /// Dream reports again, however recently the previous pass had run. Nil
-    /// keeps the schedule in memory.
     private(set) var markerURL: URL?
 
     init(lastPrune: Date? = nil, markerURL: URL? = nil) {
@@ -106,7 +69,6 @@ struct ScreenshotRetentionSchedule {
         self.markerURL = markerURL
     }
 
-    /// The schedule for a library, resuming from its last recorded pass.
     static func load(markerURL: URL) -> ScreenshotRetentionSchedule {
         let text = try? String(contentsOf: markerURL, encoding: .utf8)
         let last = text.flatMap {
@@ -124,10 +86,6 @@ struct ScreenshotRetentionSchedule {
         return true
     }
 
-    /// The pass `shouldPrune` allowed left something undone (a busy database,
-    /// a file that would not delete). Expired screen data would otherwise
-    /// stay a whole day longer, across relaunches too, so the next pass is
-    /// due in an hour.
     mutating func passFailed(at now: Date) {
         failedPasses += 1
         guard failedPasses <= Self.maximumRetries else {
@@ -144,7 +102,6 @@ struct ScreenshotRetentionSchedule {
     private mutating func record(_ date: Date) {
         lastPrune = date
         if let markerURL {
-            // Best effort: a failed write only means the next launch prunes again.
             try? Data(date.formatted(.iso8601).utf8).write(to: markerURL, options: .atomic)
         }
     }
@@ -154,9 +111,6 @@ struct ScreenshotRetentionSchedule {
     }
 }
 
-/// Pure capture-layout selection. ScreenCaptureKit objects cannot be created
-/// in unit tests, so production metadata is reduced to these value types before
-/// binding pixels to the one focused window whose privacy metadata was read.
 struct ScreenshotCaptureLayout {
     struct Window: Codable, Equatable, Sendable {
         let id: CGWindowID
@@ -179,15 +133,10 @@ struct ScreenshotCaptureLayout {
     ) -> Selection? {
         guard let focusedWindowFrame, !focusedWindowFrame.isEmpty,
               !focusedWindowFrame.isNull else { return nil }
-        // The Accessibility-checked frame identifies the window. The window
-        // title ScreenCaptureKit reports can lag the live one (Chrome), so a
-        // title only tells apart windows that share that exact frame.
         let framed = windows.filter {
             $0.processID == frontmostProcessID && $0.frame == focusedWindowFrame
         }
         let matches = framed.count == 1 ? framed : framed.filter { $0.title == focusedWindowTitle }
-        // Never guess another window or fall back to the display when AX
-        // cannot bind the source.
         guard matches.count == 1, let window = matches.first,
               !isExcluded(appName: window.appName, excludedApps: excludedApps)
         else { return nil }
@@ -198,7 +147,6 @@ struct ScreenshotCaptureLayout {
         ScreenContextPrivacy.isExcluded(appName: appName, bundleIdentifier: bundleIdentifier, rules: excludedApps)
     }
 
-    /// Why `selection` found no single window, as counts only: never titles.
     static func mismatchSummary(
         windows: [Window],
         frontmostProcessID: pid_t,
@@ -228,9 +176,6 @@ struct ScreenshotCaptureLayout {
     }
 }
 
-/// ScreenCaptureKit allocates the requested frame before the background worker
-/// can downsample it. Bound that first allocation so large/retina displays do
-/// not briefly consume hundreds of megabytes on every context event.
 struct ScreenshotCaptureDimensions: Equatable {
     static let maximumDimension = 1_500
 
@@ -256,8 +201,6 @@ struct ScreenshotCaptureDimensions: Equatable {
     }
 }
 
-/// Main-actor gate that prevents repeated menu clicks and simultaneous sampler
-/// events from launching overlapping ScreenCaptureKit requests.
 struct ScreenshotCaptureGate {
     private(set) var isCapturing = false
 
@@ -299,8 +242,6 @@ struct ScreenshotCaptureConsent: Equatable {
 }
 
 extension ScreenshotService {
-    /// Names which capture precondition failed, without window contents, so
-    /// a skipped app can be diagnosed from the debug log.
     static func accessibilitySkipReason(
         _ result: ScreenAccessibilityCaptureResult, app: String, processID: pid_t
     ) -> String {
@@ -340,8 +281,6 @@ enum ScreenshotWindowFocusValidation {
     }
 }
 
-/// Set on the main actor right before a recheck starts, read on the
-/// reader's worker; captures run one at a time.
 final class RecheckNodeLimit: @unchecked Sendable {
     private let lock = NSLock()
     private var stored: Int?
@@ -351,10 +290,6 @@ final class RecheckNodeLimit: @unchecked Sendable {
     }
 }
 
-/// Immutable inputs passed across the main-actor/worker boundary. `CGImage` is
-/// an immutable Core Foundation value and is safe to read concurrently, but it
-/// is not annotated `Sendable` by every supported SDK, so the wrapper records
-/// that invariant explicitly.
 struct ScreenshotProcessingRequest: @unchecked Sendable {
     let image: CGImage
     let trigger: ScreenCaptureTrigger
@@ -363,7 +298,6 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
     let accessibleText: String
     let accessibilityRedactionCount: Int
     let stageOnly: Bool
-    /// The app and window the image shows; empty when unknown.
     let source: String
 
     init(
@@ -387,15 +321,10 @@ struct ScreenshotProcessingRequest: @unchecked Sendable {
     }
 }
 
-/// An image on its way to the text-recognition queue. `CGImage` is immutable.
 private struct ScreenshotProcessingImage: @unchecked Sendable {
     let image: CGImage
 }
 
-/// Injectable image/file operations keep the serial worker deterministic under
-/// test without weakening the production path. Every closure runs only for
-/// `ScreenshotProcessingWorker`; `recognizeText` runs on the text-recognition
-/// queue, which the worker waits for.
 struct ScreenshotProcessingDependencies: @unchecked Sendable {
     let contentHash: @Sendable (CGImage) -> Data
     let heicData: @Sendable (CGImage) throws -> Data
@@ -413,23 +342,15 @@ struct ScreenshotProcessingDependencies: @unchecked Sendable {
         })
 }
 
-/// CPU- and I/O-heavy screenshot processing. Actor isolation gives captures one
-/// total order, so the content hash always compares with the last image that was
-/// successfully encrypted and written. There are no suspension points inside
-/// `process`, preventing actor reentrancy from interleaving two capture writes.
 actor ScreenshotProcessingWorker {
     struct StoredCapture: Sendable {
         let contentHash: Data
-        /// `ScreenPerceptualHash` of the full image, for visual grouping.
         let perceptualHash: UInt64
         let text: String
         let textSource: String
         let hasPixels: Bool
         let privacyRedactionCount: Int
         let usedOCR: Bool
-        /// Text recognition was asked for the image's text and did not answer
-        /// in time. The capture holds what Accessibility read, and no pixels:
-        /// nothing checked them for credentials.
         let missedOCR: Bool
         let sealedPixels: Data?
     }
@@ -437,23 +358,15 @@ actor ScreenshotProcessingWorker {
     enum Outcome: Sendable {
         case unchanged
         case stored(StoredCapture)
-        /// Accessibility read no text and recognition gave no answer: there
-        /// is nothing to keep. The same frame is read again next time.
         case unreadable
     }
 
-    /// How long a capture waits for the text in its pixels. Of 23,000 captures
-    /// in one Mac's log, 99.9% had it within 15 s.
     static let textRecognitionLimit: TimeInterval = 20
 
     private let dependencies: ScreenshotProcessingDependencies
     private let textRecognition: TextRecognitionQueue
     private let textRecognitionLimit: TimeInterval
     private var lastContentHash: Data?
-    /// The last stored capture, for skipping a frame of the same window that
-    /// differs only by a blinking caret or similar: same text, and at most
-    /// `nearDuplicateDistance` bits apart visually. About 7% of a real
-    /// library's captures were such frames, each encoded, written and indexed.
     private var lastStored: (contentHash: Data, source: String, text: String, perceptualHash: UInt64)?
     static let nearDuplicateDistance = 2
 
@@ -475,8 +388,6 @@ actor ScreenshotProcessingWorker {
         let accessible = ScreenContextPrivacy.redact(request.accessibleText)
         let accessibilityRedactions = request.accessibilityRedactionCount + accessible.count
         let hasRichAccessibility = ScreenContextPrivacy.hasRichAccessibleText(accessible.text)
-        // A capture never waits for recognition past its limit: one request
-        // that did not return held every capture after it (2026-11-09).
         let recognized: String? = hasRichAccessibility ? "" : recognizeText(in: preparedImage)
         if recognized == nil, accessible.text.isEmpty { return .unreadable }
         let ocr = ScreenContextPrivacy.redact(recognized ?? "")
@@ -507,11 +418,6 @@ actor ScreenshotProcessingWorker {
             return .unchanged
         }
         let redactionCount = accessibilityRedactions + ocr.count
-        // If extracted text reveals a credential, retain only its deterministic
-        // redacted form. Dropping the entire pixel payload is safer than trying
-        // to infer a precise on-screen rectangle from a text-only observation.
-        // Pixels whose text recognition never read are unchecked, and dropped
-        // too: thin accessible text says little about what they show.
         let hasPixels = redactionCount == 0 && recognized != nil
         var stagedPixels: Data?
         if hasPixels {
@@ -540,9 +446,6 @@ actor ScreenshotProcessingWorker {
             sealedPixels: stagedPixels))
     }
 
-    /// The text in `image`, or nil when recognition gave no answer in time.
-    /// The actor's thread waits here, as it always has for the recognition
-    /// itself, so two captures still cannot interleave.
     private func recognizeText(in image: CGImage) -> String? {
         let input = ScreenshotProcessingImage(image: image)
         return textRecognition.runAndWait("screen capture", within: textRecognitionLimit) { [dependencies] in
@@ -550,8 +453,6 @@ actor ScreenshotProcessingWorker {
         }
     }
 
-    /// A file write is not a completed capture until its SQLite rows commit.
-    /// Let an identical screen retry when that later persistence step fails.
     func discardStored(contentHash: Data) {
         if lastContentHash == contentHash {
             lastContentHash = nil
@@ -562,12 +463,6 @@ actor ScreenshotProcessingWorker {
     }
 }
 
-/// 64-bit difference hash (dHash) for visually similar-frame detection.
-/// Unlike a byte SHA, this remains stable across tiny cursor/animation/codec
-/// changes. Stored captures within `defaultDistanceThreshold` share a
-/// similarity group. The worker above skips an automatic capture only when it
-/// has the same text and is within its own, tighter `nearDuplicateDistance`;
-/// explicit manual captures always bypass that decision.
 enum ScreenPerceptualHash {
     static let width = 9
     static let height = 8
@@ -636,29 +531,19 @@ enum ScreenPerceptualHash {
         threshold: Int = defaultDistanceThreshold
     ) -> Bool {
         guard let lhs = value(from: lhs), let rhs = value(from: rhs) else {
-            // Test/custom processors historically supplied SHA-sized values.
-            // Preserve exact-dedup behavior for those non-production inputs.
             return lhs == rhs
         }
         return isNearDuplicate(lhs, rhs, threshold: threshold)
     }
 }
 
-/// Pure image transforms used by the background worker. Keeping these outside
-/// the `@MainActor` service is what makes Vision, Core Graphics, and ImageIO run
-/// away from SwiftUI's executor.
 enum ScreenshotImageProcessing {
-    /// Hash the downscaled pixels before HEIC/OCR. Only byte-identical frames
-    /// are suppressed here; the much coarser perceptual hash must never discard
-    /// changed OCR evidence, so the worker uses it only between captures whose
-    /// text is identical.
     static func contentHash(of image: CGImage) -> Data {
         var hasher = SHA256()
         var width = UInt64(image.width).littleEndian
         var height = UInt64(image.height).littleEndian
         withUnsafeBytes(of: &width) { hasher.update(bufferPointer: $0) }
         withUnsafeBytes(of: &height) { hasher.update(bufferPointer: $0) }
-        // Hash the pixels in place rather than copying ~6 MB into a buffer.
         if let pixels = image.dataProvider?.data, let bytes = CFDataGetBytePtr(pixels) {
             hasher.update(bufferPointer: UnsafeRawBufferPointer(start: bytes, count: CFDataGetLength(pixels)))
         }
@@ -667,11 +552,8 @@ enum ScreenshotImageProcessing {
 
     static func recognizeText(in image: CGImage) -> String {
         let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate   // .fast is useless on dense UI text
-        request.usesLanguageCorrection = false  // code/URLs shouldn't be "corrected"
-        // Without this Vision reads with its en-US default: Chinese and
-        // Japanese came back as noise (0.00 vs 0.98 character similarity),
-        // while English, German, and Serbian Latin/Cyrillic were unchanged.
+        request.recognitionLevel = .accurate
+        request.usesLanguageCorrection = false
         request.automaticallyDetectsLanguage = true
         try? VNImageRequestHandler(cgImage: image).perform([request])
         return (request.results ?? [])
@@ -711,11 +593,6 @@ enum ScreenshotImageProcessing {
     }
 }
 
-/// Event-driven screen context: read bounded visible Accessibility text first,
-/// optionally pair it with an encrypted focused-window image, and invoke local
-/// OCR only when the accessible text is thin. Captured text is indexed; pixels
-/// and, by default, text are retention-pruned. Privacy checks fail closed for
-/// idle/lock states, excluded sources, secure fields, and detected credentials.
 @MainActor
 final class ScreenshotService: ObservableObject {
 
@@ -731,13 +608,9 @@ final class ScreenshotService: ObservableObject {
     @Published private(set) var isCapturing = false
     @Published private(set) var lastError: String?
 
-    /// AppState revokes derived evidence before the synchronous deletion runs.
-    /// Throwing here leaves both pixels and retained text untouched.
     var mutateEvidence: ([Date], () throws -> Void) throws -> Void = { _, mutation in
         try mutation()
     }
-    /// Called after a capture stored searchable text, so AppState can queue
-    /// it for semantic search.
     var onTextStored: () -> Void = {}
 
     private let store: ActivityStore
@@ -749,7 +622,6 @@ final class ScreenshotService: ObservableObject {
     private let now: () -> Date
     private let sampler: ActivitySampler
     private let accessibilityReader: ScreenAccessibilityReader
-    /// The capture's own read sets how many elements its recheck inspects.
     private let recheckNodeLimit = RecheckNodeLimit()
     private lazy var privacyRecheckReader = ScreenAccessibilityReader.privacyRecheck { [recheckNodeLimit] in
         recheckNodeLimit.value
@@ -796,8 +668,6 @@ final class ScreenshotService: ObservableObject {
         guard timer == nil else { return }
         captureGeneration &+= 1
         let generation = captureGeneration
-        // Event-driven path: the sampler already detects app/window boundaries
-        // every 5 s; captures ride those events instead of a fixed clock.
         sampler.onActivityBoundary = { [weak self] _, _, appChanged in
             Task { @MainActor in
                 await self?.captureIfAppropriate(trigger: appChanged ? .appSwitch : .windowChange)
@@ -807,13 +677,9 @@ final class ScreenshotService: ObservableObject {
             Task { @MainActor in await self?.captureIfAppropriate(trigger: trigger) }
         }
         eventMonitor.start()
-        // Idle fallback: a 60 s tick that only captures when nothing has been
-        // captured for the configured interval (the old slider semantics
-        // become "at least every N minutes").
         timer = Timer.scheduledTimer(withTimeInterval: 60, repeats: true) { [weak self] _ in
             Task { @MainActor in await self?.captureIfAppropriate(trigger: .interval) }
         }
-        // First capture shortly after launch, not a full interval later.
         initialCaptureTask?.cancel()
         initialCaptureTask = Task { @MainActor [weak self] in
             do {
@@ -841,8 +707,6 @@ final class ScreenshotService: ObservableObject {
 
     func restart() {
         stop()
-        // Retention is a privacy lifecycle, not a capture lifecycle. Keep its
-        // daily maintenance alive even when tracking/capture is disabled.
         startRetentionMaintenance()
         if settings().effectiveScreenContextCaptureMode.capturesText,
            settings().trackingEnabled { start() }
@@ -863,11 +727,6 @@ final class ScreenshotService: ObservableObject {
         retentionTimer = maintenance
     }
 
-    /// Every click, typing pause and scroll ends in `captureIfAppropriate`,
-    /// and while capture is off, paused, held back by a recording or cooling
-    /// down, each one is skipped for the same reason. That reason is logged
-    /// once until a capture gets past these checks, so the log keeps the
-    /// lines that explain a missing capture.
     private var lastRepeatedSkip: String?
 
     private func logRepeatedSkip(_ reason: String, detail: String? = nil) {
@@ -944,9 +803,6 @@ final class ScreenshotService: ObservableObject {
         if accessibility.snapshot == nil, !accessibility.timedOut,
            ScreenAccessibilityReader.lastTextReadFailure(
             for: frontmostApp.processIdentifier)?.isTransient == true {
-            // A tab switch or page load can change the window while it is
-            // read; the capture event often fires at exactly that moment.
-            // Let it settle once instead of losing the capture to the cooldown.
             try? await environment.clock.sleep(seconds: 0.75)
             if environment.workspace.frontmostApplication()?.processIdentifier == frontmostApp.processIdentifier {
                 accessibility = await accessibilityReader.capture(processID: frontmostApp.processIdentifier)
@@ -1123,7 +979,6 @@ final class ScreenshotService: ObservableObject {
             lokalbotLog("shot skip: consent or screen recording access changed during capture")
             return
         }
-        // The recheck needs no text, only what the privacy checks below read.
         recheckNodeLimit.value = accessibilitySnapshot.inspectedNodes
         let currentAccessibility = await privacyRecheckReader.capture(processID: frontmostProcessID)
         mark("recheck")
@@ -1137,16 +992,12 @@ final class ScreenshotService: ObservableObject {
                 currentSnapshot.privacyObservation(appName: frontApp, bundleIdentifier: bundleIdentifier),
                 excludedApps: excludedApps, excludedDomains: excludedDomains,
                 allowsUnknownFocus: true) else {
-            // The focused window, browser URL or secure-field state can change
-            // while ScreenCaptureKit suspends. Discard its pixels on any change.
             lokalbotLog("shot skip: focused source or privacy state changed during capture")
             return
         }
 
         let timestamp = environment.clock.now()
 
-        // The worker keeps hash → text-source selection → optional OCR →
-        // redaction → encryption/write serial and off the main actor.
         let file = Self.captureFileURL(rootURL: storage.rootURL, timestamp: timestamp)
         let outcome = try await processingWorker.process(ScreenshotProcessingRequest(
             image: image,
@@ -1171,15 +1022,11 @@ final class ScreenshotService: ObservableObject {
         }
 
         guard captureIsAuthorized(consent), environment.windows.screenCaptureGranted() else {
-            // Processing stages encrypted bytes only in memory. Revocation
-            // cannot leave a file behind while the worker finishes its work.
             await processingWorker.discardStored(contentHash: stored.contentHash)
             return
         }
         let storedPath = stored.hasPixels ? file.path : ""
         do {
-            // This short synchronous commit cannot interleave with a main-
-            // actor settings/pause change between the check and persistence.
             if let pixels = stored.sealedPixels {
                 try FileManager.default.createDirectory(at: file.deletingLastPathComponent(),
                                                         withIntermediateDirectories: true)
@@ -1228,8 +1075,6 @@ final class ScreenshotService: ObservableObject {
             && environment.accessibility.isTrusted()
     }
 
-    /// Manual trigger (menu bar) — the one non-onboarding place allowed to
-    /// prompt, because the user explicitly asked for a capture.
     func captureNow() {
         Task { @MainActor in
             if settings().effectiveScreenContextCaptureMode.capturesPixels,
@@ -1241,18 +1086,12 @@ final class ScreenshotService: ObservableObject {
         }
     }
 
-    /// Decrypt a stored screenshot to raw image bytes. `nonisolated` and pure
-    /// given the key, so the thumbnail worker can run file I/O and AES opening
-    /// off the main actor before immediately downsampling the result.
     nonisolated static func decryptedData(path: String, key: SymmetricKey) -> Data? {
         guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
               let box = try? AES.GCM.SealedBox(combined: data) else { return nil }
         return try? AES.GCM.open(box, using: key)
     }
 
-    /// Decode only the pixels needed by the destination view. The immediate
-    /// cache option forces HEIF/PNG decoding to finish on the detached worker
-    /// instead of being deferred until SwiftUI draws on the main actor.
     nonisolated static func downsampledThumbnail(
         data: Data,
         maxPixelSize: Int
@@ -1282,9 +1121,6 @@ final class ScreenshotService: ObservableObject {
         return downsampledThumbnail(data: data, maxPixelSize: maxPixelSize)
     }
 
-    /// Callers that already hold screenshot metadata avoid another synchronous
-    /// SQLite lookup. File I/O, AES opening, and image decoding all stay off the
-    /// main actor and only the bounded CGImage returns to SwiftUI.
     func decryptedThumbnail(
         for screenshot: ActivityStore.Screenshot,
         maxPixelSize: Int
@@ -1310,8 +1146,6 @@ final class ScreenshotService: ObservableObject {
         }.value
     }
 
-    /// User-requested deletion removes pixels first, then the screenshot row
-    /// and all linked OCR, bookmark, and semantic-vector state atomically.
     func deleteCapture(id: Int64) throws {
         guard let screenshot = try store.screenshotChecked(id: id) else { return }
         if !screenshot.path.isEmpty,
@@ -1321,8 +1155,6 @@ final class ScreenshotService: ObservableObject {
         try store.deleteScreenshot(id: id)
     }
 
-    /// Manual cleanup keeps successful row/file deletions consistent even if
-    /// another item fails. Saved moments require an explicit reviewed scope.
     func applyCaptureDeletionReview(_ review: CaptureDeletionReview) throws -> [String] {
         let current = try store.captureDeletionReview(in: review.interval, includesSaved: review.includesSaved)
         guard review.covers(current) else { throw RetentionReviewError.scopeChanged }
@@ -1338,18 +1170,12 @@ final class ScreenshotService: ObservableObject {
         return failures
     }
 
-    /// Files older than the retention window are deleted. OCR text follows
-    /// the same cutoff unless the user explicitly opted into keeping it —
-    /// screen text can be as sensitive as the pixels it came from.
-    /// Execute only the reviewed data set. Regular maintenance is separate.
     func applyRetentionReview(_ review: RetentionReview) throws -> [String] {
         let current = try store.retentionReview(days: review.days, keepTextForever: review.keepTextForever,
                                                 now: now(), measuringBytes: false)
         guard review.covers(current) else { throw RetentionReviewError.scopeChanged }
         var failures: [String] = []
         var retainedTextIDs: [Int64] = []
-        // Re-check saving immediately before the irreversible file steps. The
-        // pass is synchronous on the main actor, so one read stays current.
         let saved: Set<Int64>
         do {
             saved = try store.bookmarkedSnapshotIDs()
@@ -1397,9 +1223,6 @@ final class ScreenshotService: ObservableObject {
         _ = runRetentionMaintenanceIfNeeded(force: true)
     }
 
-    /// Called by the hourly maintenance timer. The schedule guarantees the
-    /// actual filesystem/SQLite pass runs at most daily unless a retention
-    /// reduction or explicit privacy action forces it.
     @discardableResult
     func runRetentionMaintenanceIfNeeded(force: Bool = false) -> Bool {
         let current = now()
@@ -1410,8 +1233,6 @@ final class ScreenshotService: ObservableObject {
         } else {
             retentionSchedule.passFailed(at: current)
         }
-        // Hand off packages have their own 7-day limit. Writing one prunes the
-        // folder; this daily pass covers the days when nothing is handed off.
         WindowHandoffPackage.prune(root: WindowHandoffPackage.root(library: storage.rootURL), now: current)
         return true
     }
@@ -1420,8 +1241,6 @@ final class ScreenshotService: ObservableObject {
         var firstError: String?
         do {
             let configuration = settings()
-            // Establish the exact affected source timestamps before revoking
-            // memory or removing files. A failed read must never look empty.
             let review = try store.retentionReview(
                 days: configuration.retentionDays,
                 keepTextForever: configuration.keepOCRTextForever,
@@ -1435,8 +1254,6 @@ final class ScreenshotService: ObservableObject {
                 let dates = review.distinctEvidenceDays(adding: orphaned.timestamps)
                 try mutateEvidence(dates) {
                     var retainedTextIDs: [Int64] = []
-                    // One read of saved moments; nothing else runs on the main
-                    // actor until this pass returns, so it stays current.
                     let saved: Set<Int64>
                     do {
                         saved = try store.bookmarkedSnapshotIDs()
@@ -1444,8 +1261,6 @@ final class ScreenshotService: ObservableObject {
                         if firstError == nil { firstError = error.localizedDescription }
                         saved = Set(review.candidates.map(\.id))
                     }
-                    // Delete only the reviewed IDs; a broad cutoff query could
-                    // remove additional evidence whose days were not revoked.
                     for candidate in review.candidates {
                         guard !saved.contains(candidate.id) else { continue }
                         if !candidate.path.isEmpty {
@@ -1455,8 +1270,6 @@ final class ScreenshotService: ObservableObject {
                                 }
                                 try store.clearScreenshotPath(candidate.path)
                             } catch {
-                                // Preserve failed file references for retry;
-                                // text still follows its own retention policy.
                                 if firstError == nil { firstError = error.localizedDescription }
                             }
                         }
@@ -1481,8 +1294,6 @@ final class ScreenshotService: ObservableObject {
         lastRetentionRun = current
         lastRetentionError = firstError
     }
-
-    // MARK: - Pieces
 
     nonisolated static func shouldCaptureDuringMeetingRecording(
         trigger: ScreenCaptureTrigger,
@@ -1513,8 +1324,6 @@ final class ScreenshotService: ObservableObject {
                 "\(milliseconds)-\(identifier.uuidString.lowercased()).heic.enc")
     }
 
-    /// Per-install AES-256 key in the user Keychain (design §3.4), via the
-    /// shared scheme also used to seal chat history.
     static func encryptionKey() throws -> SymmetricKey {
         try KeychainSecrets.symmetricKey(account: "screenshot-key")
     }

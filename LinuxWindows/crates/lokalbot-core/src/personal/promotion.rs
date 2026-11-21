@@ -1,9 +1,3 @@
-//! Suggests long-running work as Personal Context items (`WorkMemoryPromotion`).
-//! The review keeps short-lived work memory; a goal or project it keeps seeing
-//! for two weeks or more, and saw in the last week, says something durable about
-//! the person. No model call. Every promotion waits for review and depends on the
-//! review's evidence.
-
 use std::collections::HashMap;
 
 use super::{ClaimKind, LearningCandidate, Origin, WorkSighting, tombstone_key};
@@ -26,8 +20,6 @@ fn days_between(start: &str, end: &str) -> i64 {
     }
 }
 
-/// Records when each current goal and project was first seen, forgets ones the
-/// memory no longer holds, and returns those that qualify.
 pub fn evaluate(memory: &DreamMemory, sightings: &[WorkSighting], day_key: &str) -> Promotion {
     let first_seen: HashMap<&str, &str> = sightings
         .iter()

@@ -27,9 +27,6 @@ SPEC.loader.exec_module(SEEDER)
 
 class DemoLibraryDestinationTests(unittest.TestCase):
     def run_main(self, *arguments):
-        # The ownership decision happens before fixture generation. Stub the
-        # expensive audio/data writers so these tests exercise that real CLI
-        # boundary without depending on codecs or creating benchmark data.
         with mock.patch.object(sys, "argv", [str(SCRIPT), *map(str, arguments)]), \
              mock.patch.object(SEEDER, "build", return_value=[]), \
              mock.patch.object(SEEDER, "seed_chats"), \
@@ -120,8 +117,6 @@ class SpeechFixtureTests(unittest.TestCase):
         self.assertTrue(any(encoded[0]))
 
 
-# Encodes audio with /usr/bin/afconvert. Build's unit-test job runs it on macOS;
-# the CI helpers job on Linux skips it.
 @unittest.skipUnless(sys.platform == "darwin", "needs macOS audio tools")
 class SeedProfileTests(unittest.TestCase):
     def setUp(self):
@@ -159,9 +154,6 @@ class SeedProfileTests(unittest.TestCase):
         self.assertEqual(len(glob.glob(os.path.join(self.root, "meetings/*/*/*/meta.json"))), 200)
 
     def test_full_day_merged_meeting_is_covered_by_its_golden_transcript(self):
-        # A merged source of 30 s or more with no transcript segment is a
-        # merged gap, which the pipeline repairs by re-transcribing; the seeded
-        # day must be healthy, so every source span holds golden speech.
         self.run_seed("--profile", "full-day", "--day", "2026-08-04")
         folder = glob.glob(os.path.join(self.root, "meetings/*/*/*-sprint-planning"))[0]
         with open(os.path.join(folder, "merge-manifest.json")) as f:
@@ -181,9 +173,6 @@ class SeedProfileTests(unittest.TestCase):
             offset += source["duration"]
 
     def test_studio_profile_keeps_each_example_on_its_own_surface(self):
-        # The website shows the holiday shoot meeting, a "MacBook" search and a
-        # "captions" search. Each search must return only its own rows, and
-        # nothing seeded for today may lie in the future of the capture.
         self.run_seed("--profile", "studio")
         now = time.time()
         folders = {}
@@ -249,8 +238,6 @@ class SeedProfileTests(unittest.TestCase):
             with open(path, "rb") as f:
                 self.assertEqual(f.read(8), b"\x89PNG\r\n\x1a\n")
 
-        # The Photos moment falls inside the featured call, so the meeting
-        # window shows it under "On Screen During the Meeting".
         with open(os.path.join(featured, "meta.json")) as f:
             meta = json.load(f)
         start, end = (datetime.fromisoformat(meta[key].replace("Z", "+00:00")).timestamp()
@@ -258,8 +245,6 @@ class SeedProfileTests(unittest.TestCase):
         (photos,) = con.execute("SELECT ts FROM screenshots WHERE app = 'Photos'").fetchone()
         self.assertTrue(start < photos < end)
 
-        # Nothing was on screen during the podcast call, which the README shows
-        # without an "On Screen During the Meeting" section.
         with open(os.path.join(folders["Podcast trailer review"][0], "meta.json")) as f:
             meta = json.load(f)
         start, end = (datetime.fromisoformat(meta[key].replace("Z", "+00:00")).timestamp()

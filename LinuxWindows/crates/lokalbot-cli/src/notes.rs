@@ -1,8 +1,3 @@
-//! `search_agent_notes` for MCP and `lokalbot-cli search-notes`
-//! (`AgentNotesSearchTool`): word search over the notes the user's coding
-//! agents saved for themselves, as LokalBot keeps them while **Read coding
-//! agent notes** is on. Works while the app is closed.
-
 use chrono::{DateTime, SecondsFormat, Utc};
 use lokalbot_core::LibraryPaths;
 use lokalbot_core::agent_notes::{NotesIndex, access};
@@ -13,7 +8,6 @@ use crate::search::MAXIMUM_QUERY_CHARACTERS;
 pub const NAME: &str = "search_agent_notes";
 pub const DEFAULT_LIMIT: i64 = 8;
 pub const MAXIMUM_LIMIT: i64 = 30;
-/// A note longer than this is cut, with an ellipsis.
 const NOTE_CHARACTERS: usize = 4_000;
 
 pub const AGENTS: [&str; 2] = ["claude-code", "codex"];
@@ -39,7 +33,6 @@ impl Failure {
     }
 }
 
-/// Keys sort the way the Mac writes them.
 #[derive(Debug, Serialize)]
 pub struct Item {
     pub agent: String,
@@ -47,7 +40,6 @@ pub struct Item {
     pub id: String,
     pub modified: String,
     pub path: String,
-    /// The folder the note is about, when the agent recorded it.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub project: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -55,7 +47,6 @@ pub struct Item {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub text: Option<String>,
     pub title: String,
-    /// Claude Code's own label: user, feedback, project, or reference.
     #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
     pub kind: Option<String>,
 }
@@ -82,8 +73,6 @@ fn clipped(text: &str) -> String {
     out
 }
 
-/// Arguments first, so a bad call says so with or without the grant; then the
-/// grant, then the saved notes.
 pub fn report(
     paths: &LibraryPaths,
     query: &str,
@@ -149,7 +138,6 @@ pub fn report(
     })
 }
 
-/// A plain-text table for `search-notes --table`.
 pub fn table(report: &Report) -> String {
     if report.results.is_empty() {
         return format!("No agent notes matched \"{}\".", report.query);
@@ -227,7 +215,6 @@ pub(crate) mod tests {
     #[test]
     fn search_for_agents_needs_its_own_grant_then_saved_notes() {
         let (_dir, paths) = paths();
-        // No other grant opens the notes.
         lokalbot_core::access::set_meetings_access(&paths, true).unwrap();
         lokalbot_core::files::access::set_enabled(&paths, true).unwrap();
         assert_eq!(

@@ -135,7 +135,6 @@ def pair_and_change_an_action(simulator, host):
     check(True, f"all {len(library)} records of the library reached the phone")
     simulator.terminate()
 
-    # A separate launch, because a change needs the meeting to be on the phone.
     meeting, action = an_open_action()
     simulator.launch("-demoToggleAction", f"{meeting}/{action}")
     change = wait_until(
@@ -165,7 +164,6 @@ def keep_while_the_computer_is_away(simulator, host, clip):
         lambda: [path for path in simulator.recordings() if path.stat().st_size == clip.stat().st_size],
         60,
     )
-    # Long enough for an attempt to fail, which must not cost the only copy.
     time.sleep(5)
     check(held[0].read_bytes() == clip.read_bytes(), "the phone still holds it")
     simulator.terminate()

@@ -1,10 +1,3 @@
-//! Meeting recording: `mic.wav` ("Me") and `system.wav` ("Them") on one timeline.
-//!
-//! Streams live on a control thread (cpal streams are not `Send` everywhere),
-//! which also reconnects a lost microphone and follows the default output
-//! device. Each track has its own writer thread. `Recorder` itself only holds
-//! channels and counters, so it is `Send` and can sit behind a mutex.
-
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -24,54 +17,38 @@ use crate::track::{ChunkSink, TrackState, TrackWriter, WRITE_FAILED};
 pub const MIC_FILE: &str = "mic.wav";
 pub const SYSTEM_FILE: &str = "system.wav";
 
-/// A source counts as recently active within this window (`RecordingMemoryHealthSnapshot.isRecent`).
 const RECENT_MS: u64 = 10_000;
-/// A microphone that delivers nothing for this long is reopened.
 const MIC_STALL_MS: u64 = 3_000;
-/// The Linux monitor delivers silence continuously; nothing for this long means it broke.
 const SYSTEM_STALL_MS: u64 = 5_000;
 const CONTROL_TICK: Duration = Duration::from_millis(250);
 const START_TIMEOUT: Duration = Duration::from_secs(15);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct RecorderOptions {
-    /// Stored microphone id (see [`crate::AudioDevice::id`]) or name; `None` or
-    /// empty records from the system default input.
     pub mic_device: Option<String>,
-    /// Record what the computer plays (`settings.recordSystemAudio`).
     pub capture_system: bool,
-    /// The meeting app to record alone when it can be separated. Without one,
-    /// or when it can't, everything the computer plays is recorded.
     pub system_app: Option<AppAudioTarget>,
 }
 
-/// Current loudness, 0–1, for the 20-segment meters.
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Levels {
     pub mic: f32,
     pub system: f32,
 }
 
-/// One source in the recording health strip.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum TrackHealth {
     ReceivingAudio,
     WaitingForAudio,
     NoRecentAudio,
-    /// System audio arrives but is silent.
     Silent,
-    /// System audio is off or could not be captured.
     NotAttached,
     Stopped,
-    /// Reconnecting the microphone; `attempt` starts at 1.
-    Recovering {
-        attempt: u32,
-    },
+    Recovering { attempt: u32 },
     Degraded(String),
 }
 
 impl TrackHealth {
-    /// The macOS health strip wording (without the attempt number or detail).
     pub fn label(&self) -> &'static str {
         match self {
             Self::ReceivingAudio => "Receiving audio",
@@ -87,7 +64,6 @@ impl TrackHealth {
 }
 
 impl fmt::Display for TrackHealth {
-    /// Full wording: "Recovering (attempt 2)", "Degraded: …".
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Recovering { attempt } => write!(f, "Recovering (attempt {attempt})"),
@@ -97,11 +73,9 @@ impl fmt::Display for TrackHealth {
     }
 }
 
-/// What the live capture warnings look at (`CaptureHealth`).
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CaptureHealth {
     pub mic_attached: bool,
-    /// Seconds since microphone audio arrived; `None` before the first.
     pub mic_age: Option<f64>,
     pub mic_dropped: u64,
     pub mic_write_error: Option<String>,
@@ -109,7 +83,6 @@ pub struct CaptureHealth {
     pub system_age: Option<f64>,
     pub system_dropped: u64,
     pub system_write_error: Option<String>,
-    /// A quiet Windows loopback delivers nothing while nothing plays.
     pub system_quiet_is_normal: bool,
 }
 
@@ -130,7 +103,6 @@ pub struct RecordingResult {
 }
 
 impl RecordingResult {
-    /// The longer track (`meeting.recordedDuration`).
     pub fn duration_seconds(&self) -> f64 {
         self.mic_seconds.max(self.system_seconds)
     }
@@ -160,9 +132,6 @@ pub struct Recorder {
 }
 
 impl Recorder {
-    /// Starts recording into `dir` (created if needed). The microphone must
-    /// open unless system audio does; a system-audio failure records the
-    /// microphone alone with a warning, as on macOS.
     pub fn start(dir: &Path, options: RecorderOptions) -> Result<Recorder> {
         std::fs::create_dir_all(dir)
             .with_context(|| format!("could not create {}", dir.display()))?;
@@ -204,9 +173,6 @@ impl Recorder {
         let report: StartReport = match report_rx.recv_timeout(START_TIMEOUT) {
             Ok(report) => report,
             Err(_) => {
-                // The thread is still inside the audio system. Joining it
-                // would wait for the call this timeout gave up on, so it is
-                // left to end by itself once it sees the stop.
                 control = None;
                 StartReport {
                     mic: Err("the audio system did not respond".into()),
@@ -271,13 +237,10 @@ impl Recorder {
         self.system_state = None;
     }
 
-    /// A call was found during this recording: its app's sound is recorded
-    /// from now on, when it can be separated.
     pub fn set_system_app(&self, target: AppAudioTarget) {
         let _ = self.control_tx.send(Control::SystemApp(target));
     }
 
-    /// True when system capture attached at start; false means a mic-only recording.
     pub fn has_system_audio(&self) -> bool {
         self.has_system_audio
     }
@@ -297,7 +260,6 @@ impl Recorder {
         }
     }
 
-    /// How long ago either track last recovered (`latestRecoveryDate`).
     pub fn since_recovery(&self) -> Option<Duration> {
         let mic = self.mic_state.since_recovery_ms();
         let system = self
@@ -325,7 +287,6 @@ impl Recorder {
         }
     }
 
-    /// What arrives right now, for live capture warnings.
     pub fn capture_health(&self) -> CaptureHealth {
         let age = |state: &TrackState| {
             state
@@ -358,7 +319,6 @@ impl Recorder {
         }
     }
 
-    /// Stops both tracks at the same instant and closes the files.
     pub fn stop(mut self) -> Result<RecordingResult> {
         let end = Instant::now();
         self.shutdown_control();
@@ -471,7 +431,6 @@ fn system_health(state: &TrackState) -> TrackHealth {
     }
 }
 
-/// Exponential backoff for reconnecting: 0.5 s, 1 s, 2 s, then every 4 s.
 fn retry_delay(attempt: u32) -> Duration {
     Duration::from_millis(match attempt {
         0 | 1 => 500,
@@ -511,7 +470,6 @@ impl MicSource {
         Ok(())
     }
 
-    /// Reopens the microphone after an error or a stall.
     fn supervise(&mut self, warnings: &Mutex<Vec<String>>, opened_at: &mut Instant) {
         let state = Arc::clone(self.sink.state());
         let stalled = self.stream.is_some()

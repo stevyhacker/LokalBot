@@ -1,8 +1,3 @@
-//! A merged meeting's tracks (`MeetingMergeService.export`): a part of each
-//! source track laid end to end. A source without that track, or a track
-//! that ends early, leaves silence, so both tracks and the transcript keep
-//! the same timeline.
-
 use std::io;
 use std::path::Path;
 
@@ -10,12 +5,8 @@ use crate::decode::TrackReader;
 use crate::resample::Resampler;
 use crate::wav::{SAMPLE_RATE, WavWriter};
 
-/// One source's part: `(track, start, end)` in seconds on that source's
-/// timeline. A missing track still takes up `end - start`.
 pub type SplicePart<'a> = (Option<&'a Path>, f64, f64);
 
-/// Writes the parts in order into a 16 kHz WAV at `dest` and returns which
-/// parts contributed audio. When none did, nothing is written.
 pub fn splice_tracks(parts: &[SplicePart<'_>], dest: &Path) -> io::Result<Vec<bool>> {
     if dest.exists() {
         std::fs::remove_file(dest)?;
@@ -60,7 +51,6 @@ fn frames(seconds: f64) -> u64 {
     (seconds.max(0.0) * SAMPLE_RATE as f64).round() as u64
 }
 
-/// `start..stop` of `reader` at 16 kHz, at most `limit` frames.
 fn copy(
     reader: &mut TrackReader,
     start: f64,
@@ -117,7 +107,6 @@ mod tests {
         let first = dir.path().join("first.wav");
         let third = dir.path().join("third.wav");
         write_wav_16k(&first, &tone(4.0, 0.5)).unwrap();
-        // Shorter than its part: the rest of the part is silence.
         write_wav_16k(&third, &tone(1.0, -0.25)).unwrap();
         let dest = dir.path().join("merged.wav");
         let used = splice_tracks(

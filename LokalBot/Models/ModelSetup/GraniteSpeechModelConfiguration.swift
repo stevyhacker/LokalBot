@@ -1,9 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// One llama.cpp-compatible Granite Speech model plus its multimodal projector.
-/// Both artifacts are pinned to immutable Hugging Face metadata so a mutable
-/// repository cannot silently replace the files LokalBot runs.
 struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
     struct Artifact: Codable, Equatable, Hashable, Sendable {
         let path: String
@@ -46,8 +43,6 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
             sizeBytes: 1_159_354_752,
             sha256: "0d3615076cbe1d35c3f60c43a60a4047b3e2eeee1b2c233580be60186faab5c5"))
 
-    /// IBM recommends Q8 for 5.0 accuracy; keep the existing 4.1 selection
-    /// and its Q4 cache unchanged.
     static let speech5 = GraniteSpeechModelConfiguration(
         uncheckedRepository: "ibm-granite/granite-speech-5.0-2b-GGUF",
         revision: "df3833f5e22e7d51c3f5dfedd4726260f7ec7cb5",
@@ -114,8 +109,6 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
 
     var supportsVocabularyPrompt: Bool { repository == Self.speech5.repository }
 
-    /// The picker choice this configuration runs under, so language errors
-    /// name the selected Granite model.
     var transcriptionChoice: TranscriptionModelChoice {
         repository == Self.speech5.repository ? .graniteSpeech5 : .graniteSpeech
     }
@@ -143,9 +136,6 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
             + "\(quantization) GGUF + multimodal projector"
     }
 
-    /// Official Granite quantizations at the pinned built-in revision share
-    /// the legacy folder and projector. Other repositories get a stable,
-    /// revision-scoped directory so identically named files cannot collide.
     var cacheDirectoryName: String? {
         guard repository != Self.defaultModel.repository
                 || revision != Self.defaultModel.revision else { return nil }
@@ -178,9 +168,6 @@ struct GraniteSpeechModelConfiguration: Codable, Equatable, Hashable, Sendable {
     }
 
     private static func isValidRevision(_ revision: String) -> Bool {
-        // The model API returns a 40-character Git commit SHA. Branches and
-        // tags are mutable, so accepting one here would make the persisted
-        // checksums describe a different artifact if the ref later moved.
         revision.count == 40 && revision.allSatisfy(\.isHexDigit)
     }
 

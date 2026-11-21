@@ -1,11 +1,6 @@
 import CryptoKit
 import Foundation
 
-/// Writes a tracked project's "Where it stands" note with the Think model
-/// from the lines of its recent meetings that name it, the decisions and
-/// actions that name it, and its overnight review notes. Grounded (only that
-/// evidence), cited (each point names its meeting), and explicit about
-/// staleness: the evidence hash shows when newer evidence exists.
 enum ProjectStatusGenerator {
     static let maximumMeetings = 10
     static let maximumPoints = 5
@@ -15,7 +10,6 @@ enum ProjectStatusGenerator {
     struct Evidence: Equatable, Sendable {
         struct MeetingEvidence: Equatable, Sendable {
             let id: UUID
-            /// "M1" is the newest meeting.
             let label: String
             let title: String
             let date: Date
@@ -27,7 +21,6 @@ enum ProjectStatusGenerator {
         let projectName: String
         let otherNames: [String]
         let meetings: [MeetingEvidence]
-        /// Open actions from meetings older than the ones listed.
         let otherActions: [String]
         let reviewNotes: [String]
 
@@ -94,8 +87,6 @@ enum ProjectStatusGenerator {
         return thread.text + " (" + details.joined(separator: ", ") + ")"
     }
 
-    /// The evidence as prompt text. It carries no date of its own, so its
-    /// hash changes only when the evidence does.
     static func promptContext(_ evidence: Evidence) -> String {
         var sections: [String] = []
         var header: String = "Project: " + evidence.projectName
@@ -191,8 +182,6 @@ enum ProjectStatusGenerator {
         }
     }
 
-    /// `now` dates the prompt. `finishedAt` stamps the note once the model has
-    /// written it: a note that took minutes was still written just now.
     static func generate(evidence: Evidence, projectID: UUID, engine: TextEngine,
                          location: String, now: Date = Date(),
                          finishedAt: () -> Date = { Date() }) async throws -> ProjectStatusSummary {
@@ -236,9 +225,6 @@ enum ProjectStatusGenerator {
             .trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    /// Small models copy the bracketed details `actionLine` gives them. Only
-    /// that exact shape goes: a sentence that says "the owner" or "still open"
-    /// in its own words stays.
     static func removingEvidenceFormat(_ text: String) -> String {
         var result = text
         for pattern in [

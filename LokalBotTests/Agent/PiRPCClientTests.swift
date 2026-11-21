@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-// FakeTransport (shared with AgentSessionControllerTests) lives in
-// TestSupport/FakeTransport.swift.
-
 final class PiRPCClientTests: XCTestCase {
 
     func testRequestResolvesOnMatchingID() async throws {
@@ -12,7 +9,6 @@ final class PiRPCClientTests: XCTestCase {
         await client.run()
 
         async let responseTask = client.request(.getState(id: "s1"))
-        // Give the request time to hit the wire, then answer it.
         try await Task.sleep(for: .milliseconds(100))
         XCTAssertTrue(transport.sentLines.contains { $0.contains(#""id":"s1""#) })
         transport.inject(#"{"type":"response","id":"s1","command":"get_state","success":true}"#)
@@ -53,7 +49,7 @@ final class PiRPCClientTests: XCTestCase {
         do {
             _ = try await responseTask
             XCTFail("expected throw")
-        } catch PiRPCError.transportClosed { // expected
+        } catch PiRPCError.transportClosed {
         }
     }
 
@@ -89,7 +85,6 @@ final class PiRPCClientTests: XCTestCase {
             _ = try await task.value
             XCTFail("expected cancellation")
         } catch is CancellationError {
-            // expected
         }
     }
 
@@ -166,7 +161,6 @@ final class PiRPCClientTests: XCTestCase {
             _ = try await responseTask.value
             XCTFail("expected structural event overflow")
         } catch PiRPCError.eventBufferOverflow {
-            // Expected: the approval could not be queued, so the client failed closed.
         } catch {
             XCTFail("unexpected error: \(error)")
         }
@@ -181,7 +175,6 @@ final class PiRPCClientTests: XCTestCase {
             _ = try await client.request(.getState(id: "after-overflow"))
             XCTFail("expected the client to remain terminal")
         } catch PiRPCError.eventBufferOverflow {
-            // Expected: later callers observe the same deterministic failure.
         } catch {
             XCTFail("unexpected terminal error: \(error)")
         }

@@ -1,19 +1,8 @@
 import Foundation
 
-/// Explicit, headless replay of synthetic writing. References/scoring stay in the
-/// caller: the model receives only the already-typed text and permitted context.
-/// Uses production request construction, token healing, decoding and normalization.
 enum CotypingQualityReplay {
-    /// Which model serves the replay. Remote runs exist only to compare hosted
-    /// models against the local one; the app itself never sends autocomplete text out.
     enum Engine: Equatable {
-        /// The production in-process GGUF runtime.
         case local(model: URL)
-        /// A hosted raw `/v1/completions` endpoint behind the HTTP `CotypingEngine`.
-        /// The key comes from `LOKALBOT_REPLAY_API_KEY`, never the command line.
-        /// `extraBodyJSON` is a JSON object merged into every request body.
-        /// `chat` asks through `/chat/completions` instead, for hosts whose raw
-        /// endpoint cannot serve the model: the prompt is the user message.
         case remote(baseURL: URL, model: String, extraBodyJSON: String?, chat: Bool = false)
 
         static let apiKeyEnvironmentKey = "LOKALBOT_REPLAY_API_KEY"
@@ -33,8 +22,6 @@ enum CotypingQualityReplay {
         }
     }
 
-    /// A rate limit or provider hiccup is retried so it does not score as a miss;
-    /// only the attempt that answered is timed.
     static let remoteRetryLimit = 5
 
     struct Input: Decodable {
@@ -55,9 +42,7 @@ enum CotypingQualityReplay {
         var useScreenMemory: Bool?
         var memoryNow: Date?
         var useVisibleContext: Bool?
-        /// False turns the confidence gate off, to compare against it.
         var confidenceGate: Bool?
-        /// Replay-only comparison control; app autocomplete always enables the hybrid.
         var selectiveOneWordHybrid: Bool?
         var firstWordThreshold: Float?
         var hybridFallbackThreshold: Float?
@@ -73,7 +58,6 @@ enum CotypingQualityReplay {
         var nativePrefillFirstChunkSize: Int?
         var nativeFinalPrefillLogitsOnly: Bool?
         var nativeSynchronizePrefillChunks: Bool?
-        // Reject archived research modes this integration does not implement.
         var decoderCandidates: Int?
         var logitCache: Bool?
         var candidateRanking: String?
@@ -89,7 +73,6 @@ enum CotypingQualityReplay {
         var windowTitle: String?
         var placeholder: String?
         var wordPrefixIsValidWord: Bool?
-        /// Explicit experiment control, recorded in output. Omit for product replay.
         var promptOverride: String?
         var visibleContext: CotypingVisibleContextReplay.Fixture?
         var resetCache: Bool?
@@ -116,8 +99,6 @@ enum CotypingQualityReplay {
         var prewarmMs = 0.0
         var cancelled = false
         var cancellationRequestedAfterMs: Double?
-        /// Monotonic replay-relative timestamps include inter-request cleanup
-        /// and preparation when measuring cancellation through its replacement.
         var generationStartedAtMs: Double?
         var replayCompletedAtMs: Double?
         var searchExperiment = CotypingSearchExperiment.baseline
@@ -138,7 +119,6 @@ enum CotypingQualityReplay {
         var healingTrace: CotypingHealingTrace?
         var wordPrefixIsValidWord: Bool?
         var nativeSpellVerdictsApply: Bool?
-        // Keep the research JSON key for confidence-trace reconstruction.
         var cache: CotypingReplayDiagnostics?
     }
 
@@ -182,15 +162,12 @@ enum CotypingQualityReplay {
                     apiKey: ProcessInfo.processInfo.environment[Engine.apiKeyEnvironmentKey],
                     extraBody: extraBody, sendsLlamaSamplingExtensions: false,
                     chatDialect: .inferred(from: baseURL))
-                // A chat message has no token boundary at the caret: it is not healed, and
-                // the space a chat model leaves out before a new word is put back.
                 engine = chat
                     ? CotypingEngine(makeEngine: { ChatContinuationEngine(base: remote) }, restoresWordSpace: true)
                     : CotypingEngine(makeEngine: { remote }, healsCaretBoundary: true)
                 retryLimit = remoteRetryLimit
             }
             activeEngine = engine
-            // The gate reads the local model's token probabilities; hosted engines have none.
             if fixture.confidenceGate == false, let local = engine as? LocalLlamaCotypingEngine {
                 local.minimumFirstWordProbability = 0
             }
@@ -199,11 +176,8 @@ enum CotypingQualityReplay {
                 languageHint: fixture.languageHint, isMultiLine: false,
                 appContextEnabled: fixture.appContext ?? true,
                 extendedContext: fixture.extendedContext)
-            // Loading/Metal priming is outside warm prediction latency.
             try await engine.prewarm()
             if case .remote = engineChoice {
-                // Opens the connection outside the timed cases, and stops a bad key,
-                // model ID or rejected field before it fails every case.
                 try await warmUpConnection(engine, config: config)
             }
             let encoder = JSONEncoder()
@@ -342,8 +316,6 @@ enum CotypingQualityReplay {
         return (try? JSONSerialization.jsonObject(with: Data(json.utf8))) as? [String: Any]
     }
 
-    /// Seconds to wait before retrying a remote failure, or nil when retrying
-    /// cannot help (bad key, unknown model, rejected request field).
     static func retryDelay(after error: Error, attempt: Int) -> TimeInterval? {
         let backoff = min(pow(2, Double(attempt - 1)), 16)
         switch error as? TextEngineError {

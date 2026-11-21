@@ -9,13 +9,7 @@ struct MeetingRecallGroup: Identifiable, Sendable {
     }
 }
 
-/// Shared grouping and lexical retrieval for Ask and Quick Recall. Limits are
-/// applied to groups after ranking, and a result that hit one says so. The
-/// Meetings list filter uses `SearchIndex.matchingMeetingIDs`, which has none.
 enum RecallSearch {
-    /// Meetings, or screen sources, that Ask lists for one search. A search
-    /// that finds more sets `Result.isTruncated`, so the count is not shown
-    /// as a total.
     static let displayLimit = 40
 
     static func readable(_ hits: [SearchIndex.Hit], query: String) -> [SearchIndex.Hit] {
@@ -36,9 +30,6 @@ enum RecallSearch {
         return order.prefix(limit).map { MeetingRecallGroup(id: $0, matches: groups[$0] ?? []) }
     }
 
-    /// Fuse at the source level so a meeting with many lexical rows cannot
-    /// bury a relevant semantic-only meeting. Preserve lexical excerpts and
-    /// deterministically deduplicate the same source passage across both lists.
     static func fusedMeetings(keyword: [SearchIndex.Hit], semantic: [SearchIndex.Hit],
                               limit: Int = displayLimit) -> [MeetingRecallGroup] {
         guard limit > 0 else { return [] }
@@ -56,8 +47,6 @@ enum RecallSearch {
         let lexicalIDs = Set(lexical.map(\.id))
         let order = scores.keys.sorted {
             if scores[$0] != scores[$1] { return scores[$0, default: 0] > scores[$1, default: 0] }
-            // Prefer lexical evidence only for equal fused relevance, never
-            // ahead of a higher-ranked semantic-only source.
             if lexicalIDs.contains($0) != lexicalIDs.contains($1) { return lexicalIDs.contains($0) }
             if firstRanks[$0] != firstRanks[$1] { return firstRanks[$0, default: .max] < firstRanks[$1, default: .max] }
             return $0.uuidString < $1.uuidString

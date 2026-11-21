@@ -12,7 +12,6 @@ function collector() {
   return createCollector(yearWindow(YEAR));
 }
 
-/** A session with an event every minute from `start` for `minutes`. */
 function work(into, agent, id, start, minutes, extra = {}) {
   const session = into.session(agent, id);
   const from = Date.parse(start);
@@ -26,7 +25,6 @@ test('agent hours cap a pause at five minutes and end a run after ten', () => {
   const data = collector();
   const session = data.session('claude-code', 'a');
   const start = Date.parse(at(3, 2, 10, 0));
-  // +1 min, +1 min, a 7 minute pause (counts 5), then silence for 30 minutes and one more event.
   session.times.push(start, start + MINUTE, start + 2 * MINUTE, start + 9 * MINUTE, start + 39 * MINUTE);
   session.prompts = 1;
   const { stats } = computeStats(data, { year: YEAR });
@@ -90,7 +88,6 @@ test('days an agent only counted extend the streak and nothing else', () => {
   const summaryDays = new Map([
     [`${YEAR}-06-03`, { sessions: 2, toolCalls: 40 }],
     [`${YEAR}-06-04`, { sessions: 1, toolCalls: 10 }],
-    // The logs already cover this day, so its count is not added again.
     [`${YEAR}-06-05`, { sessions: 9, toolCalls: 900 }],
     [`${YEAR - 1}-12-31`, { sessions: 5, toolCalls: 50 }],
   ]);
@@ -119,7 +116,6 @@ test('a day Codex logged still gets the count Claude Code kept for it', () => {
     loggedFrom: `${YEAR}-02-03`,
     claudeLoggedFrom: `${YEAR}-06-05`,
     earlier: { days: 1, sessions: 2, toolCalls: 40, from: `${YEAR}-02-03` },
-    // Feb 3 is one day, though both agents worked on it.
     daysWithAnAgent: 2,
   });
   assert.equal(stats.totals.toolCalls, 19);
@@ -204,7 +200,6 @@ test('a year has every day once, including the days that change the clocks', () 
     const { start, end } = yearWindow(2026);
     assert.equal(calendar.cellOf(start), 0);
     assert.equal(calendar.cellOf(end - 1), 365 * 24 - 1);
-    // 29 March 2026 has 23 hours there; 25 October has 25.
     const spring = new Date(2026, 2, 29, 12).getTime();
     assert.equal(calendar.date(calendar.dayOf(spring)), '2026-03-29');
     const autumn = new Date(2026, 9, 25, 23, 59).getTime();

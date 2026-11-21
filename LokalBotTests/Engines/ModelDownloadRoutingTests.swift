@@ -2,9 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// huggingface.co is blocked in mainland China. HF-Mirror and ModelScope serve
-/// the same pinned files there, and a file is accepted only if it matches the
-/// pin, so a source can fail a download but never change a model.
 final class ModelDownloadRoutingTests: XCTestCase {
     private let pinned = URL(string: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/"
                              + "e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf")!
@@ -59,8 +56,6 @@ final class ModelDownloadRoutingTests: XCTestCase {
                        "https://www.modelscope.cn/models/unsloth/Qwen3.5-4B-GGUF/resolve/master/Qwen3.5-4B-Q4_K_M.gguf")
     }
 
-    /// ModelScope follows branches, not Hugging Face revisions, so only a file
-    /// whose listed SHA-256 equals the pin is fetched there.
     func testModelScopeServesOnlyTheExactPinnedFile() throws {
         let file = try XCTUnwrap(ModelDownloadRouting.resolvedFile(pinned))
         let digest = sha256("model")
@@ -94,8 +89,6 @@ final class ModelDownloadRoutingTests: XCTestCase {
         XCTAssertEqual(attempted, ["hf-mirror.com", "huggingface.co"])
     }
 
-    /// A mirror's file that misses the pin is deleted and the next source is
-    /// tried, instead of the whole download failing its integrity check.
     func testAMirrorFileThatMissesThePinIsDiscardedForTheNextSource() async throws {
         let tampered = try file("tampered")
         let genuine = try file("model")

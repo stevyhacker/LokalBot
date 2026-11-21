@@ -1,9 +1,3 @@
-//! `config`, `secret`, `setup`, `models`, `permissions`, `status`, `doctor`,
-//! `restart` and `open` (`CLI/Commands/*`, `AppControlClient.swift`). Every read
-//! and write of a setting goes through the running app, so its decoding and
-//! coupling rules apply once. Nothing here can approve a request: that happens
-//! only in the app, with the person looking at it.
-
 use std::io::{IsTerminal as _, Read as _};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -22,8 +16,6 @@ use serde_json::{Map, Value, json};
 use crate::session::render_table;
 use crate::{CliError, json as output, validation};
 
-/// Exit codes for requests that need the person, so a script can tell a request
-/// still waiting from one they declined or nobody answered.
 pub const EXIT_WAITING: i32 = 3;
 pub const EXIT_DENIED: i32 = 4;
 pub const EXIT_EXPIRED: i32 = 5;
@@ -318,8 +310,6 @@ pub enum PermissionsCommand {
     },
 }
 
-/// Sends one request to the running app, starting the app in the background
-/// when no copy is running for this library.
 pub struct Client {
     paths: LibraryPaths,
     explicit_root: Option<PathBuf>,
@@ -345,7 +335,6 @@ impl Client {
         Ok(response.result.unwrap_or(Value::Null))
     }
 
-    /// The result of `method`, or the app's error.
     pub fn request(
         &self,
         method: &str,
@@ -353,7 +342,6 @@ impl Client {
         launch: bool,
         launch_timeout: f64,
     ) -> Result<Value, ControlError> {
-        // Never start the app for an agent the person has not allowed.
         if !access::settings_control_enabled(&self.paths) {
             return Err(ControlError::settings_access_disabled());
         }
@@ -379,9 +367,6 @@ impl Client {
         Err(ControlError::app_not_responding())
     }
 
-    /// The LokalBot beside this CLI, resolved through the installed link.
-    /// Launching by path, never by name, keeps a CLI from starting a different
-    /// copy with another library.
     fn enclosing_app() -> Option<PathBuf> {
         let exe = std::env::current_exe().ok()?.canonicalize().ok()?;
         app_beside(&exe)
@@ -411,8 +396,6 @@ impl Client {
     }
 }
 
-/// `lokalbot` beside `cli`, or one folder up: Windows keeps the command in
-/// `Programs\LokalBot\bin` and the app in `Programs\LokalBot`.
 fn app_beside(cli: &Path) -> Option<PathBuf> {
     let name = if cfg!(windows) {
         "lokalbot.exe"
@@ -445,7 +428,6 @@ fn pretty(value: &Value) -> String {
     output::pretty(value, false)
 }
 
-/// A value on one line: strings bare, everything else as compact JSON.
 fn plain(value: Option<&Value>) -> String {
     match value {
         None => String::new(),
@@ -496,7 +478,6 @@ impl LaunchOptions {
     }
 }
 
-/// Exit code and reason for a request's state, or `None` once it was approved.
 fn exit_code_for(state: Option<&str>) -> Option<i32> {
     match state.and_then(RequestState::parse) {
         Some(RequestState::Approved) => None,
@@ -515,8 +496,6 @@ fn exit_code_for(state: Option<&str>) -> Option<i32> {
     }
 }
 
-/// Polls the running app until the request is answered or `seconds` pass. Never
-/// starts LokalBot: a request lives only in the copy that took it.
 fn poll(client: &Client, id: &str, seconds: f64, launch_timeout: f64) -> Result<Value, CliError> {
     let deadline = Instant::now() + Duration::from_secs_f64(seconds.clamp(0.0, 300.0));
     let mut params = Map::new();
@@ -538,7 +517,6 @@ fn poll(client: &Client, id: &str, seconds: f64, launch_timeout: f64) -> Result<
     }
 }
 
-/// Prints a request and exits with the code its state maps to.
 fn report(request: Value) -> Result<String, CliError> {
     match exit_code_for(request["state"].as_str()) {
         Some(code) => Err(exit(code, pretty(&request))),
@@ -546,9 +524,6 @@ fn report(request: Value) -> Result<String, CliError> {
     }
 }
 
-/// Sends a request that may need the person and prints the reply. A request left
-/// waiting prints as JSON and exits 3, or, with --wait, is followed until the
-/// person answers: 0 approved, 4 denied, 5 expired.
 fn send_for_approval(
     client: &Client,
     method: &str,
@@ -1022,7 +997,6 @@ fn setup_start(
         result.insert("grants".into(), json!(grants));
     }
     if state == RequestState::Approved {
-        // The socket opens right after the person allows it.
         result.insert(
             "appResponding".into(),
             json!(
@@ -1039,8 +1013,6 @@ fn setup_start(
     }
 }
 
-/// Opens LokalBot on the request. A running copy finds the file itself within a
-/// second. Returns a hint when this CLI can't start LokalBot.
 fn show_setup_request(client: &Client) -> Result<Option<String>, CliError> {
     if socket::is_app_running(&client.paths) {
         return Ok(None);

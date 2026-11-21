@@ -1,10 +1,7 @@
 import Foundation
 
-/// Pure retrieval, citation, and prompt construction for `ask_library`.
 enum AskLibraryContext {
     static let maxSnippets = 12
-    /// Snippets one meeting may take before every other matching meeting has
-    /// had its turn; later slots go to the best remaining hits.
     static let maxSnippetsPerMeetingFirstPass = 4
     static let maxTitleSummaryMatches = 4
     static let maxSummaryUTF8Bytes = 6 * 1_024
@@ -22,8 +19,6 @@ enum AskLibraryContext {
         var citations: [Citation]
     }
 
-    /// The question's content words. Short names and acronyms ("Ana", "API",
-    /// "Q3") count; English function words and question framing do not.
     static func searchTerms(from question: String) -> [String] {
         let stopwords: Set<String> = [
             "a", "an", "the", "and", "or", "but", "if", "of", "to", "in", "on", "at", "by", "for",
@@ -38,7 +33,6 @@ enum AskLibraryContext {
         return LibrarySearch.searchTerms(LibrarySearch.folded(question)).filter { !stopwords.contains($0) }
     }
 
-    /// Meeting dates are the user's local days, like "today" in `messages`.
     static func build(question: String, meetings: [Meeting], timeZone: TimeZone = .current) -> ContextBundle {
         let dayFormatter = DateFormatter()
         dayFormatter.locale = Locale(identifier: "en_US_POSIX")
@@ -82,8 +76,6 @@ enum AskLibraryContext {
             }
         }
 
-        // One search over every content word, so the rarest words rank the
-        // meetings instead of whichever word the question happened to start with.
         let terms = searchTerms(from: question)
         let hits = terms.isEmpty ? [] : (try? LibrarySearch.hits(
             query: terms.joined(separator: " "),
@@ -130,8 +122,6 @@ enum AskLibraryContext {
             citations: citations)
     }
 
-    /// Distinct hits in rank order, except that no meeting takes more than
-    /// its first-pass share until every other matching meeting has had one.
     static func spreadAcrossMeetings(_ hits: [SessionFormatter.SearchHit]) -> [SessionFormatter.SearchHit] {
         var seen: Set<String> = []
         var perMeeting: [String: Int] = [:]
@@ -168,8 +158,6 @@ enum AskLibraryContext {
         ]
     }
 
-    /// The reply-drafting prompt. The message is delimited data, and facts
-    /// may come only from the meeting context, the same rule as `messages`.
     static func replyMessages(message: String, instruction: String?, contextText: String,
                               now: Date = Date(), timeZone: TimeZone = .current) -> [[String: String]] {
         let today = DateFormatter()

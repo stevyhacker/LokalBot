@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// One presentation model for first-use downloads and local-runtime startup.
-/// Cotyping, Dictation, and Ask use the same vocabulary and recovery shape so
-/// a long first run never falls back to an unexplained spinner.
 struct ModelPreparationPresentation: Equatable {
     enum State: Equatable {
         case waiting
@@ -53,7 +50,6 @@ struct ModelPreparationView: View {
         }
     }
 
-    /// Ready or failed usually lands while the user watches a first download.
     private var stateIcon: some View {
         Image(systemName: iconName)
             .foregroundStyle(tint)

@@ -1,9 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// SwiftUI Text does not expose hanging indents or paragraph spacing. One
-/// non-editable NSTextView gives Agent answers those metrics and a continuous
-/// selection range. SwiftUI still owns content, width, search, and link routing.
 struct AgentResponseText: NSViewRepresentable {
     @Environment(\.openURL) private var openURL
     @Environment(\.colorScheme) private var colorScheme
@@ -65,7 +62,6 @@ struct AgentResponseText: NSViewRepresentable {
         func textView(_ textView: NSTextView, clickedOnLink link: Any, at charIndex: Int) -> Bool {
             let url = (link as? URL) ?? (link as? String).flatMap(URL.init(string:))
             if let url { openLink?(url) }
-            // All links pass through the session's existing source/file policy.
             return true
         }
     }
@@ -107,9 +103,6 @@ enum AgentResponseDocument {
         return document
     }
 
-    /// Models often emit a standalone bold section label instead of ##. Treat
-    /// only short, wholly emphasized paragraphs as headings; inline emphasis
-    /// in prose retains the body size.
     private static func sectionKind(_ line: SelectableDigestText.RenderedLine) -> SelectableDigestText.LineKind {
         guard case .body = line.kind else { return line.kind }
         let visible = line.content.characters

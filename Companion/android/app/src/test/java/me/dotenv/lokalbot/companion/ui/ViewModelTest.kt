@@ -102,7 +102,6 @@ class ViewModelTest {
 
     @Test
     fun `a meeting and an action show a waiting change without reading every action`() {
-        // Reading the whole library's actions for this got slower with every meeting.
         val library = object : CompanionRepository by repository {
             override suspend fun actions(filter: ActionFilter): List<ActionRow> = error("The meeting already says which actions wait.")
         }
@@ -174,7 +173,6 @@ class ViewModelTest {
             override fun ask(request: AskRequest): Flow<AskEvent> = when (++attempts) {
                 1 -> flowOf(AskEvent.Delta("Maya asked "), AskEvent.Interrupted)
                 2 -> flowOf(AskEvent.Failed("No route to the Mac", macUnreachable = true))
-                // Picking up: the first delta is the whole text so far.
                 3 -> flowOf(AskEvent.Delta("Maya asked about pricing"), AskEvent.Interrupted)
                 else -> repository.ask(request)
             }
@@ -185,7 +183,6 @@ class ViewModelTest {
         assertThat(turn().phase).isEqualTo(TurnPhase.Waiting)
         assertThat(turn().answer).isEqualTo("Maya asked ")
 
-        // Still out of reach: the question stays queued, so it keeps waiting.
         viewModel.resumeWaiting()
         assertThat(turn().phase).isEqualTo(TurnPhase.Waiting)
         assertThat(turn().answer).isEqualTo("Maya asked ")
@@ -197,7 +194,6 @@ class ViewModelTest {
         assertThat(turn().phase).isEqualTo(TurnPhase.Done)
         assertThat(turn().answer).isEqualTo(turn().result!!.answer)
         assertThat(attempts).isEqualTo(4)
-        // Nothing left to pick up.
         viewModel.resumeWaiting()
         assertThat(attempts).isEqualTo(4)
     }
@@ -231,7 +227,6 @@ class ViewModelTest {
         viewModel.askWhenMacIsBack(request.requestId)
         assertThat(viewModel.state.value.turns.single().phase).isEqualTo(TurnPhase.Queued)
 
-        // A later sync asks the Mac, which saves the answer; the library then says it changed.
         runBlocking { repository.ask(request).collect {} }
         changes.value += 1
         val turn = viewModel.state.value.turns.single()
@@ -268,7 +263,6 @@ class ViewModelTest {
         assertThat(sentName).isEqualTo("Stevan's Pixel")
 
         viewModel.restart()
-        // Well past the two minutes the sync core allows for a clock that runs fast.
         viewModel.submit(PairingLinkFixture.link(TestLibrary.now.epochSecond - 600))
         assertThat(viewModel.problem.value).isEqualTo(LinkProblem.Expired)
     }

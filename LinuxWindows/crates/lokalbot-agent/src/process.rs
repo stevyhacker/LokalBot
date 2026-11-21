@@ -1,21 +1,3 @@
-//! One pi subprocess (`PiProcess.swift`): spawns it from a launch plan, feeds
-//! stdout through the JSONL splitter, keeps a stderr tail, writes stdin on its
-//! own thread with bounded buffering, and supervises shutdown.
-//!
-//! Nothing it starts may outlive LokalBot:
-//! - Linux: Bun leads a new session (`setsid`) and gets `SIGTERM` when
-//!   LokalBot dies (`PR_SET_PDEATHSIG`, from a spawner thread that lives as
-//!   long as the process, since the signal follows the forking thread). pi's
-//!   own `SIGTERM` handler kills the tool commands it started in their own
-//!   process groups. Stopping sends `SIGTERM` to the group, waits, then
-//!   `SIGKILL`s the group and every descendant found in `/proc`. A record in
-//!   `<library>/agent/processes` lets the next run stop a pi that ignored
-//!   its signal.
-//! - Windows: Bun starts suspended inside its own job object with
-//!   `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`, then resumes. Every tool command
-//!   inherits the job, so stopping (or LokalBot exiting, which closes the
-//!   handle) ends the whole tree.
-
 use std::collections::VecDeque;
 use std::io::Write as _;
 use std::path::{Path, PathBuf};
@@ -30,7 +12,6 @@ use parking_lot::{Condvar, Mutex};
 use crate::frame::FrameSplitter;
 use crate::launch::LaunchPlan;
 
-/// Stopping waits this long for an orderly exit before force-killing.
 pub const STOP_GRACE: Duration = Duration::from_secs(2);
 const STDERR_LINES: usize = 50;
 const STDERR_LINE_CHARS: usize = 8_192;
@@ -48,7 +29,6 @@ pub enum ProcessError {
     InputBackpressure,
 }
 
-/// How the process ended, for the session's failure notice.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ExitReport {
     pub code: Option<i32>,
@@ -70,12 +50,8 @@ struct WriterQueue {
     closed: bool,
 }
 
-/// A running pi. Dropping it kills the whole process tree.
 pub struct PiProcess {
     pid: u32,
-    /// Reaped only by [`stop`](Self::stop) or Drop, never by the waiter, so
-    /// the PID (and its process group) cannot be reused while it may still
-    /// be signalled.
     child: Mutex<Option<Child>>,
     writer: Arc<Writer>,
     stderr_tail: Arc<Mutex<VecDeque<String>>>,
@@ -86,9 +62,6 @@ pub struct PiProcess {
 }
 
 impl PiProcess {
-    /// Starts `plan`. `on_frame` receives every stdout record in order;
-    /// `on_exit` runs once after stdout closes and the process has exited.
-    /// `markers` is the folder for leftover-process records (Linux).
     pub fn spawn(
         plan: &LaunchPlan,
         markers: Option<&Path>,
@@ -166,7 +139,6 @@ impl PiProcess {
                 }
                 let code = wait_without_reaping(pid);
                 exited.store(true, Ordering::SeqCst);
-                // Let the stderr reader catch the last lines of a crash.
                 let (lock, ready) = &*stderr_done;
                 let mut done = lock.lock();
                 if !*done {
@@ -192,7 +164,6 @@ impl PiProcess {
         self.stderr_tail.lock().iter().cloned().collect()
     }
 
-    /// Queues one JSONL record. Never blocks on a full pipe.
     pub fn send_line(&self, line: &str) -> Result<(), ProcessError> {
         let mut payload = line.as_bytes().to_vec();
         payload.push(b'\n');
@@ -218,8 +189,6 @@ impl PiProcess {
         Ok(())
     }
 
-    /// Closes stdin (pi's orderly shutdown), asks the tree to exit, waits up
-    /// to `grace`, then kills everything that is left. Blocking; idempotent.
     pub fn stop(&self, grace: Duration) {
         self.close_stdin();
         if self.is_running() {
@@ -232,8 +201,6 @@ impl PiProcess {
         self.kill_tree();
     }
 
-    /// Asks the tree to exit without waiting (app quit: several sessions stop
-    /// in parallel, then [`kill_tree`](Self::kill_tree) cleans up).
     pub fn begin_stop(&self) {
         self.close_stdin();
         if self.is_running() {
@@ -250,17 +217,13 @@ impl PiProcess {
         let reaped = self.child.lock().is_none();
         #[cfg(unix)]
         if !reaped {
-            // SAFETY: signal delivery to the process group Bun leads; the
-            // unreaped child keeps that ID reserved.
             unsafe {
                 libc::kill(-(self.pid as libc::pid_t), libc::SIGTERM);
             }
         }
-        // Windows has no SIGTERM; closing stdin is pi's shutdown request.
         let _ = reaped;
     }
 
-    /// Kills Bun, pi and every command they started, then reaps Bun.
     pub fn kill_tree(&self) {
         let mut child = self.child.lock();
         let Some(mut owned) = child.take() else {
@@ -269,8 +232,6 @@ impl PiProcess {
         #[cfg(unix)]
         {
             let descendants = unix::descendants(self.pid);
-            // SAFETY: Bun is not reaped yet, so its PID and group ID are still
-            // ours; the descendants were found under it a moment ago.
             unsafe {
                 libc::kill(-(self.pid as libc::pid_t), libc::SIGKILL);
                 for pid in descendants {
@@ -297,14 +258,10 @@ impl Drop for PiProcess {
     }
 }
 
-/// Blocks until `pid` exits, leaving it unreaped (Unix `WNOWAIT`), and
-/// returns its exit code when it exited normally.
 fn wait_without_reaping(pid: u32) -> Option<i32> {
     #[cfg(unix)]
     {
         loop {
-            // SAFETY: waits on our own child; `info` is a valid out-pointer and
-            // zeroed as the API allows.
             let mut info: libc::siginfo_t = unsafe { std::mem::zeroed() };
             let rc = unsafe {
                 libc::waitid(
@@ -315,7 +272,6 @@ fn wait_without_reaping(pid: u32) -> Option<i32> {
                 )
             };
             if rc == 0 {
-                // SAFETY: waitid filled `info` for an exited child.
                 let status = unsafe { info.si_status() };
                 return (info.si_code == libc::CLD_EXITED).then_some(status);
             }
@@ -346,7 +302,7 @@ fn write_loop(mut stdin: ChildStdin, writer: &Writer) {
             }
         };
         let Some(line) = line else {
-            return; // Dropping stdin closes the pipe.
+            return;
         };
         if stdin.write_all(&line).and_then(|()| stdin.flush()).is_err() {
             let mut queue = writer.queue.lock();
@@ -414,14 +370,12 @@ fn read_stderr(mut stderr: impl std::io::Read, tail: &Mutex<VecDeque<String>>) {
     }
 }
 
-/// A child plus, on Windows, the job that holds its tree.
 pub(crate) struct Spawned {
     pub child: Child,
     #[cfg(windows)]
     pub job: windows::Job,
 }
 
-/// Spawns `command` as the root of a process tree tied to LokalBot.
 pub(crate) fn spawn_tree(command: Command) -> std::io::Result<Spawned> {
     #[cfg(unix)]
     {
@@ -435,9 +389,6 @@ pub(crate) fn spawn_tree(command: Command) -> std::io::Result<Spawned> {
     }
 }
 
-/// Runs a short helper (`bun install`) tied to LokalBot and waits for it,
-/// killing its tree after `timeout`. Returns the exit code (`None` when
-/// killed by a signal or the timeout).
 pub(crate) fn run_tree(mut command: Command, timeout: Duration) -> Result<Option<i32>> {
     command.stdin(Stdio::null());
     let spawned = spawn_tree(command)?;
@@ -451,7 +402,6 @@ pub(crate) fn run_tree(mut command: Command, timeout: Duration) -> Result<Option
         }
         if Instant::now() >= deadline {
             #[cfg(unix)]
-            // SAFETY: kills the process group our child leads.
             unsafe {
                 libc::kill(-(child.id() as libc::pid_t), libc::SIGKILL);
             }
@@ -465,8 +415,6 @@ pub(crate) fn run_tree(mut command: Command, timeout: Duration) -> Result<Option
     }
 }
 
-// ------------------------------------------------------------------ markers
-
 #[derive(serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Marker {
@@ -478,7 +426,7 @@ struct Marker {
 
 fn write_marker(dir: &Path, pid: u32, executable: &Path) -> Option<PathBuf> {
     if !cfg!(unix) {
-        return None; // The job object already covers a crashed LokalBot.
+        return None;
     }
     std::fs::create_dir_all(dir).ok()?;
     let path = dir.join(format!("pi-{pid}.json"));
@@ -492,9 +440,6 @@ fn write_marker(dir: &Path, pid: u32, executable: &Path) -> Option<PathBuf> {
     Some(path)
 }
 
-/// Stops pi processes an earlier, crashed LokalBot left behind. Only a
-/// process still running the recorded Bun binary, whose LokalBot is gone, is
-/// touched.
 pub fn stop_leftovers(markers: &Path) {
     let Ok(entries) = std::fs::read_dir(markers) else {
         return;
@@ -514,13 +459,11 @@ pub fn stop_leftovers(markers: &Path) {
         #[cfg(unix)]
         {
             if unix::alive(marker.owner_pid) {
-                continue; // Another LokalBot's live session.
+                continue;
             }
             if unix::exe_is(marker.pid, Path::new(&marker.executable)) {
                 log::info!("stopping a pi left by an earlier run pid={}", marker.pid);
                 let descendants = unix::descendants(marker.pid);
-                // SAFETY: the PID runs our recorded Bun binary and the LokalBot
-                // that started it is gone.
                 unsafe {
                     libc::kill(-(marker.pid as libc::pid_t), libc::SIGKILL);
                     libc::kill(marker.pid as libc::pid_t, libc::SIGKILL);
@@ -533,8 +476,6 @@ pub fn stop_leftovers(markers: &Path) {
         let _ = std::fs::remove_file(&path);
     }
 }
-
-// --------------------------------------------------------------------- unix
 
 #[cfg(unix)]
 mod unix {
@@ -554,12 +495,8 @@ mod unix {
 
     static SPAWNER: OnceLock<Mutex<mpsc::Sender<Job>>> = OnceLock::new();
 
-    /// `PR_SET_PDEATHSIG` fires when the forking *thread* exits, so every
-    /// pi is forked from one thread that lives as long as LokalBot.
     pub fn spawn(mut command: Command) -> io::Result<Child> {
         let parent = std::process::id() as libc::pid_t;
-        // SAFETY: runs between fork and exec and only calls async-signal-safe
-        // functions (setsid, prctl, getppid); it allocates nothing.
         unsafe {
             command.pre_exec(move || {
                 if libc::setsid() == -1 {
@@ -577,7 +514,6 @@ mod unix {
                     {
                         return Err(io::Error::last_os_error());
                     }
-                    // LokalBot may have died before prctl took effect.
                     if libc::getppid() != parent {
                         return Err(io::Error::from_raw_os_error(libc::ESRCH));
                     }
@@ -615,7 +551,6 @@ mod unix {
         if pid == 0 {
             return false;
         }
-        // SAFETY: signal 0 only checks for existence and permission.
         let rc = unsafe { libc::kill(pid as libc::pid_t, 0) };
         rc == 0 || io::Error::last_os_error().raw_os_error() == Some(libc::EPERM)
     }
@@ -630,7 +565,6 @@ mod unix {
         }
     }
 
-    /// Every process whose parent chain leads to `root`, from `/proc`.
     pub fn descendants(root: u32) -> Vec<u32> {
         let Ok(entries) = std::fs::read_dir("/proc") else {
             return Vec::new();
@@ -647,7 +581,6 @@ mod unix {
             let Ok(stat) = std::fs::read_to_string(format!("/proc/{pid}/stat")) else {
                 continue;
             };
-            // `pid (comm) state ppid …`; comm may contain spaces and parens.
             let Some(rest) = stat.rfind(')').map(|at| &stat[at + 1..]) else {
                 continue;
             };
@@ -675,8 +608,6 @@ mod unix {
     }
 }
 
-// ------------------------------------------------------------------ windows
-
 #[cfg(windows)]
 pub(crate) mod windows {
     use std::os::windows::io::AsRawHandle as _;
@@ -703,18 +634,13 @@ pub(crate) mod windows {
     const CREATE_NEW_PROCESS_GROUP: u32 = 0x0000_0200;
     const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
-    /// A job object that kills its processes when the last handle closes.
     pub struct Job(HANDLE);
 
-    // SAFETY: a job handle is a process-wide kernel handle, only passed to
-    // thread-safe Win32 calls and closed once, in Drop.
     unsafe impl Send for Job {}
     unsafe impl Sync for Job {}
 
     impl Job {
         fn new() -> std::io::Result<Job> {
-            // SAFETY: plain Win32 calls with valid arguments; the info struct
-            // is zero-initialized as the API allows and sized exactly.
             unsafe {
                 let handle = CreateJobObjectW(std::ptr::null(), std::ptr::null());
                 if handle.is_null() {
@@ -737,7 +663,6 @@ pub(crate) mod windows {
         }
 
         pub fn terminate(&self) {
-            // SAFETY: the handle is valid until Drop.
             unsafe {
                 TerminateJobObject(self.0, 1);
             }
@@ -746,21 +671,16 @@ pub(crate) mod windows {
 
     impl Drop for Job {
         fn drop(&mut self) {
-            // SAFETY: closing our own handle; with KILL_ON_JOB_CLOSE this ends
-            // any process still in the job.
             unsafe {
                 CloseHandle(self.0);
             }
         }
     }
 
-    /// Starts the process suspended, puts it in a fresh job, then resumes it,
-    /// so not even its first child can start outside the job.
     pub fn spawn(mut command: Command) -> std::io::Result<Spawned> {
         let job = Job::new()?;
         command.creation_flags(CREATE_SUSPENDED | CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW);
         let mut child: Child = command.spawn()?;
-        // SAFETY: both handles are valid for the duration of the call.
         let assigned =
             unsafe { AssignProcessToJobObject(job.0, child.as_raw_handle() as HANDLE) } != 0;
         if !assigned {
@@ -778,8 +698,6 @@ pub(crate) mod windows {
     }
 
     fn resume_threads(pid: u32) -> bool {
-        // SAFETY: the snapshot handle is checked and closed; THREADENTRY32 is
-        // sized as the API requires; thread handles are checked and closed.
         unsafe {
             let snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
             if snapshot == INVALID_HANDLE_VALUE {
@@ -805,7 +723,6 @@ pub(crate) mod windows {
     }
 
     pub fn wait_for_exit(pid: u32) -> Option<i32> {
-        // SAFETY: the handle is checked and closed; `code` is a valid out-pointer.
         unsafe {
             let handle = OpenProcess(
                 PROCESS_SYNCHRONIZE | PROCESS_QUERY_LIMITED_INFORMATION,
@@ -908,8 +825,6 @@ mod tests {
         assert!(error.to_string().contains("not found"), "{error}");
     }
 
-    /// pi's tool commands run detached in their own groups; stopping must
-    /// still end them, and stop is bounded when nothing drains stdin.
     #[cfg(unix)]
     #[test]
     fn stop_kills_detached_grandchildren_and_is_idempotent() {
@@ -959,7 +874,6 @@ mod tests {
     fn leftover_markers_of_live_owners_are_kept() {
         let dir = tempfile::tempdir().unwrap();
         let marker = write_marker(dir.path(), 4_000_000_000, Path::new("/bin/false")).unwrap();
-        // The owner is this test process, which is alive.
         stop_leftovers(dir.path());
         assert!(marker.is_file());
         std::fs::write(&marker, b"not json").unwrap();

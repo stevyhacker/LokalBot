@@ -22,9 +22,7 @@ from html import escape
 
 SLUG = "best-open-source-ai-assistants"
 PUBLISHED = "2026-11-09"
-# The day every competitor fact below was last checked against its source.
 VERIFIED = "2026-11-16"
-# The day we installed the apps and took the screenshots. It moves only when they are retaken.
 TESTED = "2026-11-09"
 IMAGES = "assets/compare/ai-assistants"
 ISSUES_URL = "https://github.com/stevyhacker/lokalbot/issues"
@@ -36,7 +34,6 @@ def _long_date(iso: str) -> str:
     return f"{day:%B} {day.day}, {day.year}"
 
 
-# Newest first. Say what changed on the page each month, even "nothing changed".
 UPDATE_LOG = [
     (
         "2026-11-16",
@@ -51,7 +48,6 @@ UPDATE_LOG = [
     ),
 ]
 
-# Order: model runners, then chat apps, then LokalBot.
 TOOLS = [
     {
         "id": "ollama",
@@ -340,7 +336,6 @@ TOOLS = [
     },
 ]
 
-# Columns of the at-a-glance table, in TOOLS order.
 GLANCE_COLUMNS = ["Best for", "Runs models itself", "Remembers you across chats", "Chat with your files", "License"]
 GLANCE_ROWS = {
     "ollama": [

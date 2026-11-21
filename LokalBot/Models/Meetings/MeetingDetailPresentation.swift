@@ -1,8 +1,6 @@
 import Foundation
 
 extension Transcript {
-    /// "0:12", "37:05", "1:02:09": the compact time people read beside a
-    /// line. `stamp` keeps the fixed-width form for exports and files.
     static func shortStamp(_ time: TimeInterval) -> String {
         let seconds = max(0, Int(time.isFinite ? time : 0))
         return seconds >= 3600
@@ -11,13 +9,7 @@ extension Transcript {
     }
 }
 
-/// Display-only values for a saved meeting's page: who spoke, how long, what
-/// is being said at the playhead, and whose each action is. Nothing here is
-/// stored, sent to a model, or treated as an identity decision.
 enum MeetingDetailPresentation {
-    // MARK: Header
-
-    /// "Today at 1:00 PM", "Yesterday at 3:10 PM", then "Nov 6, 2026 at 3:00 PM".
     static func dateText(_ date: Date, calendar: Calendar = .current, locale: Locale = .current) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
@@ -30,16 +22,13 @@ enum MeetingDetailPresentation {
     }
 
     struct Speaker: Identifiable, Equatable {
-        /// The transcript's canonical speaker key ("me", "them 2").
         let id: String
         let name: String
         let colorIndex: Int
         let isUser: Bool
-        /// A call voice nobody has named yet.
         let needsName: Bool
     }
 
-    /// Everyone who spoke, you first, then in order of first speaking.
     static func speakers(in transcript: Transcript?, presentation: MeetingSpeakerPresentation) -> [Speaker] {
         guard let transcript else { return [] }
         let roster = transcript.speakerRoster
@@ -55,7 +44,6 @@ enum MeetingDetailPresentation {
         return ordered.filter(\.isUser) + ordered.filter { !$0.isUser }
     }
 
-    /// Call voices without a saved name, in order of first speaking.
     static func unnamedSpeakerKeys(in transcript: Transcript?) -> [String] {
         guard let transcript else { return [] }
         var seen = Set<String>()
@@ -67,9 +55,6 @@ enum MeetingDetailPresentation {
         }
     }
 
-    // MARK: Speech time
-
-    /// Seconds of transcribed speech per speaker key, from segment bounds.
     static func speechSeconds(in transcript: Transcript?) -> [String: TimeInterval] {
         var result: [String: TimeInterval] = [:]
         for segment in transcript?.segments ?? []
@@ -79,12 +64,9 @@ enum MeetingDetailPresentation {
         return result
     }
 
-    /// Whole minutes for "12 min of speech"; any speech at all reads as one.
     static func speechMinutes(_ seconds: TimeInterval) -> Int {
         max(1, Int((seconds / 60).rounded()))
     }
-
-    // MARK: Playhead caption
 
     struct Caption: Equatable {
         let segmentIndex: Int
@@ -93,8 +75,6 @@ enum MeetingDetailPresentation {
         let start: TimeInterval
     }
 
-    /// Finds the line being said at a time. Built once per transcript so the
-    /// player can ask on every clock tick.
     struct PlayheadIndex {
         private let captions: [Caption]
 
@@ -106,7 +86,6 @@ enum MeetingDetailPresentation {
 
         var isEmpty: Bool { captions.isEmpty }
 
-        /// The latest line that has started; before any speech, the first.
         func caption(at time: TimeInterval) -> Caption? {
             var lower = 0, upper = captions.count
             while lower < upper {
@@ -117,25 +96,17 @@ enum MeetingDetailPresentation {
         }
     }
 
-    // MARK: Actions
-
     struct ActionGroups: Equatable {
         var forYou: [OutcomeActionReference] = []
         var forOthers: [OutcomeActionReference] = []
     }
 
-    /// The meeting's actions split by whose they are, keeping their order.
     static func groups(_ actions: [OutcomeActionReference]) -> ActionGroups {
         ActionGroups(forYou: actions.filter(\.isForUser), forOthers: actions.filter { !$0.isForUser })
     }
 
-    /// What the Actions panel says about itself: one count in its header,
-    /// then a band for your actions and one for everyone else's. Both bands
-    /// show whenever the meeting has actions, so a side with none says so
-    /// instead of leaving a gap.
     struct ActionsPanel: Equatable {
         enum Line: Equatable {
-            /// The meeting produced no actions: one line, no bands.
             case noActions
             case nothingForYou
             case nothingForOthers
@@ -148,23 +119,16 @@ enum MeetingDetailPresentation {
         }
 
         var total: Int { groups.forYou.count + groups.forOthers.count }
-        /// The header's pill. A meeting without actions has no count.
         var count: Int? { total == 0 ? nil : total }
         var showsBands: Bool { total > 0 }
-        /// The line that stands in for a side with no rows.
         var forYouLine: Line? { showsBands && groups.forYou.isEmpty ? .nothingForYou : nil }
         var forOthersLine: Line? { showsBands && groups.forOthers.isEmpty ? .nothingForOthers : nil }
 
-        /// "Also in Actions" leads to your open work, so it needs an action
-        /// of yours that the Actions list holds: saved outcomes of a real
-        /// meeting, not a sample or notes that are still being written.
         func showsActionsLink(hasSavedOutcomes: Bool, isSample: Bool) -> Bool {
             !groups.forYou.isEmpty && hasSavedOutcomes && !isSample
         }
     }
 
-    /// Someone else's action whose owner is missing or only a placeholder
-    /// voice ("Speaker 2"): the row asks for a real owner.
     static func ownerNeedsAttention(owner: String?, displayOwner: String?, isForUser: Bool) -> Bool {
         if isForUser { return false }
         guard let owner, !ownerKey(owner).isEmpty else { return true }
@@ -177,8 +141,6 @@ enum MeetingDetailPresentation {
 
     enum DueUrgency: Equatable { case overdue, soon, later }
 
-    /// The Actions list's rule for one action: open work past its due day is
-    /// overdue, due within the attention window is soon, the rest is later.
     static func dueUrgency(resolved: Date?, status: OutcomeStatus, now: Date = Date(),
                            calendar: Calendar = .current) -> DueUrgency {
         guard status == .open, let resolved else { return .later }
@@ -191,16 +153,12 @@ enum MeetingDetailPresentation {
     struct OwnerOption: Identifiable, Equatable {
         enum Kind: Equatable { case you, speaker, invited, none }
         let id: String
-        /// What the menu shows.
         let title: String
-        /// What is saved as the owner; empty clears it.
         let value: String
         let kind: Kind
         let isSelected: Bool
     }
 
-    /// Owner choices for one action: you, this meeting's other speakers,
-    /// invited people who are not already among them, and no owner.
     static func ownerOptions(
         owner: String?, isForUser: Bool, speakers: [Speaker], storedNames: [String: String], invited: [String]
     ) -> [OwnerOption] {
@@ -212,8 +170,6 @@ enum MeetingDetailPresentation {
             let stored = storedNames[speaker.id] ?? speaker.name
             guard taken.insert(ownerKey(speaker.name)).inserted else { continue }
             taken.insert(ownerKey(stored))
-            // By name, not by voice: "Them" on an action is not the person
-            // that voice was named as afterwards, until someone says so.
             let selected = !anySelected && !current.isEmpty
                 && [speaker.name, stored].map(ownerKey).contains(current)
             anySelected = anySelected || selected
@@ -239,9 +195,6 @@ enum MeetingDetailPresentation {
         let due: String?
     }
 
-    /// Saving a new owner from the row's menu keeps a corrected wording and a
-    /// corrected or cleared due date exactly as they are. Nil when the choice
-    /// is already the action's owner.
     static func ownerCorrection(_ option: OwnerOption, for reference: OutcomeActionReference) -> OwnerCorrection? {
         let sameOwner = ownerKey(option.value) == ownerKey(reference.owner ?? "")
         if sameOwner, option.kind != .you || reference.isForUser { return nil }
@@ -251,8 +204,6 @@ enum MeetingDetailPresentation {
             due: reference.dueWasCorrected ? (reference.due ?? "") : nil)
     }
 
-    /// The name the transcript itself uses for each speaker ("Them 2", or a
-    /// saved alias): what an owner is saved as, whatever the page shows.
     static func storedSpeakerNames(in transcript: Transcript?, speakers: [Speaker]) -> [String: String] {
         guard let transcript else { return [:] }
         return Dictionary(speakers.map { ($0.id, transcript.displaySpeaker(for: $0.id)) },
@@ -264,32 +215,19 @@ enum MeetingDetailPresentation {
             .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: Locale(identifier: "en_US_POSIX"))
     }
 
-    // MARK: List row
-
-    /// "1:00 PM · 50 min · Zoom": when, how long, then where it happened.
     static func rowSubtitle(time: String, duration: String, source: String?) -> String {
         ([time, duration] + (source.map { [$0] } ?? [])).filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
 
-/// Widths of a saved meeting's page, in points at the default text size.
-/// The page fills the detail pane; only prose keeps a reading measure.
 enum MeetingDetailLayout {
-    /// Space between the pane's edge and the title, the player and the panels.
     static let gutter: CGFloat = 24
-    /// Space between two panels, and between a notice and the panel under it.
     static let panelGap: CGFloat = 16
-    /// The page's widest. Past this a row's text and its play time at the
-    /// trailing edge drift too far apart, so an ultra-wide pane centres the
-    /// column instead of stretching it.
     static let columnMaximumWidth: CGFloat = 1360
-    /// The measure of the recap and the full summary inside their panels.
     static let proseWidth: CGFloat = 860
-    /// Find in the Transcript panel's header, at its widest and narrowest.
     static let findFieldWidth: CGFloat = 260
     static let findFieldMinimumWidth: CGFloat = 120
 
-    /// How much wider than at the default text size a text-bound width is.
     static func factor(textScale: CGFloat) -> CGFloat {
         max(textScale, 0.5) / AppTextSize.standard.scale
     }
@@ -302,12 +240,6 @@ enum MeetingDetailLayout {
         (findFieldWidth * factor(textScale: textScale)).rounded()
     }
 
-    /// The title and the player are pinned above the scrolling panels. With
-    /// scroll bars set to always show, the scrolling column is narrower than
-    /// the pane by the scroller, so the pinned part takes the same inset and
-    /// both keep one trailing edge. Overlay scroll bars leave no difference.
-    /// A difference too large to be a scroller is a layout in flight, not an
-    /// inset to copy.
     static func pinnedTrailingInset(paneWidth: CGFloat, scrollContentWidth: CGFloat) -> CGFloat {
         guard paneWidth > 0, scrollContentWidth > 0 else { return 0 }
         let inset = paneWidth - scrollContentWidth
@@ -315,13 +247,9 @@ enum MeetingDetailLayout {
         return inset.rounded()
     }
 
-    /// Where the page's one find field is.
     enum FindPlacement: Equatable {
         case hidden
-        /// Find in transcript, in the Transcript panel's header.
         case transcriptPanel
-        /// Command-F's search of the whole meeting, pinned under the player
-        /// because its matches move between tabs.
         case pinnedBar
     }
 

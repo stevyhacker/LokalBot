@@ -12,9 +12,6 @@ struct AgentView: View {
     var body: some View {
         Group {
             if installer.phase == .installed {
-                // The main window already owns navigation. A second nested
-                // NavigationSplitView lets its inferred detail minimum grow
-                // with the transcript and can prevent the window shrinking.
                 HSplitView {
                     AgentTaskSidebar(sessions: sessions, verifyRuntime: verifyRuntime)
                         .frame(minWidth: Self.taskColumnMinWidth, idealWidth: taskColumnWidth, maxWidth: 340)
@@ -48,7 +45,6 @@ struct AgentView: View {
             }
         }
     }
-    // MARK: - Install card
 
     private var installCard: some View {
         VStack(spacing: 12) {

@@ -1,10 +1,5 @@
 import Foundation
 
-/// Turns a `CompanionLibrary` into companion records. Pure reads: every field
-/// a record carries is chosen here, from display-ready sources, so attendee
-/// emails, speaker evidence, screenshot paths and OCR text never enter one.
-/// Run off the main actor; `activity` is a read-only connection owned by the
-/// calling thread.
 struct CompanionRecordBuilder {
     let library: CompanionLibrary
     let activity: ActivityStore?
@@ -35,9 +30,6 @@ struct CompanionRecordBuilder {
     private var calendar: Calendar { library.calendar }
     private var root: URL { library.root }
 
-    // MARK: - Everything
-
-    /// Every record the current scope shares, manifest excluded.
     func allRecords() -> [CompanionRecord] {
         var records: [CompanionRecord] = []
         for meeting in library.meetings {
@@ -61,9 +53,6 @@ struct CompanionRecordBuilder {
             generatedAt: CompanionJSON.instant(now)))
     }
 
-    // MARK: - Meetings
-
-    /// The meeting record and, when transcripts are shared, its transcript.
     func meetingRecords(for meeting: Meeting) -> [CompanionRecord] {
         guard classes.meetings,
               CompanionLibrary.isShared(meeting, history: library.scope.history,
@@ -152,8 +141,6 @@ struct CompanionRecordBuilder {
             mergedInto: nil)
     }
 
-    /// The summary as the Meetings page shows it: no provenance line and no
-    /// title heading, which the phone draws from the record itself.
     static func shareableSummary(_ markdown: String, meeting: Meeting) -> String? {
         let body = SummaryPresentation.meetingBody(SummaryPresentation.split(markdown).body, meeting: meeting)
         var lines = body.components(separatedBy: "\n")
@@ -173,8 +160,6 @@ struct CompanionRecordBuilder {
         return range.applying(to: transcript)
     }
 
-    /// Display text, times, display names and a stable color per speaker;
-    /// never attribution, identity evidence or calendar identity links.
     static func transcriptBody(meeting: Meeting, transcript: Transcript?,
                                presentation: MeetingSpeakerPresentation) -> CompanionTranscriptBody? {
         guard let transcript else { return nil }
@@ -191,18 +176,12 @@ struct CompanionRecordBuilder {
         return CompanionTranscriptBody(meetingId: CompanionJSON.id(meeting.id), segments: segments)
     }
 
-    /// 0 is the person themselves, 1–7 the speaker palette in order of first
-    /// appearance, -1 a voice that could not be told apart.
     static func colorIndex(_ presentationIndex: Int, speaker: String) -> Int {
         if Transcript.defaultSpeakerName(for: speaker) == "Speaker unclear" { return -1 }
         guard presentationIndex > 0 else { return 0 }
         return (presentationIndex - 1) % 7 + 1
     }
 
-    // MARK: - Days
-
-    /// Days that have a digest, recorded activity, or a shared meeting,
-    /// inside the history window, newest first.
     func dayKeys() -> [String] {
         var keys: Set<String> = []
         let start = library.scope.history.startOfWindow(now: library.now, calendar: calendar)
@@ -324,9 +303,6 @@ struct CompanionRecordBuilder {
             savedMoments: moments)
     }
 
-    /// A work session as the Timeline rail shows it. Without the window
-    /// titles class, a title made from window titles falls back to the
-    /// session's project or apps.
     private func workSession(_ session: TimelineWorkSession) -> CompanionDayBody.Session {
         let byApp: [String: [ActivityBlock]] = Dictionary(grouping: session.blocks) { (block: ActivityBlock) in block.app }
         var apps: [CompanionDayBody.Seconds] = []
@@ -353,8 +329,6 @@ struct CompanionRecordBuilder {
     private var screenTime: (Int64) -> Date? {
         { [activity] id in activity?.screenshot(id: id)?.ts }
     }
-
-    // MARK: - People and projects
 
     func personRecords() -> [CompanionRecord] {
         guard classes.people else { return [] }
@@ -427,8 +401,6 @@ struct CompanionRecordBuilder {
         }
     }
 
-    /// The note's overview and the points taken from meetings. Points from
-    /// overnight review notes stay on the Mac with the rest of Dream memory.
     static func whereItStands(_ summary: ProjectStatusSummary) -> String? {
         var parts: [String] = []
         let overview = summary.overview.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -441,11 +413,7 @@ struct CompanionRecordBuilder {
     }
 }
 
-/// Day Digest Markdown made fit for a phone: the raw evidence log, which
-/// quotes screen text and window titles, stays on the Mac, and screen
-/// citations become the time of the moment they point at.
 enum CompanionDigestText {
-    /// Level-2 sections LokalBot renders from raw capture rather than writes.
     static let evidenceSections: Set<String> = ["full activity log", "chronological work log"]
 
     static func shareable(_ markdown: String, time: (Int64) -> Date?, calendar: Calendar = .current) -> String {
@@ -468,8 +436,6 @@ enum CompanionDigestText {
         return kept.joined(separator: "\n")
     }
 
-    /// `[screen:42]` becomes "(screen moment at 14:32)"; a marker whose
-    /// capture is gone, and a bare `[screen]`, are dropped.
     static func rewritingScreenCitations(_ text: String, time: (Int64) -> Date?,
                                          calendar: Calendar = .current) -> String {
         guard text.contains("[screen"),
@@ -489,8 +455,6 @@ enum CompanionDigestText {
         return result
     }
 
-    /// Top-level list items without their markers, or the paragraphs of a
-    /// passage written as prose.
     static func items(in markdown: String) -> [String] {
         let lines = markdown.components(separatedBy: "\n")
         let bullets = lines.filter { $0.hasPrefix("- ") || $0.hasPrefix("* ") }

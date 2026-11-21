@@ -3,26 +3,19 @@ import AppKit
 import UniformTypeIdentifiers
 import Combine
 
-/// The Timeline section groups low-level capture blocks into human-scale Work
-/// sessions and interleaves meetings as first-class events. The lossless raw
-/// activity remains available under All captured activity.
 @MainActor
 final class CaptureModel: ObservableObject {
     @Published private(set) var day = Date()
     @Published var blocks: [ActivityBlock] = [] {
         didSet { refreshProjection() }
     }
-    /// The day's settled coding-agent bursts. Set before `blocks`, whose
-    /// change recomputes the sessions from both.
     @Published private(set) var agentBursts: [CodingAgentBurst] = []
-    /// Tracked time by project; empty without coding-agent evidence.
     @Published private(set) var projectSplit = TimelineProjectAttribution.DaySplit()
     @Published var shots: [ActivityStore.Screenshot] = []
     @Published private(set) var rewindFrames: [ScreenRewindFrame] = []
     @Published var selection: ActivityBlock.ID?
     @Published var selectedSessionID: TimelineWorkSession.ID?
     @Published var selectedSnapshotID: Int64?
-    /// Raw activity and screen moments shown full width in the main pane.
     @Published var showsRawCapture = false
     @Published var digest: String?
     @Published private(set) var digestUpdatedAt: Date?
@@ -49,8 +42,6 @@ final class CaptureModel: ObservableObject {
         projectSplit = projection.attribution.split(of: blocks)
     }
 
-    /// What the day's agents recorded, scheduled runs left out like in the
-    /// sessions.
     var dayOutcomes: TimelineAgentOutcomes {
         TimelineAgentOutcomes(agentBursts.filter { !$0.isScheduledRun })
     }
@@ -87,7 +78,6 @@ final class CaptureModel: ObservableObject {
             evidenceMatches: digestEvidenceMatches).isStale
     }
 
-    /// Clear the previous day immediately, then publish only the latest load.
     func selectDay(_ value: Date, app: AppState) {
         digestGeneration &+= 1
         generating = false
@@ -95,7 +85,6 @@ final class CaptureModel: ObservableObject {
         day = value
         agentBursts = []; blocks = []; shots = []; rewindFrames = []
         digest = nil; digestUpdatedAt = nil; latestDigestEvidenceAt = nil
-        // A new day opens on its digest.
         selection = nil; selectedSessionID = nil; showsRawCapture = false
         reload(app: app)
     }
@@ -111,8 +100,6 @@ final class CaptureModel: ObservableObject {
         digestError = nil
     }
 
-    /// Updates a mounted overview without resetting its generation state or
-    /// hiding an error from the last explicit generation attempt.
     func refreshOverview(app: AppState) {
         if retentionObserver == nil {
             retentionObserver = NotificationCenter.default.publisher(for: .retainedScreenTextChanged)
@@ -150,8 +137,6 @@ final class CaptureModel: ObservableObject {
         }
     }
 
-    /// The selected day's meetings, live recording included, for the track
-    /// and the overview stats.
     func meetings(in app: AppState) -> [Meeting] {
         app.dayDigest.meetings(for: day)
     }
@@ -172,8 +157,6 @@ final class CaptureModel: ObservableObject {
             overviewGeneration &+= 1
             overviewTask?.cancel()
             overviewLoading = false
-            // Read now, not before the model ran: generation can take a
-            // minute, and blocks from before it replaced newer ones.
             blocks = app.activityStore.blocks(on: requestedDay)
             digest = result.text
             let snapshot = app.dayDigest.snapshot(for: requestedDay)
@@ -187,17 +170,11 @@ final class CaptureModel: ObservableObject {
         }
     }
 
-    /// Copy the raw digest Markdown to the clipboard. The rendered document
-    /// supports partial selection too; this one-click action remains the fast
-    /// path when the user wants the whole source document.
     func copyDigest(_ text: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
     }
 
-    /// Export the digest to a user-chosen `.md` file via the standard save
-    /// panel. The digest is already auto-saved to `journal/<date>.md`; this
-    /// drops a shareable copy wherever the user picks.
     func exportDigest(_ text: String) {
         let panel = NSSavePanel()
         panel.title = "Export Day Digest"
@@ -213,9 +190,7 @@ final class CaptureModel: ObservableObject {
     }
 }
 
-/// Shared Capture styling helpers (block colors, duration labels).
 enum CaptureStyle {
-    /// Stable per-app color from the name hash.
     static func color(for app: String) -> Color {
         var hash: UInt64 = 5381
         for byte in app.utf8 { hash = hash &* 33 &+ UInt64(byte) }
@@ -229,12 +204,6 @@ enum CaptureStyle {
     }
 }
 
-// MARK: - The day: its page beside a rail
-
-/// Timeline is one day: the day's page on the leading side, and on the
-/// trailing side a rail with the tracked time, the hour strip and the day's
-/// sessions and meetings. Choosing one in the rail shows its page in the
-/// main area; the rail stays. The date is the window's title.
 struct TimelineContentView: View {
     @EnvironmentObject var app: AppState
     @Environment(\.appTextScale) private var textScale
@@ -248,7 +217,6 @@ struct TimelineContentView: View {
         let meetings = model.meetings(in: app)
         Group {
             if meetings.contains(where: { $0.endedAt == nil }) {
-                // A recording grows; its row and bar follow it.
                 TimelineView(.periodic(from: .now, by: 30)) { context in
                     dayBody(meetings: meetings, now: context.date)
                 }
@@ -257,7 +225,6 @@ struct TimelineContentView: View {
             }
         }
         .navigationTitle(dayTitle)
-        // The date in the toolbar is the title, and it opens the calendar.
         .toolbar(removing: .title)
         .toolbar { toolbar }
         .task {
@@ -275,7 +242,6 @@ struct TimelineContentView: View {
             usesProjectColors: !model.projectSplit.projects.isEmpty,
             localize: localize)
         let presentation = digestCache.presentation(for: model.digest)
-        // A day whose captures have expired can still have its digest.
         let hasDay = !model.blocks.isEmpty || !meetings.isEmpty || !model.shots.isEmpty || model.digest != nil
         let selection = TimelineSelection.current(model: model, app: app, list: list)
         let select: (TimelineListSelection) -> Void = {
@@ -284,13 +250,8 @@ struct TimelineContentView: View {
         let tracked = TimelineTrackedSummary(
             perApp: DayActivityOverview.perApp(model.blocks), split: model.projectSplit, list: list,
             meetingCount: meetings.count, outcomes: model.dayOutcomes, day: model.day, localize: localize)
-        // A native split, like Meetings and Actions: drag the divider to give
-        // the rail more or less room. Its first width follows the window and
-        // the text size; after a drag the split remembers the width.
         return GeometryReader { proxy in
             HSplitView {
-                // Keep the pane's size independent of the page's intrinsic
-                // width so selecting a session cannot re-divide the split.
                 GeometryReader { _ in
                     if selection == .digest {
                         if hasDay {
@@ -340,9 +301,6 @@ struct TimelineContentView: View {
         return model.rewindFrames.filter { $0.screenshot.ts >= row.start && $0.screenshot.ts <= row.end }.count
     }
 
-    // MARK: Toolbar
-
-    /// "Tuesday, November 10", with the year for a day outside this one.
     private var dayTitle: Text {
         let style = Date.FormatStyle.dateTime.weekday(.wide).month(.wide).day()
         let sameYear = Calendar.current.isDate(model.day, equalTo: Date(), toGranularity: .year)
@@ -350,7 +308,6 @@ struct TimelineContentView: View {
     }
 
     @ToolbarContentBuilder private var toolbar: some ToolbarContent {
-        // Arriving from a search result or an answer's source offers the way back.
         if app.evidenceReturnSection != nil {
             ToolbarItem(placement: .navigation) {
                 Button(action: app.returnFromEvidence) {
@@ -392,8 +349,6 @@ struct TimelineContentView: View {
                 }
             }
         }
-        // Without the system title nothing pushes the actions to the
-        // trailing edge, so they sat against the date.
         if #available(macOS 26.0, *) {
             ToolbarSpacer(.flexible, placement: .primaryAction)
         } else {
@@ -448,8 +403,6 @@ struct TimelineContentView: View {
         model.selectDay(day, app: app)
     }
 
-    // MARK: Arriving from another page
-
     private func consumePendingScreenMoment() {
         if let day = app.navigationHandoff.consumeTimelineDay() {
             model.selectDay(day, app: app)
@@ -474,7 +427,6 @@ struct TimelineContentView: View {
     }
 }
 
-/// Parses the digest once per text.
 @MainActor
 final class TimelineDigestCache {
     private var markdown: String?
@@ -489,9 +441,6 @@ final class TimelineDigestCache {
     }
 }
 
-/// Reads and changes what the rail has selected. The selection lives in the
-/// shared `CaptureModel` and the app's meeting selection, so it survives a
-/// visit to another page.
 @MainActor
 enum TimelineSelection {
     static func current(model: CaptureModel, app: AppState, list: TimelineDayList) -> TimelineListSelection {
@@ -509,7 +458,6 @@ enum TimelineSelection {
         return .digest
     }
 
-    /// Selecting the selected row again returns to the day's page.
     static func select(_ target: TimelineListSelection, model: CaptureModel, app: AppState, list: TimelineDayList) {
         let current = current(model: model, app: app, list: list)
         model.selection = nil
@@ -533,9 +481,6 @@ enum TimelineSelection {
     }
 }
 
-/// The … menu: write, update or rewrite the digest, copy or export it, pause
-/// or resume day memory, and reload the day. It observes the sampler itself,
-/// which publishes too often for the whole page to follow.
 private struct TimelineDayMenu: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject var model: CaptureModel
@@ -567,7 +512,6 @@ private struct TimelineDayMenu: View {
 
 }
 
-/// A day with nothing recorded and no digest.
 private struct TimelineEmptyDay: View {
     @EnvironmentObject private var app: AppState
 
@@ -584,9 +528,6 @@ private struct TimelineEmptyDay: View {
     }
 }
 
-// MARK: - All captured activity
-
-/// Individual activity blocks for exact evidence, hour by hour.
 struct TimelineRawCaptureView: View {
     @EnvironmentObject var app: AppState
     @ObservedObject var model: CaptureModel
@@ -621,11 +562,6 @@ struct TimelineRawCaptureView: View {
     }
 }
 
-/// Raw vertical, hour-indexed track. Meetings get a
-/// dedicated teal lane on the left edge of the block area so they never
-/// occlude the activity blocks they overlap (a meeting and its app's
-/// activity cover the same minutes); activity blocks keep the remaining lane
-/// width. With no meetings, activity blocks span the full lane as before.
 private struct CaptureTrackView: View {
     let items: [CaptureTrackItem]
     let blockSelection: ActivityBlock.ID?
@@ -674,7 +610,6 @@ private struct CaptureTrackView: View {
                 .frame(width: geo.size.width, height: height, alignment: .topLeading)
             }
             .frame(height: height)
-            // Room for the first hour's label, which sits on its line.
             .padding(.top, 8)
         }
         .accessibilityElement(children: .contain)

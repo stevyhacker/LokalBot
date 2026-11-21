@@ -1,26 +1,15 @@
-//! The entry the per-user installer (`packaging/windows/lokalbot.iss`) adds to
-//! Windows' Installed apps. An update LokalBot installs itself bypasses the
-//! installer, so the entry would keep showing the installer's version.
-//! [`record_version`] brings it up to date, but only in an entry that already
-//! exists under HKEY_CURRENT_USER and names this installation's folder: a copy
-//! run from an extracted archive never gains one.
-
 use std::io;
 use std::path::Path;
 
 use crate::version::Version;
 
-/// The installer's `AppId`.
 pub const APP_ID: &str = "{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}";
-/// Inno Setup's uninstall key for [`APP_ID`], under HKEY_CURRENT_USER.
 pub const UNINSTALL_KEY: &str = r"Software\Microsoft\Windows\CurrentVersion\Uninstall\{CFF062EB-30DC-4ED9-8586-AB0B54B52A85}_is1";
 
-/// The string Installed apps shows, as Inno Setup writes `AppVersion`.
 pub fn display_version(version: &Version) -> String {
     version.to_string()
 }
 
-/// The DWORDs Inno Setup writes next to `DisplayVersion`.
 pub fn version_numbers(version: &Version) -> Vec<(&'static str, u32)> {
     let (Ok(major), Ok(minor)) = (u32::try_from(version.major), u32::try_from(version.minor))
     else {
@@ -34,8 +23,6 @@ pub fn version_numbers(version: &Version) -> Vec<(&'static str, u32)> {
     ]
 }
 
-/// Whether `install_location` (`InstallLocation`, which ends in a backslash)
-/// names `dir`. Windows compares paths without regard to case.
 pub fn names_dir(install_location: &str, dir: &Path) -> bool {
     fn normalized(path: &str) -> String {
         let path = path.trim();
@@ -48,9 +35,6 @@ pub fn names_dir(install_location: &str, dir: &Path) -> bool {
     !location.is_empty() && location == normalized(&dir.to_string_lossy())
 }
 
-/// Sets the installer's Installed apps entry to `version` when it describes
-/// the installation in `dir`. Returns whether anything changed; with no such
-/// entry (an extracted archive, Linux) nothing is written.
 pub fn record_version(dir: &Path, version: &Version) -> io::Result<bool> {
     #[cfg(windows)]
     {
@@ -93,16 +77,13 @@ mod registry {
 
     impl Drop for Key {
         fn drop(&mut self) {
-            // SAFETY: closes the handle `RegOpenKeyExW` returned, once.
             unsafe { RegCloseKey(self.0) };
         }
     }
 
     impl Key {
-        /// An existing key; `None` when there is none. Never creates one.
         fn open(subkey: &str) -> io::Result<Option<Self>> {
             let mut handle: HKEY = std::ptr::null_mut();
-            // SAFETY: `subkey` is NUL-terminated and `handle` receives the key.
             let status = unsafe {
                 RegOpenKeyExW(
                     HKEY_CURRENT_USER,
@@ -122,8 +103,6 @@ mod registry {
         fn string(&self, name: &str) -> io::Result<Option<String>> {
             let name = wide(name);
             let mut size = 0u32;
-            // SAFETY: the first call asks for the size in bytes; the second
-            // fills a buffer of at least that size.
             unsafe {
                 let status = RegGetValueW(
                     self.0,
@@ -157,7 +136,6 @@ mod registry {
         }
 
         fn has_dword(&self, name: &str) -> bool {
-            // SAFETY: with no buffer, only checks that a DWORD value exists.
             unsafe {
                 RegGetValueW(
                     self.0,
@@ -172,7 +150,6 @@ mod registry {
         }
 
         fn set(&self, name: &str, kind: u32, data: &[u8]) -> io::Result<()> {
-            // SAFETY: `data` is valid for the length passed.
             check(unsafe {
                 RegSetValueExW(
                     self.0,
@@ -226,7 +203,6 @@ mod registry {
         use super::{record_version, wide};
         use crate::version::Version;
 
-        /// A scratch key under HKEY_CURRENT_USER\Software, deleted on drop.
         struct Scratch(String);
 
         impl Scratch {
@@ -241,8 +217,6 @@ mod registry {
 
             fn set_string(&self, name: &str, value: &str) {
                 let data = wide(value);
-                // SAFETY: creates the key if needed and writes a
-                // NUL-terminated UTF-16 string of the size passed in bytes.
                 let status = unsafe {
                     RegSetKeyValueW(
                         HKEY_CURRENT_USER,
@@ -257,7 +231,6 @@ mod registry {
             }
 
             fn set_dword(&self, name: &str, value: u32) {
-                // SAFETY: writes one DWORD.
                 let status = unsafe {
                     RegSetKeyValueW(
                         HKEY_CURRENT_USER,
@@ -274,7 +247,6 @@ mod registry {
             fn string(&self, name: &str) -> String {
                 let mut buffer = vec![0u16; 512];
                 let mut size = (buffer.len() * 2) as u32;
-                // SAFETY: reads a string into a buffer of the size passed.
                 let status = unsafe {
                     RegGetValueW(
                         HKEY_CURRENT_USER,
@@ -294,7 +266,6 @@ mod registry {
             fn dword(&self, name: &str) -> Option<u32> {
                 let mut value = 0u32;
                 let mut size = 4u32;
-                // SAFETY: reads one DWORD.
                 let status = unsafe {
                     RegGetValueW(
                         HKEY_CURRENT_USER,
@@ -321,7 +292,6 @@ mod registry {
         }
 
         fn drop_tree(subkey: &str) {
-            // SAFETY: deletes a key this test created; a missing key is fine.
             unsafe { RegDeleteTreeW(HKEY_CURRENT_USER, wide(subkey).as_ptr()) };
         }
 
@@ -376,7 +346,6 @@ mod tests {
             .lines()
             .find_map(|line| line.strip_prefix("AppId="))
             .expect("lokalbot.iss sets AppId");
-        // Inno Setup writes a literal `{` as `{{`.
         assert_eq!(app_id.replacen("{{", "{", 1), APP_ID);
         assert_eq!(
             UNINSTALL_KEY,

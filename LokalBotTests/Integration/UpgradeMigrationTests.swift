@@ -3,9 +3,6 @@ import SQLite3
 import XCTest
 @testable import LokalBot
 
-/// Every committed release fixture (0.6.2 … current) must survive today's
-/// migration and library load with its approvals, schedules, search, and
-/// encrypted data intact.
 final class UpgradeMigrationTests: XCTestCase {
     private func fixtures() throws -> [URL] {
         let root = try XCTUnwrap(Bundle(for: Self.self).url(
@@ -69,11 +66,6 @@ final class UpgradeMigrationTests: XCTestCase {
         }
     }
 
-    /// Every release's chats (plain files from its seed, or sealed ones the
-    /// app wrote) must still open with today's chat store.
-    /// Personal Context is sealed with the chat key, as each release wrote it.
-    /// Releases before it have no file; the first fixture with one is the
-    /// release after 0.10.7.
     @MainActor
     func testAboutYouFromEveryReleaseStillLoads() throws {
         var checked = 0
@@ -116,9 +108,6 @@ final class UpgradeMigrationTests: XCTestCase {
         }
     }
 
-    /// Runs the real migration (without its launch gate, which skips every
-    /// test host) on each release's library, with the fixture's defaults and
-    /// its synthetic keys in place of the Keychain.
     func testMigrationLeavesEveryReleaseReady() throws {
         for fixture in try fixtures() {
             let version = fixture.lastPathComponent
@@ -154,9 +143,6 @@ final class UpgradeMigrationTests: XCTestCase {
         }
     }
 
-    /// Each release wrote absolute screenshot paths under the folder it seeded
-    /// on the CI runner. An in-place upgrade finds them under the library's
-    /// own location, so point them at the copy before migrating.
     private func relocateScreenshotPaths(in library: URL) throws {
         var database: OpaquePointer?
         let url = library.appendingPathComponent("lokalbotv3.sqlite")
@@ -173,9 +159,6 @@ final class UpgradeMigrationTests: XCTestCase {
         XCTAssertEqual(sqlite3_exec(database, update, nil, nil, nil), SQLITE_OK)
     }
 
-    /// Seeds write plain demo images; every release from 0.6.2 on stores
-    /// screenshots as `AES.GCM.seal(image, screenshot-key).combined`. Seal
-    /// them the same way so key recovery sees what a release wrote.
     private func sealSeededScreenshots(in library: URL) throws {
         var database: OpaquePointer?
         guard sqlite3_open(library.appendingPathComponent("lokalbotv3.sqlite").path, &database) == SQLITE_OK else {

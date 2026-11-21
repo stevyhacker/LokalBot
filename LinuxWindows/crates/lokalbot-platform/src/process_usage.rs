@@ -1,14 +1,9 @@
-//! What one process has used so far (`SystemResourceSampler`): CPU time and
-//! resident memory, from `/proc` on Linux and the process APIs on Windows.
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct ProcessUsage {
-    /// User and kernel time since it started.
     pub cpu_seconds: f64,
     pub memory_bytes: u64,
 }
 
-/// Installed memory, for choosing a model preset.
 #[cfg(target_os = "linux")]
 pub fn total_memory_bytes() -> Option<u64> {
     let meminfo = std::fs::read_to_string("/proc/meminfo").ok()?;
@@ -24,7 +19,6 @@ pub fn total_memory_bytes() -> Option<u64> {
         dwLength: std::mem::size_of::<MEMORYSTATUSEX>() as u32,
         ..Default::default()
     };
-    // SAFETY: the struct is initialized and its length field set, as the API requires.
     unsafe { GlobalMemoryStatusEx(&mut status) }.ok()?;
     Some(status.ullTotalPhys)
 }
@@ -34,7 +28,6 @@ pub fn total_memory_bytes() -> Option<u64> {
     None
 }
 
-/// `None` when the process is gone or can't be read.
 #[cfg(target_os = "linux")]
 pub fn process_usage(pid: u32) -> Option<ProcessUsage> {
     let stat = std::fs::read_to_string(format!("/proc/{pid}/stat")).ok()?;
@@ -55,8 +48,6 @@ pub fn process_usage(pid: u32) -> Option<ProcessUsage> {
         ticks as f64 / 10_000_000.0
     }
 
-    // SAFETY: the handle is checked, used only here and closed before returning,
-    // and the out-parameters are valid for the calls.
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let (mut created, mut exited, mut kernel, mut user) = (
@@ -89,14 +80,11 @@ pub fn process_usage(_pid: u32) -> Option<ProcessUsage> {
     None
 }
 
-/// `/proc/<pid>/stat` counts in `USER_HZ`, which is 100 on the platforms we ship.
 #[cfg(any(target_os = "linux", test))]
 fn parse_proc(stat: &str, status: &str) -> Option<ProcessUsage> {
     const TICKS_PER_SECOND: f64 = 100.0;
-    // The process name can hold spaces and parentheses; fields resume after the last `)`.
     let rest = stat.rsplit_once(')')?.1;
     let mut fields = rest.split_whitespace();
-    // utime and stime are fields 14 and 15; `rest` starts at field 3.
     let utime: f64 = fields.nth(11)?.parse().ok()?;
     let stime: f64 = fields.next()?.parse().ok()?;
     let kilobytes: u64 = status

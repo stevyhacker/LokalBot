@@ -182,7 +182,6 @@ final class AskLibraryContextTests: XCTestCase {
 
     func testMeetingDatesAreTheUsersLocalDays() throws {
         let meetings = try SessionLookup.loadAllMeetings()
-        // Cache planning starts 2026-05-28 20:26 UTC: already May 29 in Tokyo.
         let tokyo = try XCTUnwrap(TimeZone(identifier: "Asia/Tokyo"))
         func date(in zone: TimeZone) -> String? {
             AskLibraryContext.build(question: "Summarize the Cache planning meeting", meetings: meetings, timeZone: zone)

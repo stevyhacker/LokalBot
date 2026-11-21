@@ -1,14 +1,3 @@
-//! What was said at a recording's or video's matched moment, for the Ask
-//! assistant (`FileMomentTranscriber`): Files finds the 30-second window by
-//! meaning, and this transcribes just that window with the person's own
-//! transcription model, so the answer can quote it.
-//!
-//! It never downloads a transcription model, waits while a meeting records so it
-//! can't compete with live transcription, and keeps the text only in memory: the
-//! tool's observation isn't saved with the conversation. A remote transcription
-//! server receives the clip only if its origin is approved, which `SpeechCache`
-//! checks each time.
-
 use std::collections::{HashMap, VecDeque};
 use std::path::Path;
 use std::sync::Arc;
@@ -21,7 +10,6 @@ use super::media;
 use crate::Shared;
 use crate::models::Models;
 
-/// The model ignores sound past 30 s of one input, so a match covers this.
 const WINDOW_SECONDS: f64 = 30.0;
 const CACHE_LIMIT: usize = 64;
 
@@ -59,15 +47,12 @@ impl MomentTranscriber {
         }
     }
 
-    /// The words at `hit`'s moment, or `None` when it isn't a moment,
-    /// transcription isn't available, or the clip can't be read.
     pub fn passage(&self, hit: &FileHit) -> Option<String> {
         let start = hit.seconds.filter(|_| hit.is_moment())?;
         let settings = self.shared.settings();
         if self.shared.recording_active.load(Ordering::Relaxed) {
             return None;
         }
-        // Never downloads: the model must already be on this computer.
         let needs = self.models.dictation_requirements();
         if !self.models.missing(&needs).is_empty() || self.models.transcription_server_blocked() {
             return None;

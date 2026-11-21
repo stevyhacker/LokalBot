@@ -1,14 +1,10 @@
 import Foundation
 
-/// App-owned provenance for the exact observations supplied in one turn.
-/// Source text and model output never grant citation authority themselves.
 struct ChatEvidence: Sendable {
     var meetingIDs: Set<String> = []
     var meetingSeconds: [String: Set<Int>] = [:]
     var screenIDs: Set<Int64> = []
-    /// Passages in the Files index (`FileSearchHit.id`).
     var fileIDs: Set<Int64> = []
-    /// Saved coding-agent notes (`AgentNoteHit.id`).
     var noteIDs: Set<String> = []
 
     mutating func addMeeting(_ id: UUID, seconds: TimeInterval? = nil) {
@@ -46,12 +42,6 @@ struct ChatEvidence: Sendable {
     }
 }
 
-/// Inline citation markers the assistant emits — `[meeting:ID]`,
-/// `[meeting:ID@HH:MM:SS]`, `[screen:ID]`, `[file:ID]`, or `[note:ID]` (see ChatPrompt's
-/// citation instructions).
-/// Messages are persisted with the markers in place; the chat UI replaces each
-/// one in situ with a stable numbered reference and renders a matching source
-/// table that deep-links to the cited evidence.
 struct ChatCitation: Equatable, Identifiable, Sendable {
     enum Kind: String, Equatable, Sendable {
         case meeting
@@ -62,7 +52,6 @@ struct ChatCitation: Equatable, Identifiable, Sendable {
 
     let kind: Kind
     let sourceID: String
-    /// Seconds into the meeting, when the marker carried an `@HH:MM:SS` stamp.
     let seconds: TimeInterval?
 
     init(meetingID: String, seconds: TimeInterval?) {
@@ -89,8 +78,6 @@ struct ChatCitation: Equatable, Identifiable, Sendable {
         seconds = nil
     }
 
-    /// Backwards-compatible meeting accessor used by the existing deep-link
-    /// route. Callers should check `kind == .meeting` first.
     var meetingID: String { sourceID }
 
     var snapshotID: Int64? {
@@ -116,29 +103,20 @@ struct ChatCitation: Equatable, Identifiable, Sendable {
     }
 }
 
-/// Pure marker parsing, kept out of the views so it's unit-testable.
 enum ChatCitationParser {
-    /// Meeting IDs match SessionLookup's short ids; screen IDs are positive
-    /// SQLite row IDs. Meeting stamps accept M:SS, MM:SS, or HH:MM:SS.
     private static let pattern =
         #"\[(meeting|screen|file|note):([A-Za-z0-9_-]{1,64})(?:@(\d{1,2}(?::\d{2}){1,2}))?\]"#
 
-    /// Several meetings in one marker — `[meetings:A, B]` or
-    /// `[meeting:A; meeting:B@00:01:10]` — which small models write despite
-    /// the prompt.
     private static let groupedPattern: String = {
         let one = #"(?:meeting:)?[A-Za-z0-9_-]{1,64}(?:@\d{1,2}(?::\d{2}){1,2})?"#
         return #"\[meetings?:\s*("# + one + #"(?:\s*[,;]\s*"# + one + #")*)\]"#
     }()
 
-    // Compiled once: every streamed partial of an answer is parsed again.
     private static let markerRegex = try? NSRegularExpression(pattern: pattern)
     private static let groupedRegex = try? NSRegularExpression(pattern: groupedPattern)
     private static let anyMarkerRegex = try? NSRegularExpression(
         pattern: #"\[(?:meeting|screen|file|note):[^\]\n]*\]"#)
 
-    /// Replace markers with ordered `[n]` references and return the matching,
-    /// deduped citations. Repeated sources retain their first source number.
     static func extract(_ text: String, linked: Bool = false) -> (display: String, citations: [ChatCitation]) {
         guard text.contains("[meeting:") || text.contains("[screen:") || text.contains("[file:")
                 || text.contains("[note:"),
@@ -191,8 +169,6 @@ enum ChatCitationParser {
         return (cleaned(display), citations)
     }
 
-    /// Apply before publishing partials or persisting final output. An invalid
-    /// marker is never rendered as a source link, even for a real but unseen ID.
     static func verified(_ text: String, evidence: ChatEvidence, streaming: Bool = false) -> String {
         var text = text
         if streaming, let bracket = text.lastIndex(of: "["),
@@ -216,8 +192,6 @@ enum ChatCitationParser {
         return text
     }
 
-    /// Rewrite each grouped meeting marker as one `[meeting:…]` marker per
-    /// meeting, so every meeting is verified on its own.
     private static func splitGrouped(_ text: String) -> String {
         guard text.contains("[meeting"),
               let regex = groupedRegex else { return text }
@@ -237,14 +211,10 @@ enum ChatCitationParser {
         return text
     }
 
-    /// "1:23" → 83, "00:14:32" → 872. Nil for out-of-range fields, and for a
-    /// leading field too large to count in seconds.
     static func seconds(from stamp: String) -> TimeInterval? {
         let parts = stamp.split(separator: ":").map(String.init).compactMap(Int.init)
         guard parts.count == 2 || parts.count == 3 else { return nil }
         guard parts.dropFirst().allSatisfy({ (0..<60).contains($0) }), parts[0] >= 0 else { return nil }
-        // The leading field has no upper bound and can come from a model's
-        // tool call (`get_meeting`'s `from`), so scaling it must not trap.
         let rest = parts.count == 2 ? parts[1] : parts[1] * 60 + parts[2]
         let (scaled, scaleOverflowed) = parts[0].multipliedReportingOverflow(by: parts.count == 2 ? 60 : 3600)
         let (value, sumOverflowed) = scaled.addingReportingOverflow(rest)
@@ -252,9 +222,6 @@ enum ChatCitationParser {
         return TimeInterval(value)
     }
 
-    /// Tidy the gaps removed markers leave behind: the space before trailing
-    /// punctuation and doubled interior spaces. Line-leading indentation is
-    /// preserved — it's meaningful to the markdown renderer.
     private static func cleaned(_ text: String) -> String {
         text.replacingOccurrences(of: #"[ \t]+([.,;:!?])"#, with: "$1", options: .regularExpression)
             .replacingOccurrences(of: #"(?<=\S)[ \t]{2,}"#, with: " ", options: .regularExpression)

@@ -1,23 +1,8 @@
-//! The endpoint pi's `lokalbot` provider talks to (`AgentLLMEndpoint.swift`,
-//! `ThinkExecution.agentResolution`).
-//!
-//! The built-in Think model is the llama-server `Role::Main`; a session holds
-//! a [`lokalbot_ai::Lease`] on it so an unrelated model load cannot unload it
-//! mid-conversation. Ollama and OpenAI-compatible servers follow the same
-//! remote-origin consent as the rest of Think, and Agent Mode additionally
-//! requires HTTPS for anything that is not on this computer (the extension
-//! enforces it again). The ChatGPT plan is reached through a relay on this
-//! computer that holds the plan's tokens
-//! ([`lokalbot_ai::plans::chatgpt::relay`]); its own approval stands in for
-//! the origin check.
-
 use lokalbot_ai::plans::PlanError;
 use lokalbot_core::Settings;
 use lokalbot_core::access::{is_loopback_url, origin_of};
 use lokalbot_core::settings::{SubscriptionPlan, SummarizerBackend};
 
-/// Which request fields carry a reasoning level to this server. The
-/// extension writes them (`applyReasoningLevel` in its index.ts).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ReasoningDialect {
     LlamaServer,
@@ -38,7 +23,6 @@ impl ReasoningDialect {
         }
     }
 
-    /// `ChatCompletionDialect.inferred(from:)`.
     pub fn inferred(base_url: &str) -> Self {
         let host = host(base_url).unwrap_or_default();
         if host == "api.openai.com" {
@@ -51,13 +35,10 @@ impl ReasoningDialect {
     }
 }
 
-/// pi-ai's names for the wire formats Agent Mode uses.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub enum ProviderApi {
-    /// Local and OpenAI-compatible servers.
     #[default]
     ChatCompletions,
-    /// The ChatGPT plan relay.
     Responses,
 }
 
@@ -70,20 +51,14 @@ impl ProviderApi {
     }
 }
 
-/// A resolved endpoint.
 #[derive(Clone, PartialEq, Eq)]
 pub struct LlmEndpoint {
-    /// Ends in `/v1` for llama-server and Ollama.
     pub base_url: String,
     pub model: String,
     pub context_tokens: u32,
     pub api_key: Option<String>,
     pub reasoning_dialect: ReasoningDialect,
-    /// The wire format pi's provider speaks to `base_url`.
     pub api: ProviderApi,
-    /// Set when requests run on a subscription plan through LokalBot's
-    /// relay: `base_url` is on this computer, but the content goes to the
-    /// plan's provider.
     pub plan: Option<SubscriptionPlan>,
 }
 
@@ -101,26 +76,16 @@ impl std::fmt::Debug for LlmEndpoint {
     }
 }
 
-/// Matches the built-in Think server's window, so Agent Mode compacts at the
-/// same boundary; external servers use it as a conservative declared window.
 pub const DEFAULT_CONTEXT_TOKENS: u32 = 32_768;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Resolution {
-    /// The caller leases the built-in server and builds the endpoint from it.
-    BuiltIn {
-        model_id: String,
-    },
-    /// The caller starts a ChatGPT plan relay for the task and points pi at it.
-    ChatGptPlan {
-        model: String,
-    },
+    BuiltIn { model_id: String },
+    ChatGptPlan { model: String },
     Ready(LlmEndpoint),
     Unsupported(String),
 }
 
-/// Settings to endpoint, without starting anything. `api_key` is the stored
-/// OpenAI-compatible key (presentation passes `None`).
 pub fn resolve(settings: &Settings, api_key: Option<String>) -> Resolution {
     match settings.summarizer_backend {
         SummarizerBackend::BuiltIn => {
@@ -191,8 +156,6 @@ pub fn resolve(settings: &Settings, api_key: Option<String>) -> Resolution {
                 plan: None,
             })
         }
-        // pi reaches the plan through a relay that holds the tokens, so
-        // nothing here reads credentials.
         SummarizerBackend::ChatGptPlan => {
             let plan = SubscriptionPlan::ChatGpt;
             if !plan.is_approved(settings) {
@@ -206,8 +169,6 @@ pub fn resolve(settings: &Settings, api_key: Option<String>) -> Resolution {
                 model: model.to_string(),
             }
         }
-        // CLI-backed plans run their own coding-agent CLI; they offer no model
-        // endpoint for pi to call.
         SummarizerBackend::ClaudePlan => Resolution::Unsupported(
             "Agent Mode can't run on your Claude plan yet. Switch the Think model to a built-in model, Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.".into(),
         ),
@@ -249,8 +210,6 @@ fn remote_allowed(
     Ok(())
 }
 
-/// pi speaks chat completions, which Anthropic serves under `/v1` whichever
-/// form of its URL was entered (`AnthropicAPI.versionedRoot`).
 fn anthropic_chat_root(base: &str) -> String {
     if host(base).as_deref() == Some("api.anthropic.com") && !base.ends_with("/v1") {
         return format!("{}/v1", base.trim_end_matches('/'));
@@ -270,7 +229,6 @@ fn host(url: &str) -> Option<String> {
     )
 }
 
-/// Where a task's model runs, for the composer footer (`InferencePresentation`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Destination {
     OnDevice,
@@ -292,7 +250,6 @@ impl Destination {
     }
 }
 
-/// The model a task uses and where it runs (`AgentSessionController.ModelContext`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct ModelContext {
     pub name: String,
@@ -300,7 +257,6 @@ pub struct ModelContext {
 }
 
 impl ModelContext {
-    /// What a new task would use with these settings.
     pub fn from_settings(settings: &Settings) -> Self {
         match resolve(settings, None) {
             Resolution::Ready(endpoint) => Self::from_endpoint(&endpoint, settings),
@@ -321,7 +277,6 @@ impl ModelContext {
         }
     }
 
-    /// Bound to a launched connection, even if Settings change later.
     pub fn from_endpoint(endpoint: &LlmEndpoint, settings: &Settings) -> Self {
         let name = if settings.summarizer_backend == SummarizerBackend::BuiltIn {
             lokalbot_ai::catalog::entry(&endpoint.model)
@@ -330,7 +285,6 @@ impl ModelContext {
         } else {
             endpoint.model.clone()
         };
-        // A plan relay listens on this computer; the plan's provider answers.
         let destination = if let Some(plan) = endpoint.plan {
             Destination::Remote(plan.title().into())
         } else if is_loopback_url(&endpoint.base_url) {
@@ -376,7 +330,6 @@ mod tests {
         let unapproved = settings(|s| {
             s.summarizer_backend = SummarizerBackend::ChatGptPlan;
             s.chatgpt_plan_model = "gpt-6.1-sol".into();
-            // An API-server approval for the same company is not the plan's.
             s.approved_remote_inference_origins = vec!["https://api.openai.com".into()];
         });
         assert_eq!(
@@ -397,7 +350,6 @@ mod tests {
             s.chatgpt_plan_model = " gpt-6.1-sol ".into();
             SubscriptionPlan::ChatGpt.set_approved(s, true);
         });
-        // A stored API key is never the plan's credential.
         assert_eq!(
             resolve(&ready, Some("sk-unrelated".into())),
             Resolution::ChatGptPlan {
@@ -438,7 +390,6 @@ mod tests {
     #[test]
     fn the_claude_plan_is_not_an_agent_endpoint() {
         let mut plan = settings(|s| s.summarizer_backend = SummarizerBackend::ClaudePlan);
-        // Even an approved plan: Claude Code offers no model endpoint.
         SubscriptionPlan::Claude.set_approved(&mut plan, true);
         match resolve(&plan, Some("key".into())) {
             Resolution::Unsupported(reason) => {
@@ -537,7 +488,6 @@ mod tests {
         assert!(
             matches!(resolve(&unapproved, None), Resolution::Unsupported(r) if r.contains("Approve"))
         );
-        // Approved but plain HTTP on a private network: refused, as for Think.
         let http = settings(|s| {
             s.summarizer_backend = SummarizerBackend::OpenAICompatible;
             s.openai_base_url = "http://192.168.1.20:8080/v1".into();

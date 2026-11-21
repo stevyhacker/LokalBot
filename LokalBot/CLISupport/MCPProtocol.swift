@@ -1,8 +1,5 @@
 import Foundation
 
-/// Minimal JSON model for JSON-RPC params, results, and tool schemas.
-/// Codable so a whole response tree encodes in one pass; the literal
-/// conformances keep dispatcher code and tool schemas readable.
 enum JSONValue: Codable, Equatable {
     case null
     case bool(Bool)
@@ -62,8 +59,6 @@ enum JSONValue: Codable, Equatable {
     var intValue: Int? {
         if case .number(let value) = self,
            abs(value) <= 9_007_199_254_740_991 {
-            // JSON numbers use Double here. Reject the range where decoding
-            // can silently change an integer's identity, and never trap.
             return Int(exactly: value)
         }
         return nil
@@ -94,10 +89,6 @@ enum MCPTransportLimits {
     static let maximumRecordBytes = 1_048_576
 }
 
-/// Incremental newline-delimited stdin reader for the MCP helper. Its buffer
-/// never grows with an unterminated record: once the byte limit is crossed it
-/// reports one rejection and discards bytes until LF/EOF without constructing
-/// an oversized `String`.
 struct MCPStdioLineReader {
     enum Record: Equatable {
         case line(String)
@@ -122,10 +113,6 @@ struct MCPStdioLineReader {
         self.chunkBytes = max(1, chunkBytes)
     }
 
-    /// Whatever is available now, up to `chunkBytes`; empty only at EOF.
-    /// `FileHandle.read(upToCount:)` waits for the full count on a pipe, so a
-    /// client that keeps stdin open and sends one short request never got a
-    /// reply.
     private func readAvailable() throws -> Data {
         var buffer = [UInt8](repeating: 0, count: chunkBytes)
         while true {
@@ -189,7 +176,6 @@ struct MCPStdioLineReader {
     }
 }
 
-/// One decoded JSON-RPC 2.0 message from an MCP client.
 struct MCPRequest: Equatable {
     static let maximumLineBytes = MCPTransportLimits.maximumRecordBytes
     enum RequestID: Equatable {
@@ -204,7 +190,6 @@ struct MCPRequest: Equatable {
         }
     }
 
-    /// nil means a notification and the server must not answer it.
     var id: RequestID?
     var method: String
     var params: JSONValue?
@@ -242,7 +227,6 @@ struct MCPRequest: Equatable {
     }
 }
 
-/// Encodes newline-delimited JSON-RPC 2.0 responses with deterministic keys.
 enum MCPResponse {
     static func success(id: MCPRequest.RequestID?, result: JSONValue) -> String {
         encode(.object([

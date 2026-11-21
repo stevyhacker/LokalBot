@@ -46,11 +46,6 @@ import org.robolectric.RuntimeEnvironment
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
-/**
- * The app at phone, unfolded-foldable and tablet widths, in light and dark,
- * plus a foldable in book and tabletop postures. Record with
- * `./gradlew :app:recordRoborazziDebug`; CI runs `verifyRoborazziDebug`.
- */
 @RunWith(AndroidJUnit4::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(qualifiers = "en-rGB-w411dp-h891dp-hdpi")
@@ -91,8 +86,6 @@ class ScreenshotTest {
 
     @Composable
     private fun Themed(dark: Boolean, content: @Composable () -> Unit) = LokalBotTheme(darkTheme = dark, reduceMotion = true, content = content)
-
-    // Phone (compact)
 
     @Test
     fun phoneToday() = show("phone_today_light", AppNavigator(Destination.Today))
@@ -148,8 +141,6 @@ class ScreenshotTest {
         compose.onRoot().captureRoboImage("src/test/screenshots/phone_welcome.png")
     }
 
-    // The welcome screen sits outside any Surface, where text without its own
-    // colour once fell back to black on the dark window.
     @Test
     fun phoneWelcomeDark() {
         compose.setContent { Themed(dark = true) { WelcomeScreen(onPair = {}, onTrySample = {}) } }
@@ -172,9 +163,6 @@ class ScreenshotTest {
     @Test
     fun phoneRightToLeft() = show("phone_actions_rtl", AppNavigator(Destination.Actions).apply { openAction(TestLibrary.DESIGN_REVIEW, "act-1f2e3d4c") }, rtl = true)
 
-    // Recording on this device
-
-    /** One recording in each state the list can show. */
     private fun pairedLibrary() = PairedTestLibrary(
         rows = listOf(
             deviceRecording("recording", RecordingState.Recording, minutesAgo = 12, durationSeconds = null),
@@ -186,7 +174,6 @@ class ScreenshotTest {
         ),
     ).apply { uploadProgress.value = UploadProgress("sending", 42, 100) }
 
-    /** Offers recording, which is all it does here. */
     private fun recorder(library: CompanionRepository) =
         MeetingRecorder(CoroutineScope(Dispatchers.Unconfined), library = { library }, newCapture = { FakeCapture() }, elapsedMillis = { 0 })
 
@@ -242,7 +229,6 @@ class ScreenshotTest {
     @Config(qualifiers = "en-rGB-w891dp-h411dp-hdpi")
     fun phoneLandscapeRecording() = showRecording("phone_landscape_recording")
 
-    // A recording past the hour at large text: the digits must not wrap.
     @Test
     @Config(qualifiers = "en-rGB-w411dp-h891dp-hdpi", fontScale = 1.6f)
     fun phoneRecordingLargeText() = showRecording("phone_recording_large_text", elapsedSeconds = 7384)
@@ -250,8 +236,6 @@ class ScreenshotTest {
     @Test
     @Config(qualifiers = "en-rGB-w1280dp-h800dp-mdpi")
     fun tabletRecording() = showRecording("tablet_recording")
-
-    // Unfolded foldable or small tablet (medium)
 
     @Test
     @Config(qualifiers = "en-rGB-w673dp-h841dp-hdpi")
@@ -264,8 +248,6 @@ class ScreenshotTest {
     @Test
     @Config(qualifiers = "en-rGB-w673dp-h841dp-hdpi")
     fun mediumTimeline() = show("medium_timeline", AppNavigator(Destination.Timeline).apply { openDay(TestLibrary.yesterday.toString()) }, 673, 841)
-
-    // Tablet (expanded)
 
     @Test
     @Config(qualifiers = "en-rGB-w1280dp-h800dp-mdpi")
@@ -292,8 +274,6 @@ class ScreenshotTest {
     fun tabletAskDark() = show("tablet_ask_dark", AppNavigator(Destination.Ask), 1280, 800, dark = true) {
         compose.onNodeWithText("What's overdue?").performClick()
     }
-
-    // Foldable postures (Pixel Fold inner display, 841 × 701 dp)
 
     @Test
     @Config(qualifiers = "en-rGB-w841dp-h701dp-hdpi")

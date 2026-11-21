@@ -2,21 +2,9 @@ import AVFoundation
 import XCTest
 @testable import LokalBot
 
-/// Regression tests for the capture callback's raw-buffer copy and RMS path.
-///
-/// The Core Audio process tap delivers *interleaved* stereo. An earlier
-/// implementation copied per-channel with contiguous `memcpy`s over
-/// `floatChannelData`; for interleaved buffers the channel pointers overlap
-/// (`data`, `data + 1`, stride 2), so only the first half of each buffer's
-/// frames were copied and the back half stayed silent — chopping every
-/// recording at sampleRate/frames Hz (93.75 Hz for 512-frame buffers).
-/// These tests pin the layout-agnostic contract: every sample survives the
-/// copy in BOTH layouts, and the returned RMS covers ALL samples.
 final class SystemAudioRecorderCopyTests: XCTestCase {
 
     private let frameCount: AVAudioFrameCount = 512
-
-    // MARK: - Helpers
 
     private func makeFormat(interleaved: Bool) -> AVAudioFormat {
         AVAudioFormat(commonFormat: .pcmFormatFloat32,
@@ -25,19 +13,12 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
                       interleaved: interleaved)!
     }
 
-    /// Allocates a buffer and sets `frameLength` up front — the documented
-    /// precondition of `copyAndMeasureRMS` (destination byte sizes are final).
     private func makeBuffer(format: AVAudioFormat, frames: AVAudioFrameCount) -> AVAudioPCMBuffer {
         let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: max(frames, 1))!
         buffer.frameLength = frames
         return buffer
     }
 
-    /// Walks the raw floats of every underlying `AudioBuffer` (honest about
-    /// the actual memory layout, interleaved or not) and hands each index/
-    /// pointer to `body`. `floatChannelData` stride semantics are exactly
-    /// what bit the old implementation, so the fill/read helpers deliberately
-    /// go through the `AudioBufferList` instead.
     private func forEachRawFloat(
         of buffer: AVAudioPCMBuffer,
         _ body: (_ bufferIndex: Int, _ floatIndex: Int, _ pointer: UnsafeMutablePointer<Float>) -> Void
@@ -53,9 +34,6 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         }
     }
 
-    /// Fills every raw float (all frames, all channels) with a distinct-ish,
-    /// strictly nonzero, sign-alternating ramp so that any dropped, zeroed,
-    /// or misplaced sample is detectable.
     private func fillDeterministicRamp(_ buffer: AVAudioPCMBuffer) {
         var value: Float = 0
         forEachRawFloat(of: buffer) { _, floatIndex, pointer in
@@ -70,9 +48,6 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         }
     }
 
-    /// Zero the destination explicitly so the test does not depend on the
-    /// allocator handing back cleared memory: with the old bug, un-copied
-    /// samples are then *provably* silent, exactly as recorded in the field.
     private func zero(_ buffer: AVAudioPCMBuffer) {
         let list = UnsafeMutableAudioBufferListPointer(buffer.mutableAudioBufferList)
         for audioBuffer in list where audioBuffer.mData != nil {
@@ -80,10 +55,6 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         }
     }
 
-    /// Independent RMS oracle over ALL raw samples of `buffer`. A constant
-    /// fill cannot catch a traversal that visits only half the samples (RMS
-    /// of half the constants is the same constant), so the pattern tests
-    /// compare against this instead.
     private func referenceRMS(of buffer: AVAudioPCMBuffer) -> Float {
         var sumSquares = 0.0
         var count = 0
@@ -94,18 +65,10 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         return count == 0 ? 0 : Float((sumSquares / Double(count)).squareRoot())
     }
 
-    /// Frame/channel-addressed sample read, valid for both layouts:
-    /// `floatChannelData[channel]` is offset by the channel and consecutive
-    /// frames of one channel are `stride` floats apart (2 when interleaved,
-    /// 1 when deinterleaved).
     private func sample(_ buffer: AVAudioPCMBuffer, frame: Int, channel: Int) -> Float {
         buffer.floatChannelData![channel][frame * buffer.stride]
     }
 
-    /// Copies `source` into a fresh zeroed destination and asserts the full
-    /// contract: byte-for-byte equality of every underlying `AudioBuffer`,
-    /// per-frame survival of the back half (frames >= 256 — the half the old
-    /// code silenced), and an RMS computed over ALL samples.
     private func assertLosslessCopy(interleaved: Bool,
                                     file: StaticString = #filePath,
                                     line: UInt = #line) {
@@ -119,14 +82,11 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
                       file: file, line: line)
         let rms = SystemAudioRecorder.measureRMS(of: destination)
 
-        // Byte-for-byte equality of every underlying AudioBuffer.
         let sourceList = UnsafeMutableAudioBufferListPointer(
             UnsafeMutablePointer(mutating: source.audioBufferList))
         let destinationList = UnsafeMutableAudioBufferListPointer(
             UnsafeMutablePointer(mutating: destination.audioBufferList))
         XCTAssertEqual(sourceList.count, destinationList.count, file: file, line: line)
-        // Guard against vacuity: the byte-for-byte check only means something
-        // if the buffers really span all frames x channels of the pattern.
         let totalFloats = sourceList.reduce(0) { $0 + Int($1.mDataByteSize) / MemoryLayout<Float>.size }
         XCTAssertEqual(totalFloats, Int(frameCount) * Int(format.channelCount),
                        "pattern must cover every frame of every channel", file: file, line: line)
@@ -138,10 +98,6 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
                            file: file, line: line)
         }
 
-        // The regression's signature: the old per-channel contiguous memcpy
-        // copied only the first half of an interleaved buffer, so frames
-        // >= 256 of a 512-frame buffer came out silent. Assert specifically
-        // that every back-half sample survives, on both channels.
         var lost: [String] = []
         for frame in Int(frameCount) / 2..<Int(frameCount) {
             for channel in 0..<Int(format.channelCount) {
@@ -162,14 +118,9 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
                       """,
                       file: file, line: line)
 
-        // RMS must cover ALL samples, not just the ones a broken traversal
-        // happens to visit. The ramp's full-buffer RMS differs from its
-        // first-half RMS, so a half-traversal fails here.
         XCTAssertEqual(rms, referenceRMS(of: source), accuracy: 1e-4,
                        "RMS must be computed over every sample", file: file, line: line)
     }
-
-    // MARK: - Lossless copy (the regression)
 
     func testInterleavedStereoCopyPreservesEverySample() {
         assertLosslessCopy(interleaved: true)
@@ -273,14 +224,12 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         XCTAssertEqual(counter.snapshot(), 0)
     }
 
-    // MARK: - Recovery silence commit gate
-
     func testFailedMicrophoneRecoveryCannotCreateSilencePlan() {
         var gate = AudioRecoverySilenceCommitGate()
 
         XCTAssertNil(gate.consumeAfterCapturedBuffer(forElapsed: 5))
         gate.stage()
-        gate.cancel() // A failed engine retry never delivered a buffer.
+        gate.cancel()
 
         XCTAssertFalse(gate.isPending)
         XCTAssertNil(gate.consumeAfterCapturedBuffer(forElapsed: 5))
@@ -334,8 +283,6 @@ final class SystemAudioRecorderCopyTests: XCTestCase {
         }
         pool.returnBuffer(destination)
     }
-
-    // MARK: - RMS
 
     func testRMSOfConstantHalfAmplitudeInterleaved() {
         let format = makeFormat(interleaved: true)

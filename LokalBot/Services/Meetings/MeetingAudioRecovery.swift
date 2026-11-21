@@ -1,7 +1,5 @@
 import Foundation
 
-/// One session-owned attachment loop. A bounded fast retry burst becomes a
-/// low-frequency wait, never a permanent microphone-only failure.
 @MainActor
 final class MeetingAudioRecovery {
     typealias Candidate = MeetingDetector.DetectedApp
@@ -39,8 +37,6 @@ final class MeetingAudioRecovery {
         }
     }
 
-    /// Detector/device events can wake recovery immediately, including after
-    /// the initial burst. A stale generation or a different call cannot attach.
     @discardableResult
     func offer(_ app: Candidate, recordingID: UUID) -> Bool {
         guard self.recordingID == recordingID,
@@ -75,9 +71,6 @@ struct RecordingHealthReport: Codable {
     var hadMissingAudio: Bool?
     var hadWriteFailure: Bool?
 
-    /// Drops below this are isolated callbacks (about 10–90 ms each) that no
-    /// listener would notice. A single one flagged a complete 33-minute
-    /// recording as "interrupted" on 2026-10-01.
     static let noticeableDroppedBuffers = 5
 
     static func dropsAreNoticeable(microphone: Int, system: Int) -> Bool {
@@ -96,32 +89,22 @@ struct RecordingHealthReport: Codable {
 
     mutating func observe(_ messages: [String], seconds: TimeInterval) -> Bool {
         guard events.last?.messages != messages else { return false }
-        // Keep the incident history bounded, preserving the first failure.
         if events.count >= 1_000 { events.remove(at: 1) }
         events.append(Event(seconds: max(0, seconds), messages: messages))
         return true
     }
 }
 
-/// When a live capture warning also becomes a macOS notification. The meeting
-/// view shows every warning as it happens; a notification interrupts the call
-/// itself, so it is kept for conditions that lasted long enough to matter.
-/// On 2026-10-01 a 1.9-second accessibility hiccup and one dropped buffer each
-/// raised "Recording needs attention" mid-meeting.
 struct CaptureWarningNotifications {
     static let droppedBuffersWarning = "Audio buffers were dropped while saving. Some audio may be missing."
     static let callStatusUnavailableWarning = "Call status is unavailable. Recording continues; use Stop when finished."
-    /// Audio that stops arriving must persist this long before it notifies.
     static let sustainedAudioWarningDelay: TimeInterval = 15
 
     private var firstSeen: [String: TimeInterval] = [:]
     private var notified: Set<String> = []
 
-    /// Seconds a warning must persist before it notifies; nil never notifies.
     static func delay(for message: String) -> TimeInterval? {
         if message == droppedBuffersWarning { return nil }
-        // The detector itself waits this long before it treats a lost call
-        // as anything but a hiccup.
         if message == callStatusUnavailableWarning { return MeetingDetector.browserObservationGrace }
         if message.hasPrefix("Disk space is low") || message.contains("saving needs attention")
             || message.hasPrefix("Recording health could not be saved") {
@@ -130,7 +113,6 @@ struct CaptureWarningNotifications {
         return sustainedAudioWarningDelay
     }
 
-    /// Warnings due for a notification now, each at most once per recording.
     mutating func due(_ messages: [String], elapsed: TimeInterval) -> [String] {
         let current = Set(messages)
         firstSeen = firstSeen.filter { current.contains($0.key) }

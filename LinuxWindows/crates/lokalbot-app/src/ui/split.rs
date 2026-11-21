@@ -1,7 +1,3 @@
-//! A pane beside the rest of its page, with a divider to drag (`HSplitView`
-//! with `splitPaneAccessibilityLabel`'s `autosaveName`). A pane's width is
-//! kept in settings under its key; dragging is the only thing that changes it.
-
 use std::ops::Range;
 
 use gpui_kit::component::resizable::{h_resizable, resizable_panel};
@@ -9,9 +5,7 @@ use gpui_kit::{App, Entity, IntoElement, ParentElement as _, Pixels, px};
 
 use crate::state::AppData;
 
-/// The list column's limits (`contentColumnMinWidth`, `maxWidth: 340`).
 pub const LIST_RANGE: Range<f32> = 240.0..340.0;
-/// The details pane's limits in Actions (`detailsMinWidth`, `detailsMaxWidth`).
 pub const DETAILS_RANGE: Range<f32> = 280.0..440.0;
 
 fn saved_width(
@@ -45,7 +39,6 @@ fn save_width(key: &'static str, width: Pixels, data: &Entity<AppData>, cx: &mut
     });
 }
 
-/// `list` at a remembered width, then `detail` filling the rest.
 pub fn leading(
     key: &'static str,
     default: Pixels,
@@ -72,7 +65,6 @@ pub fn leading(
         .child(resizable_panel().child(detail.into_any_element()))
 }
 
-/// `content` filling the page, then `pane` at a remembered width.
 pub fn trailing(
     key: &'static str,
     default: Pixels,
@@ -99,10 +91,6 @@ pub fn trailing(
         )
 }
 
-/// `content` filling the page, at least `content_minimum` wide, then `pane`
-/// at a remembered width (Timeline's rail). Until the divider is first
-/// dragged the pane opens at `default`, which the caller may work out from
-/// the window each time.
 #[allow(clippy::too_many_arguments)]
 pub fn trailing_pane(
     key: &'static str,

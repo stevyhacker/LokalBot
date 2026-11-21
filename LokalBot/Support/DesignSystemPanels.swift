@@ -1,8 +1,5 @@
 import SwiftUI
 
-// MARK: - Hero panel
-
-/// Adaptive welcome surface shared with the grouped content throughout the app.
 struct HeroPanel<Content: View>: View {
     @ViewBuilder var content: Content
 

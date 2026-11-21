@@ -1,7 +1,3 @@
-//! SHA-256 of files and of whole folders (`SHA256Verifier` in
-//! `AgentRuntime.swift`). The tree digest uses the macOS record format, so a
-//! digest computed here means the same thing as one computed by the Mac app.
-
 use std::fs::File;
 use std::io::Read as _;
 use std::path::Path;
@@ -13,7 +9,6 @@ const KIND_SYMLINK: u8 = 0x6C;
 const KIND_DIRECTORY: u8 = 0x64;
 const KIND_FILE: u8 = 0x66;
 
-/// Streaming digest so the ~80 MB Bun binary never lands in memory at once.
 pub fn file_hex(path: &Path) -> Result<String> {
     Ok(hex::encode(file_digest(path)?))
 }
@@ -34,12 +29,6 @@ fn file_digest(path: &Path) -> Result<[u8; 32]> {
     Ok(hasher.finalize().into())
 }
 
-/// Deterministic digest of a folder's complete shape and contents. Records
-/// are ordered by raw UTF-8 name within each folder, length-delimited, and
-/// tagged by type. Symlinks hash their link text and are never followed;
-/// regular files hash their bytes; folders are recorded so empty or extra
-/// folders change the digest. Metadata and absolute paths are left out, so
-/// identical installs hash identically.
 pub fn tree_hex(root: &Path) -> Result<String> {
     let metadata =
         std::fs::symlink_metadata(root).with_context(|| format!("reading {}", root.display()))?;
@@ -100,7 +89,6 @@ fn length_prefixed(hasher: &mut Sha256, bytes: &[u8]) {
     hasher.update(bytes);
 }
 
-/// Lowercase 64-character hex, as every receipt field must be.
 pub fn is_hex_digest(value: &str) -> bool {
     value.len() == 64 && value.chars().all(|c| c.is_ascii_hexdigit())
 }
@@ -141,9 +129,6 @@ mod tests {
         assert_ne!(digest, tree_hex(second.path()).unwrap());
     }
 
-    /// Matches `SHA256Verifier.treeHexDigest` on macOS for the same layout:
-    /// one folder `d` holding `f` = "x". Computed by hand from the record
-    /// format (kind, u64 big-endian length + path, u64 length + payload).
     #[test]
     fn tree_digest_uses_the_macos_record_format() {
         let dir = tempfile::tempdir().unwrap();

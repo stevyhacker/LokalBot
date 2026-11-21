@@ -1,10 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Sends synthetic text through the Mac's own signed-in Claude Code, on the
-/// Claude plan it is signed in with. Runs only when `LOKALBOT_CLAUDE_PLAN_LIVE`
-/// is set (pass `TEST_RUNNER_LOKALBOT_CLAUDE_PLAN_LIVE=1` through xcodebuild);
-/// `LOKALBOT_CLAUDE_PLAN_MODEL` overrides `haiku`.
 final class ClaudePlanLiveTests: XCTestCase {
     private func liveEngine() throws -> ClaudePlanEngine {
         let environment = ProcessInfo.processInfo.environment

@@ -1,5 +1,3 @@
-//! Blocking HTTP shared by the clients and the runtime's health checks.
-
 use std::io::{BufRead, BufReader};
 use std::time::Duration;
 
@@ -8,8 +6,6 @@ use serde_json::Value;
 
 use crate::error::AiError;
 
-/// An agent for one server. Loopback servers bypass any proxy from the
-/// environment; remote ones honour it. Status codes are returned, not raised.
 pub(crate) fn agent(base_url: &str, timeout: Duration) -> ureq::Agent {
     let mut builder = ureq::Agent::config_builder()
         .http_status_as_error(false)
@@ -41,7 +37,6 @@ impl Reply {
             .map_err(|_| AiError::BadResponse("the server returned invalid JSON".into()).into())
     }
 
-    /// `TextEngineError.fromHTTPResponse`: the server's own message, clipped.
     pub fn status_error(&self) -> AiError {
         let detail = serde_json::from_slice::<Value>(&self.body)
             .ok()
@@ -82,7 +77,6 @@ fn unreachable(base: &str, err: ureq::Error) -> anyhow::Error {
     AiError::ServerUnreachable(base.to_string()).into()
 }
 
-/// The host of a URL for logs; never the path or query.
 pub(crate) fn host_label(url: &str) -> String {
     lokalbot_core::access::origin_of(url)
         .and_then(|o| o.split_once("://").map(|(_, h)| h.to_string()))
@@ -120,8 +114,6 @@ fn finish(
     })
 }
 
-/// `Retry-After` in seconds. `inf` or a value too large for a `Duration` is
-/// ignored, so the caller's own backoff applies instead of a panic.
 fn retry_after(value: &str) -> Option<Duration> {
     let seconds = value.trim().parse::<f64>().ok()?;
     Duration::try_from_secs_f64(seconds.max(0.0)).ok()
@@ -149,8 +141,6 @@ pub(crate) fn get(agent: &ureq::Agent, url: &str, bearer: Option<&str>) -> Resul
     finish(url, request.call())
 }
 
-/// A JSON POST with explicit headers (Anthropic's `x-api-key`, a plan's
-/// bearer token). Header values are never logged.
 pub(crate) fn post_json_with(
     agent: &ureq::Agent,
     url: &str,
@@ -165,7 +155,6 @@ pub(crate) fn post_json_with(
     finish(url, request.send(&bytes[..]))
 }
 
-/// A POST of ready-made bytes (a multipart form) with explicit headers.
 pub(crate) fn post_bytes_with(
     agent: &ureq::Agent,
     url: &str,
@@ -179,7 +168,6 @@ pub(crate) fn post_bytes_with(
     finish(url, request.send(body))
 }
 
-/// A GET with explicit headers.
 pub(crate) fn get_with(
     agent: &ureq::Agent,
     url: &str,
@@ -192,8 +180,6 @@ pub(crate) fn get_with(
     finish(url, request.call())
 }
 
-/// An `application/x-www-form-urlencoded` POST (OAuth token endpoints).
-/// Fields are sent in key order, every value percent-encoded.
 pub(crate) fn post_form(agent: &ureq::Agent, url: &str, fields: &[(&str, &str)]) -> Result<Reply> {
     let mut sorted = fields.to_vec();
     sorted.sort_by(|a, b| a.0.cmp(b.0));
@@ -209,7 +195,6 @@ pub(crate) fn post_form(agent: &ureq::Agent, url: &str, fields: &[(&str, &str)])
     finish(url, request.send(body.as_bytes()))
 }
 
-/// Percent-encodes everything outside RFC 3986's unreserved characters.
 pub(crate) fn form_escaped(value: &str) -> String {
     let mut out = String::with_capacity(value.len());
     for byte in value.bytes() {
@@ -222,7 +207,6 @@ pub(crate) fn form_escaped(value: &str) -> String {
     out
 }
 
-/// A response whose body is read line by line (SSE, NDJSON).
 pub(crate) struct LineStream {
     pub status: u16,
     reader: Option<BufReader<ureq::BodyReader<'static>>>,
@@ -230,7 +214,6 @@ pub(crate) struct LineStream {
 }
 
 impl LineStream {
-    /// The next line without its terminator; `None` at the end of the body.
     pub fn next_line(&mut self, base: &str) -> Result<Option<String>> {
         let Some(reader) = self.reader.as_mut() else {
             return Ok(None);
@@ -269,7 +252,6 @@ pub(crate) fn post_stream(
     post_stream_with(agent, url, &headers, body)
 }
 
-/// [`post_stream`] with explicit headers.
 pub(crate) fn post_stream_with(
     agent: &ureq::Agent,
     url: &str,
@@ -306,9 +288,6 @@ pub(crate) fn post_stream_with(
 
 #[cfg(test)]
 pub(crate) mod testing {
-    //! A tiny in-process HTTP/1.1 server that plays llama-server, Ollama,
-    //! OpenAI-style APIs and file hosts in tests.
-
     use std::io::{BufRead, BufReader, Read, Write};
     use std::net::{TcpListener, TcpStream};
     use std::sync::Arc;
@@ -341,13 +320,9 @@ pub(crate) mod testing {
     pub enum Reply {
         Json(u16, Value),
         Text(u16, String),
-        /// Server-sent events: each item is written as `data: <item>\n\n`.
         Sse(Vec<String>),
-        /// A raw `text/event-stream` body, written as given.
         RawSse(String),
-        /// Newline-delimited JSON, one value per line.
         Lines(Vec<String>),
-        /// A file honouring HEAD and `Range: bytes=a-b` / `bytes=a-`.
         File(Arc<Vec<u8>>),
     }
 
@@ -361,7 +336,6 @@ pub(crate) mod testing {
     pub struct StubResponse;
 
     impl StubResponse {
-        /// Serves `bytes` at `path`; everything else is 404.
         pub fn file_route(
             path: &'static str,
             bytes: Vec<u8>,

@@ -1,8 +1,3 @@
-//! The agent setup window (`AgentSetupView.swift`): an agent ran `lokalbot-cli
-//! setup start` and asks to set LokalBot up for the person. Allow turns on
-//! settings access and any read access the person ticks; Don't Allow leaves
-//! everything off.
-
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::{Sizable as _, TitleBar, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -21,7 +16,6 @@ use crate::ui::{self, Ico, settings_row};
 const WIDTH: f32 = 540.;
 const HEIGHT: f32 = 520.;
 
-/// Opens the window, or brings it forward.
 pub fn open(cx: &mut App) {
     let existing = super::secondary(cx).agent_setup;
     if super::activate(existing, cx) {
@@ -73,7 +67,6 @@ impl AgentSetup {
                     .as_ref()
                     .map(|request| request.nonce.clone());
                 if nonce != this.nonce {
-                    // A new request starts with nothing ticked.
                     this.meeting_library = false;
                     this.screen_memory = false;
                     this.files = false;

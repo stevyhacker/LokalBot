@@ -1,47 +1,28 @@
-//! PDFs read for their words, page by page. The Mac (PDFKit) and DigUp's other
-//! builds (PDFium) draw pages with little text and embed the picture. No PDF renderer
-//! ships here, so a page with little text is read from the largest picture stored in
-//! it, when that's a JPEG or a plain raster. Other scans (JBIG2, CCITT, JPEG 2000)
-//! and pages drawn from vectors stay unread, and Settings says so.
-
 use std::path::Path;
 
 use super::documents::ReadError;
 use super::image_sizing::Rgb;
 
-/// Larger files aren't loaded whole.
 const MAX_BYTES: u64 = 1 << 30;
-/// A scanned page is read at this size, like the Mac's rendered page (`renderPixels`).
 const SCAN_PIXELS: u32 = 1400;
-/// A stored picture with more pixels than this isn't decoded.
 const MAX_SCAN_PIXELS: i64 = 200_000_000;
 
-/// One page's text, or why it can't be shown.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Page {
-    /// From 1.
     pub number: usize,
     pub text: String,
-    /// Text read in glyph order: too garbled to show or match words against, but
-    /// enough of its words survive for a meaning vector.
     pub garbled: Option<String>,
-    /// The picture of a page with too little text, for OCR and the image model.
     pub scan: Option<Rgb>,
-    /// That picture, sized and encoded for the image model.
     pub picture: Option<Vec<u8>>,
 }
 
 #[derive(Debug)]
 pub struct Document {
     pub title: Option<String>,
-    /// Text of every page, in order.
     pub pages: Vec<String>,
-    /// For reading pictures. `None` for an encrypted file.
     parsed: Option<lopdf::Document>,
 }
 
-/// Every page's text. A malformed file can make the parser panic: that fails
-/// this file only.
 pub fn read(path: &Path) -> Result<Document, ReadError> {
     let size = std::fs::metadata(path)
         .map_err(|err| ReadError::Unreadable(err.to_string()))?
@@ -71,8 +52,6 @@ fn parse(bytes: &[u8]) -> Result<Document, ReadError> {
     })
 }
 
-/// The largest picture stored in page `number` (from 1), at least `min_side` pixels
-/// each way. A malformed one can make a decoder panic: that loses this picture only.
 fn scan_of(document: &lopdf::Document, number: usize, min_side: u32) -> Option<Rgb> {
     let read = std::panic::AssertUnwindSafe(|| {
         let id = *document.get_pages().get(&(number as u32))?;
@@ -125,12 +104,10 @@ fn decode_picture(
             let stream = document.get_object(image.id).ok()?.as_stream().ok()?;
             raster(image, &stream.decompressed_content().ok()?)
         }
-        // JBIG2, CCITT and JPEG 2000 have no decoder here.
         _ => None,
     }
 }
 
-/// Plain samples: 8-bit colour or gray, or 1-bit gray as office scanners write it.
 fn raster(image: &lopdf::xobject::PdfImage<'_>, samples: &[u8]) -> Option<image::RgbImage> {
     let width = usize::try_from(image.width).ok()?;
     let height = usize::try_from(image.height).ok()?;
@@ -152,7 +129,6 @@ fn raster(image: &lopdf::xobject::PdfImage<'_>, samples: &[u8]) -> Option<image:
             if samples.len() < row.checked_mul(height)? {
                 return None;
             }
-            // `/Decode [1 0]` swaps which bit is white.
             let inverted = image
                 .origin_dict
                 .get(b"Decode")
@@ -176,7 +152,6 @@ fn raster(image: &lopdf::xobject::PdfImage<'_>, samples: &[u8]) -> Option<image:
     image::RgbImage::from_raw(image.width as u32, image.height as u32, rgb)
 }
 
-/// An owner password alone still lets anyone read: an empty password opens it.
 fn opens_without_password(bytes: &[u8]) -> bool {
     lopdf::Document::load_mem(bytes)
         .map(|mut document| document.decrypt("").is_ok())
@@ -207,8 +182,6 @@ fn document_title(document: &lopdf::Document) -> Option<String> {
     (!text.is_empty()).then(|| text.to_string())
 }
 
-/// How many pages a PDF has, from its page tree alone. One when it can't say,
-/// as `Estimator.pages` guesses.
 pub fn page_count(path: &Path) -> usize {
     let count = std::panic::catch_unwind(|| {
         lopdf::Document::load_metadata(path)
@@ -218,8 +191,6 @@ pub fn page_count(path: &Path) -> usize {
     count.ok().flatten().filter(|n| *n > 0).unwrap_or(1)
 }
 
-/// Pages `range` (from 0) of `document`. A page with fewer than `min_text` characters
-/// also brings its picture, when it has one of at least `min_side` pixels.
 pub fn pages_in(
     document: &Document,
     range: std::ops::Range<usize>,
@@ -250,8 +221,6 @@ pub fn pages_in(
         .collect()
 }
 
-/// Dependent vowel signs of Bengali and Devanagari: in a real word, each follows
-/// a consonant or its nukta (`PageTextProblem.glyphOrder`).
 fn glyph_order_problem(text: &str) -> bool {
     fn is_vowel_sign(value: u32) -> bool {
         matches!(value,
@@ -280,18 +249,13 @@ fn glyph_order_problem(text: &str) -> bool {
 
 #[cfg(test)]
 pub(crate) mod tests_support {
-    /// What a scanned page stores.
     pub(crate) enum ScanPicture {
         Jpeg(u32, u32),
-        /// Colour space, bits per component, samples; 300 × 400, Flate compressed.
         Flate(&'static [u8], i64, Vec<u8>),
-        /// 1-bit gray, uncompressed.
         Bitmap(i64, i64, Vec<u8>),
-        /// A filter with no decoder here.
         Named(&'static [u8]),
     }
 
-    /// A one-page PDF with no text and one picture.
     pub(crate) fn scanned_pdf(picture: ScanPicture) -> Vec<u8> {
         use lopdf::{Dictionary, Object, Stream, dictionary};
         let image = |width: i64, height: i64, space: &[u8], bits: i64| -> Dictionary {
@@ -358,7 +322,6 @@ pub(crate) mod tests_support {
         out
     }
 
-    /// A small PDF with one line of text per page, built by hand.
     pub(crate) fn sample_pdf(pages: &[&str]) -> Vec<u8> {
         let mut objects: Vec<String> = Vec::new();
         let kids: Vec<String> = (0..pages.len())
@@ -426,7 +389,6 @@ mod tests {
         assert_eq!(pages.len(), 1);
         assert_eq!(pages[0].number, 2);
         assert!(pages[0].garbled.is_none());
-        // Little text, but no picture to read instead.
         assert!(pages[0].scan.is_none());
     }
 
@@ -469,7 +431,6 @@ mod tests {
             assert_eq!((scan.width, scan.height), (300, 400));
             assert!(scan.pixels.iter().all(|value| *value == 200));
         }
-        // 1-bit: a set bit is white. 304 wide so each row is 38 whole bytes.
         let document = write_scan(
             &dir,
             tests_support::ScanPicture::Bitmap(304, 400, vec![0xFF; 38 * 400]),
@@ -506,7 +467,6 @@ mod tests {
 
     #[test]
     fn glyph_order_is_told_from_real_text() {
-        // Vowel signs ahead of their consonants.
         assert!(glyph_order_problem(&"িক".repeat(12)));
         assert!(!glyph_order_problem(&"কি".repeat(12)));
         assert!(!glyph_order_problem("plain English text"));

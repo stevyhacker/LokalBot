@@ -3,7 +3,6 @@ import Foundation
 struct AgentLLMConnection: Equatable, Sendable {
     let endpoint: AgentLLMEndpoint
     let lease: InferenceLease?
-    /// The session's ChatGPT plan relay; stop it when the session ends.
     var relay: ChatGPTPlanRelay?
 }
 
@@ -24,9 +23,6 @@ enum ThinkExecutionError: LocalizedError, Sendable {
     }
 }
 
-/// The complete execution boundary for LokalBot's Think role: backend
-/// selection, local model preparation, endpoint privacy checks, runtime
-/// leases, managed recovery, and Agent Mode endpoint resolution.
 @MainActor
 final class ThinkExecution {
     typealias BuiltInModelPreparer = (
@@ -100,7 +96,6 @@ final class ThinkExecution {
             if model.isEmpty {
                 model = await OllamaEngine.listModels(baseURL: url).first ?? ""
             }
-            // Only a chosen level needs to know what the model accepts.
             let support = settings.thinkReasoningLevel == .automatic || model.isEmpty ? nil
                 : await OllamaEngine.reasoningSupport(baseURL: url, model: model)
             return GatedTextEngine(
@@ -119,8 +114,6 @@ final class ThinkExecution {
                 url,
                 approvedOrigins: settings.approvedRemoteInferenceOrigins)
             if AnthropicAPI.isAnthropic(url) {
-                // Claude's native Messages API: structured output within its
-                // schema subset, effort, refusals, and prompt caching.
                 return GatedTextEngine(
                     base: AnthropicEngine(
                         baseURL: url,
@@ -140,9 +133,6 @@ final class ThinkExecution {
                 reasoningLevel: settings.thinkReasoningLevel,
                 reasoningSupport: settings.thinkReasoningLevel == .automatic
                     ? nil : await ReasoningSupport.resolve(for: settings))
-            // External servers share one gate per origin so scheduled work
-            // cannot crowd out meeting notes or chat, and a rate limit pauses
-            // every caller instead of each replaying a second later.
             return GatedTextEngine(
                 base: engine,
                 origin: RemoteInferenceGate.origin(for: url),
@@ -154,9 +144,6 @@ final class ThinkExecution {
                 throw ThinkExecutionError.invalidConfiguration
             }
             guard plan.isApproved(in: settings) else { throw SubscriptionPlanError.approvalRequired(plan) }
-            // Plan credentials are read per request (OpenAI) or never read at
-            // all (CLI-backed plans keep their own), so presentation-only
-            // engines need no special case.
             let base: TextEngine = switch plan {
             case .chatGPT:
                 ChatGPTPlanEngine(model: settings.chatGPTPlanModel,
@@ -174,16 +161,11 @@ final class ThinkExecution {
         }
     }
 
-    /// Ensure the selected built-in model is present before the first request.
-    /// The shared download manager coalesces callers and validates pinned model
-    /// digests before returning the local URL.
     @discardableResult
     func prepareBuiltInModel(_ settings: AppSettings) async throws -> URL {
         try await builtInModelPreparer(try builtInEntry(settings), storage)
     }
 
-    /// A built-in request already gets one managed server relaunch and replay
-    /// inside `LeasedTextEngine`; never stack the provider retry on top of it.
     func retryDelay(
         for error: Error,
         settings: AppSettings,
@@ -201,9 +183,6 @@ final class ThinkExecution {
             jitter: jitter)
     }
 
-    /// Resolve and, for the built-in backend, lease the endpoint used for one
-    /// Agent Mode session. Remote endpoints pass through the same approval and
-    /// encrypted-transport policy as the rest of the Think role.
     func prepareAgentConnection(
         settings: AppSettings,
         includingCredentials: Bool = true,
@@ -216,7 +195,6 @@ final class ThinkExecution {
             return AgentLLMConnection(endpoint: endpoint, lease: nil)
 
         case .chatGPTPlan(let model):
-            // A missing sign-in opens Models now instead of failing the first turn.
             if includingCredentials {
                 let status = await planAccount.status()
                 guard status.isSignedIn else {
@@ -270,8 +248,6 @@ final class ThinkExecution {
         }
     }
 
-    /// Pure settings-to-endpoint resolution shared by Agent Mode and the
-    /// external agent-access wake path. Runtime acquisition remains explicit.
     nonisolated static func agentResolution(
         settings: AppSettings,
         includingCredentials: Bool = true
@@ -291,8 +267,6 @@ final class ThinkExecution {
                 reason: "Apple Intelligence doesn't expose a local endpoint Agent Mode can use. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
 
         case .chatGPTPlan:
-            // pi reaches the plan through a relay that holds the tokens, so
-            // nothing here reads credentials.
             let plan = SubscriptionPlan.chatGPT
             guard plan.isApproved(in: settings) else {
                 return .unsupported(reason: SubscriptionPlanError.approvalRequired(plan).localizedDescription)
@@ -304,8 +278,6 @@ final class ThinkExecution {
             return .chatGPTPlan(model: model)
 
         case .claudePlan, .antigravityPlan, .geminiPlan:
-            // CLI-backed plans run their own agent binary and offer no HTTP
-            // model endpoint for Agent Mode's runtime to call.
             let title = SubscriptionPlan(backend: settings.summarizerBackend)?.title ?? settings.summarizerBackend.displayName
             return .unsupported(
                 reason: "Agent Mode can't run on your \(title) yet. Switch the Think model to Built-in (on-device), Ollama, an OpenAI-compatible server, or your ChatGPT plan under Settings → Models.")
@@ -357,11 +329,7 @@ final class ThinkExecution {
                 return .unsupported(
                     reason: "Set a model name for the OpenAI-compatible server under Settings → Models.")
             }
-            // Presentation can validate the same destination without reading
-            // Keychain on every view update. Launch resolution keeps credentials.
             let key = includingCredentials ? settings.openAIAPIKey : ""
-            // Agent Mode's runtime speaks chat completions, which Anthropic
-            // serves under /v1 whichever form of its URL was entered.
             return .ready(AgentLLMEndpoint(
                 baseURL: AnthropicAPI.isAnthropic(base) ? AnthropicAPI.versionedRoot(base) : base,
                 model: settings.openAIModel,

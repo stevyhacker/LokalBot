@@ -42,7 +42,6 @@ final class MeetingMergeServiceTests: XCTestCase {
             [first.meeting.id, third.id, nested.meeting.id]))
         for meeting in order {
             try storage.deleteMeeting(meeting)
-            // Loading between every operation simulates a restart checkpoint.
             XCTAssertTrue(Set(storage.loadMeetings().map(\.id))
                 .isSubset(of: [nested.meeting.id, unrelated.id]))
         }
@@ -101,8 +100,6 @@ final class MeetingMergeServiceTests: XCTestCase {
         for source in result.sourceMeetings {
             XCTAssertEqual(try persistedMeeting(source, storage: storage).mergedIntoMeetingID, result.meeting.id)
         }
-        // No partial transaction may tombstone the parent while leaving the
-        // failed source restore committed.
         XCTAssertFalse(db.hasRow("SELECT 1 FROM deleted_meetings WHERE meeting_id = ?1",
                                 bind: [result.meeting.id.uuidString]))
         XCTAssertTrue(db.exec("DROP TRIGGER fail_restore"))
@@ -132,7 +129,6 @@ final class MeetingMergeServiceTests: XCTestCase {
     func testCLIProjectionHandlesFoldedLegacyAndOrphanSourcesWithoutWriting() async throws {
         let (storage, result) = try await mergeFixture()
         XCTAssertEqual(try SessionLookup.loadAllMeetings(root: storage.rootURL).map(\.id), [result.meeting.id])
-        // Older merge records can have the manifest without a source marker.
         var legacy = result.sourceMeetings[0]
         legacy.mergedIntoMeetingID = nil
         try storage.saveMeta(legacy)
@@ -142,7 +138,6 @@ final class MeetingMergeServiceTests: XCTestCase {
         let visible = try SessionLookup.loadAllMeetings(root: storage.rootURL)
         XCTAssertEqual(Set(visible.map(\.id)), Set(result.sourceMeetings.map(\.id)))
         XCTAssertTrue(visible.allSatisfy { !$0.isMergedSource })
-        // CLI must not persist repairs or mutate search state.
         XCTAssertNotNil(try persistedMeeting(result.sourceMeetings[1], storage: storage).mergedIntoMeetingID)
     }
 
@@ -346,8 +341,6 @@ final class MeetingMergeServiceTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(transcript.segments[2].start, 20)
     }
 
-    /// Screen context is gated on the import marker, so a merge that folds in
-    /// an imported recording, directly or through an earlier merge, keeps it.
     func testMergeKeepsImportedFileNamesThroughMixedAndNestedMerges() async throws {
         let (storage, recordings) = try await mergeFixture()
         XCTAssertFalse(recordings.meeting.isImported, "a merge of recordings stays a recording")

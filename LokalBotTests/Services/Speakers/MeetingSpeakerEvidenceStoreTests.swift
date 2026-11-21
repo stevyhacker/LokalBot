@@ -39,8 +39,6 @@ import XCTest
         XCTAssertTrue(expired.voiceSamples.isEmpty)
     }
 
-    /// The hourly pass meets every old meeting again; one it already emptied
-    /// must not be rewritten, or its revisions would advance forever.
     func testExpiryLeavesAnAlreadyErasedJournalAsItIs() async throws {
         var saved = MeetingSpeakerIdentityState(meetingID: meeting.id)
         saved.voiceSamples = enrollment().2
@@ -95,8 +93,6 @@ import XCTest
                 expectedEvidenceRevision: snapshot)
             XCTFail("An old matching task survived explicit evidence deletion")
         } catch MeetingSpeakerEvidenceStore.Failure.evidenceExpired {
-            // Even a writer refreshed to the latest assignment revision cannot
-            // reintroduce deleted evidence from its original snapshot.
         }
     }
 

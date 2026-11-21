@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// The Hand off review panel: the window LokalBot read, the brief the Think
-/// model wrote, which the person can edit, and where to hand it.
 struct WindowHandoffView: View {
     @EnvironmentObject private var app: AppState
 
@@ -36,8 +34,6 @@ private struct WindowHandoffContent: View {
         }
         .onDisappear { controller.panelClosed() }
     }
-
-    // MARK: - Header
 
     private var header: some View {
         HStack(alignment: .top, spacing: 10) {
@@ -91,8 +87,6 @@ private struct WindowHandoffContent: View {
         }
     }
 
-    /// What was read: the address, how much text, the screenshot, and any
-    /// redactions.
     private var captureSummary: String {
         let capture = controller.capture
         let language = app.settings.appLanguage
@@ -107,8 +101,6 @@ private struct WindowHandoffContent: View {
         }
         return parts.joined(separator: " · ")
     }
-
-    // MARK: - Content
 
     @ViewBuilder private var content: some View {
         if controller.needsSourceWindow {
@@ -240,7 +232,6 @@ private struct WindowHandoffContent: View {
         }
     }
 
-    /// Whether anything leaves the Mac before the person presses Send there.
     @ViewBuilder private var targetNote: some View {
         switch controller.target {
         case .agentMode:
@@ -257,8 +248,6 @@ private struct WindowHandoffContent: View {
             Text("The brief and the handoff folder's location are copied to the clipboard.")
         }
     }
-
-    // MARK: - Footer
 
     private var footer: some View {
         HStack(spacing: 12) {

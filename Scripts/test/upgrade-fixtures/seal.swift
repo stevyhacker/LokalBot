@@ -1,7 +1,3 @@
-// Seals a file with AES-GCM under a hex key, the way PersonalModelStore
-// writes memory/personal-model.json.enc, so upgrade fixtures carry the
-// encrypted form a real library has.
-// Usage: swift seal.swift <key-hex> <input> <output>
 import CryptoKit
 import Foundation
 

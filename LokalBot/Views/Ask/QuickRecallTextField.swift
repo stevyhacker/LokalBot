@@ -1,28 +1,15 @@
 import AppKit
 import SwiftUI
 
-/// The Quick Recall field. One AppKit responder owns both text insertion and
-/// the keys that move through the list, as the ⌘K palette's field did:
-/// combining SwiftUI's text-field bridge with ancestor `onKeyPress` handlers
-/// can deliver the same printable key through two input paths on macOS, so a
-/// typed character arrived twice.
 struct QuickRecallTextField: NSViewRepresentable {
     @Environment(\.locale) private var locale
     @Binding var text: String
-    /// A catalog key.
     let placeholder: String
-    /// What the keys do, for VoiceOver. A catalog key. It is set on the
-    /// AppKit field itself: a SwiftUI accessibility modifier here would wrap
-    /// the field and hide its identifier and value.
     var hint: String?
     let fontSize: CGFloat
-    /// Each new value moves keyboard focus to the field.
     let focusRequest: Int
-    /// Return.
     let onSubmit: () -> Void
-    /// ⌘Return, when it reaches the field instead of the Ask row's shortcut.
     let onCommandSubmit: () -> Void
-    /// Up (-1) or Down (1). False leaves the key to the field.
     let onMove: (Int) -> Bool
     let onCancel: () -> Void
 
@@ -127,10 +114,6 @@ struct QuickRecallTextField: NSViewRepresentable {
     }
 }
 
-/// Takes keyboard focus as soon as it is in a window, whether or not that
-/// window is key yet: Quick Recall opens while LokalBot is still coming
-/// forward from another app, and must be ready for typing when it arrives.
-/// The field never activates the app or orders a window itself.
 final class QuickRecallField: NSTextField {
     private var focusToken = 0
     private var keyObserver: NSObjectProtocol?
@@ -140,7 +123,6 @@ final class QuickRecallField: NSTextField {
         if let keyObserver { NotificationCenter.default.removeObserver(keyObserver) }
         keyObserver = nil
         guard let window else { return }
-        // A window shown again after Escape can come back with nothing focused.
         keyObserver = NotificationCenter.default.addObserver(
             forName: NSWindow.didBecomeKeyNotification, object: window, queue: .main) { [weak self] _ in
             Task { @MainActor in self?.focusIfNothingIsFocused() }
@@ -165,7 +147,6 @@ final class QuickRecallField: NSTextField {
                 retryFocus(token: token, after: attempt)
                 return
             }
-            // A text field edits through the window's field editor.
             if let editor = currentEditor(), window.firstResponder === editor { return }
             guard window.makeFirstResponder(self) else {
                 retryFocus(token: token, after: attempt)

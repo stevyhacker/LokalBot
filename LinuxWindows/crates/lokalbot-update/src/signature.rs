@@ -1,12 +1,3 @@
-//! Sparkle-compatible Ed25519 signatures over the update archive's bytes.
-//!
-//! The macOS app's `SUPublicEDKey` verifies these, and the release signs
-//! them with the same `SPARKLE_PRIVATE_KEY` that `sign_update` uses for the
-//! DMG. Sparkle's private key is base64 text in one of two forms
-//! (`common_cli/Secret.swift`): a 32-byte seed, or, for keys made by older
-//! Sparkle releases, the 64-byte orlp expanded secret key followed by the
-//! 32-byte public key. Both sign identically.
-
 use base64::Engine as _;
 use base64::engine::general_purpose::STANDARD;
 use ed25519_dalek::hazmat::{ExpandedSecretKey, raw_sign};
@@ -16,7 +7,6 @@ use ed25519_dalek::{Sha512, Signature, SigningKey, VerifyingKey};
 pub enum SignatureError {
     #[error("the public key is not a base64 Ed25519 key")]
     InvalidPublicKey,
-    /// Never echoes the key text, which may be the secret itself.
     #[error("the private key is not a base64 Sparkle Ed25519 key (32 or 96 bytes)")]
     InvalidPrivateKey,
     #[error("the signature is not a base64 Ed25519 signature")]
@@ -25,7 +15,6 @@ pub enum SignatureError {
     Mismatch,
 }
 
-/// The key installed copies trust.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PublicKey(VerifyingKey);
 
@@ -41,7 +30,6 @@ impl PublicKey {
             .map_err(|_| SignatureError::InvalidPublicKey)
     }
 
-    /// `SUPublicEDKey` from `LokalBot/Info.plist`.
     pub fn embedded() -> Self {
         Self::from_base64(crate::PUBLIC_KEY).expect("the embedded update key is valid")
     }
@@ -50,8 +38,6 @@ impl PublicKey {
         STANDARD.encode(self.0.as_bytes())
     }
 
-    /// Checks `signature` (base64) over `message`. Strict verification
-    /// rejects small-order keys and non-canonical signatures.
     pub fn verify(&self, message: &[u8], signature: &str) -> Result<(), SignatureError> {
         let signature = decode_signature(signature)?;
         self.0
@@ -60,7 +46,6 @@ impl PublicKey {
     }
 }
 
-/// Parses a base64 signature without checking it.
 pub fn decode_signature(text: &str) -> Result<Signature, SignatureError> {
     let bytes: [u8; 64] = STANDARD
         .decode(text.trim())
@@ -70,15 +55,12 @@ pub fn decode_signature(text: &str) -> Result<Signature, SignatureError> {
     Ok(Signature::from_bytes(&bytes))
 }
 
-/// The release key. Only the release tool and tests hold one.
 pub struct SecretKey {
     expanded: ExpandedSecretKey,
     public: VerifyingKey,
 }
 
 impl SecretKey {
-    /// Reads Sparkle's base64 private key text (surrounding whitespace is
-    /// ignored, as `sign_update --ed-key-file` does).
     pub fn from_sparkle(text: &str) -> Result<Self, SignatureError> {
         let bytes = STANDARD
             .decode(text.trim())
@@ -98,8 +80,6 @@ impl SecretKey {
                 let public = VerifyingKey::from_bytes(&public)
                     .map_err(|_| SignatureError::InvalidPrivateKey)?;
                 let expanded = ExpandedSecretKey::from_bytes(&expanded);
-                // The stored public half must belong to the secret half, or
-                // every signature would fail to verify.
                 if VerifyingKey::from(&expanded) != public {
                     return Err(SignatureError::InvalidPrivateKey);
                 }
@@ -113,7 +93,6 @@ impl SecretKey {
         PublicKey(self.public)
     }
 
-    /// The base64 signature of `message`.
     pub fn sign(&self, message: &[u8]) -> String {
         let signature = raw_sign::<Sha512>(&self.expanded, message, &self.public);
         STANDARD.encode(signature.to_bytes())
@@ -125,7 +104,6 @@ mod tests {
     use super::*;
     use sha2::Digest as _;
 
-    /// Throwaway seeds for tests only; never the release key.
     const SEED: [u8; 32] = [7; 32];
     const OTHER_SEED: [u8; 32] = [9; 32];
 
@@ -133,8 +111,6 @@ mod tests {
         STANDARD.encode(seed)
     }
 
-    /// Sparkle's older format: orlp's expanded key (clamped SHA-512 of the
-    /// seed) followed by the public key.
     fn legacy_key(seed: [u8; 32]) -> String {
         let mut expanded: [u8; 64] = sha2::Sha512::digest(seed).into();
         expanded[0] &= 248;
@@ -160,7 +136,6 @@ mod tests {
         let legacy = SecretKey::from_sparkle(&format!("  {}\n", legacy_key(SEED))).unwrap();
         assert_eq!(seed.public_key(), legacy.public_key());
         assert_eq!(seed.sign(b"archive"), legacy.sign(b"archive"));
-        // And they match a standard Ed25519 signer.
         let standard = ed25519_dalek::Signer::sign(&SigningKey::from_bytes(&SEED), b"archive");
         assert_eq!(seed.sign(b"archive"), STANDARD.encode(standard.to_bytes()));
     }
@@ -220,7 +195,6 @@ mod tests {
             assert_eq!(error, SignatureError::InvalidPrivateKey);
             assert!(text.is_empty() || !error.to_string().contains(text));
         }
-        // A legacy key whose public half belongs to another seed.
         let mut mixed = STANDARD.decode(legacy_key(SEED)).unwrap();
         let other = SigningKey::from_bytes(&OTHER_SEED).verifying_key();
         mixed[64..].copy_from_slice(other.as_bytes());

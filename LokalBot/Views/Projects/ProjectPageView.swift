@@ -1,20 +1,10 @@
 import SwiftUI
 
-/// One project's page. A tracked project leads with "Where it stands", the
-/// only block a model wrote, marked with the sparkle and one line saying
-/// when, by which model and where. Everything outside that card is a fact
-/// from the library: your actions, what is waiting on others, decisions, and
-/// the meetings with the line that names the project. Window time, people
-/// and names sit in a side column. A suggestion opens on the decision
-/// instead, and a project nothing names yet is one message.
 struct ProjectDetailView: View {
     @EnvironmentObject var app: AppState
     let project: ProjectProfile
     @ObservedObject var store: ProjectStore
-    /// A provisional page for a project tracked a moment ago.
     var isSettling = false
-    /// For a suggestion: the tracked project that already has at least half
-    /// of its meetings.
     var home: ProjectSuggestionHome.Match?
     let commands: ProjectCommands
     @State private var showsAllOthersActions = false
@@ -57,8 +47,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    // MARK: - Nothing linked yet
-
     private var emptyProject: some View {
         VStack(spacing: 8) {
             Image(systemName: "folder")
@@ -86,8 +74,6 @@ struct ProjectDetailView: View {
         .accessibilityIdentifier("project.empty")
     }
 
-    // MARK: - Facts
-
     @ViewBuilder private var myActions: some View {
         if !project.myActions.isEmpty {
             VStack(alignment: .leading, spacing: 0) {
@@ -100,8 +86,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    /// Other people's open work, recent first: three rows, then the rest on
-    /// request.
     @ViewBuilder private var othersActions: some View {
         let threads = ProjectPagePresentation.othersActions(project)
         if !threads.isEmpty {
@@ -156,8 +140,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    /// Each meeting with the line that names the project, so it is clear why
-    /// it is linked. A line from the transcript plays from its moment.
     @ViewBuilder private func meetings(title: LocalizedStringKey) -> some View {
         if !project.meetings.isEmpty {
             let hidden = PeopleWording.hiddenCount(
@@ -190,10 +172,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    // MARK: - Side column
-
-    /// Window time over the days `ProjectLinks` measures: the total, a bar a
-    /// day, and the longest windows.
     @ViewBuilder private var time: some View {
         if showsTime {
             let days = ProjectTimePresentation.days(project.days)
@@ -241,7 +219,6 @@ struct ProjectDetailView: View {
         }
     }
 
-    /// The name and other names the project is matched by.
     private var names: some View {
         SideColumnBlock(title: "Names") {
             MeetingWrappingRow(spacing: 6, lineSpacing: 6) {
@@ -260,11 +237,6 @@ struct ProjectDetailView: View {
     }
 }
 
-/// The tracked project's "Where it stands" note, the only model-written
-/// text on the page: overview, points with the meeting each comes from, and
-/// open questions. Its heading says when it was written, by which model and
-/// where that ran. A note whose evidence has changed stays, marked, until
-/// the person updates it or an approved automatic update replaces it.
 private struct WhereItStandsCard: View {
     @EnvironmentObject var app: AppState
     let project: ProjectProfile
@@ -281,8 +253,6 @@ private struct WhereItStandsCard: View {
     var body: some View {
         let evidence = self.evidence
         let isWriting = trackedID.map { store.writing.contains($0) } ?? false
-        // A project tracked a moment ago starts its note as soon as its
-        // evidence arrives, when automatic writing is allowed.
         let writing = isWriting || (isSettling && !evidence.isEmpty && app.writesProjectSummariesAutomatically)
         VStack(alignment: .leading, spacing: 10) {
             heading(writing: writing, canWrite: !evidence.isEmpty && !isSettling)
@@ -294,8 +264,6 @@ private struct WhereItStandsCard: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .accessibilityIdentifier("project.summary.stale")
                 }
-                // The note being replaced stays readable while the new one
-                // is written.
                 ProjectNoteText(summary: summary, locale: locale, localize: localize)
                     .opacity(writing ? 0.5 : 1)
             } else if writing {
@@ -327,9 +295,6 @@ private struct WhereItStandsCard: View {
         .accessibilityIdentifier("project.summary")
     }
 
-    /// The sparkle and title, then who wrote the note and the button. The
-    /// provenance moves under the title when the card is too narrow for one
-    /// line.
     private func heading(writing: Bool, canWrite: Bool) -> some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -362,8 +327,6 @@ private struct WhereItStandsCard: View {
         }
     }
 
-    /// Always from the saved note: when it was written, the model's name,
-    /// and this Mac or the server it ran on.
     @ViewBuilder private var provenance: some View {
         if let summary {
             Text(verbatim: ProjectsWording.provenance(summary, locale: locale, localize: localize))
@@ -399,8 +362,6 @@ private struct WhereItStandsCard: View {
     }
 }
 
-/// The note's text. Each point ends with the meeting it comes from as a
-/// link; a point from the overnight review says so and links nowhere.
 private struct ProjectNoteText: View {
     @EnvironmentObject var app: AppState
     let summary: ProjectStatusSummary
@@ -464,9 +425,6 @@ private struct ProjectNoteText: View {
     }
 }
 
-/// A suggestion's page opens on the decision: where it came up, then the
-/// answers. When a tracked project already has at least half of its
-/// meetings, adding it there is the first answer; otherwise tracking is.
 private struct ProjectSuggestionCard: View {
     @EnvironmentObject var app: AppState
     let project: ProjectProfile
@@ -504,8 +462,6 @@ private struct ProjectSuggestionCard: View {
         .accessibilityIdentifier("project.suggestion")
     }
 
-    /// The overnight review's own words, which a model wrote, so they carry
-    /// the sparkle too.
     private func reviewNote(_ note: ProjectProfile.ReviewNote) -> some View {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             Image(systemName: "sparkles")
@@ -560,8 +516,6 @@ private struct ProjectSuggestionCard: View {
     }
 }
 
-/// A meeting that names the project, with the line that does. The row opens
-/// the meeting; a line from the transcript also plays from its moment.
 private struct ProjectMeetingRow: View {
     let meeting: ProjectProfile.MeetingRef
     let locale: Locale
@@ -606,8 +560,6 @@ private struct ProjectMeetingRow: View {
     }
 }
 
-/// A bar for each of the last seven days, today's in the full accent. A day
-/// without time keeps a hairline, so the week reads as seven days.
 private struct ProjectDayBars: View {
     let days: [ProjectTimePresentation.Day]
     let locale: Locale
@@ -639,7 +591,6 @@ private struct ProjectDayBars: View {
     }
 }
 
-/// A window and its time, or the line that sums the windows not listed.
 private struct ProjectTimeRow: View {
     let title: String
     let detail: String
@@ -672,7 +623,6 @@ private struct ProjectTimeRow: View {
     }
 }
 
-/// Someone from the project's meetings, opening their page.
 private struct ProjectPersonLink: View {
     let name: String
     let open: () -> Void

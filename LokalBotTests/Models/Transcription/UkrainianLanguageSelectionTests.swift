@@ -1,7 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Escaped-bug regression for #368. These tests need no models or audio.
 final class UkrainianLanguageSelectionTests: XCTestCase {
     func testUkrainianIsSelectableWithAnExplicitEngineCode() throws {
         let language = try XCTUnwrap(TranscriptionLanguage(rawValue: "uk"))

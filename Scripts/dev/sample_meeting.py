@@ -40,8 +40,6 @@ def stamp(seconds):
     return f"{s // 60:02d}:{s % 60:02d}"
 
 
-# ---------------------------------------------------------------- build
-
 VOICE_SERVICES = {
     "elevenlabs": ("ELEVENLABS_API_KEY", "~/.config/elevenlabs/env"),
     "gemini": ("GEMINI_API_KEY", None),
@@ -64,8 +62,6 @@ def api_key(provider):
 def speech(text, voice, tts, previous, following):
     """One turn's audio file bytes from the script's voice service."""
     if tts["provider"] == "gemini":
-        # Gemini voices each turn alone, with no seed; `style` sets the delivery
-        # without being spoken.
         content = {"type": "text", "text": text,
                    "annotations": [{"type": "speech_metadata", "style": tts["style"]}]}
         body = {"model": tts["model"], "input": [{"type": "user_input", "content": [content]}],
@@ -79,7 +75,7 @@ def speech(text, voice, tts, previous, following):
         audio = [c["data"] for step in steps for c in step.get("content") or [] if c.get("type") == "audio"]
         if not audio:
             raise RuntimeError(f"Gemini returned no audio for: {text[:60]}")
-        return base64.b64decode(audio[0])  # WAV, 24 kHz mono
+        return base64.b64decode(audio[0])
     body = {"text": text, "model_id": tts["model"], "seed": tts["seed"]}
     if previous:
         body["previous_text"] = previous
@@ -90,7 +86,7 @@ def speech(text, voice, tts, previous, following):
         data=json.dumps(body).encode(),
         headers={"xi-api-key": api_key("elevenlabs"), "Content-Type": "application/json"})
     with urllib.request.urlopen(request, timeout=180) as response:
-        return response.read()  # MP3
+        return response.read()
 
 
 def synthesize(text, voice, tts, previous, following, cache):
@@ -106,7 +102,7 @@ def synthesize(text, voice, tts, previous, following, cache):
             try:
                 audio = speech(text, voice, tts, previous, following)
                 break
-            except urllib.error.HTTPError as error:  # rate limits and overload pass; anything else stops the build
+            except urllib.error.HTTPError as error:
                 if error.code not in (429, 500, 502, 503) or attempt == 5:
                     raise
                 time.sleep(20 * (attempt + 1))
@@ -176,7 +172,6 @@ def build(args):
             writer.setframerate(RATE)
             writer.writeframes(bytes(mix))
         out = os.path.join(SAMPLE_DIR, script["audio"])
-        # AAC-LC: symphonia (Linux, Windows) and AVFoundation (Mac) both decode it.
         subprocess.run(["ffmpeg", "-v", "error", "-y", "-i", mix_path, "-c:a", "aac", "-b:a", "40k",
                         "-ar", str(RATE), "-ac", "1", "-map_metadata", "-1", "-movflags", "+faststart",
                         "-metadata", f"title={script['title']}",
@@ -196,8 +191,6 @@ def build(args):
     size = os.path.getsize(out)
     print(f"\n{out}: {stamp(duration)} ({duration:.1f} s), {size / 1e6:.2f} MB")
 
-
-# ---------------------------------------------------------------- check
 
 ONES = "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen seventeen eighteen nineteen".split()
 TENS = "_ _ twenty thirty forty fifty sixty seventy eighty ninety".split()
@@ -237,8 +230,6 @@ def spell_numbers(text):
     return re.sub(r"\d+", lambda m: words_for(int(m.group(0))), text)
 
 
-# German: digits become words, "einhundert" and "hundert" agree, and an
-# ordinal's case ending ("18." / "achtzehnte" / "achtzehnten") doesn't count.
 DE_ONES = ("null eins zwei drei vier fünf sechs sieben acht neun zehn elf zwölf dreizehn vierzehn "
            "fünfzehn sechzehn siebzehn achtzehn neunzehn").split()
 DE_TENS = "_ _ zwanzig dreißig vierzig fünfzig sechzig siebzig achtzig neunzig".split()
@@ -280,8 +271,6 @@ def spell_numbers_de(text):
     return re.sub(r"\d+", lambda m: de_words(int(m.group(0))), text)
 
 
-# Serbian: Cyrillic output reads as Latin, digits become words, "dve" and
-# "dva" agree, and an ordinal's case ending doesn't count.
 SR_CYRILLIC = dict(zip("абвгдђежзијклљмнњопрстћуфхцчџш",
                        "a b v g d đ e ž z i j k l lj m n nj o p r s t ć u f h c č dž š".split()))
 SR_ONES = ("nula jedan dva tri četiri pet šest sedam osam devet deset jedanaest dvanaest trinaest četrnaest "
@@ -332,7 +321,6 @@ def sr_latin(text):
     return "".join(SR_CYRILLIC.get(c, c) for c in text)
 
 
-# Chinese: digits read as Chinese numerals, and 两 counts as 二.
 ZH_DIGITS = "零一二三四五六七八九"
 
 
@@ -379,7 +367,7 @@ def normalize(text, lang):
         text = spell_numbers_zh(text)
     text = re.sub(r"[^\w\s']|_", " ", text).replace("'", "")
     tokens = [t for t in text.split() if t not in FILLERS]
-    if base == "en":  # "a hundred and eighty" and "180" should agree
+    if base == "en":
         tokens = [t for i, t in enumerate(tokens)
                   if not (t == "and" and 0 < i < len(tokens) - 1 and tokens[i - 1] == "hundred")]
     elif base == "de":

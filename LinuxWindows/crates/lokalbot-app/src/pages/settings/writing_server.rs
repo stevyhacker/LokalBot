@@ -1,10 +1,3 @@
-//! Settings → Autocomplete → Where autocomplete runs (`AutocompleteServerSetup`,
-//! the Mac's autocomplete model picker):
-//! on this computer, on Think's server with the same or another model, or on
-//! any OpenAI-compatible server, hosted or on the user's own network. It edits
-//! a draft that Use model applies. Typing goes to a server only after its
-//! origin is approved for autocomplete; Think's approval does not cover it.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
@@ -41,8 +34,6 @@ fn style_label(style: CotypingServerRequestStyle) -> &'static str {
     }
 }
 
-/// Name of the model autocomplete uses, for Settings
-/// (`cotypingModelDisplayName`).
 pub fn model_display_name(settings: &Settings) -> SharedString {
     match server::route(settings, None) {
         Route::OnDevice => super::models::model_name(&settings.cotyping_built_in_model_id).into(),
@@ -55,7 +46,6 @@ pub fn model_display_name(settings: &Settings) -> SharedString {
     }
 }
 
-/// What to change before the selected server can be used, worded for Settings.
 pub fn problem_text(problem: &Problem) -> String {
     match problem {
         Problem::ThinkHasNoServer => lokalbot_i18n::tr("Think doesn't use a server. Choose another server for autocomplete, or run it on this computer, under Where autocomplete runs.").to_string(),
@@ -75,7 +65,6 @@ pub fn problem_text(problem: &Problem) -> String {
     }
 }
 
-/// Why the selected server's last request brought no suggestion.
 pub fn failure_text(problem: &ServerProblem) -> String {
     match &problem.failure {
         Failure::Status(code) => lokalbot_i18n::format(
@@ -99,22 +88,17 @@ pub fn failure_text(problem: &ServerProblem) -> String {
     }
 }
 
-/// Where autocomplete runs, as being edited. Applied with Use model, so Cancel
-/// changes nothing.
 pub struct ServerDraft {
     pub backend: CotypingBackend,
     pub request_style: CotypingServerRequestStyle,
-    /// Typing approval for the draft server's origin.
     pub approved: bool,
     url: Entity<InputState>,
     model: Entity<InputState>,
     think_model: Entity<InputState>,
     key: Entity<InputState>,
-    /// `None` until the credential store has answered.
     key_saved: Option<bool>,
 }
 
-/// The settings a draft would make. The key is not part of them.
 fn applied(
     settings: &Settings,
     backend: CotypingBackend,
@@ -149,8 +133,6 @@ fn applied(
     target
 }
 
-/// The origin an approval belongs to. `None` on this computer, where nothing
-/// leaves it and nothing needs approving.
 fn approval_origin(settings: &Settings) -> Option<String> {
     let url = server::configured_url(settings)?;
     if is_loopback_url(&url) {
@@ -221,8 +203,6 @@ impl ServerDraft {
             .map(|input| {
                 cx.subscribe_in(input, window, |this, _, event: &InputEvent, _, cx| {
                     if matches!(event, InputEvent::Change) {
-                        // An approval belongs to one origin: a newly
-                        // entered server shows its own saved choice.
                         let settings = this.data.read(cx).settings.clone();
                         this.writing.server.reload_approval(&settings, cx);
                         cx.notify();
@@ -244,8 +224,6 @@ impl ServerDraft {
         )
     }
 
-    /// Shows the saved choice for the draft's origin rather than carrying the
-    /// checkbox over from another one.
     fn reload_approval(&mut self, settings: &Settings, cx: &gpui_kit::App) {
         let target = applied(
             settings,
@@ -294,7 +272,6 @@ impl ServerDraft {
 }
 
 impl SettingsPage {
-    /// Reads whether "Another server" has a key saved, off the main thread.
     fn load_key_state(&mut self, cx: &mut Context<Self>) {
         if self.writing.server.key_saved.is_some() {
             return;
@@ -346,7 +323,6 @@ impl SettingsPage {
             },
         );
         let id = "settings.cotypingBackend";
-        // Its own page, under the bar that names it.
         let mut section = Section::new(None).row(
             id,
             settings_row::row(
@@ -483,8 +459,6 @@ impl SettingsPage {
         self.apply_row(section, &settings, cx)
     }
 
-    /// The approval checkbox, with what it sends. Nothing to approve for a
-    /// server on this computer.
     fn access_block(
         &self,
         target: &Settings,
@@ -631,7 +605,6 @@ impl SettingsPage {
         Some(block.into_any_element())
     }
 
-    /// Use model and Cancel, while the draft differs from what is saved.
     fn apply_row(
         &mut self,
         section: Section,
@@ -706,7 +679,6 @@ fn think_backend_name(settings: &Settings) -> &'static str {
     }
 }
 
-/// A label on the left, a control on the right, optional help under it.
 fn field_row(
     title: &'static str,
     control: AnyElement,
@@ -762,7 +734,6 @@ mod tests {
             ["https://a.example"]
         );
         assert!(matches!(server::route(&target, None), Route::Server(_)));
-        // Another origin starts unapproved, and the first keeps its choice.
         let other = applied(
             &target,
             CotypingBackend::Server,
@@ -777,7 +748,6 @@ mod tests {
             other.approved_remote_autocomplete_origins,
             ["https://a.example"]
         );
-        // Turning it off takes the approval back.
         let revoked = applied(
             &target,
             CotypingBackend::Server,

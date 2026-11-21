@@ -1,8 +1,3 @@
-//! The conversation (`ChatTranscriptView`, `EditorialTurn`): each question
-//! with its time, then the answer as flat text, one sources list that ends it,
-//! and quiet actions; a failed answer keeps its matches. Also the questions an
-//! empty page suggests.
-
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash as _, Hasher as _};
 use std::rc::Rc;
@@ -29,9 +24,7 @@ use crate::ui::answer_text::{self, Answer, AnswerStyle};
 use crate::ui::citations::{self, CitationSource};
 use crate::ui::{self, Ico, screen_thumbnail};
 
-/// Read aloud as it applies to one answer.
 struct AnswerSpeech {
-    /// Reading this answer, or preparing to.
     reading: bool,
     preparing: bool,
     error: Option<SharedString>,
@@ -69,7 +62,6 @@ fn toggle_answer_speech(id: Uuid, text: &str, cx: &mut App) {
     crate::bridge::send(lokalbot_engine::Command::Speech(command), cx);
 }
 
-/// The answer being read is leaving the screen (`ChatView.onDisappear`).
 pub(crate) fn stop_answer_speech(cx: &mut App) {
     let speech = &crate::state::AppData::global(cx).read(cx).speech;
     if speech
@@ -84,14 +76,12 @@ pub(crate) fn stop_answer_speech(cx: &mut App) {
     }
 }
 
-/// One step of tool activity.
 #[derive(Clone)]
 struct Step {
     text: String,
     done: bool,
 }
 
-/// One turn as shown on screen.
 enum Turn {
     User {
         id: Uuid,
@@ -100,7 +90,6 @@ enum Turn {
         divider: Option<String>,
         separator: bool,
         latest: bool,
-        /// What it was limited to, for the time's tooltip.
         scope: Option<String>,
     },
     Assistant {
@@ -114,12 +103,10 @@ enum Turn {
         can_ask_again: bool,
         receipt: Option<lokalbot_core::RememberReceipt>,
         used_claims: Vec<Uuid>,
-        /// The question a failed last answer replied to: its matches stay.
         failed_question: Option<Box<ChatMessage>>,
     },
 }
 
-/// Id of the streamed answer before the engine saves it.
 const STREAM_ID: Uuid = Uuid::from_u128(0x5a5a_0000_0000_4000_8000_0000_0000_0001);
 
 impl AskPage {
@@ -153,7 +140,6 @@ impl AskPage {
         let mut previous_user: Option<Option<DateTime<Utc>>> = None;
         let mut previous_question: Option<&ChatMessage> = None;
         for (index, message) in messages.iter().enumerate() {
-            // An older turn dated from its conversation shows no time.
             let created_at = message
                 .created_at
                 .filter(|_| !message.created_at_is_estimated);
@@ -238,8 +224,6 @@ impl AskPage {
         turns
     }
 
-    /// The conversation, scrolled to its end while an answer streams. Quick
-    /// Recall shows the same view for its one conversation.
     pub(crate) fn render_transcript(
         &mut self,
         _window: &mut Window,
@@ -260,7 +244,6 @@ impl AskPage {
         };
         let lb = cx.lb().clone();
         let passage = self.render_passage(cx);
-        // The tray of matches covers the end of the conversation while typing.
         let near_bottom = near_bottom
             || self.ask_phase(cx).matches_placement()
                 == Some(super::model::MatchesPlacement::TrayAboveField);
@@ -319,9 +302,6 @@ impl AskPage {
             .children(passage)
     }
 
-    /// The question in its own words, with the time it was asked. What it was
-    /// limited to is in the time's tooltip; the composer's two menus are where
-    /// scope is chosen.
     fn render_user_turn(&self, turn: Turn, cx: &mut Context<Self>) -> Div {
         let Turn::User {
             id,
@@ -531,7 +511,6 @@ impl AskPage {
         column.child(self.render_answer_actions(id, copy_text, can_ask_again, speech, cx))
     }
 
-    /// A short notice in place of an answer, with the way to fix it.
     #[allow(clippy::too_many_arguments)]
     fn status_card(
         &self,
@@ -604,7 +583,6 @@ impl AskPage {
             })
     }
 
-    /// Copy, read aloud and ask again: quiet icons, each named in its tooltip.
     fn render_answer_actions(
         &self,
         id: Uuid,
@@ -670,10 +648,6 @@ impl AskPage {
             })
     }
 
-    /// The list that ends an answer (`AnswerSourcesList`): a row per meeting,
-    /// screen moment, file or note it cited, with the answer's numbers and
-    /// times, and one row for what the person told LokalBot when that went into
-    /// the answer. It replaces the Evidence disclosure.
     fn render_sources_list(
         &mut self,
         id: Uuid,
@@ -939,8 +913,6 @@ impl AskPage {
             .child(numbers)
     }
 
-    /// The matches for a question whose answer failed, found again here within
-    /// the sources, dates and evidence limits recorded with the question.
     fn render_failed_matches(
         &mut self,
         answer: Uuid,
@@ -1032,8 +1004,6 @@ impl AskPage {
         .detach();
     }
 
-    /// Questions about the person's own latest meeting, a colleague and a
-    /// project, then one word to search for.
     pub(super) fn render_suggestions(&mut self, cx: &mut Context<Self>) -> Vec<AnyElement> {
         let lb = cx.lb().clone();
         let all = self.suggestions(cx);
@@ -1096,8 +1066,6 @@ impl AskPage {
         model::suggestions(latest.as_deref(), person.as_deref(), project.as_deref())
     }
 
-    /// A colleague and a project to name, read off the UI thread once per
-    /// library change.
     fn load_suggestion_names(&mut self, cx: &mut Context<Self>) {
         let revision = self.data.read(cx).revision;
         if self.suggestion_names_revision == Some(revision) {
@@ -1129,7 +1097,6 @@ impl AskPage {
         .detach();
     }
 
-    /// Reads the cited screen moments that are not loaded yet, off the UI thread.
     fn load_screen_citations(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
         let missing: Vec<i64> = sources
             .iter()
@@ -1170,8 +1137,6 @@ impl AskPage {
         .detach();
     }
 
-    /// Reads the cited files that are not loaded yet, off the UI thread. Nothing
-    /// resolves while Files is off: the index is gone with it.
     fn load_file_citations(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
         let missing: Vec<i64> = sources
             .iter()
@@ -1206,9 +1171,6 @@ impl AskPage {
         .detach();
     }
 
-    /// Reads the cited coding-agent notes that are not loaded yet, off the UI
-    /// thread. Nothing resolves while Read coding agent notes is off: the saved
-    /// copy is gone with it.
     fn load_note_citations(&mut self, sources: &[CitationSource], cx: &mut Context<Self>) {
         let missing: Vec<String> = sources
             .iter()
@@ -1265,7 +1227,6 @@ impl AskPage {
             return;
         }
         if let CitationSource::Note { id } = source {
-            // A cited note opens the agent's own file, while notes are read.
             if self.data.read(cx).settings.coding_agent_notes_enabled
                 && let Some(Some(hit)) = citations::known_note_citation(id)
             {
@@ -1367,7 +1328,6 @@ impl AskPage {
     }
 }
 
-/// The step in flight, with a spinner (`WorkedLine` while a tool runs).
 fn render_worked_line(steps: &[Step], cx: &App) -> Div {
     let lb = cx.lb();
     let current = steps.iter().find(|s| !s.done);
@@ -1382,7 +1342,6 @@ fn render_worked_line(steps: &[Step], cx: &App) -> Div {
         })
 }
 
-/// A citation number as a small pill, filled while its passage is showing.
 fn citation_pill(
     id: ElementId,
     number: usize,
@@ -1418,7 +1377,6 @@ fn citation_pill(
         .on_click(on_click)
 }
 
-/// One suggestion: its symbol, the question, and for the word a hint.
 fn suggestion_row(
     id: impl Into<ElementId>,
     suggestion: &Suggestion,
@@ -1494,8 +1452,6 @@ fn date_divider_row(title: String, cx: &App) -> Div {
         .child(div().flex_1().min_w_0().h(px(1.)).bg(lb.text.opacity(0.10)))
 }
 
-/// `ChatTranscriptPresentation.dateDividerTitle`. `previous` is the previous
-/// question's time (`Some(None)` when that one had no saved time).
 pub fn date_divider(
     created_at: Option<DateTime<Utc>>,
     previous: Option<Option<DateTime<Utc>>>,

@@ -1,10 +1,5 @@
 import SwiftUI
 
-/// The Autocomplete picker's server pane: Think's server with the same or
-/// another model, or any OpenAI-compatible server, hosted or on the user's own
-/// network. It edits a draft that Use model applies. Typing goes to a server
-/// only after its origin is approved for autocomplete; Think's approval does
-/// not cover it.
 struct AutocompleteServerSetup: View {
     @ObservedObject var app: AppState
     @Binding var draft: CotypingServerDraft
@@ -97,13 +92,9 @@ struct AutocompleteServerSetup: View {
         .padding(.top, 16)
         .onAppear { keySaved = !app.settings.cotypingServerAPIKey.isEmpty }
         .onChange(of: draft.origin(in: app.settings)) {
-            // An approval belongs to one origin. Show the saved choice for a
-            // newly entered server rather than carrying the checkbox over.
             draft.approved = draft.savedApproval(in: app.settings)
         }
     }
-
-    // MARK: Think's server
 
     private var thinkModel: String {
         switch app.settings.summarizerBackend {
@@ -123,17 +114,11 @@ struct AutocompleteServerSetup: View {
         return "\(app.settings.summarizerBackend.rawValue) · \(url.host ?? url.absoluteString)"
     }
 
-    // MARK: Another server
-
     private var keyPrompt: Text {
         if keySaved { return Text("Saved in Keychain") }
         return Text("Optional")
     }
 
-    // MARK: Approval
-
-    /// The approval checkbox, with what it sends. Nothing to approve for a
-    /// server on this Mac.
     @ViewBuilder private var access: some View {
         if let url = draft.serverURL(in: app.settings), let origin = InferenceEndpointPolicy.origin(for: url) {
             if InferenceEndpointPolicy.isLoopback(url) {

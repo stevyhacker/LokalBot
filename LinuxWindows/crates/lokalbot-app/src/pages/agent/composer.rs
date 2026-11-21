@@ -1,7 +1,3 @@
-//! The composer (`AgentComposer.swift`): what the agent is told to do, what
-//! to attach, the working folder and how much it may do on its own. A message
-//! sent while the agent works waits above the field until the turn ends.
-
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
@@ -40,7 +36,6 @@ fn destination_label(destination: &Destination) -> String {
     }
 }
 
-/// What the composer shows, copied out of the selected task.
 struct View {
     task: Uuid,
     queued: Vec<QueuedPrompt>,
@@ -57,7 +52,6 @@ struct View {
     sending: bool,
 }
 
-/// What the access popover needs, cloned into its content builder.
 #[derive(Clone)]
 struct Access {
     mode: ApprovalMode,
@@ -97,8 +91,6 @@ impl AgentPage {
         })
     }
 
-    /// Asks the Think server what the selected model accepts, once per model
-    /// (`AgentComposer`). A task started afterwards offers those levels.
     fn look_up_reasoning(&mut self, cx: &mut Context<Self>) {
         let settings = self.data.read(cx).settings.clone();
         let key = lokalbot_ai::think::reasoning_lookup_key(&settings);
@@ -116,8 +108,6 @@ impl AgentPage {
         .detach();
     }
 
-    /// The queue, notices, the field and its controls, and where prompts go
-    /// when the model is not on this computer.
     pub(super) fn render_composer(
         &mut self,
         snapshot: &Snapshot,
@@ -197,7 +187,6 @@ impl AgentPage {
             .into_any_element()
     }
 
-    /// Up to three rows show whole; a longer queue scrolls in the same space.
     fn render_queue(&mut self, view: &View, cx: &mut Context<Self>) -> AnyElement {
         let lb = cx.lb().clone();
         let working = view.state == SessionState::Running;
@@ -370,7 +359,6 @@ impl AgentPage {
             );
         }
 
-        // While the agent works, Send queues the message (Ctrl+Enter steers).
         let send = h_flex()
             .gap(px(8.))
             .items_center()
@@ -448,8 +436,6 @@ impl AgentPage {
             .child(controls)
     }
 
-    /// "Add to this task" while it works, "Ask the agent…" for a new task,
-    /// "Ask a follow-up" otherwise.
     fn update_placeholder(
         &mut self,
         working: bool,
@@ -496,8 +482,6 @@ impl AgentPage {
             })
     }
 
-    /// Names what the agent does on its own, and opens the levels with the
-    /// model and reasoning below them.
     fn access_chip(&self, view: &View, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let lb = cx.lb().clone();
         let mode = view.mode;
@@ -538,8 +522,6 @@ impl AgentPage {
             .content(move |_, _, cx| render_access(&access, &page, &data, cx))
     }
 
-    /// Shown only when the model is not on this computer, so where a task's
-    /// prompts go stays in view without opening the access list.
     fn render_destination_line(&self, view: &View, cx: &mut Context<Self>) -> Option<AnyElement> {
         if view.model.destination == Destination::OnDevice {
             return None;
@@ -565,8 +547,6 @@ impl AgentPage {
                 .into_any_element(),
         )
     }
-
-    // ------------------------------------------------------- attachments
 
     fn pick_files(&mut self, cx: &mut Context<Self>) {
         let receiver = cx.prompt_for_paths(PathPromptOptions {
@@ -617,8 +597,6 @@ impl AgentPage {
         }
     }
 
-    /// A new working folder applies to this task while it is empty and
-    /// unsaved; otherwise it starts a new task (`pickingFolder`).
     fn choose_workspace(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         let receiver = cx.prompt_for_paths(PathPromptOptions {
             files: false,
@@ -669,8 +647,6 @@ impl AgentPage {
     }
 }
 
-/// The access list: the levels by what still asks, then the model and
-/// reasoning. The level is one remembered choice for every task.
 fn render_access(
     access: &Access,
     page: &gpui_kit::Entity<AgentPage>,
@@ -731,7 +707,6 @@ fn render_access(
                 )
                 .on_click(cx.listener(move |state, _, window, cx| {
                     state.dismiss(window, cx);
-                    // Raising the level is confirmed; lowering it applies at once.
                     if mode > current {
                         confirm_mode(page.clone(), mode, window, cx);
                     } else {
@@ -843,8 +818,6 @@ fn render_access(
         .into_any_element()
 }
 
-/// Agent Mode's own level, or "Same as Think", offering only the levels the
-/// model accepts.
 fn reasoning_menu(
     choices: &ReasoningChoices,
     data: &gpui_kit::Entity<crate::state::AppData>,
@@ -910,7 +883,6 @@ fn reasoning_menu(
         })
 }
 
-/// Canonical folder paths (no `\\?\` on Windows) compare and display cleanly.
 fn dunce_like(path: PathBuf) -> PathBuf {
     std::fs::canonicalize(&path)
         .map(|p| {
@@ -937,7 +909,6 @@ pub(super) fn mode_icon(mode: ApprovalMode) -> Ico {
     }
 }
 
-/// Escalations ask first (`pendingMode` alert).
 fn confirm_mode(
     page: gpui_kit::Entity<AgentPage>,
     mode: ApprovalMode,

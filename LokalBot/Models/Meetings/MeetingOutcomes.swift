@@ -1,12 +1,6 @@
 import Foundation
 
-/// A transcript-backed source reference stored with an extracted outcome.
-/// The transcript stays immutable; this record is only a durable pointer into
-/// it, plus a short excerpt so older outcomes remain understandable if a
-/// transcript is later repaired.
 struct OutcomeSourceCitation: Codable, Equatable, Hashable, Identifiable, Sendable {
-    /// Redundant with the per-meeting folder for new records, but persisted so
-    /// exported/indexed citations remain self-identifying outside that folder.
     var meetingID: UUID?
     var segmentID: String
     var start: TimeInterval
@@ -27,9 +21,6 @@ struct OutcomeSourceCitation: Codable, Equatable, Hashable, Identifiable, Sendab
     }
 }
 
-/// Structured outcomes extracted from a meeting after summarization. The
-/// extracted text and evidence are immutable source data; user corrections and
-/// workflow status live separately in `MeetingOutcomeState`.
 struct MeetingOutcomes: Codable, Equatable, Sendable {
     static let currentSchemaVersion = 4
 
@@ -37,25 +28,16 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
         var id: String
         var schemaVersion: Int
         var text: String
-        /// Who it is on, exactly as named in the meeting ("Me", "Ana"). Nil
-        /// when no owner was stated -- never guessed.
         var owner: String?
-        /// Due date/time as spoken ("Friday", "by end of Q3"), not normalized.
         var due: String?
-        /// Stored extraction judgment. Legacy records derive it from owner.
         var isForUser: Bool
         var attribution: OutcomeAttribution?
         var ownershipIsUnclear: Bool { attribution?.resolution == .unresolved || owner == nil }
-        /// Unclear ownership whose evidence was spoken on this Mac's
-        /// microphone: most likely the user's own work.
         var isLikelyUserAction: Bool {
             guard !isForUser, ownershipIsUnclear,
                   let speaker = attribution?.speakerID ?? citations.first?.speaker else { return false }
             return MeetingOutcomes.isMicrophoneSpeaker(speaker)
         }
-        /// Relative meeting importance assigned by the grounded extraction
-        /// pass. This ranks other participants' actions and actions with unclear
-        /// ownership together; every user-owned action is retained.
         var importance: Int
         var citations: [OutcomeSourceCitation]
 
@@ -161,7 +143,6 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
         }
 
         init(from decoder: Decoder) throws {
-            // A decision was a plain string in schema v1. Decode both shapes.
             if let single = try? decoder.singleValueContainer(),
                let text = try? single.decode(String.self) {
                 self.init(text: text)
@@ -187,8 +168,6 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
     var decisionRecords: [Decision] = []
     var openQuestions: [String] = []
 
-    /// Compatibility surface used by routines and chat formatting. New UI
-    /// reads `decisionRecords` so it can render evidence citations.
     var decisions: [String] {
         get { decisionRecords.map(\.text) }
         set { decisionRecords = newValue.map { Decision(text: $0) } }
@@ -208,11 +187,6 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
     var otherActionItems: [ActionItem] { actionItems.filter { !$0.isForUser && !$0.ownershipIsUnclear } }
     var unresolvedActionItems: [ActionItem] { actionItems.filter(\.ownershipIsUnclear) }
 
-    /// Orders the user's work first, then unclear-owner actions spoken on this
-    /// Mac's microphone, then every other or unclear-owner action, ranked
-    /// together by importance. Nothing is dropped: stored outcomes, search,
-    /// CLI/MCP, follow-ups, and briefs keep every validated action, and views
-    /// that show a short list cap their own presentation.
     func prioritizingActionItems() -> Self {
         var prioritized = self
         let likelyUserItems = actionItems.filter(\.isLikelyUserAction)
@@ -223,8 +197,6 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
         return prioritized
     }
 
-    /// Microphone speaker keys ("me", "local", "local 2", including merged
-    /// "source1:local 2") as written by the attributed track transcriber.
     static func isMicrophoneSpeaker(_ speaker: String) -> Bool {
         let key = Transcript.canonicalSpeakerKey(speaker)
         let local = key.split(separator: ":").last.map(String.init) ?? key
@@ -296,8 +268,6 @@ struct MeetingOutcomes: Codable, Equatable, Sendable {
         return lhs.text.localizedCaseInsensitiveCompare(rhs.text) == .orderedAscending
     }
 
-    /// FNV-1a keeps identity stable across app launches and re-extractions.
-    /// Swift's `Hasher` is intentionally randomized and cannot be persisted.
     static func stableID(kind: String, text: String, owner: String? = nil,
                          due: String? = nil, citationIDs: [String] = []) -> String {
         let normalized = ([kind, text, owner ?? "", due ?? ""] + citationIDs)

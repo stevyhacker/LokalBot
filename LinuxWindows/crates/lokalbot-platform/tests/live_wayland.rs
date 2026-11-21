@@ -1,6 +1,3 @@
-//! Wayland checks inside a headless Sway session, ignored by default. Run
-//! them with `crates/lokalbot-platform/scripts/live-sway.sh`.
-
 #![cfg(target_os = "linux")]
 
 use std::process::Command;
@@ -44,17 +41,14 @@ fn sway_sampler_idle_typing_and_paste() {
         std::thread::sleep(Duration::from_millis(200));
     };
     println!("sample: {sample:?}");
-    // Named from foot's desktop entry (org.codeberg.dnkl.foot.desktop).
     assert!(sample.app_id.contains("foot"), "{}", sample.app_id);
     assert_eq!(sample.app, "Foot");
 
-    // ext-idle-notify: quiet time counts up…
     std::thread::sleep(Duration::from_millis(2500));
     let quiet = source.idle_seconds().expect("idle time on Sway");
     println!("idle after 2.5 s: {quiet:.2}");
     assert!(quiet >= 1.0, "{quiet}");
 
-    // …and typing (wtype's virtual keyboard) resets it.
     let typed = insert_text("typed on wayland ✓\n", InsertMethod::Type).unwrap();
     assert_eq!(typed, InsertOutcome::Inserted);
     std::thread::sleep(Duration::from_millis(300));
@@ -62,7 +56,6 @@ fn sway_sampler_idle_typing_and_paste() {
     println!("idle after typing: {active:.2}");
     assert!(active < quiet, "{active} vs {quiet}");
 
-    // foot is a terminal: Shift+Insert with the primary selection set.
     let pasted = insert_text("pasted on wayland", InsertMethod::Paste).unwrap();
     assert_eq!(pasted, InsertOutcome::Inserted);
     std::thread::sleep(Duration::from_millis(500));

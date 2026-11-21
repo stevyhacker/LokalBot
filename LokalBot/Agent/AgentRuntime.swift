@@ -8,13 +8,10 @@ enum AgentArchiveKind: Equatable, Sendable {
 struct AgentRuntimeArtifact: Equatable, Sendable {
     let name: String
     let url: URL
-    let sha256: String        // lowercase hex
+    let sha256: String
     let archiveKind: AgentArchiveKind
 }
 
-/// Pinned runtime components for Agent Mode. Bun is downloaded as a
-/// checksum-verified release archive. pi is installed from the public npm
-/// registry using the frozen lockfile bundled with LokalBot.
 struct AgentRuntimeManifest: Equatable, Sendable {
     let bun: AgentRuntimeArtifact
     let bunBinarySHA256: String?
@@ -64,9 +61,6 @@ struct AgentRuntimeVersionMarker: Codable, Equatable {
     let piRuntimeTreeSHA256: String
 }
 
-/// On-disk layout of the installed runtime. Lives in Application Support
-/// (NOT the storage root) alongside model caches and the llama-server
-/// binary — it's a machine-local cache, not user data.
 enum AgentRuntimeLayout {
 
     static var defaultRoot: URL {
@@ -81,11 +75,6 @@ enum AgentRuntimeLayout {
         root.appendingPathComponent("pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js")
     }
 
-    /// Cheap receipt check for opening the Agent pane. Installation already
-    /// verifies every staged byte before the atomic swap, so showing the pane
-    /// only needs to prove that the expected entry points and matching
-    /// version receipt are present. Starting a task runs `isIntegrityValid`,
-    /// the deep audit of the mutable runtime tree.
     static func isInstalled(under root: URL = defaultRoot,
                             manifest: AgentRuntimeManifest = .current) -> Bool {
         let bun = bunBinary(under: root)
@@ -111,10 +100,6 @@ enum AgentRuntimeLayout {
         return true
     }
 
-    /// Explicit, recursive integrity audit. This intentionally opens every pi
-    /// runtime file, so it runs at installation, repair, user-requested
-    /// verification and before each task starts (`AgentSessionController`,
-    /// off the main actor), never on ordinary pane navigation.
     static func isIntegrityValid(under root: URL = defaultRoot,
                                  manifest: AgentRuntimeManifest = .current) -> Bool {
         guard isInstalled(under: root, manifest: manifest),
@@ -148,14 +133,10 @@ enum AgentRuntimeLayout {
         return expected.map { receipt == $0.lowercased() } ?? true
     }
 
-    /// Written at install time with versions and verified artifact digests.
     static func versionMarker(under root: URL) -> URL {
         root.appendingPathComponent("version.json")
     }
 
-    /// pi session JSONL trees live under the storage root so they follow
-    /// LOKALBOT_STORAGE_ROOT (hermetic in e2e/UI tests) and land next to
-    /// the rest of the user's library.
     static var sessionsDirectory: URL {
         AppDirectories.libraryRoot.appendingPathComponent("agent/sessions", isDirectory: true)
     }
@@ -167,17 +148,10 @@ enum SHA256Verifier {
         case unsupportedTreeEntry(String)
     }
 
-    /// Streaming digest so ~60 MB artifacts don't land in memory at once.
     static func hexDigest(of url: URL) throws -> String {
         try digest(of: url).map { String(format: "%02x", $0) }.joined()
     }
 
-    /// Deterministic digest of a directory's complete shape and contents.
-    /// Records are ordered by raw UTF-8 path, length-delimited, and tagged by
-    /// file type. Symlinks hash their link text and are never followed; regular
-    /// files hash their bytes. Directory records make empty/additional
-    /// directories visible too. Metadata and absolute install paths are
-    /// deliberately excluded so identical installs hash identically.
     static func treeHexDigest(of root: URL) throws -> String {
         var isDirectory: ObjCBool = false
         guard FileManager.default.fileExists(atPath: root.path, isDirectory: &isDirectory),

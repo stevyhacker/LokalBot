@@ -77,7 +77,6 @@ private const val METER_SEGMENTS = 32
 private val SIDEWAYS_MAX_HEIGHT = 480.dp
 private val SIDEWAYS_MIN_WIDTH = 600.dp
 
-/** The recording in progress. All of its state lives in [recorder], so it survives a recreated Activity. */
 @Composable
 fun RecordingScreen(recorder: MeetingRecorder) {
     val state by recorder.state.collectAsStateWithLifecycle()
@@ -95,7 +94,6 @@ fun RecordingScreen(recorder: MeetingRecorder) {
     val level by produceState(0f, recorder, lifecycle) {
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
-                // Falls slowly, so it reads as a level instead of a flicker.
                 value = maxOf(withContext(Dispatchers.Default) { recorder.level() }, value * METER_FALL)
                 delay(METER_TICK_MILLIS)
             }
@@ -165,7 +163,6 @@ private fun RecordingControls(
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val height = maxHeight
         if (height < SIDEWAYS_MAX_HEIGHT && maxWidth >= SIDEWAYS_MIN_WIDTH) {
-            // A phone on its side: side by side, so Stop and the caption stay on screen.
             Row(Modifier.widthIn(max = 840.dp).fillMaxSize().padding(horizontal = 24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
                 Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(vertical = 8.dp)) {
                     hide()
@@ -306,7 +303,6 @@ private fun ProblemContent(problem: RecorderProblem, onDismiss: () -> Unit) {
     }
 }
 
-/** Lit segments from the start edge: a glance tells whether it's hearing you. */
 @Composable
 private fun LevelMeter(level: Float) {
     val palette = LokalBotTheme.palette

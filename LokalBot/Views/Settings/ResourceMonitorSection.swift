@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// A compact live readout in Settings → Diagnostics. Whole-app figures use
-/// native process accounting for LokalBot and its helpers; model rows merge
-/// subprocess-backed GGUF/ONNX runtimes with retained CoreML/MLX models.
 struct ResourceMonitorSection: View {
     @EnvironmentObject private var app: AppState
     @ObservedObject private var residency = ModelResidency.shared
@@ -79,7 +76,6 @@ struct ResourceMonitorSection: View {
         )
     }
 
-    /// "4% of RAM"; nil until the first sample.
     private var memoryDetail: String? {
         guard let bytes = monitor.snapshot?.totalPhysicalFootprintBytes,
               ProcessInfo.processInfo.physicalMemory > 0 else { return nil }
@@ -88,8 +84,6 @@ struct ResourceMonitorSection: View {
                       share.formatted(.percent.precision(.fractionLength(0))))
     }
 
-    /// Loaded runtimes in the same aligned columns as the health rows: role,
-    /// model file, and memory.
     private var modelTable: some View {
         Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 9) {
             ForEach(Array(loadedModels.enumerated()), id: \.element.id) { index, model in
@@ -123,9 +117,6 @@ struct ResourceMonitorSection: View {
     }
 }
 
-/// Pure presentation logic kept outside the SwiftUI state lifecycle so the
-/// model count, stale-PID filtering, and measured-vs-estimated memory rules are
-/// deterministic unit-test targets.
 enum ResourceMonitorPresentation {
     struct Model: Identifiable, Equatable {
         let id: String
@@ -134,8 +125,6 @@ enum ResourceMonitorPresentation {
         let estimatedBytes: UInt64?
         let processIdentifier: pid_t?
         let processStartTime: UInt64?
-        /// "in use — chat (interactive)" while the broker holds leases on this
-        /// row; nil when idle. Only GGUF (residency) rows carry notes.
         let leaseNote: String?
     }
 

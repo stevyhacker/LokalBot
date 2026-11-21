@@ -185,7 +185,6 @@ final class InferenceBrokerTests: XCTestCase {
             _ = try await acquiring.value
             XCTFail("expected cancellation after ensure returned")
         } catch is CancellationError {
-            // expected
         }
 
         let active = await broker.activeLeaseCount(.mainLLM)
@@ -307,7 +306,6 @@ final class InferenceBrokerTests: XCTestCase {
             _ = try await waiting.value
             XCTFail("expected cancellation")
         } catch is CancellationError {
-            // expected
         }
         let active = await broker.activeLeaseCount(.mainLLM)
         XCTAssertEqual(active, 1)

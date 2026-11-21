@@ -1,7 +1,3 @@
-//! X11: the window in `_NET_ACTIVE_WINDOW`, read with `GetImage`. The client
-//! window itself is read (not the root), so overlapping windows stay out on
-//! compositing desktops; only the part on screen is read.
-
 use anyhow::{Context as _, bail};
 use x11rb::connection::Connection as _;
 use x11rb::errors::ReplyError;
@@ -12,7 +8,6 @@ use x11rb::rust_connection::RustConnection;
 
 use super::{CapturedImage, FocusedWindow, WindowCapture, WindowRect};
 
-/// Longest property read, in 32-bit units.
 const MAX_PROPERTY_WORDS: u32 = 2048;
 
 struct Session {
@@ -101,14 +96,10 @@ impl Session {
             .filter(|pid| *pid != 0))
     }
 
-    /// The window's on-screen rectangle without the invisible shadow margin
-    /// client-side decorations draw (`_GTK_FRAME_EXTENTS`), or `None` when
-    /// it is not mapped.
     fn rect(&self, window: Window) -> anyhow::Result<Option<WindowRect>> {
         Ok(self.rects(window)?.map(|(_, content)| content))
     }
 
-    /// The window's whole rectangle and its content (see [`Self::rect`]).
     fn rects(&self, window: Window) -> anyhow::Result<Option<(WindowRect, WindowRect)>> {
         let attributes = match self.conn.get_window_attributes(window)?.reply() {
             Ok(attributes) => attributes,
@@ -156,7 +147,6 @@ impl Session {
         }
     }
 
-    /// Red, green and blue masks of a visual.
     fn masks(&self, visual: Visualid) -> Option<(u32, u32, u32)> {
         self.conn
             .setup()
@@ -175,7 +165,6 @@ impl Session {
         let visible = content
             .intersection(&self.screen_rect())
             .context("the window is outside the screen")?;
-        // GetImage takes coordinates inside the whole window.
         let reply = self
             .conn
             .get_image(
@@ -215,8 +204,6 @@ impl Session {
     }
 }
 
-/// `rect` without a margin of `left`/`right`/`top`/`bottom` pixels; the
-/// whole rectangle when the margin would leave nothing.
 fn without_margin(rect: WindowRect, left: u32, right: u32, top: u32, bottom: u32) -> WindowRect {
     let width = rect.width.saturating_sub(left.saturating_add(right));
     let height = rect.height.saturating_sub(top.saturating_add(bottom));
@@ -231,7 +218,6 @@ fn without_margin(rect: WindowRect, left: u32, right: u32, top: u32, bottom: u32
     }
 }
 
-/// Z-pixmap data in the server's layout to RGBA.
 fn convert(
     data: &[u8],
     width: u32,
@@ -289,7 +275,6 @@ fn convert(
     })
 }
 
-/// Reconnects when the X server connection breaks.
 pub(super) struct X11Capture {
     session: Option<Session>,
 }
@@ -371,7 +356,6 @@ mod tests {
 
     #[test]
     fn converts_little_endian_bgrx() {
-        // Two pixels per 8-byte row plus padding to 32 bits: blue, then red.
         let data = [255, 0, 0, 0, 0, 0, 255, 0, 10, 20, 30, 0, 1, 2, 3, 0];
         let image = convert(&data, 2, 2, 32, 32, false, (0xff0000, 0xff00, 0xff)).unwrap();
         assert_eq!(&image.rgba[..8], &[0, 0, 255, 255, 255, 0, 0, 255]);
@@ -380,7 +364,6 @@ mod tests {
 
     #[test]
     fn converts_16_bit_rgb565_with_padding() {
-        // One 5-6-5 white pixel; each row padded to 4 bytes.
         let data = [0xff, 0xff, 0, 0];
         let image = convert(&data, 1, 1, 16, 32, false, (0xf800, 0x07e0, 0x001f)).unwrap();
         assert_eq!(image.rgba, [255, 255, 255, 255]);

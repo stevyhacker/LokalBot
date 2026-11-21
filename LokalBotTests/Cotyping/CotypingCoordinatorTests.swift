@@ -2,10 +2,6 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Scripted engine
-
-/// Records every request and returns (or throws) a canned result, so the
-/// coordinator's engine-facing paths run without a model or server.
 @MainActor
 private final class ScriptedCotypingEngine: CotypingCompleting {
     var result: Result<String, Error> = .success("")
@@ -42,18 +38,11 @@ private final class CotypingSettingsBox {
     }
 }
 
-// MARK: - Coordinator
-
-/// Most of the coordinator needs live AX + event taps, so these tests pin the
-/// paths that run before any permission check: the settings gate in
-/// `applySettings()` (which must bail out without touching AX) and the
-/// permission-free `previewSuggestion` pipeline the in-app playground uses.
 @MainActor
 final class CotypingCoordinatorTests: XCTestCase {
     private var tempDir: URL!
     private var engine: ScriptedCotypingEngine!
     private var settings = AppSettings()
-    /// Counters for this test only: never the installed app's saved ones.
     private var stats: CotypingStatsStore!
 
     override func setUpWithError() throws {
@@ -310,11 +299,8 @@ final class CotypingCoordinatorTests: XCTestCase {
             identityKey: "field", requestFingerprint: "request", precedingText: "Atlas owner is "))
     }
 
-    // MARK: - Rehearsal context
-
     func testRehearsalOffersTheSampleConversationOnlyWithTheVisibleTextGrant() async throws {
         let box = CotypingSettingsBox(settings)
-        // On for new installs; this test starts without the grant.
         box.value.cotypingUseVisibleContext = false
         let coordinator = makeCoordinator(settingsBox: box)
         let sample = CotypingRehearsalConversation.sample
@@ -332,7 +318,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertTrue(prompt.contains("Current visible text above the field: Sarah: The migration timeline"))
         XCTAssertTrue(prompt.hasSuffix("I wanted to follow"), "context never changes the text at the caret")
 
-        // The setup sample stays free of every optional source.
         _ = try await coordinator.preview(precedingText: "The local model setup is", conversation: sample,
                                           sampleOnly: true)
         XCTAssertFalse(try XCTUnwrap(engine.requests.last).prompt.contains("Sarah"))
@@ -349,8 +334,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertEqual(preview, CotypingPreview())
     }
 
-    /// A key typed into the rehearsal also reaches the live pipeline, whose
-    /// generation moves while a server is still answering.
     func testKeysTypedIntoTheRehearsalDoNotDropItsSuggestion() async throws {
         let coordinator = makeCoordinator()
         engine.result = .success(" up on the timeline")
@@ -392,14 +375,11 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.invalidateMemoryContext()
         XCTAssertFalse(coordinator.memoryContextSearched)
 
-        // With the grant off there is no lookup to report.
         box.value.cotypingUseMeetingMemory = false
         let ungranted = try await coordinator.preview(precedingText: "I'll get back to ")
         XCTAssertFalse(ungranted.use.searchedMemory)
         XCTAssertFalse(coordinator.memoryContextSearched)
     }
-
-    // MARK: - Live typing measurements
 
     private func liveField(_ text: String, bundleID: String = "com.apple.Notes") -> CotypingField {
         CotypingField(appName: "Notes", bundleID: bundleID, processID: 42, role: "AXTextArea",
@@ -431,8 +411,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertEqual(stats.stats.live["chat"]?.insertionsConfirmed, 2)
     }
 
-    /// With no further key or focus change the check used to stay open, and
-    /// the text it compares stayed in memory.
     func testAnInsertionCheckExpiresWithoutAnotherEvent() async throws {
         let coordinator = makeCoordinator()
         coordinator.insertionCheckExpiryMilliseconds = 40
@@ -449,7 +427,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         let before = liveField("I wanted to follow")
         let backspace = CotypingInputEvent(kind: .textMutation, characters: "")
 
-        // Typing on leaves the check open: the inserted text is still there to read.
         coordinator.noteAcceptance(field: before, inserted: " up", charsAccepted: 3)
         coordinator.noteKey(CotypingInputEvent(kind: .textMutation, characters: " "), live: before)
         XCTAssertNotNil(coordinator.pendingInsertionCheck)
@@ -458,7 +435,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.pendingInsertionCheck)
         XCTAssertEqual(stats.stats.live["other"]?.insertionsConfirmed, 1)
 
-        // Taking the text back, or moving the caret, means it can no longer be read back.
         for key in [backspace, CotypingInputEvent(kind: .navigation, characters: ""),
                     CotypingInputEvent(kind: .shortcut, characters: "", isUndo: true)] {
             coordinator.noteAcceptance(field: before, inserted: " up", charsAccepted: 3)
@@ -496,8 +472,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertEqual(stats.stats.live["other"]?.acceptsCorrected, 2, "a late deletion is ordinary editing")
     }
 
-    // MARK: - Statistics
-
     func testASuggestionCountsAsUsedOnceHoweverManyPressesTakeIt() {
         settings.cotypingBuiltInModelID = "gemma-e2b"
         let coordinator = makeCoordinator()
@@ -525,8 +499,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.shownSuggestion)
     }
 
-    /// An accept with no suggestion on record still counts its words, but
-    /// never as a used suggestion, so the share used cannot pass 100%.
     func testAnAcceptWithoutAShownSuggestionIsNotCountedAsUsed() {
         let coordinator = makeCoordinator()
         coordinator.noteAcceptance(field: liveField("I wanted to follow"), inserted: " up", charsAccepted: 3, words: 1)
@@ -556,7 +528,6 @@ final class CotypingCoordinatorTests: XCTestCase {
 
         coordinator.noteTyping(letter, in: notes)
         coordinator.noteTyping(letter, in: notes)
-        // Deletions, other keys and pauses break the run; they are not typing speed.
         coordinator.noteTyping(CotypingInputEvent(kind: .textMutation, characters: ""), in: notes)
         coordinator.noteTyping(letter, in: notes)
         var total = stats.usage.summary(.week).total
@@ -588,7 +559,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(stats.stats.live["browser"], "nothing was waiting on a keystroke")
 
         coordinator.pendingKeystrokeUptime = DispatchTime.now().uptimeNanoseconds
-        // A typo fix is instant and says nothing about suggestion latency.
         coordinator.noteSuggestionShown(CotypingSession(field: field, fullText: "follow", kind: .correction(typoWord: "folow")))
         XCTAssertNil(stats.stats.live["browser"])
         coordinator.noteSuggestionShown(session)
@@ -617,8 +587,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.clearSuggestion()
         XCTAssertEqual(coordinator.learningStore.exampleCount, 1, "control proves the field supports learning")
     }
-
-    // MARK: - Topping up while accepting
 
     private func shownSession(_ suggestion: String, after text: String) -> CotypingSession {
         var session = CotypingSession(field: liveField(text, bundleID: "com.apple.TextEdit"), fullText: suggestion)
@@ -656,7 +624,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.isRunning = true
         let shown = shownSession(" between the number", after: "The main tradeoff is")
         coordinator.session = shown
-        // No ghost is on screen in a unit test, so nothing may be appended.
         XCTAssertNil(coordinator.extendedSession(adding: " of menu items", to: shown, settings: settings))
         coordinator.extendSuggestionIfNeeded()
         XCTAssertNil(coordinator.extensionTask, "three words ahead need no top-up")
@@ -664,11 +631,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.extensionTask)
     }
 
-    // MARK: - Typing away from a suggestion
-
-    /// The 2026-10-09 report: in Chrome the ghost stayed on screen over the
-    /// letters just typed until the browser published them, which takes a
-    /// while there. A key that leaves the suggestion takes it down at once.
     func testAKeyThatLeavesTheSuggestionTakesItDownAtOnce() {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
@@ -684,9 +646,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         }
     }
 
-    /// A suggestion with nowhere on screen to go that covers no text is
-    /// dropped, not drawn somewhere else: here a guessed caret in a field
-    /// that reports no frame, so a popup has no outside to go to.
     func testASuggestionWithNowhereToBeShownIsDropped() {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
@@ -701,20 +660,13 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(stats.stats.live["browser"], "nothing was shown, so no wait is measured")
     }
 
-    // MARK: - A suggestion left alone
-
-    /// Cotypist 2026.5 fixed a suggestion staying up after a minute without
-    /// typing and taking the Tab meant for the app.
     func testASuggestionLeftAloneIsTakenDownSoTabReachesTheApp() async throws {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
-        // Each check sits 800 ms from the moment that would change its answer,
-        // so a slow runner cannot decide it.
         coordinator.idleSuggestionLifetimeMilliseconds = 2_000
         coordinator.session = shownSession(" up on the timeline", after: "I wanted to follow")
         coordinator.markReady(" up on the timeline")
         try await Task.sleep(for: .milliseconds(1_200))
-        // Typing through the suggestion is activity, so the clock starts again.
         coordinator.markReady(" on the timeline")
         try await Task.sleep(for: .milliseconds(1_200))
         XCTAssertNotNil(coordinator.session, "typed through 1.2 s ago, inside the lifetime; shown 2.4 s ago, past it")
@@ -728,8 +680,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.inputMonitor.isAcceptActive)
     }
 
-    /// Clicking into another field took the suggestion down but left the
-    /// state at "ready", which kept the new field from being read ahead.
     func testFocusLeavingAShownSuggestionGoesIdleAndPrewarmsTheNewField() {
         settings.cotypingEnabled = true
         let coordinator = makeCoordinator()
@@ -747,8 +697,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNotNil(prewarmedField, "The new field is read before its first key")
     }
 
-    /// Moving between fields during a recording replaced "Paused while a
-    /// meeting is recording." with the idle state.
     func testTheMeetingPauseLabelSurvivesAFocusChange() {
         settings.cotypingEnabled = true
         let coordinator = CotypingCoordinator(
@@ -778,8 +726,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.lastSuggestionActivity)
     }
 
-    /// One pending re-read of the caret at a time, and none once the
-    /// suggestion it was for is gone.
     func testOnlyTheLatestCaretRereadRuns() {
         let coordinator = makeCoordinator()
         coordinator.session = shownSession(" up", after: "I wanted to follow")
@@ -793,11 +739,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertNil(coordinator.caretRefreshTask)
     }
 
-    // MARK: - After a pause
-
-    /// The first suggestion after half an hour without typing took 1.9 s
-    /// against 62 ms (2026-10-06): the model had gone cold. Any key readies
-    /// it, as clicks and unlocking do, before the suggestion is asked for.
     func testAKeyAfterAPauseReadiesTheModel() async {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
@@ -807,8 +748,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertEqual(engine.warmRequests, 1)
     }
 
-    /// Typing asks at most once per interval; the engine itself skips a
-    /// model that ran recently.
     func testActivityAsksToReadyTheModelAtMostOncePerInterval() async {
         let coordinator = makeCoordinator()
         coordinator.isRunning = true
@@ -830,8 +769,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertEqual(engine.warmRequests, 1)
     }
 
-    /// Autocomplete is paused during a meeting recording and while stopped,
-    /// so the model is left alone then.
     func testTheModelIsLeftAloneWhileStoppedOrRecording() async {
         let stopped = makeCoordinator()
         stopped.warmModelAfterPause()
@@ -855,8 +792,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         }
     }
 
-    // MARK: - Escape
-
     func testEscapeHoldsOnlyTheFieldItWasPressedInAndOnlyBriefly() {
         let coordinator = makeCoordinator()
         let field = liveField("I wanted to follow", bundleID: "com.apple.TextEdit")
@@ -879,7 +814,6 @@ final class CotypingCoordinatorTests: XCTestCase {
         coordinator.isRunning = true
         XCTAssertFalse(coordinator.dismissFromTap(), "Escape must reach the app")
         XCTAssertNil(coordinator.escapePause)
-        // A session without a visible ghost is not a suggestion the user can see.
         coordinator.session = shownSession(" up", after: "I wanted to follow")
         XCTAssertFalse(coordinator.dismissFromTap())
         XCTAssertNil(coordinator.escapePause)

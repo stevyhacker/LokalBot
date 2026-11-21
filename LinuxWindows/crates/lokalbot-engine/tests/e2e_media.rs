@@ -1,14 +1,3 @@
-//! The media embedder with the real llama-server and the real projector. Needs the
-//! network and about 1 GB of disk; run on a development machine:
-//!
-//! ```sh
-//! LOKALBOT_E2E_ROOT=~/scratch-root cargo test -p lokalbot-engine --test e2e_media -- --ignored --nocapture
-//! ```
-//!
-//! The Mac's 30 October parity run qualified its own build; this checks that the
-//! Linux or Windows build takes the same request shapes and that a text's vector
-//! matches the text-only embedder's, as search relies on.
-
 use std::path::PathBuf;
 use std::sync::atomic::AtomicBool;
 
@@ -76,8 +65,6 @@ fn the_projector_embeds_pictures_sound_and_text_and_a_pass_finds_them() {
     assert_eq!(vectors[0].len(), 768);
     assert!((dot(&vectors[0], &vectors[0]) - 1.0).abs() < 1e-3);
 
-    // A text's vector here must match the text-only embedder's: searches embed
-    // their words there and score against the index.
     let client = EmbeddingClient::new(&runtime);
     let plain = client
         .embed(&[text.to_string()], "")
@@ -86,7 +73,6 @@ fn the_projector_embeds_pictures_sound_and_text_and_a_pass_finds_them() {
     eprintln!("text vs text-only embedder cosine: {same}");
     assert!(same > 0.999, "{same}");
 
-    // Each medium as a typed part, at the budgets the indexer uses.
     let mut seen = Vec::new();
     for (budget, picture) in [
         (140, square(200, 30, 30)),
@@ -119,11 +105,9 @@ fn the_projector_embeds_pictures_sound_and_text_and_a_pass_finds_them() {
     assert_eq!(sound.len(), 768);
     assert!((dot(&sound, &sound) - 1.0).abs() < 1e-3);
 
-    // A text longer than one batch is cut to fit, not refused.
     let long = "word ".repeat(4_000);
     assert_eq!(embedder.embed_texts(&[long]).expect("cuts").len(), 1);
 
-    // A whole pass over a folder, then a search by meaning without its words.
     let folder = root().join("folder");
     std::fs::create_dir_all(&folder).unwrap();
     const TOPICS: [&str; 24] = [
@@ -218,8 +202,6 @@ fn the_projector_embeds_pictures_sound_and_text_and_a_pass_finds_them() {
     let _ = std::fs::remove_dir_all(&folder);
 }
 
-/// Text vectors through the running engine, once a first search asks for them,
-/// and a sealed capture's picture vector made in memory.
 #[test]
 #[ignore = "needs the runtime and models the test above downloads"]
 fn screens_are_found_by_what_they_say_and_show() {
@@ -304,7 +286,6 @@ fn screens_are_found_by_what_they_say_and_show() {
     assert_eq!(*best.0, budget_screen, "{meanings:?}");
     eprintln!("best screen z = {:.2}", best.1.meaning.z);
 
-    // A sealed capture: decrypted in memory, sized, embedded, its vector stored.
     let key = lokalbot_core::screen::new_image_key();
     let picture = image::RgbImage::from_pixel(800, 500, image::Rgb([20, 120, 220]));
     let mut jpeg = Vec::new();

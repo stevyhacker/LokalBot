@@ -444,8 +444,6 @@ final class IndexPersistenceTests: XCTestCase {
             "INSERT INTO embedded_meetings (meeting_id, source_mtime, model_id) VALUES (?1, ?2, ?3)",
             bind: [meetingID, 100.0, "qwen3-embedding-0.6b-q8"]))
 
-        // Earlier models' vectors must be invalidated by model identity, not
-        // by vector shape: Qwen and Harrier both produced 1,024 dimensions.
         for (label, version) in [
             ("last-pooled Qwen", "qwen3-embedding-0.6b-q8-last-chunks-v2"),
             ("last-pooled Harrier", "harrier-oss-v1-0.6b-q8-last-chunks-v1"),
@@ -492,7 +490,6 @@ final class IndexPersistenceTests: XCTestCase {
         XCTAssertEqual(database.firstDouble("SELECT COUNT(*) FROM screenshots"), 3)
         XCTAssertEqual(database.firstDouble("SELECT COUNT(*) FROM screen_embeddings"), 1)
         XCTAssertTrue(database.hasRow("SELECT 1 FROM screen_embeddings WHERE snapshot_id = 2"))
-        // Discarded screen vectors are rebuilt once, without waiting for a search.
         XCTAssertTrue(migrated.screenVectorsNeedRebuild)
         XCTAssertFalse(EmbeddingIndex(databaseURL: url, storage: StorageManager(rootURL: root))
             .screenVectorsNeedRebuild)
@@ -535,8 +532,6 @@ final class IndexPersistenceTests: XCTestCase {
             relativePath: "meetings/cleared", hasSystemTrack: false)
         let folder = meeting.folderURL(in: storage)
         try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        // The transcript stays the newest file, so deleting notes or outcomes
-        // cannot raise the newest modification time.
         try MeetingNotes.writeChecked("ephemeralnebula reminder", to: folder)
         try MeetingOutcomes(decisions: ["Adopt the transientquartz plan"]).write(to: folder)
         try writeTranscript(text: "ordinary words", to: folder.appendingPathComponent("transcript.json"),
@@ -575,8 +570,6 @@ final class IndexPersistenceTests: XCTestCase {
         let databaseURL = storage.rootURL.appendingPathComponent("lokalbotv3.sqlite")
         let database = try XCTUnwrap(SQLiteDatabase(url: databaseURL))
         _ = SearchIndex(databaseURL: databaseURL)
-        // Simulate a library indexed by a build that ignored notes, with a
-        // freshness mark newer than the notes file.
         XCTAssertTrue(database.run("DELETE FROM search_index_migrations WHERE name = 'search-notes-outcomes-v1'"))
         XCTAssertTrue(database.run(
             "INSERT OR REPLACE INTO indexed_meetings (meeting_id, source_mtime) VALUES (?1, ?2)",
@@ -588,8 +581,6 @@ final class IndexPersistenceTests: XCTestCase {
         XCTAssertEqual(index.search("harborlight").map(\.meetingID), [meeting.id])
     }
 
-    /// Launch looks at every meeting off the main actor in one sweep; it must
-    /// pick exactly the meetings the per-meeting check embeds.
     func testLaunchSweepFindsTheMeetingsThePerMeetingCheckWould() async throws {
         let storage = StorageManager(rootURL: root.appendingPathComponent("sweep-library", isDirectory: true))
         try FileManager.default.createDirectory(at: storage.rootURL, withIntermediateDirectories: true)

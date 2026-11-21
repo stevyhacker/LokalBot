@@ -16,8 +16,6 @@ final class CJKSearchTests: XCTestCase {
                        ["深色模式", "对比度", "2.0.1", "e-mail"])
     }
 
-    /// A spaceless question is one long term; relaxed matching ORs its
-    /// two-character pieces instead, bounded so a long sentence stays one scan.
     func testRelaxedTermsTurnASpacelessQuestionIntoTwoCharacterPieces() {
         XCTAssertEqual(CJKSearch.relaxedTerms(from: "下周四发布之前，谁还要做什么？"),
                        ["下周", "周四", "四发", "发布", "布之", "之前", "谁还", "还要"])
@@ -28,8 +26,6 @@ final class CJKSearchTests: XCTestCase {
                                  CJKSearch.maximumRelaxedTerms)
     }
 
-    /// Ask's keyword passage strips « », … and requires the rest to be a
-    /// contiguous piece of the source, as FTS5's snippet() output is.
     func testSnippetMarksMatchesAndStaysAContiguousPieceOfTheSource() throws {
         let text = "回归测试我们在三台设备上都跑完了，主要流程都没问题，还剩一个小 bug，深色模式下设置页面有几行字对比度太低，看不太清。"
         let snippet = try XCTUnwrap(CJKSearch.snippet(in: text, terms: ["对比度"]))

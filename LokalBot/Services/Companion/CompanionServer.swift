@@ -1,8 +1,5 @@
 import Foundation
 
-/// The sync host as the Mac app uses it. `CompanionSyncServer` adapts the
-/// `lokalbot-sync` crate's `SyncServer`; every call blocks, so callers stay
-/// off the main thread.
 protocol CompanionServer: CompanionRecordSink, Sendable {
     func start() throws
     func stop()
@@ -14,30 +11,19 @@ protocol CompanionServer: CompanionRecordSink, Sendable {
     func connectedDeviceIDs() -> Set<String>
 }
 
-/// What the host asks of the Mac app, from its own threads.
 protocol CompanionServerEvents: AnyObject {
-    /// Blocks until the person answers or the prompt expires.
     func approvePairing(deviceName: String, platform: String) -> Bool
-    /// Applies the op and republishes the records it changed before returning.
     func applyOp(_ json: String) -> CompanionOpResult
-    /// May return before the answer is finished; the output outlives the call.
     func ask(_ requestJSON: String, output: CompanionAskOutput)
     func devicesChanged()
-    /// While false a device keeps its recordings and sends no audio.
     func acceptsRecordings() -> Bool
-    /// Blocks until the recording is a stored meeting or can't become one.
-    /// The file belongs to the host and is only read.
     func receiveRecording(_ json: String, fileURL: URL) -> CompanionUploadOutcome
 }
 
-/// What became of a recording a device sent (protocol.md, `uploadDone`).
 struct CompanionUploadOutcome: Equatable, Sendable {
     enum Status: String, Sendable {
-        /// The Mac keeps it; the device deletes its copy.
         case accepted
-        /// Not now; the device keeps it and tries again.
         case deferred
-        /// It can't be used; the device keeps it until the person decides.
         case rejected
     }
 
@@ -75,14 +61,11 @@ struct CompanionPairedDevice: Identifiable, Equatable, Sendable {
     var network: CompanionNetwork? { lastAddress.flatMap(CompanionNetwork.classify) }
 }
 
-/// The Mac's long-term X25519 key for the sync host.
 struct CompanionStaticKey: Equatable, Sendable {
     var privateKey: Data
     var publicKey: Data
 }
 
-/// Everything the host needs from the crate besides the server itself, so the
-/// controller and the publisher can be exercised without a listener.
 struct CompanionServerFactory {
     struct Configuration: Equatable {
         var databasePath: String
@@ -112,9 +95,6 @@ enum CompanionServerError: LocalizedError {
     }
 }
 
-/// The Mac's companion key lives in the Keychain beside LokalBot's other
-/// per-install keys: generic password, this app identity's service, never
-/// synchronized. Only the private half is stored; the public half is derived.
 enum CompanionKeyStore {
     static let account = "companion-static-key"
 

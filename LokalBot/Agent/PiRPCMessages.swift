@@ -1,7 +1,5 @@
 import Foundation
 
-/// Commands sent to pi over stdin (JSONL). Encoded with JSONSerialization,
-/// which is guaranteed single-line without `.prettyPrinted`.
 enum PiCommand: Equatable {
     case prompt(id: String, message: String, streamingBehavior: String?)
     case steer(id: String, message: String)
@@ -66,9 +64,6 @@ enum PiAssistantDelta: Equatable {
     case other(kind: String)
 }
 
-/// One decoded stdout record from pi RPC mode. Only the fields Agent Mode
-/// displays are extracted; everything else lands in `.unknown` so protocol
-/// additions never crash the client.
 enum PiEvent: Equatable {
     case response(PiResponse)
     case agentStart
@@ -84,7 +79,6 @@ enum PiEvent: Equatable {
     case extensionError(message: String)
     case unknown(type: String)
 
-    /// Decode one JSONL record; nil when the line isn't a JSON object.
     static func decode(line: String) -> PiEvent? {
         guard let data = line.data(using: .utf8),
               let obj = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -158,7 +152,6 @@ enum PiEvent: Equatable {
         return stopReason == "aborted" ? "The model response was cancelled." : "The model could not complete this response."
     }
 
-    /// Joins the `text` blocks of an AgentMessage `content` array.
     private static func text(of message: Any?) -> String {
         guard let content = (message as? [String: Any])?["content"] as? [[String: Any]] else { return "" }
         return content.compactMap { block in
@@ -166,7 +159,6 @@ enum PiEvent: Equatable {
         }.joined()
     }
 
-    /// Joins the `text` blocks of a ToolResult `content` array.
     private static func resultText(_ result: Any?) -> String {
         guard let content = (result as? [String: Any])?["content"] as? [[String: Any]] else { return "" }
         return content.compactMap { block in

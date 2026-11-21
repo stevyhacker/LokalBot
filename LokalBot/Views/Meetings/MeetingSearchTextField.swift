@@ -1,9 +1,6 @@
 import AppKit
 import SwiftUI
 
-/// Native editable field for page-level meeting find. AppKit owns the
-/// accessibility role and first-responder transition so a bar inserted by a
-/// Command-F request is immediately exposed to VoiceOver and XCUITest.
 struct MeetingSearchTextField: NSViewRepresentable {
     @Environment(\.locale) private var locale
     @Binding var text: String

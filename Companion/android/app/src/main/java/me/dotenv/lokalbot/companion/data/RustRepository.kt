@@ -42,18 +42,11 @@ import me.dotenv.lokalbot.sync.UploadListener
 import me.dotenv.lokalbot.sync.keyFingerprint
 import me.dotenv.lokalbot.sync.ActionFilter as RustActionFilter
 
-/**
- * The synced library: the Rust sync core's store on this device
- * (Companion/protocol/ffi.md). Every call into the core blocks, so they all
- * run on [io]. Bonjour results are passed to each connection.
- */
 class RustRepository(
     private val client: SyncClient,
     private val discover: suspend (fingerprint: String?) -> List<String>,
     private val onQueuedAnswer: (AskRequest, AskResult) -> Unit = { _, _ -> },
-    /** The Mac removed this device; the core has already erased its copy. */
     private val onRevoked: () -> Unit = {},
-    /** Recordings are ready to go; they should still go if this process dies first. */
     private val onRecordingsWaiting: () -> Unit = {},
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : CompanionRepository {
@@ -61,13 +54,10 @@ class RustRepository(
     private val scope = CoroutineScope(SupervisorJob() + io)
     private val syncLock = Mutex()
 
-    /** One upload pass at a time. Apart from [syncLock], so a long upload holds up neither syncing nor Ask. */
     private val uploadLock = Mutex()
 
-    /** One pass over the queued questions at a time. Apart from [syncLock], so a slow answer holds up no sync. */
     private val questionsLock = Mutex()
 
-    /** Request ids being asked right now, so a queued one isn't asked twice at once. */
     private val asking: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val macKey: ByteArray? = client.pairedMac()?.macKeyB64?.let(::decodeKey)
 
@@ -92,16 +82,11 @@ class RustRepository(
 
     override fun zone(): ZoneId = ZoneId.systemDefault()
 
-    /** Set before the core closes, so a call that loses the race can tell. */
     @Volatile
     private var closed = false
 
     private suspend fun <T> core(block: () -> T): T = withContext(io) { alive(block) }
 
-    /**
-     * A screen can be reading as the library closes, for instance when the Mac
-     * removes this device. Whoever asked is going away with it, so it ends quietly.
-     */
     private inline fun <T> alive(block: () -> T): T = try {
         block()
     } catch (e: IllegalStateException) {
@@ -116,7 +101,6 @@ class RustRepository(
         client.meetings(fromDay, toDay, limit.toUInt()).map { it.decode(Meeting.serializer()) }.filter { it.mergedInto == null }
     }
 
-    /** One row past the page says whether the list goes on. It's counted as the core returned it and never decoded. */
     override suspend fun newestMeetings(limit: Int): MeetingsPage = core {
         val rows = client.meetings(null, null, (limit + 1).toUInt())
         MeetingsPage(rows.take(limit).map { it.decode(Meeting.serializer()) }, hasMore = rows.size > limit)
@@ -139,7 +123,6 @@ class RustRepository(
                 dueBefore = filter.dueBefore,
             ),
         ).map { it.decode(ActionRow.serializer()) }
-        // The core sorts; "others" is a phone-side filter on top.
         if (filter.othersOnly) rows.filter { ActionOrdering.matches(it, filter) } else rows
     }
 
@@ -168,7 +151,6 @@ class RustRepository(
     override suspend fun setActionStatus(meetingId: String, actionId: String, status: ActionStatus) {
         core { client.setActionStatus(meetingId, actionId, status.wireName) }
         changed()
-        // Send it now if the Mac is reachable; otherwise it waits in the queue.
         scope.launch { sync() }
     }
 
@@ -187,7 +169,6 @@ class RustRepository(
             val result = core { client.ask(json, addresses, listener) }.decode(AskResult.serializer())
             AskEvent.Done(result)
         } catch (e: SyncException.Interrupted) {
-            // The core queued the question; the next ask of it picks up the answer.
             Log.i(TAG, "ask interrupted after ${(System.nanoTime() - started) / 1_000_000_000} s: ${e.message}")
             AskEvent.Interrupted
         } catch (e: SyncException) {
@@ -201,7 +182,6 @@ class RustRepository(
         } finally {
             asking -= request.requestId
         }
-        // Deltas arrive on the core's thread while ask() blocks; the flow ends with this event.
         send(event)
         if (revoked) onRevoked()
     }
@@ -234,26 +214,17 @@ class RustRepository(
                 is SyncOutcome.Synced -> SyncState.Idle(statusInfo())
                 is SyncOutcome.Failed -> SyncState.Failed(statusInfo(), outcome.reason, outcome.message)
             }
-            // A meeting that just arrived ends its recording's time in the list.
             refreshRecordings()
             outcome
         }
         if (outcome is SyncOutcome.Synced) {
-            // The computer answered, so whatever waits can go, without holding this sync up.
             scope.launch { uploadRecordings() }
-            // An answer can take minutes. Outside the lock, a change made meanwhile is sent without waiting for it.
             askQueuedQuestions()
         }
         if (outcome is SyncOutcome.Failed && outcome.reason == SyncFailure.Revoked) onRevoked()
         return outcome
     }
 
-    /**
-     * Questions asked while the Mac was away, or whose connection dropped
-     * while it answered: ask them now and announce each answer. A question
-     * Ask is asking right now is left to it. One pass at a time, so a second
-     * sync doesn't announce an answer the first is about to.
-     */
     private suspend fun askQueuedQuestions() = questionsLock.withLock {
         val answered = askHistory(500).map { it.request.requestId }.toSet()
         for (request in queuedQuestions().filter { it.requestId !in answered && it.requestId !in asking }) {
@@ -334,7 +305,6 @@ class RustRepository(
         }
         val listener = object : UploadListener {
             override fun onProgress(recordingId: String, sentBytes: ULong, totalBytes: ULong) {
-                // The one before it has arrived.
                 if (_uploadProgress.value?.recordingId != recordingId) scope.launch { refreshRecordings() }
                 _uploadProgress.value = UploadProgress(recordingId, sentBytes.toLong(), totalBytes.toLong())
             }
@@ -349,12 +319,10 @@ class RustRepository(
         } finally {
             _uploadProgress.value = null
         }
-        // On revocation the library is about to close, so nothing should reload from it.
         if (outcome !is UploadOutcome.Failed || outcome.reason != SyncFailure.Revoked) recordingsChanged()
         return outcome
     }
 
-    /** Sends them now if the computer answers. If it doesn't, the app's worker keeps trying. */
     private fun sendWaitingRecordings() {
         onRecordingsWaiting()
         scope.launch { uploadRecordings() }
@@ -384,13 +352,11 @@ class RustRepository(
         filePath = info.filePath,
     )
 
-    /** What the core kept after revocation: the rows left recording are done now. */
     fun heldAfterRevocation(): Int {
         runCatching { client.recoverRecordings() }
         return runCatching { client.recordings().count { it.state != "uploaded" } }.getOrDefault(0)
     }
 
-    /** Erases the store and the pairing on this device, then closes the core. */
     fun unpairAndClose() {
         client.unpair()
         close()
@@ -431,7 +397,6 @@ class RustRepository(
             else -> SyncFailure.Other
         }
 
-        /** The Mac's key as stored at pairing: base64url (the QR form) or standard base64. */
         fun decodeKey(value: String): ByteArray? =
             runCatching { Base64.getUrlDecoder().decode(value) }.getOrNull()
                 ?: runCatching { Base64.getDecoder().decode(value) }.getOrNull()

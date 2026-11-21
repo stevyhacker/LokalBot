@@ -1,8 +1,3 @@
-// Reads OpenCode session history from `<data>/opencode/opencode.db` using
-// Node.js's built-in `node:sqlite` (Node 22.5+, zero external dependencies).
-// Subagent/child sessions (`parent_id`) roll into their parent session's time,
-// tokens, and tool calls without adding to its requests.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -80,7 +75,6 @@ export async function readOpenCode(root, collector, onProgress = () => {}) {
       return;
     }
 
-    // Collect text parts (for user prompt classification) and tool parts in the year window.
     const userTextByMsg = new Map();
     const toolParts = [];
     if (tables.has('part')) {
@@ -237,7 +231,6 @@ export async function readOpenCode(root, collector, onProgress = () => {}) {
     try {
       db.close();
     } catch {
-      // Ignore close error.
     }
   }
 }

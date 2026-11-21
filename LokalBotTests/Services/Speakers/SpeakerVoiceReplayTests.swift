@@ -1,14 +1,9 @@
 import XCTest
 @testable import LokalBot
 
-/// Opt-in replay of call-voice naming on real recordings, for calibrating
-/// `SpeakerVoiceMatcher.Call`. Names saved in each transcript act as the
-/// people LokalBot remembers from the other meetings; every call voice is then
-/// matched the way processing would. Nothing leaves this Mac.
 final class SpeakerVoiceReplayTests: XCTestCase {
     private struct Manifest: Decodable {
         var meetings: [String]
-        /// Report folder; keep it outside the repository.
         var output: String
     }
 
@@ -32,8 +27,6 @@ final class SpeakerVoiceReplayTests: XCTestCase {
                 from: Data(contentsOf: folder.appendingPathComponent("transcript.json")))
             let audio = try XCTUnwrap(MeetingAudioFiles.transcribableURL(for: .system, in: folder))
             let result = try await engine.diarizeDetailed(url: audio, model: .community1, includeVoiceSamples: true)
-            // The same two steps as processing: samples kept per acoustic turn,
-            // then the ones matching the transcript's turns.
             let samples = AttributedTrackTranscriber.samples(result.samples, transcript: transcript, source: .system)
             let acoustic = AttributedTrackTranscriber.turns(result.segments, transcript: transcript, source: .system)
             let timeline = transcript.segments.filter { $0.resolvedAttribution.source == .system }.map {
@@ -52,7 +45,6 @@ final class SpeakerVoiceReplayTests: XCTestCase {
         var report: [[String: Any]] = []
         var right = 0, wrong = 0, missed = 0
         for meeting in Array(NSOrderedSet(array: voices.map(\.meeting))) as? [String] ?? [] {
-            // People remembered from every other meeting, one contribution per meeting.
             let remembered = Dictionary(grouping: voices.filter {
                 $0.meeting != meeting && $0.name != nil && SpeakerVoiceMatcher.canEnroll($0.samples)
             }, by: { ParticipantObservation.nameKey($0.name ?? "") }).values.compactMap { group -> SpeakerVoiceProfile? in

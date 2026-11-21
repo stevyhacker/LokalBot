@@ -118,9 +118,6 @@ final class PipelineJobStoreTests: XCTestCase {
         XCTAssertTrue(store.pendingJobs().isEmpty)
     }
 
-    /// A crash mid-processing leaves the row with its attempt already burned,
-    /// and once the cap is reached the job stops auto-resuming — a meeting
-    /// that reliably kills the app must not crash-loop every launch.
     func testJobStopsResumingAfterAttemptCap() {
         let store = makeStore()
         let id = UUID()
@@ -155,8 +152,6 @@ final class PipelineJobStoreTests: XCTestCase {
         XCTAssertEqual(job.attempts, PipelineJobStore.maxAutoResumeAttempts)
     }
 
-    /// An explicit user retry is a fresh decision — it resets the crash-loop
-    /// counter instead of staying parked forever.
     func testExplicitReenqueueResetsAttempts() {
         let store = makeStore()
         let id = UUID()
@@ -197,8 +192,6 @@ final class PipelineJobStoreTests: XCTestCase {
         XCTAssertEqual(store.pendingJobs().map(\.meetingID), [kept])
     }
 
-    /// The queue survives the connection — a new store over the same file
-    /// (i.e. the next app launch) sees the unfinished job.
     func testJobsSurviveReopen() {
         let id = UUID()
         makeStore().enqueue(meetingID: id, transcribe: true, summarize: true)

@@ -1,7 +1,5 @@
 import Foundation
 
-/// How far back the copy on paired phones and tablets reaches. The raw value
-/// is the number of days, 0 for all history, as records.md's `historyDays`.
 enum CompanionHistoryWindow: Int, Codable, CaseIterable, Identifiable, Sendable {
     case all = 0
     case days30 = 30
@@ -19,7 +17,6 @@ enum CompanionHistoryWindow: Int, Codable, CaseIterable, Identifiable, Sendable 
         }
     }
 
-    /// The first local day inside the window, or nil for all history.
     func startOfWindow(now: Date, calendar: Calendar = .current) -> Date? {
         guard self != .all else { return nil }
         let today = calendar.startOfDay(for: now)
@@ -32,8 +29,6 @@ enum CompanionHistoryWindow: Int, Codable, CaseIterable, Identifiable, Sendable 
     }
 }
 
-/// Everything the companion records depend on, captured from `AppSettings`
-/// on the main actor and handed to background builders as a value.
 struct CompanionSharing: Equatable, Sendable {
     static let defaultPort = 17890
     static let portRange = 1024...65535
@@ -42,7 +37,6 @@ struct CompanionSharing: Equatable, Sendable {
         min(portRange.upperBound, max(portRange.lowerBound, port))
     }
 
-    /// The data classes in records.md's manifest, in its order.
     struct DataClasses: Equatable, Sendable, Codable {
         var meetings = true
         var transcripts = true
@@ -52,13 +46,9 @@ struct CompanionSharing: Equatable, Sendable {
         var people = true
         var projects = true
 
-        /// A transcript belongs to its meeting: without the meeting record a
-        /// phone has nothing to open it from.
         var sharesTranscripts: Bool { meetings && transcripts }
-        /// Window titles are part of the Timeline.
         var sharesWindowTitles: Bool { timeline && windowTitles }
 
-        /// What devices actually receive, as the manifest reports it.
         var effective: Self {
             var result = self
             result.transcripts = sharesTranscripts
@@ -107,8 +97,6 @@ struct CompanionSharing: Equatable, Sendable {
             advertisesOnBonjour: settings.companionAdvertisesOnBonjour)
     }
 
-    /// What decides which records exist. Changing only these rebuilds the
-    /// library; the port and Bonjour restart the listener instead.
     var recordScope: RecordScope {
         RecordScope(dataClasses: dataClasses, history: history)
     }

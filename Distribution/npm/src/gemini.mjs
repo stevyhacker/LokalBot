@@ -1,10 +1,3 @@
-// Reads Gemini CLI sessions from `~/.gemini/tmp/<project>/chats/session-*.json`.
-// Each session file contains `sessionId`, `startTime`, `lastUpdated`, and
-// `messages` (`type: "user" | "gemini"` with `model`, `tokens`, and `toolCalls`).
-//
-// In Gemini CLI logs, `tokens.input` already includes `tokens.cached`, and
-// `tokens.thoughts` counts reasoning output tokens. No prompt or reply text is kept.
-
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -117,7 +110,6 @@ function readSession({ file, projectRoot }, collector) {
 
       const t = msg.tokens;
       if (t && typeof t === 'object') {
-        // Gemini CLI `input` already includes `cached`; `thoughts` are output tokens.
         const input = num(t.input);
         const cached = Math.min(input, num(t.cached));
         const output = num(t.output) + num(t.thoughts);

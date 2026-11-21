@@ -1,12 +1,3 @@
-//! Companion records, schema version 1 (`Companion/protocol/records.md`,
-//! `CompanionRecords.swift`).
-//!
-//! These types are the allowlist: a field reaches a phone only if it is
-//! declared here. Optional fields are omitted from the JSON, never `null`.
-//! Instants are ISO 8601 UTC strings with milliseconds; calendar days are
-//! `YYYY-MM-DD` in this computer's time zone; offsets inside a meeting are
-//! seconds from the start of its audio.
-
 use chrono::{DateTime, SecondsFormat, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -23,8 +14,6 @@ pub enum RecordKind {
 }
 
 impl RecordKind {
-    /// Kinds whose keys the publisher reconciles. The manifest is a single
-    /// record set through `set_manifest`.
     pub const RECONCILED: [Self; 5] = [
         Self::Meeting,
         Self::Transcript,
@@ -44,8 +33,6 @@ impl RecordKind {
     }
 }
 
-/// One built record. The host adds the envelope (`version`, `seq`, `sortKey`,
-/// `deleted`).
 #[derive(Clone, Debug, PartialEq)]
 pub struct Record {
     pub kind: RecordKind,
@@ -61,7 +48,6 @@ pub fn instant(at: DateTime<Utc>) -> String {
     at.to_rfc3339_opts(SecondsFormat::Millis, true)
 }
 
-/// Meeting and project UUIDs travel in lower case, as in the fixtures.
 pub fn id(uuid: Uuid) -> String {
     uuid.to_string()
 }
@@ -71,7 +57,6 @@ pub fn id(uuid: Uuid) -> String {
 pub struct ManifestBody {
     pub schema_version: u32,
     pub library_name: String,
-    /// This computer's name; the protocol keeps the Mac's key.
     pub mac_name: String,
     pub data_classes: DataClasses,
     pub history_days: u32,
@@ -307,9 +292,6 @@ pub struct ProjectBody {
     pub meeting_ids: Vec<String>,
 }
 
-// ------------------------------------------------------------ phone → host
-
-/// `action.setStatus`, the only op in schema version 1.
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SetStatusOp {
@@ -363,8 +345,6 @@ pub struct AskResult {
     pub answer: String,
     pub citations: Vec<AskCitation>,
     pub engine_label: String,
-    /// `mac` for an engine on this computer (the protocol's value), `remote`
-    /// for an approved server.
     pub location: String,
     pub answered_at: String,
 }

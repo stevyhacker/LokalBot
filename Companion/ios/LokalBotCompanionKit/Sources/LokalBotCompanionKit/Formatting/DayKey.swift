@@ -1,7 +1,5 @@
 import Foundation
 
-/// A calendar day as records carry it: `YYYY-MM-DD` in the Mac's local time
-/// zone. Comparing keys as strings orders them by date.
 public struct DayKey: Hashable, Comparable, Sendable, CustomStringConvertible, Identifiable {
     public let year: Int
     public let month: Int
@@ -31,8 +29,6 @@ public struct DayKey: Hashable, Comparable, Sendable, CustomStringConvertible, I
         (lhs.year, lhs.month, lhs.day) < (rhs.year, rhs.month, rhs.day)
     }
 
-    /// Noon on this day in `calendar`'s time zone: safe for formatting the
-    /// weekday and date without crossing a day boundary.
     public func date(in calendar: Calendar = .current) -> Date {
         calendar.date(from: DateComponents(year: year, month: month, day: day, hour: 12)) ?? Date()
     }

@@ -1,14 +1,3 @@
-//! Actions, a sidebar destination (`ActionsWorkspaceView.swift`): the user's
-//! own actions from meetings, each said once however many meetings it came
-//! up in. Open / Deferred / Done and one Filter menu choose what the list
-//! shows, in attention order; the pane beside it shows the selected action
-//! and the evidence behind it, or what changes several selected actions
-//! together. Status changes and corrections go through the library and never
-//! alter what was extracted.
-//!
-//! `model` decides what is listed and how it reads, `list` draws the controls
-//! and the list, `details` the pane beside it.
-
 mod details;
 mod list;
 pub(super) mod model;
@@ -42,19 +31,14 @@ use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::{self, Ico, action_row, controls};
 use model::{ListContent, ListFilter, Selection, ThreadLinks};
 
-/// The details pane's starting width (`LBTokens.Metric.detailsPaneWidth`).
 const DETAILS_WIDTH: f32 = 320.;
 
-/// What the page shows, loaded off the UI thread.
 #[derive(Default)]
 struct Loaded {
-    /// The user's own action threads, every status.
     threads: Vec<ActionThread>,
-    /// "Looks done?" suggestions by thread id.
     hints: HashMap<String, CompletionHint>,
 }
 
-/// One line of the virtual list: a gap, a heading or a row.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Entry {
     Gap(f32),
@@ -62,7 +46,6 @@ enum Entry {
     Row(usize, usize),
 }
 
-/// What the built list was made of; it is rebuilt only when one changes.
 #[derive(Clone, PartialEq, Eq)]
 struct ContentKey {
     generation: u64,
@@ -72,17 +55,13 @@ struct ContentKey {
     language: &'static str,
 }
 
-/// The audio behind the selected action's quotes, one player per meeting,
-/// opened when the details show it (`ActionEvidencePassages`).
 struct Passages {
     thread_id: String,
     players: HashMap<Uuid, Option<Arc<Player>>>,
-    /// The reference and citation playing.
     playing: Option<(String, usize)>,
     poll: Option<Task<()>>,
 }
 
-/// The Due control's date picker, open for one thread.
 struct DuePicker {
     thread_id: String,
     calendar: Entity<CalendarState>,
@@ -98,24 +77,17 @@ pub struct ActionsPage {
     links: Rc<ThreadLinks>,
     is_loaded: bool,
     loaded_revision: Option<u64>,
-    /// Reloads started; an older one that finishes late is dropped.
     reloads: u64,
-    /// Bumped whenever the threads, hints or links change.
     generation: u64,
     content: Option<(ContentKey, Rc<ListContent>)>,
     entries: Vec<Entry>,
-    /// Row id to its line in `entries`, for keeping a row in view.
     entry_of_row: HashMap<String, usize>,
     list_state: ListState,
     list_focus: FocusHandle,
-    /// Threads whose status just changed here; they stay listed until the
-    /// view or its filters change.
     kept: HashSet<String>,
     kept_revision: u64,
     selection: Selection,
-    /// The rows the details pane is about, as of this frame.
     current_ids: HashSet<String>,
-    /// The list column's size as last drawn, for arranging its controls.
     list_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     details_hidden: bool,
     passages: Option<Passages>,
@@ -146,11 +118,9 @@ impl ActionsPage {
                     (data.section, data.revision)
                 };
                 if section != Section::Actions {
-                    // Leaving the page stops a quote that is playing.
                     this.stop_passage();
                     return;
                 }
-                // Loads when first shown, then whenever the library changes.
                 if this.loaded_revision != Some(revision) {
                     this.reload(window, cx);
                 }
@@ -183,8 +153,6 @@ impl ActionsPage {
         }
     }
 
-    /// Reads the user's threads and hints first, so the list shows quickly,
-    /// then the people and projects they belong to.
     pub(crate) fn reload(&mut self, _window: &mut Window, cx: &mut Context<Self>) {
         crate::agent_handoff::refresh_in_background();
         let data = self.data.read(cx);
@@ -209,7 +177,6 @@ impl ActionsPage {
                         .filter(|t| t.status() == ActionStatus::Open)
                         .cloned()
                         .collect();
-                    // Suggestions only, and only from text kept with consent.
                     let hints = if suggest_done {
                         library.action_completion_hints(&open, chrono::Utc::now())
                     } else {
@@ -227,8 +194,6 @@ impl ActionsPage {
                 this.generation += 1;
                 cx.notify();
             });
-            // People and Projects list the user's open and deferred work; the
-            // page looks each action up in them.
             let links = cx
                 .background_spawn(async move {
                     lokalbot_core::projects::build_people_and_projects(&links_library)
@@ -249,9 +214,6 @@ impl ActionsPage {
         .detach();
     }
 
-    // ---------------------------------------------------------------- state
-
-    /// Changes the filter; a changed view lets go of the rows kept in place.
     fn update_filter(&mut self, change: impl FnOnce(&mut ListFilter), cx: &mut Context<Self>) {
         let mut next = self.filter.clone();
         change(&mut next);
@@ -269,8 +231,6 @@ impl ActionsPage {
         self.update_filter(ListFilter::clear_filters, cx);
     }
 
-    /// The list for the current filter, rebuilt only when what it is made of
-    /// changed. Rebuilding keeps the scroll position unless the view changed.
     fn content(&mut self) -> Rc<ListContent> {
         let today = Local::now().date_naive();
         let key = ContentKey {
@@ -329,7 +289,6 @@ impl ActionsPage {
         self.loaded.threads.iter().find(|t| t.id == id)
     }
 
-    /// The threads the details pane is about, top to bottom.
     fn current_threads(&self, content: &ListContent) -> Vec<ActionThread> {
         self.selection
             .current(&content.order)
@@ -357,8 +316,6 @@ impl ActionsPage {
         cx.notify();
     }
 
-    /// Up and Down move the selection (Shift extends it), Escape goes back
-    /// to one row and Ctrl+A selects every listed row.
     fn on_list_key(
         &mut self,
         event: &gpui_kit::KeyDownEvent,
@@ -389,10 +346,6 @@ impl ActionsPage {
         cx.notify();
     }
 
-    // -------------------------------------------------------------- changes
-
-    /// One action said in several meetings changes in each of them, so that
-    /// change is confirmed first, for one row or for a batch.
     fn request_status(
         &mut self,
         status: ActionStatus,
@@ -472,8 +425,6 @@ impl ActionsPage {
         threads: Vec<ActionThread>,
         cx: &mut Context<Self>,
     ) {
-        // Changed rows stay where they are; the list closes up when the view
-        // changes.
         self.kept.extend(threads.iter().map(|t| t.id.clone()));
         self.kept_revision += 1;
         cx.notify();
@@ -556,14 +507,10 @@ impl ActionsPage {
         .detach();
     }
 
-    /// "Not mine" clears the owner of every mention through the same
-    /// correction path as the editor, so the action leaves this list.
     fn not_mine(&mut self, thread: &ActionThread, cx: &mut Context<Self>) {
         self.save_corrections(model::not_mine_corrections(thread), cx);
     }
 
-    /// "Edit…": the correction sheet for the newest mention, with its date
-    /// picker (`ActionEditorSheet`).
     fn edit(&mut self, thread: &ActionThread, window: &mut Window, cx: &mut Context<Self>) {
         let reference = thread.latest().clone();
         let Some(meeting) = self.data.read(cx).meeting(reference.meeting_id).cloned() else {
@@ -581,7 +528,6 @@ impl ActionsPage {
         );
     }
 
-    /// Callbacks for a row, bound to this page.
     fn row_handlers(
         &self,
         thread: &ActionThread,
@@ -636,7 +582,6 @@ impl Page for ActionsPage {
         lokalbot_i18n::tr("Actions").into()
     }
 
-    /// "2 open", as the Mac's toolbar says under the title.
     fn subtitle(&self, cx: &gpui_kit::App) -> Option<SharedString> {
         let open = self.data.read(cx).open_action_count?;
         Some(
@@ -648,9 +593,6 @@ impl Page for ActionsPage {
         )
     }
 
-    /// "Plan in Agent…" while anything is open (a new Agent task with the
-    /// most urgent open threads as its draft, never sent by itself), then the
-    /// Details toggle.
     fn toolbar(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> Option<AnyElement> {
         let open: Vec<ActionThread> = self
             .loaded
@@ -699,7 +641,6 @@ impl Page for ActionsPage {
 
 impl Render for ActionsPage {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
-        // Drawn only while it is the current page: the first time, load.
         if self.loaded_revision.is_none() {
             self.reload(window, cx);
         }
@@ -720,8 +661,6 @@ impl Render for ActionsPage {
             div().size_full().child(list).into_any_element()
         } else {
             let details = self.render_details(&content, current, window, cx);
-            // The pane sits on the trailing side: left of the list in a
-            // right-to-left interface, as the window's other columns mirror.
             if lokalbot_i18n::current().rtl {
                 ui::split::leading(
                     "LokalBot.actions",

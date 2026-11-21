@@ -1,7 +1,3 @@
-//! The field (`AskView.composerPanel`): screens attached as context, the
-//! input, the two scope menus (sources, time), Ask or Stop, and a line under
-//! it only when a remote or blocked model changes where the question goes.
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::calendar::Calendar;
@@ -25,7 +21,6 @@ use crate::state::SettingsCategory;
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::{self, Ico, screen_thumbnail};
 
-/// Where answers are computed (`InferencePresentation`).
 pub struct Inference {
     pub icon: Ico,
     pub label: SharedString,
@@ -36,7 +31,6 @@ pub struct Inference {
 pub fn inference(cx: &App) -> Inference {
     let settings = &crate::state::AppData::global(cx).read(cx).settings;
     if let Some(plan) = settings.think_plan() {
-        // A plan has its own approval entry, never a URL origin.
         return if plan.is_approved(settings) {
             Inference {
                 icon: Ico::Network,
@@ -96,9 +90,6 @@ pub fn inference(cx: &App) -> Inference {
 }
 
 impl AskPage {
-    /// The field and what belongs to it, at the reading width. On a new
-    /// question it sits mid-page; in a conversation it is docked below the
-    /// thread with a fade above it.
     pub(super) fn render_field_column(
         &mut self,
         page: PageKind,
@@ -141,8 +132,6 @@ impl AskPage {
             .child(column)
     }
 
-    /// `pinnedContextRow`: the screens attached to the next question, each by
-    /// its picture, with a way to take one or all off.
     fn render_pins(&self, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
         let mut row = h_flex().gap(px(8.)).items_center().flex_wrap().child(
@@ -292,8 +281,6 @@ impl AskPage {
             )
     }
 
-    /// The bordered look of the two menus; one that limits the question (to
-    /// earlier matches, a filter or dates) is tinted.
     fn menu_button(id: &'static str, label: String, highlighted: bool, cx: &App) -> Button {
         let lb = cx.lb();
         Button::new(id)
@@ -307,9 +294,6 @@ impl AskPage {
             })
     }
 
-    /// Sources, their finer filters and the way to source permissions. When
-    /// the question is limited to earlier matches or to evidence another page
-    /// handed over, the button names that limit and the menu offers to widen it.
     fn render_sources_menu(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let page = cx.entity();
         let summary = self.scope_summary(cx);
@@ -432,8 +416,6 @@ impl AskPage {
             })
     }
 
-    /// One date scope for search and answers across every source: Any time,
-    /// Today, Yesterday, Last 7 days, a chosen day, and the way to choose one.
     fn render_time_menu(&self, cx: &mut Context<Self>) -> impl IntoElement + use<> {
         let page = cx.entity();
         let current = self.date_scope;
@@ -580,8 +562,6 @@ impl AskPage {
             })
     }
 
-    /// Shown only when it changes where the question goes: a remote model, or
-    /// a model connection that is blocked.
     fn render_inference_status(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
         let inference = inference(cx);
         if !inference.remote && !inference.blocked {
@@ -631,7 +611,6 @@ impl AskPage {
     }
 }
 
-/// One row of the time menu: a check when it is the chosen scope, then its name.
 fn time_row(
     id: SharedString,
     label: String,

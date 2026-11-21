@@ -1,17 +1,12 @@
 import AppKit
 import SwiftUI
 
-/// The meeting that starts within the hour, at the top of Today: when it is,
-/// who is in it, Join and Record, and what to know before joining. Calendar
-/// setup and permissions stay in Settings.
 struct TodayNextMeetingCard: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject var model: UpcomingMeetingPreparationModel
     let event: CalendarMeetingCandidate
     let now: Date
-    /// The reader's own choice. Without one, preparation is open, and folds to
-    /// a count while another meeting is being recorded.
     @State private var preparationChoice: Bool?
     @State private var showsMore = false
 
@@ -54,8 +49,6 @@ struct TodayNextMeetingCard: View {
         }
     }
 
-    // MARK: Heading
-
     private var summary: some View {
         VStack(alignment: .leading, spacing: 3) {
             (TodayMeetingStatusText.text(TodayAgenda.status(of: event, now: now))
@@ -77,9 +70,6 @@ struct TodayNextMeetingCard: View {
         .accessibilityIdentifier("today.meeting.\(event.externalID)")
     }
 
-    /// A solo event without a link may not be a call at all; the toolbar's
-    /// Record is still there for it. Record leaves the card while something
-    /// else is being recorded: the live card holds the only Stop.
     @ViewBuilder private var actions: some View {
         if UpcomingMeetingSelector.kind(of: event) == .meeting {
             HStack(spacing: 8) {
@@ -110,8 +100,6 @@ struct TodayNextMeetingCard: View {
             .controlSize(.large)
         }
     }
-
-    // MARK: Before you join
 
     private func preparation(_ evidence: UpcomingMeetingEvidence) -> some View {
         let rows = TodayPreparation.primaryRows(evidence)
@@ -179,7 +167,6 @@ struct TodayNextMeetingCard: View {
         }
     }
 
-    /// The model's brief is on request: it may load the Think model.
     @ViewBuilder private func briefControl(_ evidence: UpcomingMeetingEvidence) -> some View {
         if model.isGenerating(evidence) {
             LoadingStateLabel("Preparing…", font: AppFont.scaled(.callout))
@@ -199,8 +186,6 @@ struct TodayNextMeetingCard: View {
     }
 }
 
-/// One thing to know before joining: what it is, the words, and where it
-/// comes from. A source that can be opened opens on click.
 private struct TodayPreparationRowView: View {
     @EnvironmentObject private var app: AppState
     let row: TodayPreparation.Row
@@ -211,7 +196,6 @@ private struct TodayPreparationRowView: View {
             Button { app.openMeeting(id) } label: { content }
                 .buttonStyle(.plain)
         case .link(let url):
-            // A conversation opens in Gmail, signed in as the account that holds it.
             Button { NSWorkspace.shared.open(url) } label: { content }
                 .buttonStyle(.plain)
                 .help("Open in \(Self.mailService)")
@@ -223,7 +207,6 @@ private struct TodayPreparationRowView: View {
 
     private static let mailService = "Gmail"
 
-    /// One line where it fits; a narrow card puts the source under the words.
     private var content: some View {
         HStack(alignment: .firstTextBaseline, spacing: 9) {
             Image(systemName: icon)
@@ -282,7 +265,6 @@ private struct TodayPreparationRowView: View {
         }
     }
 
-    /// "Design review · Nov 3", or for mail "Ana · yesterday · waiting on your reply".
     private var detail: Text {
         var parts: [String] = []
         if !row.source.isEmpty { parts.append(row.source) }
@@ -297,12 +279,10 @@ private struct TodayPreparationRowView: View {
     }
 }
 
-/// A meeting's place in the day as words: "In 12 min", "Recording", "Ended".
 enum TodayMeetingStatusText {
     static func text(_ status: TodayAgenda.Entry.Status) -> Text {
         switch status {
         case .recording: return Text("Recording")
-        // A saved recording's row shows its app and length instead.
         case .recorded, .ended: return Text("Ended")
         case .inProgress: return Text("In progress")
         case .startingNow: return Text("Starting now")
@@ -315,7 +295,6 @@ enum TodayMeetingStatusText {
 }
 
 enum UpcomingMeetingPresentation {
-    /// "11:00 – 11:30 AM", in the reader's own time format.
     static func interval(_ event: CalendarMeetingCandidate) -> String {
         guard event.endDate > event.startDate else {
             return event.startDate.formatted(date: .omitted, time: .shortened)

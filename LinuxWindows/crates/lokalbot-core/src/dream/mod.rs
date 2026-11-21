@@ -1,8 +1,3 @@
-//! The overnight review's artifacts (`Services/Dreaming/DreamModels.swift`):
-//! one report per reviewed day and the durable work memory of active projects,
-//! goals and patterns. The formats match the Mac's, so a library written by
-//! either app is read by the other.
-
 pub mod presentation;
 pub mod rollup;
 pub mod store;
@@ -21,10 +16,7 @@ use crate::time::iso_seconds;
 
 pub use store::{DreamStore, MemoryEntry, StoreError};
 
-/// The retrospective looks back at most this many days, the reviewed day
-/// included (`DreamCompiler.comparisonWindowDays`).
 pub const COMPARISON_WINDOW_DAYS: i64 = 14;
-/// `DreamScheduler.catchUpDays`: yesterday plus the six days before it.
 pub const CATCH_UP_DAYS: i64 = 7;
 pub const REPORT_VERSION: i32 = 3;
 pub const MEMORY_VERSION: i32 = 2;
@@ -36,7 +28,6 @@ pub const MAX_EVIDENCE_PER_PROJECT: usize = 4;
 pub const PROJECT_RETENTION_DAYS: i64 = 30;
 pub const GOAL_RETENTION_DAYS: i64 = 45;
 
-/// `DreamDay.key`: local calendar days as `yyyy-MM-dd`, which sort by date.
 pub fn day_key(day: NaiveDate) -> String {
     day.format("%Y-%m-%d").to_string()
 }
@@ -45,14 +36,10 @@ pub fn day_from_key(key: &str) -> Option<NaiveDate> {
     NaiveDate::parse_from_str(key, "%Y-%m-%d").ok()
 }
 
-/// A canonical key: the same text it parses back to.
 pub fn is_canonical_day_key(key: &str) -> bool {
     day_from_key(key).is_some_and(|day| day_key(day) == key)
 }
 
-/// `DreamEvidenceInvalidation.dayKeys`: a source feeds its own day and the
-/// comparison windows that follow it. Days without a report are included so
-/// work already in flight is cancelled.
 pub fn report_day_keys(
     days: impl IntoIterator<Item = NaiveDate>,
     through: NaiveDate,
@@ -79,8 +66,6 @@ pub enum InferenceLocation {
     Remote,
 }
 
-/// Where the Think model processed a review. Paths, queries, credentials and
-/// keys are never stored, only the approved origin.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub struct InferenceProvenance {
     pub location: InferenceLocation,
@@ -112,15 +97,11 @@ pub enum FallbackReason {
     EmptyDay,
 }
 
-/// One overnight retrospective, `dreams/<day>.json`. A valid report whose day
-/// matches its file name doubles as the "this day was reviewed" marker. No
-/// `engine_name` marks an evidence-only brief.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DreamReport {
     #[serde(default = "report_version")]
     pub version: i32,
-    /// The reviewed local day, not the day the report is shown.
     pub day: String,
     #[serde(with = "iso_seconds")]
     pub generated_at: DateTime<Utc>,
@@ -143,7 +124,6 @@ pub struct DreamReport {
     pub frictions: Vec<String>,
     #[serde(default)]
     pub top_actions: Vec<String>,
-    /// The action thread behind each top action, aligned by index.
     #[serde(
         default,
         rename = "topActionThreadIDs",
@@ -184,9 +164,6 @@ impl DreamReport {
         self.engine_name.is_none()
     }
 
-    /// Today and the Markdown copy tell the same truth about where the model
-    /// ran and why a brief is evidence-only. Written for the file; `tr` keys
-    /// are used by the page when it shows this.
     pub fn provenance_description(&self) -> String {
         if let Some(engine) = &self.engine_name {
             return match self.inference_provenance.as_ref().map(|p| p.location) {
@@ -251,8 +228,6 @@ impl DreamReport {
         lines.join("\n")
     }
 
-    /// Reports derive from screen text and transcripts, so the same credential
-    /// scrubbing applied to exports runs before anything is saved.
     pub fn redacted(&self) -> Self {
         let mut report = self.clone();
         report.narrative = redact(&self.narrative);
@@ -279,8 +254,6 @@ fn section(title: &str, items: &[String], lines: &mut Vec<String>, numbered: boo
     }
 }
 
-/// What one night proposes: full updated lists, merged by [`DreamMemory::merging`]
-/// so day stamps, retention and caps stay app code rather than model behaviour.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MemoryUpdate {
     pub active_projects: Vec<ProposedProject>,
@@ -301,8 +274,6 @@ pub struct ProposedProject {
     pub name: String,
     pub status: String,
     pub evidence: Vec<String>,
-    /// True only when the day's evidence shows work on it; `None` when a
-    /// backend left it out, which keeps the older text-change rule.
     pub active_today: Option<bool>,
 }
 
@@ -314,7 +285,6 @@ pub struct ProposedGoal {
     pub expired: bool,
 }
 
-/// `memory/memory.json`, fed back into the next night's review.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DreamMemory {
@@ -326,7 +296,6 @@ pub struct DreamMemory {
     pub active_projects: Vec<MemoryProject>,
     pub work_goals: Vec<MemoryGoal>,
     pub recurring_patterns: Vec<String>,
-    /// Missing entries are unattributed legacy data.
     #[serde(default)]
     pub pattern_provenance: BTreeMap<String, Provenance>,
 }
@@ -339,7 +308,6 @@ pub struct MemoryProject {
     pub last_active_day: String,
     #[serde(default)]
     pub evidence: Vec<String>,
-    /// Exempt from age-out and the cap. A review can update it, never remove it.
     #[serde(default)]
     pub pinned: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -350,7 +318,6 @@ pub struct MemoryProject {
 #[serde(rename_all = "camelCase")]
 pub struct MemoryGoal {
     pub text: String,
-    /// As stated or inferred ("this week", "Q3"), never a normalized date.
     pub horizon: String,
     pub last_reinforced_day: String,
     #[serde(default)]
@@ -382,11 +349,6 @@ impl DreamMemory {
             && self.recurring_patterns.is_empty()
     }
 
-    /// `DreamMemory.merging`: projects update or insert by case-insensitive
-    /// name; goals refresh or insert only when tied to the day's evidence; a
-    /// goal marked expired goes unless pinned; what the model didn't mention
-    /// stays until it ages out; pins skip age-out and the cap; patterns are a
-    /// full replacement list.
     pub fn merging(
         &self,
         update: &MemoryUpdate,
@@ -414,9 +376,6 @@ impl DreamMemory {
                 let changed = project.status != proposed.status || project.evidence != evidence;
                 project.status = proposed.status.clone();
                 project.evidence = evidence;
-                // Freshness follows the day's evidence, not wording: a
-                // paraphrase mustn't keep a dead project alive, and an active
-                // project repeated verbatim mustn't age out.
                 let active = proposed.active_today.unwrap_or(changed);
                 if active {
                     project.last_active_day = dream_day.to_string();
@@ -502,8 +461,6 @@ impl DreamMemory {
             .collect();
         merged.pattern_provenance = BTreeMap::new();
         for pattern in &merged.recurring_patterns {
-            // An unchanged pattern keeps its dependencies; a reworded or new
-            // one depends on everything the synthesis could read.
             let kept = if self.recurring_patterns.contains(pattern) {
                 self.pattern_provenance.get(pattern)
             } else {
@@ -518,8 +475,6 @@ impl DreamMemory {
         merged
     }
 
-    /// A synthesis can use any memory item in its context, so its dependencies
-    /// are everything memory depends on as well as `sources`.
     pub fn provenance_adding(&self, sources: &[Source], revision: u64) -> Provenance {
         let mut dependencies: Vec<Option<&Provenance>> = Vec::new();
         dependencies.extend(self.active_projects.iter().map(|p| p.provenance.as_ref()));
@@ -615,7 +570,6 @@ impl DreamMemory {
                 let scrubbed = redact(pattern);
                 match self.pattern_provenance.get(pattern) {
                     Some(provenance) => {
-                        // Redaction can collapse two strings; keep both's sources.
                         let merged = match memory.pattern_provenance.get(&scrubbed) {
                             Some(prior) => {
                                 let mut sources = prior.sources.clone();
@@ -650,7 +604,6 @@ impl DreamMemory {
     }
 }
 
-/// An unparseable stamp counts as stale: a corrupted entry ages out.
 fn is_fresh(day: &str, reference: &str, retention_days: i64) -> bool {
     match (day_from_key(day), day_from_key(reference)) {
         (Some(day), Some(reference)) => day >= reference - Duration::days(retention_days),

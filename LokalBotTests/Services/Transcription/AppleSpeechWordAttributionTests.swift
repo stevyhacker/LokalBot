@@ -28,7 +28,6 @@ final class AppleSpeechWordAttributionTests: XCTestCase {
             XCTAssertNotNil(AttributedTrackTranscriber.engineWords(of: segment))
         }
 
-        // 45 seconds of continuous 0.5 s words splits into <= 15 s chunks.
         let longWords = (0..<90).map { index in
             AlignedWordTiming(
                 text: "word\(index)",

@@ -1,9 +1,6 @@
 import ApplicationServices
 import Foundation
 
-/// One background reader, no queued captures, and a wall-clock deadline.
-/// A wedged AX application cannot occupy additional workers or return late
-/// context to the next recording. No field value, pixels or OCR are read.
 final class DictationVisibleContextCapture: @unchecked Sendable {
     typealias Resolver = @Sendable (DictationScreenTarget, CotypingVisibleContext.Policy) -> CotypingVisibleContext.Snapshot?
     static let shared = DictationVisibleContextCapture()
@@ -38,7 +35,6 @@ final class DictationVisibleContextCapture: @unchecked Sendable {
                     }
                 }
                 state.asyncAfter(deadline: .now() + .milliseconds(deadlineMilliseconds)) { [self] in
-                    // Keep the worker occupied until it actually returns.
                     guard generation == request else { return }
                     waiter?.resume(returning: nil)
                     waiter = nil

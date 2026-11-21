@@ -1,7 +1,3 @@
-//! Meetings: the library list beside the meeting workspace
-//! (`MeetingListView.swift`, `MeetingWorkspaceView.swift`,
-//! `LiveMeetingDetailView.swift`).
-
 mod detail;
 pub(crate) mod dialogs;
 pub(crate) mod follow_up;
@@ -45,8 +41,6 @@ use crate::state::{AppData, AppEvent, AskRequest, MeetingTab, RecordingState};
 use crate::theme::metric;
 use crate::ui::{self, Ico, segmented_tabs};
 
-/// Summary, Transcript and Notes. The Review tab is gone: its jobs are the
-/// naming sheet, the owner menu on each action and the refresh banner.
 const TABS: [&str; 3] = ["Summary", "Transcript", "Notes"];
 
 fn tab_index(tab: MeetingTab) -> usize {
@@ -65,14 +59,12 @@ fn tab_at(index: usize) -> MeetingTab {
     }
 }
 
-/// One row of the meeting list.
 #[derive(Clone)]
 pub(crate) enum Entry {
     Header(SharedString),
     Meeting { meeting: Box<Meeting>, live: bool },
 }
 
-/// Notes save state shown beside "Your notes".
 #[derive(Clone, PartialEq)]
 pub(crate) enum NotesStatus {
     Saved,
@@ -86,20 +78,15 @@ pub(crate) struct NotesEditor {
     pub saved: String,
     pub status: NotesStatus,
     pub save_task: Option<Task<()>>,
-    /// Set while the editor's text is replaced programmatically.
     pub loading: bool,
 }
 
 pub(crate) struct FindBar {
-    /// The overview's scroll position, moved to bring the current match in view.
     pub scroll: gpui_kit::ScrollHandle,
-    /// The current match still needs bringing into view.
     pub reveal: std::rc::Rc<std::cell::Cell<bool>>,
     pub input: Entity<InputState>,
-    /// Opened with Find; on the Transcript tab the bar is always shown.
     pub open: bool,
     pub query: String,
-    /// Every occurrence in reading order.
     pub matches: Vec<page_search::PageMatch>,
     pub current: usize,
 }
@@ -111,26 +98,19 @@ pub struct MeetingsPage {
     query: String,
     entries: Vec<Entry>,
     entries_key: Option<(u64, String, Option<Uuid>, bool, usize, u64)>,
-    /// Meetings whose transcript or notes match the query (full-text, debounced).
     content_matches: std::collections::HashSet<Uuid>,
     content_generation: u64,
     content_task: Option<Task<()>>,
     list_state: ListState,
-    /// The meeting the workspace shows.
     selected: Option<Uuid>,
-    /// Every selected meeting, for merging and deleting several at once;
-    /// just `selected` unless Ctrl- or Shift-clicked.
     selection: Vec<Uuid>,
-    /// Where a Shift-click range starts.
     selection_anchor: Option<Uuid>,
     doc: Option<Rc<MeetingDoc>>,
     doc_loading: bool,
     load_generation: u64,
     loaded_revision: u64,
     tab: MeetingTab,
-    /// Transcript moment to highlight and reveal (evidence, find).
     focus_at: Option<f64>,
-    /// Transcript row of `focus_at`, computed once per render.
     focused_row: Option<usize>,
     pending_reveal: bool,
     recap_expanded: bool,
@@ -139,7 +119,6 @@ pub struct MeetingsPage {
     find: FindBar,
     notes: NotesEditor,
     live_notes: NotesEditor,
-    /// The live transcript list: follows new lines until the user scrolls up.
     live_scroll: gpui_kit::ScrollHandle,
     live_follow: bool,
     live_seen_lines: usize,
@@ -151,16 +130,11 @@ pub struct MeetingsPage {
     playing: bool,
     poll: Option<Task<()>>,
     page_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
-    /// Where the Back button at the toolbar's leading edge is, so the tab
-    /// switcher never covers it.
     back_bounds: Rc<Cell<Option<Bounds<Pixels>>>>,
     tick: Option<Task<()>>,
-    /// Where each meeting's playback stood, for coming back to it.
     playback_memory: std::collections::HashMap<Uuid, (f64, f32)>,
     exporting_audio: bool,
     unmatched_expanded: bool,
-    /// Small images of what was on screen, by snapshot. Decrypted pixels stay
-    /// in memory for the meeting on the page.
     screen_thumbnails: Rc<std::cell::RefCell<std::collections::HashMap<i64, Option<ScreenImage>>>>,
     screen_thumbnails_for: Option<Uuid>,
     released_thumbnails: Vec<std::sync::Arc<gpui_kit::RenderImage>>,
@@ -169,12 +143,8 @@ pub struct MeetingsPage {
 
 actions!(meetings, [FindOnMeetingPage]);
 
-/// Ctrl+F opens Find from anywhere on the meeting page, whatever has focus or
-/// nothing at all (`requestSelectedMeetingSearch`), so it can't live on one
-/// element. A text field hands the shortcut on as its own `Search`.
 fn bind_find(cx: &mut App) {
     fn request(cx: &mut App) {
-        // Other windows keep the shortcut to themselves.
         let main = crate::desktop::desktop(cx).and_then(|d| *d.main_window.lock());
         if let (Some(main), Some(active)) = (main, cx.active_window())
             && main != active
@@ -347,10 +317,6 @@ impl MeetingsPage {
         this
     }
 
-    // ------------------------------------------------------------ data flow
-
-    /// Applies navigation requests and reloads after library changes.
-    /// The palette's "Draft follow-up" opens the sheet once the meeting is showing.
     fn open_requested_follow_up(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let wanted = self.data.read(cx).follow_up_request;
         if wanted.is_some() && wanted == self.doc.as_ref().map(|doc| doc.meeting.id) {
@@ -374,8 +340,6 @@ impl MeetingsPage {
                 self.doc_loading = true;
                 self.load_doc(window, cx);
             } else {
-                // The meeting is already open (a citation from Ask about the
-                // meeting shown before): no load follows to reveal the moment.
                 self.reveal_focus();
             }
             if focus.tab == MeetingTab::Transcript && focus.at.is_some() {
@@ -394,7 +358,6 @@ impl MeetingsPage {
         }
     }
 
-    /// Selects the newest meeting when nothing (or a deleted meeting) is selected.
     fn ensure_selection(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let data = self.data.read(cx);
         if !data.meetings_loaded {
@@ -440,8 +403,6 @@ impl MeetingsPage {
         self.show(id, window, cx);
     }
 
-    /// A row click: Ctrl (Cmd on macOS) adds or removes one meeting, Shift
-    /// selects the rows from the last plain click, anything else selects one.
     pub(crate) fn click_row(
         &mut self,
         id: Uuid,
@@ -491,7 +452,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// The selected meetings that exist, in list order.
     pub(crate) fn selected_meetings(&self, cx: &App) -> Vec<Meeting> {
         let data = self.data.read(cx);
         data.meetings
@@ -501,7 +461,6 @@ impl MeetingsPage {
             .collect()
     }
 
-    /// Shows one meeting in the workspace without changing the selection.
     fn show(&mut self, id: Uuid, window: &mut Window, cx: &mut Context<Self>) {
         if self.selected == Some(id) {
             return;
@@ -543,8 +502,6 @@ impl MeetingsPage {
                     return;
                 }
                 let switched = this.doc.as_ref().map(|d| d.meeting.id) != Some(doc.meeting.id);
-                // A recording that just ended has new audio: a player opened
-                // while it was still being written knows only its first part.
                 let audio_changed = this.doc.as_ref().is_some_and(|d| {
                     d.meeting.ended_at != doc.meeting.ended_at || d.has_audio != doc.has_audio
                 });
@@ -578,7 +535,6 @@ impl MeetingsPage {
         }
     }
 
-    /// A name recorded just before a crash still reaches the transcript.
     fn recover_saved_names(&mut self, cx: &mut Context<Self>) {
         let Some(doc) = self.doc.clone() else { return };
         let library = self.data.read(cx).library.clone();
@@ -601,17 +557,12 @@ impl MeetingsPage {
         .detach();
     }
 
-    /// Scrolls the transcript to the focused moment once its rows exist.
     fn reveal_focus(&mut self) {
         if !self.pending_reveal || self.tab != MeetingTab::Transcript {
             return;
         }
         let Some(doc) = self.doc.as_ref() else { return };
         if let Some(row) = self.focus_at.and_then(|at| doc.row_at(at)) {
-            // Item 0 is the header, so row r is item r + 1. Rows the list has
-            // not drawn yet (the transcript tab was not open) have no height,
-            // and revealing them would not move: put the row before it at
-            // the top instead.
             if self.transcript_state.bounds_for_item(row + 1).is_some() {
                 self.transcript_state.scroll_to_reveal_item(row + 1);
             } else {
@@ -636,7 +587,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Opens the transcript at `seconds`, highlighting that passage.
     pub(crate) fn show_evidence(&mut self, seconds: f64, cx: &mut Context<Self>) {
         self.tab = MeetingTab::Transcript;
         self.focus_at = Some(seconds);
@@ -651,7 +601,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Full-text matches for the list filter, 160 ms after typing stops.
     fn search_content(&mut self, cx: &mut Context<Self>) {
         let query = self.query.clone();
         if query.is_empty() {
@@ -677,8 +626,6 @@ impl MeetingsPage {
             });
         }));
     }
-
-    // ---------------------------------------------------------------- notes
 
     fn load_notes_editor(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         let Some(doc) = self.doc.clone() else { return };
@@ -782,7 +729,6 @@ impl MeetingsPage {
         }));
     }
 
-    /// Saves pending notes right away (before switching meetings).
     fn flush_notes(&mut self, cx: &mut Context<Self>) {
         for live in [false, true] {
             let editor = if live { &self.live_notes } else { &self.notes };
@@ -791,8 +737,6 @@ impl MeetingsPage {
             }
         }
     }
-
-    // ----------------------------------------------------------------- find
 
     pub(crate) fn open_find(&mut self, window: &mut Window, cx: &mut Context<Self>) {
         self.find.open = true;
@@ -846,9 +790,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// Brings the current match into view: its tab, its row in a transcript,
-    /// and its words in the notes. On the overview, its text marks itself and
-    /// scrolls when it paints.
     fn reveal_find_match(&mut self, cx: &mut Context<Self>) {
         use page_search::Location;
         let Some(found) = self.find.matches.get(self.find.current).cloned() else {
@@ -865,9 +806,6 @@ impl MeetingsPage {
         } else if self.tab == MeetingTab::Transcript {
             self.transcript_state.scroll_to_reveal_item(0);
         } else if *location == Location::Notes {
-            // Native selection lands Find in the editable notes
-            // (`SearchableNotesEditor`). Focus stays in the Find field, and the
-            // selection shows while it does.
             let find_field = self.find.input.read(cx).focus_handle(cx);
             self.notes.input.update(cx, |input, cx| {
                 input.set_selection_focus(Some(find_field), cx);
@@ -886,8 +824,6 @@ impl MeetingsPage {
         cx.notify();
     }
 
-    /// `exportAudio`: the tracks mixed into one file. Audio stays on this
-    /// computer until the person saves it somewhere else.
     fn export_audio(&mut self, cx: &mut Context<Self>) {
         let Some(doc) = self.doc.clone() else { return };
         if self.exporting_audio || !doc.has_audio {
@@ -930,8 +866,6 @@ impl MeetingsPage {
         })
         .detach();
     }
-
-    // -------------------------------------------------------------- actions
 
     pub(crate) fn set_action_status(
         &mut self,
@@ -1023,9 +957,6 @@ impl MeetingsPage {
         .detach();
     }
 
-    // ------------------------------------------------------------- live tick
-
-    /// Re-renders the live view five times a second for the timer and meters.
     fn sync_tick(&mut self, live_visible: bool, cx: &mut Context<Self>) {
         if live_visible && self.tick.is_none() {
             self.tick = Some(cx.spawn(async move |this, cx| {
@@ -1043,9 +974,6 @@ impl MeetingsPage {
         }
     }
 
-    // --------------------------------------------------------------- render
-
-    /// Where the tab switcher sits ([`tabs_geometry`]).
     fn tabs_geometry(&self) -> Option<(Pixels, Pixels)> {
         Some(tabs_geometry(
             self.page_bounds.get()?,
@@ -1071,10 +999,6 @@ impl MeetingsPage {
     }
 }
 
-/// Where the tab switcher sits over `page`: centered, but clear of the
-/// toolbar items and window controls on the right and of Back at the leading
-/// edge (`back`, on the right in right-to-left languages) when it shows.
-/// Returns x, segment width.
 fn tabs_geometry(page: Bounds<Pixels>, back: Option<Bounds<Pixels>>) -> (Pixels, Pixels) {
     let width = page.size.width;
     let segment = if width < px(760.) {
@@ -1102,7 +1026,6 @@ fn doc_has_journal(doc: &Option<Rc<MeetingDoc>>) -> bool {
     doc.as_ref().is_some_and(|doc| doc.identity.is_some())
 }
 
-/// A toolbar menu symbol with a small chevron, like macOS menu buttons.
 fn menu_glyph(icon: Ico, chevron: bool, cx: &App) -> impl IntoElement {
     use crate::theme::LbThemeExt as _;
     let color = cx.lb().text;
@@ -1123,9 +1046,6 @@ fn directories_home() -> std::path::PathBuf {
 }
 
 impl Page for MeetingsPage {
-    /// A recording in progress keeps its own title. Every state of the saved
-    /// library shares one toolbar without one: a meeting's page carries its
-    /// own title, and the toolbar read it as the list's.
     fn title(&self, cx: &App) -> SharedString {
         if self.is_live_selected(cx)
             && let Some(meeting) = self.selected_meeting(cx)
@@ -1135,9 +1055,6 @@ impl Page for MeetingsPage {
         SharedString::default()
     }
 
-    /// Back to the page the meeting was opened from, at the toolbar's leading
-    /// edge (the Mac's `.navigation` placement), where the centered tab
-    /// switcher can't cover it at any window width.
     fn title_control(
         &mut self,
         _window: &mut Window,
@@ -1202,7 +1119,6 @@ impl Page for MeetingsPage {
                 .into_any_element(),
             );
         }
-        // Several meetings selected: nothing here acts on one of them.
         if self.selection.len() > 1 {
             return None;
         }
@@ -1211,8 +1127,6 @@ impl Page for MeetingsPage {
             .get()
             .is_some_and(|b| b.size.width < px(900.));
         let has_summary = self.doc.as_ref().is_some_and(|d| d.has_summary());
-        // `Draft follow-up…` needs outcomes that are not being rewritten right
-        // now; a queued or waiting meeting keeps its current outcomes.
         let can_follow_up = self.doc.as_ref().is_some_and(|d| {
             use crate::state::ProcessingStage as Stage;
             d.outcomes.as_ref().is_some_and(|o| !o.is_empty())
@@ -1263,7 +1177,6 @@ impl Page for MeetingsPage {
                 )
                 .on_click(cx.listener(|this, _, _, cx| this.ask_meeting(cx)))
             })
-            // Everything that copies or exports the meeting.
             .child(
                 Button::new("meeting-share")
                     .ghost()
@@ -1451,8 +1364,6 @@ impl Page for MeetingsPage {
                                     cx.reveal_path(&doc.folder);
                                 }
                             }))
-                            // Linux and Windows have no Edit menu to carry
-                            // Find; Ctrl+F works everywhere on the page.
                             .item(item(
                                 lokalbot_i18n::tr("Find on this meeting page (Ctrl+F)"),
                                 |this, window, cx| this.open_find(window, cx),
@@ -1483,7 +1394,6 @@ impl Render for MeetingsPage {
         self.rebuild_entries(cx);
         self.release_screen_thumbnails(window, cx);
         let live = self.is_live_selected(cx);
-        // Ctrl+F, from anywhere on the page (`canSearchSelectedMeeting`).
         if self.data.update(cx, |data, _| {
             std::mem::take(&mut data.meeting_find_requested)
         }) && !live
@@ -1531,7 +1441,6 @@ impl Render for MeetingsPage {
     }
 }
 
-/// Speaker color by palette index.
 pub(crate) fn speaker_color(index: usize, cx: &App) -> gpui_kit::Hsla {
     use crate::theme::LbThemeExt as _;
     cx.lb().speaker(index)
@@ -1554,9 +1463,6 @@ mod tests {
         Bounds::new(point(px(225.), px(52.)), size(px(width), px(700.)))
     }
 
-    /// The default window (a page about 1015 px wide) used to put the tabs
-    /// over Back; at the leading edge it stays clear of them at any width,
-    /// on the left or, right to left, on the right.
     #[test]
     fn the_tabs_never_cover_back() {
         for width in [600., 735., 900., 1015., 1215.] {
@@ -1575,7 +1481,6 @@ mod tests {
                 "width {width}: tabs at {x:?}"
             );
         }
-        // Without Back the tabs stay centered where there is room.
         let (x, segment) = tabs_geometry(page(1215.), None);
         let tabs = segmented_tabs::width(TABS.len(), segment);
         assert_eq!(x, px(225.) + px(1215.) / 2. - tabs / 2.);

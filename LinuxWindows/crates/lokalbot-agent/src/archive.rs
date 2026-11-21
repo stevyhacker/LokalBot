@@ -1,6 +1,3 @@
-//! Read-only transcript loading and branching (`AgentConversationArchive.swift`).
-//! Opening a saved conversation needs no model, process, tool run or grant.
-
 use std::collections::{HashMap, HashSet};
 use std::io::Read as _;
 use std::path::Path;
@@ -32,7 +29,6 @@ pub enum ArchiveError {
 
 type Record = Map<String, Value>;
 
-/// Every record of a validated session file.
 pub fn records(session: &SavedSession, directory: &Path) -> Result<Vec<Record>, ArchiveError> {
     if history::validated(session, directory).is_none() {
         return Err(ArchiveError::Unavailable);
@@ -55,8 +51,6 @@ pub fn records(session: &SavedSession, directory: &Path) -> Result<Vec<Record>, 
         .collect()
 }
 
-/// pi files hold a tree; only the newest leaf's ancestors are visible, so
-/// abandoned branches never leak into previews or forks.
 pub fn active_branch(records: &[Record]) -> Vec<Record> {
     let entries: Vec<&Record> = records
         .iter()
@@ -90,7 +84,6 @@ pub fn active_branch(records: &[Record]) -> Vec<Record> {
     result
 }
 
-/// A saved conversation as a transcript, with the sources each prompt carried.
 pub struct Preview {
     pub folder: TranscriptFolder,
     pub attachments: HashMap<String, Vec<Attachment>>,
@@ -174,9 +167,6 @@ pub fn preview(session: &SavedSession, directory: &Path) -> Result<Preview, Arch
     })
 }
 
-/// Writes a new session file through `item` (the `matching_occurrence_from_end`
-/// -th identical message, counted from the end), including the recorded
-/// results of its tool calls, so the fork never has dangling calls.
 pub fn fork(
     session: &SavedSession,
     item: &TranscriptItem,

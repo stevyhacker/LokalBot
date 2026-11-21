@@ -1,9 +1,3 @@
-//! `settings.json` in the library root.
-//!
-//! Keys follow the macOS `AppSettings` blob where the setting exists on both
-//! platforms. Decoding is tolerant: a missing or unreadable key takes its
-//! default, so older or newer files always load.
-
 use std::path::Path;
 
 use serde::{Deserialize, Serialize};
@@ -15,13 +9,10 @@ const DREAMING_FIRST_ELIGIBLE_KEY: &str = "dreamingFirstEligibleDayKey";
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 pub struct Settings {
-    // General
     pub launch_at_login: bool,
-    /// Closing the window keeps LokalBot running in the system tray.
     #[serde(rename = "menuBarOnly")]
     pub run_in_tray: bool,
     pub app_theme: AppTheme,
-    /// Interface only; compatible with macOS's appLanguage preference.
     pub app_language: String,
     pub text_size: TextSize,
     pub quick_recall_enabled: bool,
@@ -30,16 +21,13 @@ pub struct Settings {
     pub onboarding_completed: bool,
     pub getting_started_dismissed: bool,
 
-    // Meetings
     pub auto_record_mode: AutoRecordMode,
     pub stop_debounce_seconds: f64,
     pub record_system_audio: bool,
-    /// Empty means the system default input.
     pub microphone_device: String,
     pub auto_transcribe: bool,
     pub auto_summarize: bool,
     pub note_template: NoteTemplate,
-    /// `match`, a language code, or `custom:<name>`.
     pub summary_language: String,
     pub multi_speaker_diarization: bool,
     pub microphone_is_user: bool,
@@ -50,7 +38,6 @@ pub struct Settings {
     pub meeting_note_export_format: ExportFormat,
     pub meeting_note_export_includes_transcript: bool,
 
-    // Day memory
     pub tracking_enabled: bool,
     pub screen_context_capture_mode: ScreenContextMode,
     pub screenshot_interval_minutes: f64,
@@ -60,12 +47,8 @@ pub struct Settings {
     pub coding_agent_evidence_enabled: bool,
     pub coding_agent_reads_claude_code: bool,
     pub coding_agent_reads_codex: bool,
-    /// The user chose to let coding-agent sessions into day memory. The Mac
-    /// asks during setup; installs here saved the enabled key as true without
-    /// ever asking, so reading also needs this (not a Mac key).
     pub coding_agent_evidence_confirmed: bool,
 
-    // Privacy
     pub excluded_apps: String,
     pub excluded_screen_domains: String,
     pub retention_days: u32,
@@ -75,7 +58,6 @@ pub struct Settings {
     pub approved_remote_transcription_origins: Vec<String>,
     pub approved_remote_autocomplete_origins: Vec<String>,
 
-    // Models
     pub transcription_model: String,
     pub transcription_language: String,
     pub transcription_prompt: String,
@@ -90,36 +72,20 @@ pub struct Settings {
     pub openai_base_url: String,
     #[serde(rename = "openAIModel")]
     pub openai_model: String,
-    /// OpenRouter's per-request provider policy for Think and Autocomplete.
-    /// Private routing stays the default; following the account's policy is
-    /// an explicit opt-in (`openRouterDataPolicy`).
     pub open_router_data_policy: OpenRouterDataPolicy,
-    /// Model slug for the ChatGPT plan, from the signed-in account's list.
     #[serde(rename = "chatGPTPlanModel")]
     pub chatgpt_plan_model: String,
-    /// Model for the Claude plan: an alias Claude Code accepts ("sonnet") or a
-    /// full model id. Empty uses Claude Code's own default.
     pub claude_plan_model: String,
-    /// Model for the Antigravity plan: a slug `agy models` accepts. Empty uses
-    /// Antigravity CLI's own default.
     pub antigravity_plan_model: String,
-    /// Model for the Gemini plan: a model id `gemini` accepts. Empty uses
-    /// Gemini CLI's own default (`auto`).
     pub gemini_plan_model: String,
-    /// The one-time "You're using your ChatGPT plan" notice was dismissed.
     #[serde(rename = "chatGPTPlanNoticeAcknowledged")]
     pub chatgpt_plan_notice_acknowledged: bool,
     pub think_reasoning_level: ReasoningLevel,
-    /// Agent Mode's own reasoning level, chosen in the Agent composer; `None`
-    /// follows Think (`agentReasoningLevel`).
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_reasoning_level: Option<ReasoningLevel>,
     pub semantic_search_enabled: bool,
-    /// llama.cpp build for the built-in runtime: `auto`, `cuda`, `vulkan` or `cpu`.
-    /// CUDA is opt-in while native NVIDIA validation is pending.
     pub llama_backend: String,
 
-    // Dictation
     pub dictation_enabled: bool,
     pub dictation_intent: DictationIntent,
     pub dictation_trigger_mode: DictationTriggerMode,
@@ -131,7 +97,6 @@ pub struct Settings {
     pub dictation_microphone_id: String,
     pub dictation_retain_audio: bool,
 
-    // Writing (autocomplete)
     pub cotyping_enabled: bool,
     pub cotyping_user_name: String,
     pub cotyping_style_note: String,
@@ -142,67 +107,35 @@ pub struct Settings {
     #[serde(rename = "cotypingBuiltInModelID")]
     pub cotyping_built_in_model_id: String,
     pub cotyping_excluded_apps: String,
-    /// Sites where autocomplete never runs: a host (subdomains included) or a
-    /// full URL, comma-separated (`cotypingExcludedDomains`).
     pub cotyping_excluded_domains: String,
-    /// Use the text shown just above the field, such as the conversation
-    /// being answered (`cotypingUseVisibleContext`, on as on macOS).
     pub cotyping_use_visible_context: bool,
-    /// Let suggestions use relevant facts from saved meetings. A grant of
-    /// its own, off by default, as on macOS.
     pub cotyping_use_meeting_memory: bool,
 
-    // Calendar (macOS `AppSettings` keys). Feed links are secrets and live in
-    // the system credential store, never here.
-    /// Read the user's calendars to confirm meetings and title recordings.
-    /// Off by default: calendar contents are sensitive.
     pub calendar_detection_enabled: bool,
-    /// Prefer the matched event's title over the app-derived name.
     pub use_calendar_titles: bool,
-    /// Only auto-record a browser call backed by an active calendar event
-    /// with a meeting link.
     pub require_calendar_for_browser: bool,
-    /// Read the invitation agenda (notes without joining details) and save
-    /// it with calendar-matched recordings. Off by default.
     pub use_calendar_agenda: bool,
-    /// Meeting notes may use the calendar title and invited names as
-    /// secondary context.
     pub meeting_notes_use_calendar_context: bool,
-    /// Linux: also read calendars from Evolution Data Server, which includes
-    /// GNOME Online Accounts. Local; makes no network request of its own.
     pub calendar_evolution_enabled: bool,
-    /// The user's own addresses, comma-separated, so feeds can tell the user
-    /// from other attendees and skip invitations the user declined.
     pub calendar_my_email_addresses: String,
 
-    // Assistant
-    /// Rewrite what's selected in any app (`selectionActionsEnabled`). Off by default.
     pub selection_actions_enabled: bool,
-    /// Ctrl+Shift+W, the Mac's chord, closes tabs and windows on these platforms.
     pub selection_actions_shortcut: String,
     pub ask_memory_enabled: bool,
     pub personal_learning_enabled: bool,
     pub personal_learning_from_dictation: bool,
 
-    // Meetings, beyond the group above
     pub echo_cancellation: bool,
     pub meeting_notes_use_screen_titles: bool,
-    /// The Mac's choice of speaker model; kept so a shared library round-trips.
     pub diarization_model: String,
 
-    // Day memory, beyond the group above
     pub meeting_visual_context_enabled: bool,
     pub coding_agent_excluded_folders: String,
-    /// Read the notes Claude Code and Codex keep for their own later sessions
-    /// into a searchable index. Off until the person turns it on: the notes are
-    /// the agents' words about any project they worked in. The per-agent
-    /// switches and folder exclusions apply here too.
     pub coding_agent_notes_enabled: bool,
     pub daily_memory_export_enabled: bool,
     pub daily_memory_export_folder: String,
     pub daily_memory_export_format: DailyMemoryExportFormat,
     pub daily_memory_export_hour: u32,
-    /// The overnight review (`dreamingEnabled`), on by default as on macOS.
     pub dreaming_enabled: bool,
     pub dreaming_hour: u32,
     pub memory_routines_enabled: bool,
@@ -211,14 +144,11 @@ pub struct Settings {
     pub memory_routine_hour: u32,
     pub memory_routine_weekday: u32,
 
-    // Files
-    /// Search chosen folders. Off until the user reads the notice and picks them.
     pub file_search_enabled: bool,
     pub file_search_folders: Vec<String>,
     pub file_search_includes_media: bool,
     pub file_search_reads_on_battery: bool,
 
-    // Phones and tablets
     pub companion_sharing_enabled: bool,
     pub companion_share_meetings: bool,
     pub companion_share_transcripts: bool,
@@ -227,25 +157,20 @@ pub struct Settings {
     pub companion_share_window_titles: bool,
     pub companion_share_people: bool,
     pub companion_share_projects: bool,
-    /// Days of history shared; 0 is all of it (the Mac's raw values: 0, 30, 90, 365).
     pub companion_history: u32,
     pub companion_answers_questions: bool,
     pub companion_accepts_recordings: bool,
     pub companion_port: u16,
     pub companion_advertises_on_bonjour: bool,
 
-    // Models, beyond the group above
     #[serde(rename = "remoteTranscriptionBaseURL")]
     pub remote_transcription_base_url: String,
     pub remote_transcription_model: String,
-    /// Kokoro voice for spoken summaries (`speechVoice`).
     pub speech_voice: String,
     pub speech_speed: f64,
-    /// The Mac's `ModelCatalog.Entry` records, kept as written.
     pub custom_built_in_models: Vec<serde_json::Value>,
     pub model_download_source: ModelDownloadSource,
 
-    // Writing (autocomplete), beyond the group above
     pub cotyping_backend: CotypingBackend,
     #[serde(rename = "cotypingServerBaseURL")]
     pub cotyping_server_base_url: String,
@@ -271,7 +196,6 @@ pub struct Settings {
     pub cotyping_emoji: bool,
     pub cotyping_macros: bool,
 
-    // Dictation, beyond the group above
     pub dictation_live_preview: bool,
     pub dictation_use_screen_context: bool,
     pub dictation_use_visible_context: bool,
@@ -280,25 +204,13 @@ pub struct Settings {
     #[serde(rename = "dictationCompositionBuiltInModelID")]
     pub dictation_composition_built_in_model_id: String,
 
-    /// Today's one-time GitHub request (`GitHubStarPromptStore`): answered,
-    /// a summary has finished, and the days LokalBot was used.
     pub github_star_dismissed: bool,
     pub github_star_summary_completed: bool,
     pub github_star_active_days: Vec<String>,
-    /// The one-time move of an unused LFM2.5 Autocomplete default to Gemma 4
-    /// E2B has run (`lokalbot_ai::catalog::adopt_default_autocomplete`), so
-    /// a later choice of LFM2.5 is kept. Port-only.
     pub autocomplete_default_adopted: bool,
-    /// Pane widths you dragged, by pane (`LokalBot.people`). The Mac keeps
-    /// these in its split views instead.
     pub pane_widths: std::collections::BTreeMap<String, f64>,
-    /// The Settings page shown last, so the window opens there again
-    /// (`lokalbotv4.settings.selectedPage`, which the Mac keeps in its
-    /// defaults). Empty opens Overview. Port-only.
     pub settings_page: String,
 
-    /// Keys this port doesn't model. A library moves between computers, so
-    /// saving here must not lose what the Mac wrote.
     #[serde(flatten)]
     pub other: serde_json::Map<String, serde_json::Value>,
 }
@@ -391,7 +303,6 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            // Gemma 4 E2B Base, as on macOS (`ModelCatalog.recommendedCotypingID`).
             cotyping_built_in_model_id: "gemma4-e2b-base-q6".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
@@ -474,8 +385,6 @@ impl Default for Settings {
             cotyping_emoji: true,
             cotyping_macros: true,
             dictation_live_preview: true,
-            // Off on a new install, as on the Mac. Its decode falls back to on
-            // only for its own older installs, and nothing here has those.
             dictation_use_screen_context: false,
             dictation_use_visible_context: false,
             dictation_use_meeting_memory: false,
@@ -493,16 +402,12 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// Learn from my dictation needs both switches above it (`learnsFromDictation`).
     pub fn learns_from_dictation(&self) -> bool {
         self.ask_memory_enabled
             && self.personal_learning_enabled
             && self.personal_learning_from_dictation
     }
 
-    /// The first local day the overnight review may read in this enabled period
-    /// (`dreamingFirstEligibleDayKey`), kept with the keys this app has no field
-    /// for, under the Mac's name.
     pub fn dreaming_first_eligible_day_key(&self) -> Option<&str> {
         self.other
             .get(DREAMING_FIRST_ELIGIBLE_KEY)
@@ -524,9 +429,6 @@ impl Settings {
         }
     }
 
-    /// `AppState.applyDreamingSetting`: each enabled period starts at yesterday, so
-    /// an opt-in never backfills older days; off clears the boundary. Returns
-    /// whether anything changed.
     pub fn normalize_dreaming_boundary(&mut self, today: chrono::NaiveDate) -> bool {
         if self.dreaming_enabled {
             if self.dreaming_first_eligible_day_key().is_some() {
@@ -548,8 +450,6 @@ impl Settings {
         }
     }
 
-    /// Loads settings, falling back to defaults for anything missing or unreadable.
-    /// A field with the wrong type falls back on its own; the rest still load.
     pub fn load(path: &Path) -> Self {
         let Ok(bytes) = std::fs::read(path) else {
             return Self::default();
@@ -572,10 +472,6 @@ impl Settings {
             return Self::default();
         };
         for (key, value) in stored {
-            // Every stored key is tried, including ones the defaults leave out
-            // when unset (`agentReasoningLevel`): an unreadable value there
-            // would otherwise fail the final decode and reset every setting.
-            // Keys this port doesn't model always decode, into `other`.
             let mut candidate = merged.clone();
             candidate.insert(key.clone(), value.clone());
             if serde_json::from_value::<Settings>(serde_json::Value::Object(candidate)).is_ok() {
@@ -587,19 +483,16 @@ impl Settings {
         serde_json::from_value(serde_json::Value::Object(merged)).unwrap_or_default()
     }
 
-    /// Writes atomically (temp file + rename), pretty-printed.
     pub fn save(&self, path: &Path) -> std::io::Result<()> {
         let json = serde_json::to_vec_pretty(self).map_err(std::io::Error::other)?;
         crate::library::write_atomic(path, &json)
     }
 
-    /// The level Agent Mode uses: its own choice, else Think's.
     pub fn effective_agent_reasoning_level(&self) -> ReasoningLevel {
         self.agent_reasoning_level
             .unwrap_or(self.think_reasoning_level)
     }
 
-    /// Whether the selected Think backend runs on this machine without approval.
     pub fn think_is_local(&self) -> bool {
         match self.summarizer_backend {
             SummarizerBackend::BuiltIn => true,
@@ -614,7 +507,6 @@ impl Settings {
         }
     }
 
-    /// The subscription plan Think runs on, if any.
     pub fn think_plan(&self) -> Option<SubscriptionPlan> {
         SubscriptionPlan::for_backend(self.summarizer_backend)
     }
@@ -623,8 +515,6 @@ impl Settings {
         split_list(&self.excluded_apps)
     }
 
-    /// Folders whose coding-agent sessions are never read. Comma-separated, as
-    /// the Mac stores them.
     pub fn coding_agent_excluded_folder_list(&self) -> Vec<String> {
         self.coding_agent_excluded_folders
             .split(',')
@@ -634,16 +524,10 @@ impl Settings {
             .collect()
     }
 
-    /// The user chose to use coding-agent sessions. The enabled key alone proves
-    /// nothing here: installs saved it as true without asking, so sessions a Mac
-    /// recorded in this library wait for that choice as well.
     pub fn coding_agent_evidence_active(&self) -> bool {
         self.coding_agent_evidence_enabled && self.coding_agent_evidence_confirmed
     }
 
-    /// The agents whose sessions may be read now. Empty until the person has
-    /// chosen: `coding_agent_evidence_enabled` defaults to true and is saved
-    /// without being asked, so on its own it proves nothing.
     pub fn enabled_coding_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
         use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
         if !self.coding_agent_evidence_active() {
@@ -658,9 +542,6 @@ impl Settings {
         .collect()
     }
 
-    /// The agents whose notes are read now; empty while Read coding agent notes
-    /// is off. Notes don't depend on reading sessions, only on the per-agent
-    /// switches.
     pub fn coding_agent_note_agents(&self) -> Vec<crate::coding_agents::CodingAgentKind> {
         use crate::coding_agents::CodingAgentKind::{ClaudeCode, Codex};
         if !self.coding_agent_notes_enabled {
@@ -717,7 +598,6 @@ pub enum TextSize {
 }
 
 impl TextSize {
-    /// Multiplier on the base type scale (Small 1.0 … Largest 1.45).
     pub fn scale(self) -> f32 {
         match self {
             TextSize::Small => 0.93,
@@ -810,16 +690,12 @@ pub enum SummarizerBackend {
     Ollama,
     #[serde(rename = "OpenAI-compatible server")]
     OpenAICompatible,
-    /// The user's ChatGPT plan through Sign in with ChatGPT.
     #[serde(rename = "ChatGPT plan")]
     ChatGptPlan,
-    /// The user's Claude plan through their own Claude Code installation.
     #[serde(rename = "Claude plan")]
     ClaudePlan,
-    /// The user's Antigravity plan through their own Antigravity CLI (`agy`).
     #[serde(rename = "Antigravity plan")]
     AntigravityPlan,
-    /// The user's Gemini plan through their own Gemini CLI (`gemini`).
     #[serde(rename = "Gemini plan")]
     GeminiPlan,
 }
@@ -848,14 +724,6 @@ impl SummarizerBackend {
     }
 }
 
-/// Think backends that run on the user's own ChatGPT, Claude, Antigravity, or
-/// Gemini plan instead of an API key (`SubscriptionPlan.swift`). Requests count
-/// toward that plan's usage limits.
-///
-/// Each plan has its own entry in `approved_remote_inference_origins`. The
-/// entries are not URL origins, so approving an API server
-/// (`https://api.openai.com` with a key) never approves plan usage, and the
-/// reverse: the two run under different provider terms.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum SubscriptionPlan {
     ChatGpt,
@@ -889,8 +757,6 @@ impl SubscriptionPlan {
         }
     }
 
-    /// "ChatGPT plan", "Claude plan", "Antigravity plan", "Gemini plan"
-    /// (shared interface keys).
     pub fn title(self) -> &'static str {
         match self {
             Self::ChatGpt => "ChatGPT plan",
@@ -908,8 +774,6 @@ impl SubscriptionPlan {
         }
     }
 
-    /// Where Think content goes. CLI-backed plans travel through the user's
-    /// own signed-in CLI installation to its provider.
     pub fn destination_host(self) -> &'static str {
         match self {
             Self::ChatGpt => "api.openai.com",
@@ -919,7 +783,6 @@ impl SubscriptionPlan {
         }
     }
 
-    /// The approval entry, the same string the Mac stores.
     pub fn consent_key(self) -> &'static str {
         match self {
             Self::ChatGpt => "chatgpt-plan://api.openai.com",
@@ -929,7 +792,6 @@ impl SubscriptionPlan {
         }
     }
 
-    /// The provider's own page for checking and capping plan usage.
     pub fn manage_usage_url(self) -> &'static str {
         match self {
             Self::ChatGpt => "https://chatgpt.com/settings/usage",
@@ -952,7 +814,6 @@ impl SubscriptionPlan {
             .any(|entry| entry.eq_ignore_ascii_case(self.consent_key()))
     }
 
-    /// Approves or revokes this plan, leaving every other entry alone.
     pub fn set_approved(self, settings: &mut Settings, approved: bool) {
         settings
             .approved_remote_inference_origins
@@ -973,7 +834,6 @@ impl SubscriptionPlan {
         }
     }
 
-    /// Why Think cannot use this plan yet (`SubscriptionPlanError`).
     pub fn approval_required_message(self) -> String {
         format!(
             "Allow sending context to {} with your {} under Settings → Models → Think before Think uses it.",
@@ -982,7 +842,6 @@ impl SubscriptionPlan {
         )
     }
 
-    /// The approval list shows a plan entry by name rather than its key.
     pub fn approval_display_name(entry: &str) -> String {
         match Self::for_consent_key(entry) {
             Some(plan) => format!("{} · {}", plan.title(), plan.destination_host()),
@@ -991,22 +850,17 @@ impl SubscriptionPlan {
     }
 }
 
-/// OpenRouter's request-level provider preference (`OpenRouterDataPolicy`).
-/// Account, API-key, workspace and guardrail filters apply after it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum OpenRouterDataPolicy {
-    /// Only providers that do not collect inference data.
     #[default]
     PrivateOnly,
-    /// Whatever the OpenRouter account, key, workspace or guardrail allows.
     AccountPolicy,
 }
 
 impl OpenRouterDataPolicy {
     pub const ALL: [OpenRouterDataPolicy; 2] = [Self::PrivateOnly, Self::AccountPolicy];
 
-    /// `provider.data_collection` on every OpenRouter request.
     pub fn data_collection(self) -> &'static str {
         match self {
             Self::PrivateOnly => "deny",
@@ -1037,7 +891,6 @@ pub enum ReasoningLevel {
 }
 
 impl ReasoningLevel {
-    /// Thinking budget in tokens; `None` lets the task decide.
     pub fn budget_tokens(self) -> Option<u32> {
         match self {
             Self::Automatic => None,
@@ -1112,7 +965,6 @@ pub enum AcceptGranularity {
     Phrase,
 }
 
-/// `DailyMemoryExportFormat` on macOS.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 pub enum DailyMemoryExportFormat {
     #[default]
@@ -1121,7 +973,6 @@ pub enum DailyMemoryExportFormat {
     Logseq,
 }
 
-/// `MemoryRoutineKind` on macOS.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum MemoryRoutineKind {
@@ -1142,7 +993,6 @@ impl MemoryRoutineKind {
     ];
 }
 
-/// Where model files come from (`ModelDownloadSource`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ModelDownloadSource {
@@ -1152,7 +1002,6 @@ pub enum ModelDownloadSource {
     ModelScope,
 }
 
-/// Which model finishes the sentence (`CotypingBackend`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum CotypingBackend {
@@ -1171,7 +1020,6 @@ pub enum CotypingServerRequestStyle {
     Chat,
 }
 
-/// Takes the next word. The Mac stores its virtual key codes, so these do too.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "i32", into = "i32")]
 pub enum CotypingAcceptKey {
@@ -1201,7 +1049,6 @@ impl TryFrom<i32> for CotypingAcceptKey {
     }
 }
 
-/// Takes the rest of the suggestion, stored like [`CotypingAcceptKey`].
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(try_from = "i32", into = "i32")]
 pub enum CotypingFullAcceptKey {
@@ -1256,7 +1103,6 @@ mod tests {
             settings.dreaming_first_eligible_day_key(),
             Some("2026-10-19")
         );
-        // It stays once set, under the Mac's key.
         assert!(!settings.normalize_dreaming_boundary(today));
         let json = serde_json::to_value(&settings).unwrap();
         assert_eq!(json["dreamingFirstEligibleDayKey"], "2026-10-19");
@@ -1286,10 +1132,8 @@ mod tests {
     #[test]
     fn dictation_reads_no_window_until_the_person_chooses_it() {
         assert!(!Settings::default().dictation_use_screen_context);
-        // A settings file that doesn't mention it stays off too.
         let missing: Settings = serde_json::from_str("{}").unwrap();
         assert!(!missing.dictation_use_screen_context);
-        // A Mac library's saved choice is kept either way.
         for saved in [true, false] {
             let json = format!(r#"{{"dictationUseScreenContext":{saved}}}"#);
             let settings: Settings = serde_json::from_str(&json).unwrap();
@@ -1308,9 +1152,6 @@ mod tests {
 
     #[test]
     fn one_unreadable_value_does_not_reset_the_other_settings() {
-        // `agentReasoningLevel` is left out of the saved defaults when unset,
-        // so it used to skip the per-field check: a level this build can't
-        // read failed the whole decode and every setting came back default.
         let stored = serde_json::json!({
             "agentReasoningLevel": "a level from a newer build",
             "semanticSearchEnabled": !Settings::default().semantic_search_enabled,
@@ -1338,7 +1179,6 @@ mod tests {
 
     #[test]
     fn accepting_recordings_is_on_by_default_and_round_trips_with_the_mac_key() {
-        // A settings file from before the setting existed.
         let older: Settings = serde_json::from_str("{}").unwrap();
         assert!(older.companion_accepts_recordings);
 
@@ -1356,7 +1196,6 @@ mod tests {
     fn provider_choices_round_trip_with_the_mac_keys() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        // As the Mac writes them, beside keys this port does not know.
         std::fs::write(
             &path,
             r#"{"summarizerBackend":"Claude plan","claudePlanModel":"sonnet","chatGPTPlanModel":"gpt-5.5","chatGPTPlanNoticeAcknowledged":true,"openRouterDataPolicy":"accountPolicy","approvedRemoteInferenceOrigins":["claude-plan://api.anthropic.com","https://openrouter.ai"],"diarizationModel":"nemotron3"}"#,
@@ -1384,7 +1223,6 @@ mod tests {
         assert_eq!(saved["chatGPTPlanNoticeAcknowledged"], true);
         assert_eq!(saved["openRouterDataPolicy"], "accountPolicy");
 
-        // New installs and libraries written before these settings.
         let fresh = serde_json::to_value(Settings::default()).unwrap();
         assert_eq!(fresh["openRouterDataPolicy"], "privateOnly");
         assert_eq!(
@@ -1441,7 +1279,6 @@ mod tests {
             approved_remote_inference_origins: vec!["https://api.openai.com".into()],
             ..Settings::default()
         };
-        // An API-server approval for the same company never covers a plan.
         assert!(!SubscriptionPlan::ChatGpt.is_approved(&settings));
         SubscriptionPlan::ChatGpt.set_approved(&mut settings, true);
         SubscriptionPlan::ChatGpt.set_approved(&mut settings, true);
@@ -1517,9 +1354,6 @@ mod tests {
     fn interface_language_survives_an_existing_library_upgrade() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        // The same preference key is used by the macOS app. Changing the
-        // interface must not change the language of generated meeting notes,
-        // shortcuts or any capture/consent choice.
         std::fs::write(&path, r#"{"appLanguage":"sr-Latn","summaryLanguage":"de","trackingEnabled":false,"recordSystemAudio":false,"quickRecallShortcut":"Ctrl+Shift+Space"}"#).unwrap();
         let settings = Settings::load(&path);
         settings.save(&path).unwrap();
@@ -1548,8 +1382,6 @@ mod tests {
     fn saving_keeps_keys_this_port_does_not_model() {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("settings.json");
-        // One typed value that doesn't parse sends loading down the
-        // field-by-field path, which has to keep them as well.
         for raw in [
             r#"{"graniteSpeechModel":{"repository":"ibm/granite"},"cotypingInProcessRuntime":false}"#,
             r#"{"graniteSpeechModel":{"repository":"ibm/granite"},"cotypingInProcessRuntime":false,"retentionDays":"soon"}"#,

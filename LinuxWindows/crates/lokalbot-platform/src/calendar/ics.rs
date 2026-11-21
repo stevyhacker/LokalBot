@@ -1,12 +1,3 @@
-//! iCalendar (RFC 5545) to meeting candidates.
-//!
-//! Parsing, time zone names (IANA, Windows and Outlook's "(UTC+01:00) …"
-//! labels, `X-LIC-LOCATION`) and RRULE iteration come from `calcard`. This
-//! module groups each series with its `RECURRENCE-ID` overrides, applies them
-//! by instant (a moved or cancelled occurrence replaces the original whatever
-//! its `SEQUENCE`), and maps each occurrence through the macOS filter
-//! (`EventKitCalendarEventProvider.candidate(from:)`).
-
 use std::collections::HashMap;
 use std::str::FromStr as _;
 
@@ -24,29 +15,19 @@ use lokalbot_core::calendar::{
 };
 use lokalbot_core::model::CalendarParticipantIdentity;
 
-/// What a parse needs besides the text.
 #[derive(Clone, Debug)]
 pub struct ParseOptions {
-    /// `calendarProvider` for the events ("ics", "caldav", "eds").
     pub provider: String,
-    /// Occurrences overlapping `[from, to)` are returned.
     pub from: DateTime<Utc>,
     pub to: DateTime<Utc>,
-    /// The user's own addresses, lowercased: never listed as a participant,
-    /// and their `PARTSTAT=DECLINED` drops the event.
     pub my_addresses: Vec<String>,
-    /// The calendar's name when the source knows it better than the feed.
     pub calendar_title: Option<String>,
-    /// Zone for floating times and unknown `TZID`s; `None` uses this computer's.
     pub default_zone: Option<String>,
 }
 
-/// A series whose rule never ends is expanded in growing steps until it
-/// passes the window; this caps the work for a pathological rule.
 const MAX_OCCURRENCES: usize = 1 << 20;
 const FIRST_STEP: usize = 2_048;
 
-/// Recordable meetings in `text` overlapping the window, by start.
 pub fn parse_events(text: &str, options: &ParseOptions) -> anyhow::Result<Vec<CalendarEvent>> {
     let mut calendar = ICalendar::parse(text)
         .map_err(|entry| anyhow::anyhow!("not an iCalendar document ({entry:?})"))?;
@@ -54,8 +35,6 @@ pub fn parse_events(text: &str, options: &ParseOptions) -> anyhow::Result<Vec<Ca
     Ok(events_in(&calendar, options))
 }
 
-/// Same as [`parse_events`] for components that arrive one at a time (EDS
-/// returns each `VEVENT` on its own, with time zones fetched separately).
 pub fn parse_components(
     events: &[String],
     timezones: &[String],
@@ -79,10 +58,6 @@ pub fn parse_components(
     }
 }
 
-/// A `VTIMEZONE` whose name `calcard` cannot place (Outlook's "Customized
-/// Time Zone") gets an `X-LIC-LOCATION`: this computer's zone when its
-/// standard and daylight offsets match, else the fixed standard offset.
-/// Without it, its times would be read in this computer's zone regardless.
 fn name_unknown_zones(calendar: &mut ICalendar, default_name: Option<&str>) {
     let zone_indices = indices(calendar, ICalendarComponentType::VTimezone);
     for index in zone_indices {
@@ -136,7 +111,6 @@ fn name_unknown_zones(calendar: &mut ICalendar, default_name: Option<&str>) {
     }
 }
 
-/// The smaller and larger UTC offsets of an IANA zone this year (January and July).
 fn zone_offsets(name: &str) -> Option<(i32, i32)> {
     use chrono::{Datelike as _, Offset as _};
     let zone = Tz::from_str(name).ok()?;
@@ -152,7 +126,6 @@ fn zone_offsets(name: &str) -> Option<(i32, i32)> {
     Some((january.min(july), january.max(july)))
 }
 
-/// `Etc/GMT-1` for UTC+01:00 (the sign is inverted in that namespace).
 fn fixed_zone_name(seconds: i32) -> Option<String> {
     if seconds % 3600 != 0 {
         return None;
@@ -173,7 +146,6 @@ fn events_in(calendar: &ICalendar, options: &ParseOptions) -> Vec<CalendarEvent>
         .clone()
         .or_else(|| calendar_name(calendar));
     let mut my_addresses = options.my_addresses.clone();
-    // Google names a primary calendar after its owner's address.
     if let Some(owner) = calendar_name(calendar)
         .and_then(|name| CalendarParticipantIdentity::normalized_email_address(&name))
         .filter(|name| name.contains('@') && name.contains('.'))
@@ -233,7 +205,6 @@ struct Series {
     overrides: Vec<usize>,
 }
 
-/// One occurrence: the component that describes it and its times.
 struct Occurrence<'a> {
     component: &'a ICalendarComponent,
     start: DateTime<Utc>,
@@ -303,8 +274,6 @@ impl Context<'_> {
                 }
             }
         }
-        // Overrides of occurrences outside the expansion (or of a series the
-        // feed did not include) still describe a meeting of their own.
         for (_, component) in overrides {
             if let Some((start, end)) = self.single(component) {
                 result.push(Occurrence {
@@ -318,8 +287,6 @@ impl Context<'_> {
         result
     }
 
-    /// The series' occurrences (EXDATEs applied by `calcard`), in steps that
-    /// grow until the expansion passes the window or the rule ends.
     fn expand_series(
         &self,
         calendar: &ICalendar,
@@ -340,8 +307,6 @@ impl Context<'_> {
         }
         single.components[0].component_ids = (1..single.components.len() as u32).collect();
 
-        // `calcard` iterates a start without a TZID in the default zone, even
-        // a UTC one ("…T150000Z"): expand those in their own offset instead.
         let master_start = calendar.components[master].property(&ICalendarProperty::Dtstart);
         let default_zone = master_start
             .filter(|entry| entry.tz_id().is_none())
@@ -380,7 +345,6 @@ impl Context<'_> {
         }
     }
 
-    /// DTSTART to DTEND (or DURATION) of one component.
     fn single(&self, component: &ICalendarComponent) -> Option<(DateTime<Utc>, DateTime<Utc>)> {
         let start_entry = component.property(&ICalendarProperty::Dtstart)?;
         let start_zone = start_entry.tz_id();
@@ -402,8 +366,6 @@ impl Context<'_> {
         Some((start, end.max(start)))
     }
 
-    /// The instant an override's `RECURRENCE-ID` names, in the zone of its own
-    /// `TZID` or else the series start's.
     fn recurrence_instant(
         &self,
         component: &ICalendarComponent,
@@ -421,7 +383,6 @@ impl Context<'_> {
     fn instant(&self, value: &DateTimeResult, zone: Option<&str>) -> Option<DateTime<Utc>> {
         let zone = self.resolver.resolve_or_default(zone);
         to_utc(&value.to_date_time_with_tz(zone).or_else(|| {
-            // A local time skipped by a DST change: read it one hour later.
             let later = DateTimeResult {
                 date_time: value.date_time + chrono::Duration::hours(1),
                 offset: value.offset,
@@ -545,8 +506,6 @@ fn attendees(component: &ICalendarComponent) -> Vec<Attendee> {
         .collect()
 }
 
-/// The event link, conferencing properties, location, then notes
-/// (`EventKitCalendarEventProvider`: url, location, notes).
 fn meeting_url(component: &ICalendarComponent, description: Option<&str>) -> Option<String> {
     let url = component
         .property(&ICalendarProperty::Url)
@@ -576,7 +535,6 @@ fn is_transparent(component: &ICalendarComponent) -> bool {
     }
 }
 
-/// Outlook's `X-MICROSOFT-CDO-BUSYSTATUS` (FREE, TENTATIVE, BUSY, OOF).
 fn busy_status(component: &ICalendarComponent) -> Option<String> {
     other_text(component, "X-MICROSOFT-CDO-BUSYSTATUS").map(|s| s.trim().to_ascii_uppercase())
 }
@@ -606,7 +564,6 @@ fn to_utc(value: &DateTime<Tz>) -> Option<DateTime<Utc>> {
     }
 }
 
-/// This computer's zone (or `name`) for floating times and unknown `TZID`s.
 fn default_zone(name: Option<&str>) -> Tz {
     name.map(str::to_string)
         .or_else(|| iana_time_zone::get_timezone().ok())
@@ -641,7 +598,6 @@ fn text_property(component: &ICalendarComponent, property: &ICalendarProperty) -
         .and_then(value_text)
 }
 
-/// An `X-` property, by case-insensitive name.
 fn other_text(component: &ICalendarComponent, name: &str) -> Option<String> {
     component
         .entries
@@ -670,7 +626,6 @@ fn value_text(value: &ICalendarValue) -> Option<String> {
     }
 }
 
-/// The first characters of a UID, for logs.
 fn short(uid: &str) -> String {
     uid.chars().take(12).collect()
 }
@@ -729,15 +684,11 @@ mod tests {
         assert_eq!(
             summary(&events),
             pairs(&[
-                // Moved an hour later by an override with a newer SEQUENCE.
                 ("Team standup (moved)", "2026-10-19T09:00Z"),
                 ("Design review, Q4", "2026-10-20T16:00Z"),
-                // The 21st is an EXDATE and the 23rd a cancelled override.
                 ("Morning sync", "2026-10-22T07:00Z"),
                 ("Morning sync", "2026-10-23T07:00Z"),
                 ("Morning sync", "2026-10-24T07:00Z"),
-                // Central European summer time ends on the 25th: 09:00 local
-                // moves from 07:00 to 08:00 UTC.
                 ("Morning sync", "2026-10-25T08:00Z"),
                 ("Morning sync", "2026-10-26T08:00Z"),
                 ("Team standup", "2026-10-26T09:00Z"),
@@ -756,8 +707,6 @@ mod tests {
             standup.meeting_url.as_deref(),
             Some("https://meet.google.com/abc-defg-hij")
         );
-        // The owner (named by X-WR-CALNAME), the room and the guest who
-        // declined are not participants.
         assert_eq!(standup.participant_names, ["Maya Lin"]);
         assert_eq!(
             standup.participant_identities[0].email_address.as_deref(),
@@ -787,12 +736,10 @@ mod tests {
             &options("2026-10-19T00:00:00Z", "2026-10-27T00:00:00Z"),
         )
         .unwrap();
-        // Out of office and a free hold without guests or a link are dropped.
         assert_eq!(
             summary(&events),
             pairs(&[
                 ("Monthly planning", "2026-10-20T13:00Z"),
-                // "Customized Time Zone" declares a fixed UTC+01:00.
                 ("Partner review", "2026-10-22T11:00Z"),
             ])
         );
@@ -803,7 +750,6 @@ mod tests {
         assert_eq!(planning.agenda.as_deref(), Some("Quarterly numbers"));
         assert_eq!(planning.source_calendar_title.as_deref(), Some("Calendar"));
 
-        // US daylight saving time ends on November 1st.
         let events = parse_events(
             OUTLOOK,
             &options("2026-10-30T00:00:00Z", "2026-11-03T00:00:00Z"),
@@ -829,17 +775,13 @@ mod tests {
         assert_eq!(
             summary(&events),
             pairs(&[
-                // Weekdays since 2010: well past the first expansion step.
                 ("Long-running daily", "2026-10-19T07:00Z"),
                 ("Long-running daily", "2026-10-20T07:00Z"),
-                // The 15th moved into the window; the 22nd moved out of it.
                 ("Thursday review (moved to Tuesday)", "2026-10-20T15:00Z"),
                 ("Long-running daily", "2026-10-21T07:00Z"),
                 ("Long-running daily", "2026-10-22T07:00Z"),
-                // Floating 13:00 is read in the default zone (CEST).
                 ("Floating review", "2026-10-22T11:00Z"),
                 ("Long-running daily", "2026-10-23T07:00Z"),
-                // An override without its series is still a meeting.
                 ("Orphan instance", "2026-10-23T10:00Z"),
                 ("Long-running daily", "2026-10-26T07:00Z"),
             ])
@@ -876,8 +818,6 @@ mod tests {
         assert_eq!(events[0].participant_names, ["Ana Petrović"]);
     }
 
-    /// Floating times and unknown zones are read in this computer's zone;
-    /// on Windows its name comes from the system's time zone settings.
     #[test]
     fn this_computers_zone_is_known() {
         assert!(

@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-// Every fixture is synthetic and built here, shaped like what Fathom's "Copy
-// Transcript" and "Copy Summary" buttons copy and what its API returns.
-
 private let shareToken = "SyntheticShareToken_0001"
 
 private let copiedTranscript = """
@@ -178,7 +175,6 @@ final class FathomMeetingReaderTests: XCTestCase {
         return try XCTUnwrap(calendar.date(from: DateComponents(year: year, month: month, day: day)))
     }
 
-    /// Folder walks name temporary files under /private/var, the test under /var.
     private func assertSameFile(_ url: URL?, _ expected: URL, file: StaticString = #filePath, line: UInt = #line) {
         XCTAssertEqual(url?.resolvingSymlinksInPath().path, expected.resolvingSymlinksInPath().path,
                        file: file, line: line)

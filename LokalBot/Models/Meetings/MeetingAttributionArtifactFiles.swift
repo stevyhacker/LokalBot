@@ -1,7 +1,5 @@
 import Foundation
 
-/// Stale-attribution markers written beside a meeting's outcomes. Read-only
-/// helpers live here so file-backed readers (CLI, MCP) share one definition.
 enum MeetingAttributionArtifacts {
     static let refreshMarker = "attribution-refresh-needed.json"
     static let previousOutcomes = "outcomes.previous.json"

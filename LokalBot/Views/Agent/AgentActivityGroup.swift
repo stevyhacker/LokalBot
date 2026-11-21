@@ -1,8 +1,5 @@
 import SwiftUI
 
-/// A run of tool steps as one quiet line ("Searched meeting library, read
-/// meeting notes") that opens to a row per step. A finished turn's line
-/// counts its steps and also holds what the agent said between them.
 struct AgentStepsLine: View {
     @EnvironmentObject private var app: AppState
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -48,7 +45,6 @@ struct AgentStepsLine: View {
                 HStack(alignment: .firstTextBaseline, spacing: 7) {
                     Image(systemName: "chevron.forward")
                         .font(.scaled(.caption2).weight(.semibold))
-                        // Turns to point down in either reading direction.
                         .rotationEffect(.degrees(expanded ? (layoutDirection == .rightToLeft ? -90 : 90) : 0))
                         .frame(width: 10)
                     Image(systemName: group.hasFailure ? "exclamationmark.circle" : "checkmark.circle")
@@ -100,7 +96,6 @@ struct AgentStepsLine: View {
             }
             .font(.scaled(.callout))
         case .assistant(_, let said, _):
-            // What the agent said between steps, kept in order and quieter than the answer.
             Text(verbatim: said)
                 .font(.system(size: max(12, textSize - 2))).foregroundStyle(.secondary).lineSpacing(3)
                 .textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
@@ -123,7 +118,6 @@ struct AgentStepsLine: View {
     }
 }
 
-/// The step the agent is on right now: "Reading open actions…".
 struct AgentLiveStep: View {
     @EnvironmentObject private var app: AppState
     let item: AgentTranscriptItem

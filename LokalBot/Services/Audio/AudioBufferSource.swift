@@ -3,8 +3,6 @@ import AVFoundation
 import CoreAudio
 import Foundation
 
-/// Where microphone PCM comes from. Only the input is swappable; the
-/// recorder's writer, preview tee, recovery journal, and health stay real.
 protocol MicrophoneInput: AnyObject {
     var inputFormat: AVAudioFormat { get }
     var isRunning: Bool { get }
@@ -14,7 +12,6 @@ protocol MicrophoneInput: AnyObject {
     func stop()
 }
 
-/// Today's microphone: a fresh `AVAudioEngine` input node.
 final class EngineMicrophoneInput: MicrophoneInput {
     let engine = AVAudioEngine()
 
@@ -22,7 +19,6 @@ final class EngineMicrophoneInput: MicrophoneInput {
     var isRunning: Bool { engine.isRunning }
 
     func installTap(bufferSize: AVAudioFrameCount, block: @escaping AVAudioNodeTapBlock) {
-        // Let AVAudioEngine choose the current hardware format (see MicRecorder).
         engine.inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: nil, block: block)
     }
 
@@ -37,8 +33,6 @@ final class EngineMicrophoneInput: MicrophoneInput {
 }
 
 #if LOKALBOT_TEST_HOOKS
-/// Plays an audio file into the recorder in real time ÷ `speed`, then
-/// silence until stopped.
 final class FileMicrophoneInput: MicrophoneInput {
     private let file: AVAudioFile
     private let speed: Double
@@ -86,7 +80,7 @@ final class FileMicrophoneInput: MicrophoneInput {
         } catch {
             buffer.frameLength = 0
         }
-        if buffer.frameLength == 0 { // silence after the file ends
+        if buffer.frameLength == 0 {
             buffer.frameLength = bufferSize
             for channel in UnsafeMutableAudioBufferListPointer(buffer.mutableAudioBufferList) {
                 if let data = channel.mData { memset(data, 0, Int(channel.mDataByteSize)) }
@@ -97,11 +91,7 @@ final class FileMicrophoneInput: MicrophoneInput {
 }
 #endif
 
-/// Where system-audio PCM comes from, delivered exactly like a Core Audio
-/// IOProc (a buffer list valid only during the call, and its timestamp).
 protocol SystemAudioTap: AnyObject {
-    /// Whether `attach(processID:)` can find the process. Checked before a
-    /// running tap is torn down, so a vanished PID leaves capture untouched.
     func resolves(processID: pid_t) -> Bool
     func attach(processID: pid_t) throws -> AVAudioFormat
     func start(_ deliver: @escaping (UnsafePointer<AudioBufferList>, UnsafePointer<AudioTimeStamp>) -> Void) throws
@@ -109,8 +99,6 @@ protocol SystemAudioTap: AnyObject {
     func destroy()
 }
 
-/// Today's system audio: a Core Audio process tap on one PID (macOS 14.4+),
-/// read through a private aggregate device's IOProc.
 final class CoreAudioProcessTap: SystemAudioTap {
     private var tapID = AudioObjectID(kAudioObjectUnknown)
     private var aggregateID = AudioObjectID(kAudioObjectUnknown)
@@ -121,20 +109,17 @@ final class CoreAudioProcessTap: SystemAudioTap {
     }
 
     func attach(processID: pid_t) throws -> AVAudioFormat {
-        // 1. Translate the PID to its Core Audio process object.
         guard let processObject = CoreAudioUtils.translatePIDToProcessObject(pid: processID) else {
             throw SystemAudioRecorder.RecorderError.processNotFound
         }
 
-        // 2. Create a stereo-mixdown tap on that process only.
         let tapDescription = CATapDescription(stereoMixdownOfProcesses: [processObject])
         tapDescription.uuid = UUID()
         tapDescription.isPrivate = true
-        tapDescription.muteBehavior = .unmuted   // user still hears the meeting
+        tapDescription.muteBehavior = .unmuted
         var err = AudioHardwareCreateProcessTap(tapDescription, &tapID)
         guard err == noErr else { throw SystemAudioRecorder.RecorderError.coreAudio("CreateProcessTap", err) }
 
-        // 3. Read the tap's stream format.
         var asbd = AudioStreamBasicDescription()
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
         var addr = AudioObjectPropertyAddress(
@@ -146,7 +131,6 @@ final class CoreAudioProcessTap: SystemAudioTap {
             throw SystemAudioRecorder.RecorderError.badTapFormat
         }
 
-        // 4. Private aggregate device that contains (auto-starts) the tap.
         let aggDescription: [String: Any] = [
             kAudioAggregateDeviceNameKey: "LokalBot Tap",
             kAudioAggregateDeviceUIDKey: UUID().uuidString,
@@ -163,7 +147,6 @@ final class CoreAudioProcessTap: SystemAudioTap {
     }
 
     func start(_ deliver: @escaping (UnsafePointer<AudioBufferList>, UnsafePointer<AudioTimeStamp>) -> Void) throws {
-        // 6. IOProc: tap buffers arrive as the aggregate device's input.
         var err = AudioDeviceCreateIOProcIDWithBlock(&ioProcID, aggregateID, nil) { _, inInputData, inputTime, _, _ in
             deliver(inInputData, inputTime)
         }
@@ -194,9 +177,6 @@ final class CoreAudioProcessTap: SystemAudioTap {
 }
 
 #if LOKALBOT_TEST_HOOKS
-/// Plays an audio file as a process's output in real time ÷ `speed`, then
-/// silence until stopped. Any file format is converted to what a process tap
-/// delivers — a Float32 stereo mixdown at 48 kHz.
 final class FileSystemAudioTap: SystemAudioTap {
     static let tapFormat = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2)!
 
@@ -236,7 +216,6 @@ final class FileSystemAudioTap: SystemAudioTap {
         self.timer = timer
     }
 
-    /// Like `AudioDeviceStop`: no delivery runs after this returns.
     func stopDelivery() {
         timer?.cancel()
         timer = nil
@@ -260,7 +239,7 @@ final class FileSystemAudioTap: SystemAudioTap {
             }
             if status == .endOfStream || status == .error { fileEnded = true }
         }
-        if output.frameLength == 0 { // silence after the file ends
+        if output.frameLength == 0 {
             output.frameLength = frames
             for channel in UnsafeMutableAudioBufferListPointer(output.mutableAudioBufferList) {
                 if let data = channel.mData { memset(data, 0, Int(channel.mDataByteSize)) }

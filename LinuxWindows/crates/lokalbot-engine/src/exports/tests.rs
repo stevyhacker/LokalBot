@@ -82,7 +82,6 @@ fn a_pass_writes_each_finished_meeting_once_and_skips_what_it_should() {
         "Atlas sync",
         "# Atlas\n\n## TL;DR\n\nWe talked.\n",
     );
-    // Still in progress: no note.
     library
         .create_meeting("Ongoing", "Zoom", Utc::now())
         .unwrap();
@@ -97,12 +96,10 @@ fn a_pass_writes_each_finished_meeting_once_and_skips_what_it_should() {
     assert!(text.contains(&format!("- **Meeting:** `{}`", meeting.short_id())));
     assert!(text.contains("We talked."));
 
-    // Nothing changed: the fingerprint skips it, without even reading it.
     let again = run(&library, &config, &report.fingerprints);
     assert!(again.written.is_empty());
     assert_eq!(again.fingerprints, report.fingerprints);
 
-    // A changed summary refreshes the note under the same name.
     std::thread::sleep(std::time::Duration::from_millis(5));
     std::fs::write(
         library.meeting_dir(&meeting).join("summary.md"),
@@ -128,7 +125,6 @@ fn a_note_the_person_touched_is_theirs() {
     let report = run(&library, &config, &HashMap::new());
     let note = report.written[0].clone();
 
-    // Edited: left alone, and the pass counts as done.
     let mut edited = std::fs::read_to_string(&note).unwrap();
     edited.push_str("\nMy own line.\n");
     std::fs::write(&note, &edited).unwrap();
@@ -137,7 +133,6 @@ fn a_note_the_person_touched_is_theirs() {
     assert!(second.written.is_empty() && second.failures.is_empty());
     assert_eq!(std::fs::read_to_string(&note).unwrap(), edited);
 
-    // Deleted while its sidecar stays: never written again.
     std::fs::remove_file(&note).unwrap();
     let existing = ExistingNotes::read(&destination).unwrap();
     assert!(existing.removed.contains(&meeting.short_id()));
@@ -145,7 +140,6 @@ fn a_note_the_person_touched_is_theirs() {
     assert!(third.written.is_empty());
     assert!(!note.exists());
 
-    // A file LokalBot didn't write under the name stays too.
     let other = dir.path().join("other");
     std::fs::create_dir_all(&other).unwrap();
     std::fs::write(other.join(meeting_notes::file_name(&meeting)), "mine").unwrap();
@@ -312,7 +306,6 @@ fn the_action_list_marks_status_and_replaces_the_summarys_section() {
     let logseq = meeting_notes::action_lines(&actions, ExportFormat::Logseq);
     assert_eq!(logseq[1], "- DONE Send the notes — due Friday");
     assert_eq!(logseq[4], "- TODO Ana: Review the doc");
-    // No owner group stays out until something belongs in it.
     assert!(!lines.iter().any(|line| line == "### Owner unclear"));
     let empty = meeting_notes::action_lines(&actions[1..], ExportFormat::Markdown);
     assert_eq!(empty[1], "None");
@@ -398,7 +391,6 @@ fn the_daily_note_reads_the_day_and_names_its_file_by_format() {
     assert!(text.contains("| Saved moments | 1 |"));
     assert!(text.contains("- Editor: 2h 0m"));
 
-    // Identical content isn't rewritten.
     assert_eq!(
         daily::export(
             &library,
@@ -410,7 +402,6 @@ fn the_daily_note_reads_the_day_and_names_its_file_by_format() {
         .unwrap(),
         daily::Outcome::Unchanged(path.clone())
     );
-    // A catch-up leaves any existing file alone.
     assert_eq!(
         daily::export(
             &library,
@@ -505,7 +496,6 @@ fn the_digest_appears_only_while_generated_unedited_and_current() {
     );
     assert!(!snapshot.digest_is_out_of_date);
 
-    // New evidence makes it out of date; it's left out and the note says so.
     library
         .append_activity(
             "Editor",
@@ -522,7 +512,6 @@ fn the_digest_appears_only_while_generated_unedited_and_current() {
             .contains("_The day's digest is out of date. It is added here once it is updated._")
     );
 
-    // An edited journal is the person's, and stays out of the export.
     std::fs::write(library.journal_path(day()), "edited").unwrap();
     let snapshot = daily::snapshot(&library, day()).unwrap();
     assert_eq!(snapshot.digest, None);
@@ -539,7 +528,6 @@ fn at(hour: u32) -> chrono::DateTime<Local> {
 #[test]
 fn the_daily_schedule_catches_up_then_waits_for_the_hour() {
     let none = HashSet::new();
-    // Past days first, oldest first.
     assert_eq!(
         next_daily_export(at(8), 18, None, &none, &none),
         Some((day() - Duration::days(7), daily::Pass::CatchUp))
@@ -554,7 +542,6 @@ fn the_daily_schedule_catches_up_then_waits_for_the_hour() {
         next_daily_export(at(19), 18, Some(day()), &caught, &none),
         None
     );
-    // A reopened day comes first, outside the window doesn't count.
     let reopened: HashSet<NaiveDate> =
         [day() - Duration::days(2), day() - Duration::days(20)].into();
     assert_eq!(

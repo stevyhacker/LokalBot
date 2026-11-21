@@ -1,8 +1,3 @@
-//! Linux evidence: recording streams from PulseAudio or PipeWire
-//! (`pactl -f json list source-outputs`, falling back to the text listing),
-//! and window titles from X11's client list or the Hyprland/Sway IPC. Other
-//! Wayland desktops get titles through `MeetingDetector::observe_window`.
-
 use std::path::PathBuf;
 use std::process::Command;
 use std::time::Duration;
@@ -15,8 +10,6 @@ use super::{CaptureStream, Evidence, EvidenceSource, WindowTitle, browser_family
 use crate::process::{find_program, output_with_timeout};
 
 const PACTL_TIMEOUT: Duration = Duration::from_secs(3);
-/// A browser's tree answers one question per call, so it is read less often
-/// than the poll. `BROWSER_GAP` tolerates the wait.
 const CALL_READ_INTERVAL: Duration = Duration::from_secs(4);
 
 pub(super) struct PulseEvidence {
@@ -38,8 +31,6 @@ impl PulseEvidence {
         }
     }
 
-    /// Meet documents in the browsers holding a microphone, read at most
-    /// every [`CALL_READ_INTERVAL`].
     fn documents(&mut self, capturing: &[CaptureStream]) -> Vec<BrowserDocument> {
         let families: Vec<&'static str> = capturing
             .iter()
@@ -74,7 +65,6 @@ impl PulseEvidence {
             {
                 return Ok(streams);
             }
-            // pactl before PulseAudio 16 has no JSON output.
             log::info!("meeting detection: pactl JSON unavailable, using the text listing");
             self.json = false;
         }
@@ -94,7 +84,6 @@ impl PulseEvidence {
 impl EvidenceSource for PulseEvidence {
     fn collect(&mut self) -> anyhow::Result<Evidence> {
         let capturing = self.streams()?;
-        // Window titles matter only while a browser holds the microphone.
         let windows = if capturing
             .iter()
             .any(|stream| browser_family(&stream.process_name).is_some())
@@ -122,7 +111,6 @@ impl EvidenceSource for PulseEvidence {
     }
 }
 
-/// Which browser a process on the accessibility bus is, from its executable.
 fn process_family(pid: u32) -> Option<&'static str> {
     let exe = std::fs::read_link(format!("/proc/{pid}/exe")).ok();
     exe.as_deref()
@@ -176,7 +164,6 @@ fn parse_json(bytes: &[u8]) -> anyhow::Result<Vec<CaptureStream>> {
         .collect())
 }
 
-/// `pactl list source-outputs` in the C locale.
 fn parse_text(text: &str) -> Vec<CaptureStream> {
     let mut streams = Vec::new();
     for block in text.split("Source Output #").skip(1) {

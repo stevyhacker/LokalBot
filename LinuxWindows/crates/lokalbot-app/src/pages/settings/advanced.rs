@@ -1,6 +1,3 @@
-//! Diagnostics (memory health, setup again, logs, resources and build
-//! details) and the Agent CLI section that AI agents shows.
-
 use std::path::PathBuf;
 
 use crate::i18n::h_flex;
@@ -13,8 +10,6 @@ use super::{Section, SettingsPage};
 use crate::state::AppEvent;
 use crate::ui::{Ico, settings_row};
 
-/// Where `InstallCli` puts the command for coding agents: the path
-/// `lokalbot-cli install-skill` installs to.
 pub fn cli_install_path() -> PathBuf {
     lokalbot_cli::install::command_path_for_current_user().unwrap_or_else(|| {
         PathBuf::from(if cfg!(target_os = "windows") {
@@ -25,9 +20,6 @@ pub fn cli_install_path() -> PathBuf {
     })
 }
 
-/// Commands that connect a coding agent to LokalBot over MCP, each with a
-/// Copy button (the external-agent setup that sat on the Agent page before
-/// Agent Mode).
 fn mcp_commands(
     path: &std::path::Path,
     data: &gpui_kit::Entity<crate::state::AppData>,
@@ -127,7 +119,6 @@ fn mcp_commands(
     ))
 }
 
-/// "Linux · x86_64" / "Windows · x86_64".
 pub fn platform_line() -> String {
     let os = match std::env::consts::OS {
         "linux" => lokalbot_i18n::tr("Linux"),
@@ -138,7 +129,6 @@ pub fn platform_line() -> String {
     format!("{os} · {}", std::env::consts::ARCH)
 }
 
-/// The folder the command lives in, as the PATH button names it.
 fn cli_bin_label() -> String {
     if cfg!(windows) {
         cli_install_path()
@@ -151,7 +141,6 @@ fn cli_bin_label() -> String {
 }
 
 impl SettingsPage {
-    /// Removes only what the installer created.
     fn uninstall_cli(&mut self, cx: &mut Context<Self>) {
         self.cli_message = None;
         cx.spawn(async move |this, cx| {
@@ -175,7 +164,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// Adds the command's folder to the shell's or the user's PATH.
     fn add_cli_to_path(&mut self, cx: &mut Context<Self>) {
         self.cli_message = None;
         cx.spawn(async move |this, cx| {
@@ -197,8 +185,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// Runs the bundled `lokalbot-cli install-skill`, which installs the CLI
-    /// and the agent skill, then refreshes the Agent CLI status.
     fn install_cli(&mut self, cx: &mut Context<Self>) {
         let data = self.data.clone();
         cx.spawn(async move |this, cx| {
@@ -244,8 +230,6 @@ impl SettingsPage {
         .detach();
     }
 
-    /// lokalbot-cli, its skill and the MCP commands (`agentCLISection`), on
-    /// AI agents beside the switches that decide what agents may read.
     pub(super) fn agent_cli_section(&mut self, cx: &mut Context<Self>) -> Section {
         let data = self.data.clone();
         let path = cli_install_path();

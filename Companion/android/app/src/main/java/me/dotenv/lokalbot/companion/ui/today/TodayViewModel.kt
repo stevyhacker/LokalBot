@@ -20,7 +20,6 @@ data class TodayState(
     val today: LocalDate,
     val needsAttention: List<ActionRow> = emptyList(),
     val openActionCount: Int = 0,
-    /** Today's digest, or yesterday's until today's is written. */
     val digestDay: DayRecord? = null,
     val todayRecord: DayRecord? = null,
     val meetings: List<Meeting> = emptyList(),

@@ -2,8 +2,6 @@ import CryptoKit
 import XCTest
 @testable import LokalBot
 
-/// Which microphone lines are the person's: diarization's "local 1" and
-/// plain "local" are one voice; several voices count only with a clear winner.
 final class PersonalLearningMicrophoneTests: XCTestCase {
     private func segment(_ speaker: String, _ text: String,
                          _ identity: SpeakerAttribution.Identity = .user,
@@ -69,8 +67,6 @@ final class PersonalLearningMicrophoneTests: XCTestCase {
     }
 }
 
-/// Learning reads a day again only when the person's lines from it changed,
-/// and a learned claim survives a changed source that still has its line.
 @MainActor
 final class PersonalLearningRereadTests: XCTestCase {
     private var root: URL!
@@ -162,13 +158,11 @@ final class PersonalLearningRereadTests: XCTestCase {
         controller.learn([learned("I live in Belgrade with my family."), learned("I have two kids at home.")])
         XCTAssertEqual(controller.usableClaims().count, 2)
 
-        // The meeting was edited elsewhere: one quoted line remains, one is gone.
         _ = try dreamStore.invalidateEvidence(affectedDayKeys: [], affectedMeetingIDs: [meeting], reportDayKeys: [])
         XCTAssertEqual(controller.usableClaims().map(\.text), ["I live in Belgrade with my family."])
         let kept = try XCTUnwrap(controller.currentClaims().first)
         XCTAssertEqual(kept.evidence?.revision, try dreamStore.evidenceRevision(), "tied to the current revision")
 
-        // Re-checked only after the next change; then the line is gone too.
         stillThere = []
         XCTAssertEqual(controller.usableClaims().count, 1)
         _ = try dreamStore.invalidateEvidence(affectedDayKeys: [], affectedMeetingIDs: [meeting], reportDayKeys: [])
@@ -176,7 +170,6 @@ final class PersonalLearningRereadTests: XCTestCase {
     }
 }
 
-/// Personal Context is its own Settings section, for people, search, and the CLI.
 @MainActor
 final class PersonalContextSettingsTabTests: XCTestCase {
     func testAboutYouHasItsOwnTabAndSettings() throws {
@@ -192,10 +185,9 @@ final class PersonalContextSettingsTabTests: XCTestCase {
     }
 }
 
-/// Personal Context rows: one short line of kind, source, and day.
 final class PersonalContextSettingsRowTests: XCTestCase {
     private let calendar = Calendar(identifier: .gregorian)
-    private let now = Date(timeIntervalSince1970: 1_792_670_400) // 2026-10-22
+    private let now = Date(timeIntervalSince1970: 1_792_670_400)
 
     private func claim(_ origin: PersonalClaim.Origin, status: PersonalClaim.Status = .confirmed,
                        authority: PersonalClaim.Authority = .confirmed, daysAgo: Double = 1) -> PersonalClaim {

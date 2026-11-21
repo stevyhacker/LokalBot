@@ -37,7 +37,6 @@ def docs_only(path):
 
 
 def relevant(paths):
-    # An empty or unreadable diff builds.
     return not paths or not all(docs_only(path) for path in paths)
 
 

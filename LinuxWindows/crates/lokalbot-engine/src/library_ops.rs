@@ -1,10 +1,3 @@
-//! Library changes people make from Meetings: importing recordings, merging
-//! meetings and undoing a merge, and changing a meeting's boundaries
-//! (`AppState.importRecordings`, `mergeMeetings`, `undoMerge`,
-//! `setMeetingBoundaries`). The app runs them on a background task, then
-//! queues processing with `Command::ProcessMeeting`. A recording a paired
-//! device sends takes the same import from the companion host.
-
 use std::fs;
 use std::path::Path;
 
@@ -14,28 +7,22 @@ use lokalbot_core::merge::{self, MergeError, MergeResult, Slice, UndoError};
 use lokalbot_core::{ContentRange, Library, Meeting};
 use uuid::Uuid;
 
-/// A device can send any title; a meeting keeps at most this much of one.
 const MAX_DEVICE_TITLE_CHARACTERS: usize = 200;
-/// Well inside the 255 bytes a folder name can have, day and counter included.
 const MAX_DEVICE_FOLDER_BYTES: usize = 120;
 
-/// Why a file couldn't become a meeting (`MeetingImportService.ImportError`).
 #[derive(Debug)]
 pub enum ImportFailure {
     Unreadable,
     NoAudio,
     Conversion(String),
     CannotCreateMeeting(String),
-    /// A device's recording whose id isn't a UUID.
     InvalidId,
 }
 
 impl ImportFailure {
-    /// The message for `name`, in the interface language.
     pub fn localized(&self, name: &str) -> String {
         let name = ("name", name.to_string());
         match self {
-            // `lokalbot-sync` refuses a bad id before any audio is sent.
             Self::Unreadable | Self::InvalidId => lokalbot_i18n::format(
                 "LokalBot can't read audio from “{name}”. Try an MP3, M4A, WAV, MP4, or MOV file.",
                 &[name],
@@ -53,7 +40,6 @@ impl ImportFailure {
     }
 }
 
-/// Where a file's audio came from, which decides the meeting it makes.
 enum Origin<'a> {
     File,
     Sample(&'a crate::sample::Sample),
@@ -65,9 +51,6 @@ enum Origin<'a> {
     },
 }
 
-/// Makes `source` a meeting whose system track is the file's audio. The
-/// meeting appears only once complete: the audio is converted beside the
-/// library, moved into a reserved folder, and `meta.json` is written last.
 pub fn import_recording(
     library: &Library,
     source: &Path,
@@ -76,20 +59,15 @@ pub fn import_recording(
     import_file(library, source, now, &Origin::File)
 }
 
-/// A recording a paired phone or tablet sent, as the device and its pairing
-/// describe it.
 #[derive(Clone, Copy, Debug)]
 pub struct DeviceRecording<'a> {
-    /// The UUID the meeting takes, so sending it again makes no second one.
     pub id: &'a str,
     pub title: Option<&'a str>,
-    /// ISO 8601, by the device's clock.
     pub started_at: Option<&'a str>,
     pub device_name: &'a str,
 }
 
 impl DeviceRecording<'_> {
-    /// What the person called it, or which device it came from.
     pub fn meeting_title(&self) -> String {
         let chosen = lokalbot_core::text::sanitize(
             self.title.unwrap_or(""),
@@ -104,20 +82,12 @@ impl DeviceRecording<'_> {
     }
 }
 
-/// The meeting a device's recording is, and whether this call made it.
 #[derive(Debug)]
 pub struct DeviceImport {
     pub meeting: Meeting,
-    /// False when it was already here, from an earlier attempt.
     pub is_new: bool,
 }
 
-/// Makes a meeting of a recording from a paired device, or returns the one that
-/// already has its id, untouched. It is the device's microphone, the person's
-/// own, so it becomes the microphone track: their speech counts as theirs, and
-/// other voices in the room are treated as this computer's microphone treats
-/// them, not as call participants. Like any import it takes no screen context,
-/// because the person wasn't at this computer.
 pub fn import_device_recording(
     library: &Library,
     source: &Path,
@@ -150,9 +120,6 @@ pub fn import_device_recording(
     })
 }
 
-/// Adds LokalBot's sample meeting through the same import, or returns the
-/// one the library already has. It is dated now, titled in its own language
-/// and marked with its id, so personal memory leaves it out.
 pub fn import_sample(
     library: &Library,
     sample: &crate::sample::Sample,
@@ -215,7 +182,6 @@ fn import_file(
             _ => date(audio.recorded_at),
         };
         let started_at = match origin {
-            // The sample was "recorded" just now, whatever its file says.
             Origin::Sample(_) => {
                 now - Duration::milliseconds((audio.duration * 1000.0).round() as i64)
             }
@@ -255,7 +221,6 @@ fn import_file(
             Origin::Sample(sample) => meeting.sample_id = Some(sample.id.to_string()),
             Origin::Device { id, .. } => {
                 meeting.id = *id;
-                // The upload's own name means nothing to anyone.
                 meeting.imported_file_names =
                     Some(vec![format!("{}.aac", lokalbot_core::ids::uuid_upper(id))]);
             }
@@ -274,8 +239,6 @@ fn import_file(
     result
 }
 
-/// The start of a device's title whose slug fits a folder name. Characters
-/// aren't enough to count: a Hangul syllable takes nine bytes in a slug.
 fn device_folder_title(title: &str) -> String {
     let mut fitting = title.to_string();
     while lokalbot_core::ids::slugify(&fitting).len() > MAX_DEVICE_FOLDER_BYTES {
@@ -284,8 +247,6 @@ fn device_folder_title(title: &str) -> String {
     fitting
 }
 
-/// Merges `meetings` into a new one with WAV tracks. On success the
-/// merged meeting is indexed for search; the sources leave it.
 pub fn merge_meetings(
     library: &Library,
     meetings: &[Meeting],
@@ -305,7 +266,6 @@ pub fn merge_meetings(
     Ok(result)
 }
 
-/// Removes a merged meeting and indexes its restored sources again.
 pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, UndoError> {
     let restored = merge::undo_merge(library, merged)?;
     for meeting in &restored {
@@ -316,7 +276,6 @@ pub fn undo_merge(library: &Library, merged: &Meeting) -> Result<Vec<Meeting>, U
     Ok(restored)
 }
 
-/// Saves the reviewed range and re-indexes what is left of the transcript.
 pub fn set_meeting_boundaries(
     library: &Library,
     meeting: &Meeting,
@@ -333,7 +292,6 @@ mod tests {
     use lokalbot_core::LibraryPaths;
 
     fn write_tone(path: &Path, seconds: f64, rate: u32, channels: u16) {
-        // 16-bit PCM at any rate and channel count, as recorders write it.
         let frames = (seconds * rate as f64) as usize;
         let mut data = Vec::with_capacity(frames * channels as usize * 2);
         for i in 0..frames {
@@ -406,7 +364,6 @@ mod tests {
         .unwrap();
         assert_eq!(on_disk["sampleID"], "orders-api/en");
 
-        // A second request opens the same sample instead of adding another.
         let again = import_sample(&library, &crate::sample::ENGLISH, Utc::now()).unwrap();
         assert_eq!(again.id, sample.id);
         assert_eq!(library.list_meetings().unwrap().len(), 2);
@@ -423,8 +380,6 @@ mod tests {
             library.sample_meeting().unwrap().map(|m| m.id),
             Some(sample.id)
         );
-        // The own meeting's day: the sample starts minutes before now, which just
-        // after midnight is yesterday.
         let day = lokalbot_core::time::local_day(own.started_at);
         assert_eq!(
             library.day_activity(day).unwrap().meeting_count,
@@ -442,7 +397,6 @@ mod tests {
                 .starts_with(".sample-")
         }));
 
-        // Removing it is one call.
         library.delete_meeting(&sample).unwrap();
         assert!(library.sample_meeting().unwrap().is_none());
         assert_eq!(library.list_meetings().unwrap().len(), 1);
@@ -482,7 +436,6 @@ mod tests {
         let listed = library.list_meetings().unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].imported_file_names, meeting.imported_file_names);
-        // Staging beside the library is cleaned up.
         assert!(fs::read_dir(library.paths().root()).unwrap().all(|e| {
             !e.unwrap()
                 .file_name()
@@ -510,11 +463,8 @@ mod tests {
         assert!(library.list_all_meetings().unwrap().is_empty());
     }
 
-    /// The audio phones and tablets send: one second of a 440 Hz tone, as an
-    /// ADTS AAC stream.
     const ADTS_TONE: &[u8] = include_bytes!("../../lokalbot-audio/tests/data/tone-440-adts.aac");
 
-    /// A partial upload's name, as `lokalbot-sync` keeps it.
     fn device_file(dir: &Path, bytes: &[u8]) -> std::path::PathBuf {
         let path = dir.join("upload-0123456789abcdef.aac");
         fs::write(&path, bytes).unwrap();
@@ -592,7 +542,6 @@ mod tests {
         let meta = library.meeting_dir(&first.meeting).join("meta.json");
         let written = fs::read(&meta).unwrap();
 
-        // Whatever a retry says, and even with its audio gone.
         fs::remove_file(&source).unwrap();
         let again = import_device_recording(
             &library,
@@ -616,7 +565,6 @@ mod tests {
                 "Recording from Maya's Pixel"
             );
         }
-        // A device name can't be read as a template.
         let odd = DeviceRecording {
             device_name: "%@ {name}",
             ..from_device(None, None)
@@ -654,7 +602,6 @@ mod tests {
         let library = Library::open(LibraryPaths::new(dir.path().join("library"))).unwrap();
         let source = device_file(dir.path(), ADTS_TONE);
         let now = Utc::now();
-        // A phone whose clock runs ahead, one that says nothing, and nonsense.
         let ahead = (now + Duration::hours(3)).to_rfc3339();
         for (id, started_at) in [
             ("6f1c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01", Some(ahead.as_str())),
@@ -694,7 +641,6 @@ mod tests {
         }
 
         let recording = from_device(None, None);
-        // Stopped under MIN_IMPORT_SECONDS.
         let short = device_file(dir.path(), &ADTS_TONE[..ADTS_TONE.len() / 10]);
         let failure =
             import_device_recording(&library, &short, &recording, Utc::now()).unwrap_err();
@@ -714,7 +660,6 @@ mod tests {
         }));
     }
 
-    /// A macOS-recorded AAC track imports through the MP4 path.
     #[test]
     fn imports_a_macos_aac_recording() {
         let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join(
@@ -751,7 +696,6 @@ mod tests {
             library.save_meeting(&meeting).unwrap();
             sources.push(meeting);
         }
-        // Keep only 0.5–2.5 s of the first part.
         sources[0] = library
             .set_meeting_boundaries(
                 &sources[0],

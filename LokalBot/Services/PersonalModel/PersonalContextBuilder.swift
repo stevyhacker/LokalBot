@@ -1,12 +1,5 @@
 import Foundation
 
-/// Picks the smallest useful slice of the personal model for one question and
-/// renders it as a prompt block. Pure and deterministic, so the same inputs
-/// always produce the same prompt and the selection is testable offline.
-///
-/// Priority follows `PersonalContextSelection`, the same order agents get;
-/// the question and the person's previous two messages are the query.
-/// Claims that don't fit the character budget are skipped, not truncated.
 enum PersonalContextBuilder {
     static let characterBudget = 2_000
 

@@ -1,17 +1,8 @@
 import Foundation
 
-/// Ranked screen search: keyword hits from the screen-text index and meaning
-/// matches from text and picture vectors (`EmbeddingIndex.screenMeanings`),
-/// ranked together the way DigUp ranks files (`ScreenSearchRanking`). Ask,
-/// Quick Recall and the assistant's `search_screen` share it.
 enum ScreenSearch {
-    /// How many OR-fallback hits get their full text read to count the
-    /// query's words; the rest are counted from their snippet and title.
     static let fullTextLimit = 100
 
-    /// The share of the query's words each keyword hit holds. Hits found by
-    /// the all-words search hold them all; for the OR fallback the capture's
-    /// text is read. A query of only stopwords counts every hit it found.
     static func coverage(query: String, hits: [ActivityStore.OCRHit], matchedAll: Bool,
                          text: (Int64) -> String?) -> [Int64: Double] {
         let terms = ScreenSearchRanking.terms(query)
@@ -28,11 +19,6 @@ enum ScreenSearch {
         return coverage
     }
 
-    /// Keyword hits and meaning matches as one ranked list. A capture found
-    /// only by meaning gets its text's best passage as the snippet, or its
-    /// window title when it has no text (a picture-only match), and is marked
-    /// `isSemantic`. `screenshots` and `texts` are asked once each, for the
-    /// captures found by meaning alone (Ask asks off the main actor).
     static func ranked(
         query: String,
         keyword: [ActivityStore.OCRHit],

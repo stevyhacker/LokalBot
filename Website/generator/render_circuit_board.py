@@ -14,7 +14,7 @@ import pathlib
 import random
 
 OUT = pathlib.Path(__file__).resolve().parents[1] / "public" / "assets" / "circuit-board.svg"
-TILE, PITCH = 1200, 16  # px per tile, px per grid step
+TILE, PITCH = 1200, 16
 N = TILE // PITCH
 DIRS = [(1, 0), (1, 1), (0, 1), (-1, 1), (-1, 0), (-1, -1), (0, -1), (1, -1)]
 
@@ -82,7 +82,6 @@ def board(seed):
                 continue
             diag = (o + rnd.choice((1, 7))) % 8
             lean = DIRS[diag][0] * t[0] + DIRS[diag][1] * t[1]
-            # The pin furthest along the lean turns first, so the bus stays parallel.
             order = sorted((p for p in pins if rnd.random() < 0.85), key=lambda p: -lean * (p[0] * t[0] + p[1] * t[1]))
             bend, out = rnd.randint(1, 6), rnd.randint(3, 20)
             for i, (px, py) in enumerate(order):

@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-/**
- * Unit and ZIP-integrity tests for Website/public/migrate.js.
- * Run with: node Website/generator/test_migrate.mjs
- */
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
@@ -24,7 +20,6 @@ const opts = {
   datePrefixFilename: true,
 };
 
-// 1. Real Granola CSV historical export (multiline quoted Markdown + escaped quotes)
 const granolaCsv = [
   "document_id,user_email,document_title,workspace_name,document_created,summary,notes,transcript",
   '"doc-101","alice@example.com","Q4 Launch Sync","Acme","2026-11-18T15:00:00Z","- Decided on ""local-first"" rollout\n- Ship Obsidian plugin","My quick jottings","Alice: Let us move off cloud bots.\nBob: Agreed!"',
@@ -39,7 +34,6 @@ assert.ok(csvMeetings[0].summary.includes("### My notes"));
 assert.equal(csvMeetings[0].transcript.length, 2);
 assert.deepEqual(csvMeetings[0].attendees, ["Alice", "Bob"]);
 
-// 2. Granola copied transcript
 const granolaCopied =
   "Meeting Title: Design Critique\nDate: 2026-11-15\nMeeting participants: Ana, Leo\n\nTranscript:\nAna: Keep the glass cards readable.\nLeo: Already verified reduced-transparency.\n";
 const gcMeetings = M.parseFile("copied-transcript.txt", granolaCopied);
@@ -50,7 +44,6 @@ assert.equal(gcMeetings[0].date, "2026-11-15");
 assert.deepEqual(gcMeetings[0].attendees, ["Ana", "Leo"]);
 assert.equal(gcMeetings[0].transcript.length, 2);
 
-// 3. Granola JSON with ProseMirror notes + object people.attendees + start_timestamp + UTF-8
 const granolaJson = JSON.stringify({
   documents: [
     {
@@ -106,7 +99,6 @@ assert.ok(gNote.markdown.includes("- [ ] Submit plugin to Obsidian directory (Al
 assert.ok(gNote.markdown.includes("> [!note]- Transcript"));
 assert.ok(gNote.markdown.includes("**[[Alice Chen]]** (00:05): Let us ship the migrator today."));
 
-// 4. Otter.ai TXT with Title + Date header
 const otterTxt =
   "Product Sync\n2026-11-17\n\nMaya Patel  0:04\nWe need local Markdown export.\n\nLiam O'Connor  1:15\nLet us move to Obsidian.\n";
 const oMeetings = M.parseFile("product-sync_otter_ai.txt", otterTxt);
@@ -118,7 +110,6 @@ assert.equal(oMeetings[0].transcript.length, 2);
 assert.equal(oMeetings[0].transcript[0].speaker, "Maya Patel");
 assert.equal(oMeetings[0].transcript[1].speaker, "Liam O'Connor");
 
-// 5. Fireflies JSON
 const ffJson = JSON.stringify({
   title: "Customer Discovery #42",
   dateString: "2026-11-16T09:00:00Z",
@@ -137,7 +128,6 @@ assert.equal(ffMeetings[0].source, "Fireflies.ai");
 assert.equal(ffMeetings[0].actions.length, 2);
 assert.equal(ffMeetings[0].transcript.length, 2);
 
-// 6. Zoom VTT (merges consecutive cues by same speaker)
 const zoomVtt =
   "WEBVTT\n\n1\n00:00:01.000 --> 00:00:04.500\nAlex Rivera: Welcome everyone.\n\n2\n00:00:05.000 --> 00:00:09.000\nAlex Rivera: Quick update on Linux.\n\n3\n00:00:10.000 --> 00:00:13.000\nSam: Looking good!\n";
 const zMeetings = M.parseFile("zoom-standup.vtt", zoomVtt);
@@ -148,26 +138,22 @@ assert.ok(zMeetings[0].transcript[0].text.includes("Welcome everyone."));
 assert.ok(zMeetings[0].transcript[0].text.includes("Quick update on Linux."));
 assert.equal(zMeetings[0].transcript[1].speaker, "Sam");
 
-// 7. SubRip SRT
 const srt =
   "1\n00:00:02,000 --> 00:00:05,500\nJordan: Let us test SRT.\n\n2\n00:01:02,000 --> 00:01:05,000\nCasey: Works offline.\n";
 const srtMeetings = M.parseFile("call.srt", srt);
 assert.equal(srtMeetings.length, 1);
 assert.equal(srtMeetings[0].transcript.length, 2);
 
-// 8. Plain Markdown
 const mdMeetings = M.parseFile("weekly-sync.md", "# Weekly Sync\n\n- [ ] Follow up with design\n- Shipped v0.13.2\n");
 assert.equal(mdMeetings.length, 1);
 assert.equal(mdMeetings[0].title, "Weekly Sync");
 
-// 9. Validate migrate.html JSON-LD parses cleanly
 const html = fs.readFileSync(path.join(repoRoot, "Website", "public", "migrate.html"), "utf8");
 const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
 assert.ok(ldMatch, "Missing JSON-LD script in migrate.html");
 const ld = JSON.parse(ldMatch[1]);
 assert.equal(ld["@graph"].length, 3);
 
-// 10. Duplicate filenames + UTF-8 ZIP integrity verified with Python zipfile (cross-platform)
 const oNote = M.renderNote(oMeetings[0], { ...opts, collapseTranscript: false, linkSpeakers: false });
 const csvNote = M.renderNote(csvMeetings[0], opts);
 const zipBytes = M.buildZip([

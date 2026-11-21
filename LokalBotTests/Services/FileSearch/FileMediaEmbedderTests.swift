@@ -5,9 +5,6 @@ import UniformTypeIdentifiers
 import XCTest
 @testable import LokalBot
 
-/// The media embedder's requests have the shapes the 30 October parity run
-/// qualified, a text longer than one batch is cut the way DigUp cuts it, and a
-/// server outage stops a pass instead of failing files.
 final class FileMediaEmbedderTests: XCTestCase {
     private var folder: URL!
 
@@ -40,9 +37,6 @@ final class FileMediaEmbedderTests: XCTestCase {
         XCTAssertEqual(sqrt(vectors[0].reduce(0) { $0 + $1 * $1 }), 1, accuracy: 1e-5)
     }
 
-    /// A dense page past the server's batch goes as its tokens, cut where
-    /// DigUp's embedder cuts. Sent whole, llama-server refused it with HTTP 500
-    /// and every indexing pass stopped at that page (1 November).
     func testATextLongerThanOneBatchGoesAsItsTokensCutLikeDigUp() throws {
         let tokens = [2] + Array(repeating: 1_000, count: 3_000) + [1]
         respondWithTokens(tokens)
@@ -136,8 +130,6 @@ final class FileMediaEmbedderTests: XCTestCase {
         XCTAssertNotNil(made[1].vector)
     }
 
-    /// llama-server answers an input too large for its batch with HTTP 500;
-    /// that input fails alone, and any other 500 still stops the pass.
     func testAnInputTooLargeForTheBatchFailsThatFileOnly() throws {
         let tooLarge = Data((#"{"error":{"code":500,"message":"input (2162 tokens) is too large to process. "#
             + #"increase the physical batch size (current batch size: 2048)","type":"server_error"}}"#).utf8)
@@ -181,8 +173,6 @@ final class FileMediaEmbedderTests: XCTestCase {
         XCTAssertEqual(FileMediaEmbedder.workerInfo.dim, 768)
     }
 
-    // MARK: - Helpers
-
     private func makeEmbedder() -> FileMediaEmbedder {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [MediaEmbedderURLProtocolStub.self]
@@ -191,7 +181,6 @@ final class FileMediaEmbedderTests: XCTestCase {
             session: URLSession(configuration: configuration))
     }
 
-    /// Answers `/tokenize` with `tokens` and embeddings with unit vectors.
     private func respondWithTokens(_ tokens: [Int]) {
         let tokenized = (try? JSONSerialization.data(withJSONObject: ["tokens": tokens])) ?? Data()
         MediaEmbedderURLProtocolStub.respond { body in

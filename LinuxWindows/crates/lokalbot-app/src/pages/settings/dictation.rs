@@ -1,8 +1,3 @@
-//! Settings › Dictation (`DictationView.swift`, `RecentDictationsViews.swift`):
-//! under the shared header, the shortcut, what it writes and who writes it,
-//! what shows while dictating, and a row that opens the recent dictations.
-//! Trying it out is the header's "Try it…" sheet (`try_sheet`).
-
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
@@ -44,7 +39,6 @@ fn intent_detail(intent: DictationIntent) -> &'static str {
     }
 }
 
-/// "Name, Style" or "Not set" (`DictationView.writingProfileSummary`).
 pub fn writing_profile_summary(settings: &Settings) -> String {
     let parts: Vec<&str> = [
         ("Name", &settings.cotyping_user_name),
@@ -63,12 +57,9 @@ pub fn writing_profile_summary(settings: &Settings) -> String {
     }
 }
 
-/// Where the dictated words become the text that is pasted
-/// (`DictationWriterPresentation`).
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Writer {
     pub text: String,
-    /// What is dictated leaves this computer to be written.
     pub online: bool,
 }
 
@@ -98,7 +89,6 @@ pub fn writer(settings: &Settings) -> Writer {
             },
         };
     }
-    // A model of its own for Compose is always one on this computer.
     let effective = lokalbot_ai::dictation::composition_settings(settings);
     let uses_think = effective == *settings;
     let name = super::models::think_name(&effective);
@@ -128,8 +118,6 @@ pub fn writer(settings: &Settings) -> Writer {
     }
 }
 
-/// The dictation in progress keeps the settings it started with, so its grants
-/// do not change under it.
 fn is_working(state: &DictationHud) -> bool {
     !matches!(
         state,
@@ -141,7 +129,6 @@ fn is_working(state: &DictationHud) -> bool {
 }
 
 impl SettingsPage {
-    /// A grant row, locked while a dictation is under way.
     #[allow(clippy::too_many_arguments)]
     fn grant(
         &self,
@@ -168,8 +155,6 @@ impl SettingsPage {
         .into_any_element()
     }
 
-    /// Settings › Dictation under its header, or the page one of its rows
-    /// opened (`DictationSettingsSections`).
     pub(super) fn dictation_sections(&mut self, cx: &mut Context<Self>) -> Vec<Section> {
         match self.open_subpage(SettingsCategory::Dictation) {
             Some(Subpage::DictationProfile) => vec![
@@ -205,7 +190,6 @@ impl SettingsPage {
         let working = is_working(&hud);
         let lb = cx.lb().clone();
 
-        // Shortcut.
         let mut options: Vec<(SharedString, SharedString)> =
             vec![("".into(), lokalbot_i18n::tr("System default").into())];
         options.extend(microphones.iter().map(|m| (m.clone(), m.clone())));
@@ -275,7 +259,6 @@ impl SettingsPage {
                     cx,
                 ),
             );
-        // What this desktop lets pasting do (port-only).
         if let Some(limitation) = lokalbot_platform::insert::insertion_limitation() {
             shortcut = shortcut.row(
                 "settings.dictationInsertion",
@@ -310,7 +293,6 @@ impl SettingsPage {
             ),
         );
 
-        // What it writes.
         let intent_data = self.data.clone();
         let intent_index = INTENTS
             .iter()
@@ -426,8 +408,6 @@ impl SettingsPage {
                     ),
                 );
         }
-        // Who writes the text: the Compose model (a built-in one, or Think),
-        // or the Transcribe model, which is changed under Models.
         let writer = writer(&settings);
         let control: AnyElement = if compose {
             let chosen = settings.dictation_composition_built_in_model_id.clone();
@@ -519,7 +499,6 @@ impl SettingsPage {
             ),
         );
         if compose && writer.online {
-            // What else travels with the dictated words, said in full.
             let composition = lokalbot_ai::dictation::composition_settings(&settings);
             let (_, hosts) = crate::state::inference_presentation(&composition);
             writes = writes.row(
@@ -546,7 +525,6 @@ impl SettingsPage {
             );
         }
 
-        // While dictating.
         let while_dictating = Section::new(lokalbot_i18n::tr("While dictating"))
             .row(
                 "settings.dictationShowOverlay",
@@ -595,7 +573,6 @@ impl SettingsPage {
                 ),
             );
 
-        // More.
         let page = cx.entity();
         let more = Section::new(lokalbot_i18n::tr("More")).row(
             "settings.dictationRecent",
@@ -619,8 +596,6 @@ impl SettingsPage {
         vec![shortcut, writes, while_dictating, more]
     }
 
-    /// Recent dictations: earlier results with Copy, so one left on the
-    /// clipboard can be copied again after something else replaced it.
     fn recent_dictations_section(&mut self, cx: &mut Context<Self>) -> Section {
         let lb = cx.lb().clone();
         let recent = self.data.read(cx).recent_dictations.clone();
@@ -718,10 +693,6 @@ impl SettingsPage {
         Section::new(None).row(id, settings_row::content_row(id, list, false, cx))
     }
 
-    /// "Try it…" (`DictationTrySheet`, `DictationView`): what still stands in
-    /// the way, then the button that starts and stops a recording, where it
-    /// stands, and the last result. Nothing is pasted into another app and
-    /// the clipboard is left alone.
     pub(super) fn dictation_try(&mut self, cx: &mut Context<Self>) -> AnyElement {
         let (settings, last, details, hud, inactive) = {
             let data = self.data.read(cx);
@@ -901,7 +872,6 @@ mod tests {
         );
         assert!(!think.online);
 
-        // A Think server that is approved receives what is dictated.
         settings.summarizer_backend = lokalbot_core::settings::SummarizerBackend::OpenAICompatible;
         settings.openai_base_url = "https://ai.example.com/v1".into();
         let blocked = writer(&settings);

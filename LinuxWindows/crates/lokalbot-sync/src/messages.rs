@@ -1,10 +1,6 @@
-//! The JSON messages inside a session (protocol.md, Session messages) and
-//! the record envelope (records.md, Envelope).
-
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-/// One record as it travels and is stored.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct Envelope {
@@ -28,8 +24,6 @@ fn sync_purpose() -> String {
     "sync".into()
 }
 
-/// Every message type, both directions. Unknown types parse as `Unknown`
-/// and are ignored; unknown fields are ignored.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(
     tag = "type",
@@ -37,7 +31,6 @@ fn sync_purpose() -> String {
     rename_all_fields = "camelCase"
 )]
 pub(crate) enum Message {
-    // Client to host.
     Hello {
         protocol_version: u32,
         schema_version: u32,
@@ -62,7 +55,6 @@ pub(crate) enum Message {
     UploadChunk {
         upload_id: String,
         offset: u64,
-        /// Standard base64.
         data: String,
     },
     UploadFinish {
@@ -75,7 +67,6 @@ pub(crate) enum Message {
         platform: String,
     },
 
-    // Host to client.
     Welcome {
         mac_name: String,
         server_time: String,
@@ -130,7 +121,6 @@ pub(crate) enum Message {
         mac_name: String,
     },
 
-    // Both directions.
     Ping,
     #[serde(other)]
     Unknown,

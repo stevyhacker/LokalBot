@@ -1,8 +1,5 @@
 import Foundation
 
-/// A `TextEngine` decorator that runs every call under an inference lease.
-/// Construction stays cheap; the runtime boots on first use and remains
-/// pinned against eviction only while a call is active.
 struct LeasedTextEngine: TextEngine {
     let base: TextEngine
     let broker: InferenceBroker
@@ -61,8 +58,6 @@ struct LeasedTextEngine: TextEngine {
     func generateStreaming(system: String, prompt: String, context: [String],
                            options: TextGenerationOptions,
                            onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
-        // Streaming remains single-shot: a recovery replay could duplicate text
-        // the user has already seen. Keep the model leased through the stream.
         try await withLease {
             try await base.generateStreaming(system: system, prompt: prompt, context: context,
                                              options: options, onPartial: onPartial)
@@ -76,12 +71,6 @@ struct LeasedTextEngine: TextEngine {
         }
     }
 
-    /// A managed localhost runtime can disappear after lease acquisition but
-    /// before its HTTP response arrives. Releasing and reacquiring the lease
-    /// runs the broker's existing health/configuration check, which starts a
-    /// replacement server when needed. Generation is side-effect free, so one
-    /// replay is safe; raw/streaming completions deliberately stay single-shot
-    /// because callers may already have displayed partial text.
     private func withManagedRecovery<T>(
         _ operation: () async throws -> T
     ) async throws -> T {

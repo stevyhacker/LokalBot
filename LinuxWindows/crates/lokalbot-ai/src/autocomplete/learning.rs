@@ -1,15 +1,3 @@
-//! Learning from accepted suggestions (`CotypingLearningStore`,
-//! `CotypingLearningRanker`, `CotypingLearningScope`,
-//! `CotypingAcceptedSuggestionBatch`).
-//!
-//! An accepted suggestion becomes an example that later prompts in the same
-//! document can show the model ("Previously accepted completion: …"). Only a
-//! positively identified document learns: a Google Docs document in a
-//! browser, by its address. Mail, chat, code editors, terminals and unknown
-//! documents neither learn nor reuse examples, and neither do suggestions
-//! that used saved facts or the text above the field. Examples are kept for
-//! 30 days; the engine seals them on disk in the Mac's format.
-
 use std::collections::HashSet;
 
 use chrono::{DateTime, Duration, Utc};
@@ -22,8 +10,6 @@ use super::normalize::looks_like_prompt_scaffolding;
 use super::surface::{self, SurfaceClass};
 use super::text::is_control;
 
-/// `<root>/cotyping-learning.enc`: this JSON sealed with AES-256-GCM as
-/// `nonce ‖ ciphertext ‖ tag`.
 pub const FILE_NAME: &str = "cotyping-learning.enc";
 
 const MAX_ACCEPTED_CHARACTERS: usize = 240;
@@ -33,7 +19,6 @@ const MINIMUM_RANK_SCORE: usize = 5;
 const MAX_EXAMPLES: usize = 500;
 pub const RETENTION_DAYS: i64 = 30;
 
-/// Where an example was accepted.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Place {
     pub app_name: String,
@@ -44,8 +29,6 @@ pub struct Place {
 }
 
 impl Place {
-    /// `CotypingLearningScope.key`: a hash of the browser and the document's
-    /// stable address, or `None` when the document is not identified.
     pub fn scope_key(&self) -> Option<String> {
         if SurfaceClass::of(&self.app_id, &self.app_name) != SurfaceClass::Browser {
             return None;
@@ -86,9 +69,6 @@ impl Place {
     }
 }
 
-/// One learned example (`CotypingLearningExample`). Keys and encoding match
-/// the Mac: `createdAt` is seconds since 2001, UUIDs are uppercase, and empty
-/// optionals are left out.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Example {
@@ -122,7 +102,6 @@ mod uppercase_uuid {
     }
 }
 
-/// `CotypingLearningSnapshot`: the file's JSON, with no version wrapper.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Snapshot {
     #[serde(default)]
@@ -139,7 +118,6 @@ fn same_bundle(a: Option<&str>, b: &str) -> bool {
     a.is_some_and(|a| !a.is_empty() && !b.is_empty() && a.eq_ignore_ascii_case(b))
 }
 
-/// The examples in memory. The engine loads and saves them.
 #[derive(Default)]
 pub struct LearningStore {
     examples: Vec<Example>,
@@ -164,7 +142,6 @@ impl LearningStore {
         }
     }
 
-    /// Adds what the file held, before anything learned while it opened.
     pub fn merge_loaded(&mut self, snapshot: Snapshot, now: DateTime<Utc>) {
         let mut examples = snapshot.examples;
         examples.append(&mut self.examples);
@@ -173,8 +150,6 @@ impl LearningStore {
         self.prune(now);
     }
 
-    /// One finished suggestion's accepted text (`recordCompletedSuggestion`).
-    /// True when the store changed and should be saved.
     pub fn record(&mut self, place: &Place, accepted: &str, now: DateTime<Utc>) -> bool {
         let pruned = self.prune(now);
         let (true, Some(scope), Some(accepted)) = (
@@ -199,8 +174,6 @@ impl LearningStore {
         true
     }
 
-    /// `rankedExamples`: the same document's examples whose context shares
-    /// words with what is being written, best first.
     pub fn examples(&self, place: &Place, limit: usize, now: DateTime<Utc>) -> Vec<String> {
         let Some(scope) = place.scope_key().filter(|_| place.can_learn() && limit > 0) else {
             return Vec::new();
@@ -249,12 +222,10 @@ impl LearningStore {
             .collect()
     }
 
-    /// "Forget learned text", or autocomplete turning off.
     pub fn clear(&mut self) {
         self.examples.clear();
     }
 
-    /// True when expired examples went, so the file should be saved.
     pub fn prune(&mut self, now: DateTime<Utc>) -> bool {
         let before = self.examples.len();
         self.examples.retain(|e| is_retained(e, now));
@@ -269,8 +240,6 @@ impl LearningStore {
     }
 }
 
-/// The accepted chunks of one shown suggestion, learned as one example once
-/// it is done (`CotypingAcceptedSuggestionBatch`).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct AcceptedBatch {
     place: Option<Place>,
@@ -278,8 +247,6 @@ pub struct AcceptedBatch {
 }
 
 impl AcceptedBatch {
-    /// `learn` is false when learning is off, and for suggestions that used
-    /// saved facts or nearby text.
     pub fn append(&mut self, place: &Place, accepted: &str, learn: bool) {
         if accepted.is_empty() || !learn {
             return;
@@ -294,7 +261,6 @@ impl AcceptedBatch {
         *self = Self::default();
     }
 
-    /// The example to learn, once; the batch is empty afterwards.
     pub fn complete(&mut self) -> Option<(Place, String)> {
         let batch = std::mem::take(self);
         batch.place.map(|place| (place, batch.text))
@@ -390,7 +356,6 @@ mod tests {
             now,
         );
         store.record(&doc("Unrelated grocery list"), " eggs and flour", now);
-        // Prompt scaffolding and tiny texts are never learned.
         assert!(!store.record(&doc(before), "Previously accepted completion: x", now));
         assert!(!store.record(&doc(before), "ok", now));
         assert_eq!(store.len(), 2);
@@ -417,8 +382,6 @@ mod tests {
 
     #[test]
     fn the_macs_encoding_reads_and_writes_back_the_same() {
-        // From `CotypingLearningExample`'s `Codable`: a default `JSONEncoder`
-        // date is seconds since 2001-01-01, and a nil optional is left out.
         let json = r#"{"examples":[{"id":"E621E1F8-C36C-495A-93FC-0C247A3E6E5F","createdAt":815000000.5,"appName":"Firefox","bundleID":"firefox","surfaceClass":"browser","contextHint":"Topic: Q3 plan","prefixTail":"we should","acceptedText":"prioritize retention","scopeKey":"abc"},{"id":"16FD2706-8BAF-433B-82EB-8C7FADA847DA","createdAt":815000001.25,"appName":"Word","surfaceClass":"other","prefixTail":"","acceptedText":"thanks"}]}"#;
         let snapshot: Snapshot = serde_json::from_str(json).unwrap();
         assert_eq!(snapshot.examples[0].bundle_id.as_deref(), Some("firefox"));

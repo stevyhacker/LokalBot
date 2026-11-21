@@ -1,11 +1,3 @@
-//! Summary language (`Models/Meetings/SummaryLanguage.swift`, `LanguageCode.swift`).
-//!
-//! `match` resolves the transcript to a concrete language by voting over
-//! windows sampled across the meeting, so a foreign-language opening never
-//! decides the whole meeting. Detection uses `whatlang` instead of Apple's
-//! `NLLanguageRecognizer`; a language outside the summary presets keeps the
-//! prompt's own "the transcript's language" rule.
-
 use whatlang::Lang;
 
 use lokalbot_core::Transcript;
@@ -15,7 +7,6 @@ const MAXIMUM_SAMPLES: usize = 32;
 const MINIMUM_LETTERS: usize = 12;
 const FULL_VOTE_LETTERS: f64 = 80.0;
 
-/// `summaryDisplayName` for a stored language code, or `None` for unknown codes.
 pub fn display_name(code: &str) -> Option<&'static str> {
     Some(match code.trim() {
         "en" => "English",
@@ -47,9 +38,6 @@ pub fn display_name(code: &str) -> Option<&'static str> {
     })
 }
 
-/// The language name the prompts carry for the `summaryLanguage` setting
-/// (`match`, a code, or `custom:<name>`); `None` means "the transcript's
-/// language".
 pub fn prompt_language(setting: &str, transcript: &Transcript) -> Option<String> {
     let setting = setting.trim();
     if let Some(custom) = setting.strip_prefix("custom:") {
@@ -101,8 +89,6 @@ fn distributed(samples: Vec<String>) -> Vec<String> {
         .collect()
 }
 
-/// A preset language name for the dominant language, `None` when the
-/// winner is not a preset (or nothing could be detected).
 pub fn detect(passages: &[String]) -> Option<&'static str> {
     let samples = distributed(passages.iter().flat_map(|p| windows(p)).collect());
     if samples.is_empty() {
@@ -134,7 +120,6 @@ pub fn detect(passages: &[String]) -> Option<&'static str> {
     }
 }
 
-/// Mostly-English meetings get the English-only wording checks.
 pub fn is_mostly_english(transcript: &Transcript) -> bool {
     let text: String = transcript
         .segments
@@ -158,7 +143,6 @@ pub fn is_mostly_english(transcript: &Transcript) -> bool {
     total == 0.0 || english * 2.0 >= total
 }
 
-/// One sample's language as a preset name (or `None` for a non-preset one).
 fn recognized(sample: &str) -> Option<(Option<&'static str>, f64)> {
     if let Some(chinese) = chinese_script(sample) {
         return Some((Some(chinese), 1.0));
@@ -190,7 +174,6 @@ fn recognized(sample: &str) -> Option<(Option<&'static str>, f64)> {
     Some((name, info.confidence()))
 }
 
-/// Simplified vs Traditional Chinese is a matter of script.
 fn chinese_script(text: &str) -> Option<&'static str> {
     let mut han = 0usize;
     let mut bopomofo = 0usize;
@@ -214,7 +197,6 @@ fn chinese_script(text: &str) -> Option<&'static str> {
     if signal == 0 {
         return None;
     }
-    // Kana alongside Han is Japanese, not Chinese.
     if text.chars().any(|c| ('\u{3040}'..='\u{30FF}').contains(&c)) {
         return None;
     }
@@ -237,7 +219,6 @@ fn chinese_script(text: &str) -> Option<&'static str> {
     }
 }
 
-/// Common characters that exist in only one script.
 const TRADITIONAL_ONLY: &str = "們這個來說對時會國過後還沒麼樣開關問題點機發現實業經長東學電當應見頭話動門車書間無聽讓錢與為處買賣寫議論聯繫辦網";
 const SIMPLIFIED_ONLY: &str = "们这个来说对时会国过后还没么样开关问题点机发现实业经长东学电当应见头话动门车书间无听让钱与为处买卖写议论联系办网";
 

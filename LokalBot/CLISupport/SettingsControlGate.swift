@@ -11,12 +11,6 @@ enum SettingsControlError: LocalizedError {
     }
 }
 
-/// Cross-process marker for "Allow external agents to change LokalBot
-/// settings". Only the app writes it, from the Privacy toggle.
-///
-/// Like `ScreenMemoryAccessGate`, this is deliberately separate: meeting or
-/// screen access never grants settings access, and this grant never grants
-/// either of them.
 struct SettingsControlGate {
     static let markerName = "settings-control-enabled"
 
@@ -52,7 +46,6 @@ struct SettingsControlGate {
             at: controlDirectory,
             withIntermediateDirectories: true,
             attributes: [.posixPermissions: 0o700])
-        // An existing shared control directory keeps its old mode otherwise.
         try fileManager.setAttributes(
             [.posixPermissions: 0o700],
             ofItemAtPath: controlDirectory.path)

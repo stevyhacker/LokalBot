@@ -1,10 +1,8 @@
 import XCTest
 @testable import LokalBot
 
-/// The People list as drawn (grouped by time only, with one badge per row),
-/// and the wording on a person's page. Names are synthetic.
 final class PeopleListPresentationTests: XCTestCase {
-    private let now = Date(timeIntervalSince1970: 1_794_312_000) // Tuesday 2026-11-10 12:00 UTC
+    private let now = Date(timeIntervalSince1970: 1_794_312_000)
     private let locale = Locale(identifier: "en_US")
     private var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
@@ -43,8 +41,6 @@ final class PeopleListPresentationTests: XCTestCase {
                                      end: start.addingTimeInterval(1_800), others: others)
     }
 
-    /// Ana: met yesterday, work open both ways. Marko: three days ago, owes
-    /// one. Petar: an hour ago. Ivana: 20 days ago. Lena: 40 days ago.
     private func library() -> [PersonProfile] {
         let review = meeting("Design review", hoursAgo: 24, attendees: [ana])
         let standup = meeting("Standup", hoursAgo: 72, attendees: [marko])
@@ -73,12 +69,9 @@ final class PeopleListPresentationTests: XCTestCase {
         try XCTUnwrap(people.first { $0.name == name }?.id, "No person named \(name)")
     }
 
-    /// Times come with narrow and thin spaces; compare the words.
     private func plain(_ text: String) -> String {
         String(text.map { $0.isWhitespace ? " " : $0 })
     }
-
-    // MARK: - Grouping and order
 
     func testWithoutCalendarPeopleGroupByWhenYouLastMet() {
         let content = build(library())
@@ -149,8 +142,6 @@ final class PeopleListPresentationTests: XCTestCase {
         XCTAssertEqual(nextDay.first { $0.name == "Petar Lazić" }?.when, "Yesterday")
     }
 
-    // MARK: - Badge
-
     func testTheBadgeSaysWhichWayOpenWorkRunsAndTheUsersOwnShowsFirst() throws {
         XCTAssertNil(PeopleListContent.Badge(youOwe: 0, owesYou: 0))
         XCTAssertEqual(PeopleListContent.Badge(youOwe: 2, owesYou: 0), .youOwe(2))
@@ -166,8 +157,6 @@ final class PeopleListPresentationTests: XCTestCase {
         XCTAssertEqual(rows["Marko Jovanović"]?.badge, .owesYou(1))
         XCTAssertNil(rows["Petar Lazić"]?.badge)
     }
-
-    // MARK: - A person's page
 
     func testSubtitleCountsMeetingsSinceTheFirst() throws {
         let people = PeopleDirectory.build(.init(
@@ -253,7 +242,6 @@ final class PeopleListPresentationTests: XCTestCase {
         XCTAssertEqual(PeopleListContent.Badge.youOwe(2).text(localize: marked), "«You owe 2»")
         XCTAssertEqual(PeopleWording.invited([], localize: marked), "«Just the two of you»")
 
-        // Every key this wording uses is in the shipped catalogs.
         let keys = PeopleListContent.Group.allCases.map(\.title) + [
             "You owe %lld", "Owes you %lld", "You owe %@", "%@ owes you", "Named in actions", "Met once, %@",
             "%lld meetings since %@", "Next meeting %@", "In progress", "Also invited: %@", "Just the two of you",
@@ -266,8 +254,6 @@ final class PeopleListPresentationTests: XCTestCase {
         }
     }
 
-    // MARK: - Layout
-
     func testTheSideColumnSitsBesideThePageOnlyWhileBothFit() {
         XCTAssertTrue(PageSideColumnLayout.placesSideBeside(paneWidth: 692, textScale: 1),
                       "The default window keeps the column beside the page")
@@ -277,8 +263,6 @@ final class PeopleListPresentationTests: XCTestCase {
         XCTAssertEqual(PageSideColumnLayout.sideWidth(textScale: 1), 252)
         XCTAssertGreaterThan(PageSideColumnLayout.sideWidth(textScale: 1.3), 252)
     }
-
-    // MARK: - Prepare
 
     func testPrepareHandsAgentThePersonsNotesAndOpenWorkAndNothingFromTheCalendar() throws {
         let person = try XCTUnwrap(library().first { $0.name == "Ana Petrović" })

@@ -1,16 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// Account, model, and consent for one subscription plan, shown in the Think
-/// model sheet. Signing in, approval, and the model are separate steps: a
-/// sign-in alone never lets context leave the Mac, and the sheet applies the
-/// model and approval only when the user chooses Use model.
 struct SubscriptionPlanSetupView: View {
     @ObservedObject var app: AppState
     let plan: SubscriptionPlan
     @Binding var model: String
     @Binding var consent: Bool
-    /// Signed in with plan usage (ChatGPT) or signed in to Claude Code.
     @Binding var ready: Bool
     var chatGPTAccount: ChatGPTPlanAccount = .shared
 
@@ -31,7 +26,6 @@ struct SubscriptionPlanSetupView: View {
     }
 }
 
-/// One labelled row of a plan's setup, with labels aligned in a column.
 private struct PlanRow<Content: View>: View {
     let title: LocalizedStringKey
     @ViewBuilder var content: Content
@@ -48,16 +42,10 @@ private struct PlanRow<Content: View>: View {
     }
 }
 
-// MARK: - Model picker
-
-/// The model menu for a plan. A ChatGPT plan lists the signed-in account's
-/// own models; a Claude plan offers Claude Code's aliases, which follow the
-/// newest model of each family.
 struct SubscriptionPlanModelPicker: View {
     let plan: SubscriptionPlan
     @Binding var selection: String
     var account: ChatGPTPlanAccount = .shared
-    /// Changes when the sign-in changes, so the list loads again.
     var accountKey: String = ""
 
     @State private var models: [ChatGPTPlanModel] = []
@@ -73,8 +61,6 @@ struct SubscriptionPlanModelPicker: View {
         .init(slug: "haiku", displayName: "Haiku"),
     ]
 
-    /// Known choices, plus a saved model the list no longer offers, so a
-    /// retired selection stays visible instead of silently changing.
     private var choices: [ChatGPTPlanModel] {
         let known = plan == .claude ? Self.claudeChoices : models
         guard !selection.isEmpty, !known.contains(where: { $0.slug == selection }) else { return known }
@@ -128,8 +114,6 @@ struct SubscriptionPlanModelPicker: View {
         }
     }
 }
-
-// MARK: - ChatGPT
 
 private struct ChatGPTPlanAccountSection: View {
     @ObservedObject var app: AppState
@@ -215,7 +199,6 @@ private struct ChatGPTPlanAccountSection: View {
                         .lineLimit(1).truncationMode(.middle)
                         .accessibilityIdentifier("models.chatGPTPlan.connected")
                     Spacer(minLength: 8)
-                    // Switching accounts is offered after signing out.
                     Button("Sign out") { signOut() }
                         .buttonStyle(.workspaceLink)
                         .disabled(signingIn)
@@ -289,8 +272,6 @@ private struct ChatGPTPlanAccountSection: View {
         }
     }
 }
-
-// MARK: - Claude
 
 private struct ClaudePlanAccountSection: View {
     @Binding var model: String
@@ -409,8 +390,6 @@ private func openTerminalApp() {
     NSWorkspace.shared.openApplication(at: terminal, configuration: NSWorkspace.OpenConfiguration())
 }
 
-// MARK: - Antigravity
-
 private struct AntigravityPlanAccountSection: View {
     @Binding var model: String
     @Binding var ready: Bool
@@ -515,8 +494,6 @@ private struct AntigravityPlanAccountSection: View {
     }
 }
 
-// MARK: - Gemini
-
 private struct GeminiPlanAccountSection: View {
     @Binding var model: String
     @Binding var ready: Bool
@@ -610,8 +587,6 @@ private struct GeminiPlanAccountSection: View {
         models = await GeminiCLI.models(executable: executable)
     }
 }
-
-// MARK: - Consent
 
 private struct SubscriptionPlanConsentSection: View {
     let plan: SubscriptionPlan

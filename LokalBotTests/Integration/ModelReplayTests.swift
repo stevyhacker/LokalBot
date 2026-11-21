@@ -1,8 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Real GLM 5.3 Flash / Qwen3.8 Flash answers (recorded nightly), replayed
-/// through the real engine and generators.
 final class ModelReplayTests: XCTestCase {
     private var server: ModelStubServer!
 
@@ -53,9 +51,6 @@ final class ModelReplayTests: XCTestCase {
         }
     }
 
-    /// Real models tidy what they quote and cite a row beside the one that
-    /// carries "I have to". Both of the user's commitments in the run-on
-    /// standup must still come out as theirs, and nobody else's as theirs.
     func testRecordedRunOnStandupKeepsBothOfMyCommitmentsMine() async throws {
         let transcript = SyntheticModelPrompts.runOnStandupTranscript()
         for recording in try recordings("notes-run-on-standup") {

@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// Requests that wait for the person: what the reply says, what Approve and
-/// Deny do, retention reviews, and write-only API keys. Runs against a real
-/// `AppState` in a temporary library.
 @MainActor
 final class SettingsApprovalFlowTests: XCTestCase {
     private var root: URL!
@@ -125,7 +122,6 @@ final class SettingsApprovalFlowTests: XCTestCase {
         try app.approveSettingsRequest(id)
 
         XCTAssertEqual(app.settings.retentionDays, 7)
-        // Undoing it could delete without a review, so Settings handles that.
         let entry = try XCTUnwrap(app.agentSettingsChanges.recent.first { $0.key == "retentionDays" })
         XCTAssertFalse(app.agentSettingsChanges.canUndo(entry, in: app.settings))
     }
@@ -138,8 +134,6 @@ final class SettingsApprovalFlowTests: XCTestCase {
     }
 
     func testAShorterPolicyWithoutAReviewWaitsForOne() async throws {
-        // Lengthening needs no cleanup when asked, but the person lengthens
-        // further before approving, so applying it now would delete.
         let id = try requestID(await set(["retentionDays": 30]))
         app.settings.retentionDays = 60
         XCTAssertThrowsError(try app.approveSettingsRequest(id))
@@ -154,7 +148,6 @@ final class SettingsApprovalFlowTests: XCTestCase {
     func testApprovingKeepsWhatThePersonChangedSinceAndTheCardDidNotShow() async throws {
         let origin = "https://think.example.com"
         app.settings.approvedRemoteInferenceOrigins = [origin]
-        // The origin list is unchanged, so the card shows only the capture change.
         let id = try requestID(await set([
             "meetingVisualContextEnabled": true,
             "approvedRemoteInferenceOrigins": [.string(origin)],
@@ -172,7 +165,6 @@ final class SettingsApprovalFlowTests: XCTestCase {
         let first = "https://a.example.com", second = "https://b.example.com"
         app.settings.approvedRemoteInferenceOrigins = [first]
         let id = try requestID(await set(["approvedRemoteInferenceOrigins": [.string(first), .string(second)]]))
-        // The card adds one origin; approving now would add both.
         app.settings.approvedRemoteInferenceOrigins = []
 
         XCTAssertThrowsError(try app.approveSettingsRequest(id))
@@ -202,7 +194,6 @@ final class SettingsApprovalFlowTests: XCTestCase {
         let visual = try XCTUnwrap(SettingRegistry.spec(for: "meetingVisualContextEnabled"))
         XCTAssertEqual(visual.changeLines(from: .bool(false), to: .bool(true)), ["Off → On"])
 
-        // A change only in what a URL hides still says so.
         let server = try XCTUnwrap(SettingRegistry.spec(for: "openAIBaseURL"))
         let lines = server.changeLines(from: .string("https://api.example.com/v1"),
                                        to: .string("https://api.example.com/v1?key=secret"))

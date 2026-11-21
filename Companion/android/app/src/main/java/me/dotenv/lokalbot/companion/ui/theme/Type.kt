@@ -11,7 +11,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import me.dotenv.lokalbot.companion.R
 
-/** Inter, the interface font the Linux/Windows app also bundles (OFL-1.1). */
 val Inter = FontFamily(
     Font(R.font.inter_regular, FontWeight.Normal),
     Font(R.font.inter_medium, FontWeight.Medium),
@@ -24,7 +23,6 @@ private val default = Typography()
 private fun TextStyle.inter(weight: FontWeight? = null) =
     copy(fontFamily = Inter, fontWeight = weight ?: fontWeight, letterSpacing = 0.sp)
 
-/** Material 3's scalable sizes in Inter, with the Mac's heavier title weights. */
 val LokalBotTypography = Typography(
     displayLarge = default.displayLarge.inter(),
     displayMedium = default.displayMedium.inter(),
@@ -43,7 +41,6 @@ val LokalBotTypography = Typography(
     labelSmall = default.labelSmall.inter(FontWeight.Medium),
 )
 
-/** The Mac's text roles (tokens.json "type") on Material 3 styles. */
 object LokalBotType {
     val pageTitle: TextStyle
         @Composable @ReadOnlyComposable get() = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold)
@@ -64,7 +61,6 @@ object LokalBotType {
     val sectionHeader: TextStyle
         @Composable @ReadOnlyComposable get() = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
 
-    /** Times and durations: tabular figures so columns line up. */
     val timestamp: TextStyle
         @Composable @ReadOnlyComposable get() = MaterialTheme.typography.bodyMedium.copy(fontFeatureSettings = "tnum")
 }

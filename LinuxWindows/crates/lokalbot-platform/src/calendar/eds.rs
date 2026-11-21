@@ -1,12 +1,3 @@
-//! Evolution Data Server over D-Bus: every enabled, selected calendar the
-//! desktop knows, including those GNOME Online Accounts adds (Google,
-//! Microsoft 365, Nextcloud). EDS keeps its own synced copy, so reading it
-//! makes no network request of LokalBot's own.
-//!
-//! `Sources5` lists the sources; `CalendarFactory.OpenCalendar` starts (or
-//! reuses) a backend whose object lives only while this connection does, so
-//! one connection serves a whole refresh.
-
 use std::collections::{BTreeSet, HashMap};
 use std::time::Duration;
 
@@ -25,17 +16,13 @@ const SOURCE_INTERFACE: &str = "org.gnome.evolution.dataserver.Source";
 const CALENDAR_FACTORY: &str = "/org/gnome/evolution/dataserver/CalendarFactory";
 const CALENDAR_INTERFACE: &str = "org.gnome.evolution.dataserver.Calendar";
 
-/// One EDS calendar source.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct Source {
     pub uid: String,
     pub display_name: Option<String>,
-    /// An account address from the source or its parent collection.
     pub account_address: Option<String>,
 }
 
-/// Events from every enabled EDS calendar. `Ok(None)` when EDS is not
-/// installed (nothing owns or can start its source registry).
 pub fn fetch(options: &ParseOptions) -> Result<Option<Vec<CalendarEvent>>> {
     let bus = zbus::blocking::connection::Builder::session()?
         .method_timeout(Duration::from_secs(20))
@@ -132,7 +119,6 @@ fn read_source(
     Ok(ics::parse_components(&objects, &timezones, &options))
 }
 
-/// `Open` returns `[key, value, key, value, …]` with GVariant-quoted values.
 fn open_property(properties: &[String], key: &str) -> Option<String> {
     properties
         .chunks(2)
@@ -142,7 +128,6 @@ fn open_property(properties: &[String], key: &str) -> Option<String> {
         .filter(|value| !value.is_empty())
 }
 
-/// Every `TZID=` an object mentions, so their definitions come along.
 fn referenced_zones(objects: &[String]) -> BTreeSet<String> {
     let mut zones = BTreeSet::new();
     for object in objects {
@@ -161,8 +146,6 @@ fn referenced_zones(objects: &[String]) -> BTreeSet<String> {
     zones
 }
 
-/// The highest-numbered EDS bus name that is running or can be started
-/// (`…Sources5`, `…Calendar8`).
 fn newest_name(bus: &Connection, prefix: &str) -> Result<Option<String>> {
     let dbus = zbus::blocking::fdo::DBusProxy::new(bus)?;
     let mut names: Vec<String> = dbus
@@ -209,8 +192,6 @@ fn calendar_sources(bus: &Connection, sources_bus: &str) -> Result<Vec<Source>> 
     Ok(select_sources(&files))
 }
 
-/// Calendars that are enabled and selected, under an enabled collection
-/// whose calendars are turned on.
 pub(crate) fn select_sources(files: &HashMap<String, KeyFile>) -> Vec<Source> {
     let mut sources: Vec<Source> = files
         .iter()
@@ -255,7 +236,6 @@ pub(crate) fn select_sources(files: &HashMap<String, KeyFile>) -> Vec<Source> {
     sources
 }
 
-/// The GKeyFile text EDS keeps per source (unlocalized keys only).
 #[derive(Debug, Default)]
 pub(crate) struct KeyFile {
     sections: HashMap<String, HashMap<String, String>>,
@@ -373,9 +353,6 @@ mod tests {
         );
     }
 
-    /// Reads the running EDS. Seed a calendar with a daily "Daily standup"
-    /// and run inside its session bus:
-    /// `LOKALBOT_EDS_LIVE_TEST=1 dbus-run-session -- cargo test -p lokalbot-platform live_evolution -- --ignored`
     #[test]
     #[ignore = "needs a session bus with Evolution Data Server"]
     fn live_evolution_calendar() {

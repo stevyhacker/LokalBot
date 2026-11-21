@@ -14,10 +14,8 @@ import me.dotenv.lokalbot.companion.pairing.PairingLinkResult
 import me.dotenv.lokalbot.companion.pairing.PairingPayload
 
 sealed interface PairingStep {
-    /** Scanning the QR code or pasting the link. */
     data object Scan : PairingStep
     data class Confirm(val payload: PairingPayload, val link: String) : PairingStep
-    /** The Mac is asking the person whether to allow this device. */
     data class Waiting(val macName: String) : PairingStep
     data class Failed(val message: String) : PairingStep
     data class Paired(val macName: String) : PairingStep
@@ -36,7 +34,6 @@ class PairingViewModel(
     private val _problem = MutableStateFlow<LinkProblem?>(null)
     val problem: StateFlow<LinkProblem?> = _problem.asStateFlow()
 
-    /** The name the Mac shows when it asks whether to allow this device. */
     private val _deviceName = MutableStateFlow("")
     val deviceName: StateFlow<String> = _deviceName.asStateFlow()
 
@@ -50,7 +47,6 @@ class PairingViewModel(
         _deviceName.value = name.take(MAX_NAME_LENGTH)
     }
 
-    /** A scanned or pasted pairing link. Returns true when it was accepted. */
     fun submit(text: String): Boolean {
         if (_step.value != PairingStep.Scan) return false
         return when (val result = PairingLink.parse(text, now())) {

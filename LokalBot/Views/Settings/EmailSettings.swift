@@ -2,7 +2,6 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
-/// Settings → Email: connected Gmail accounts, read-only.
 struct EmailSettingsSection: View {
     @ObservedObject var email: EmailController
     let focusedSettingID: String?
@@ -100,7 +99,6 @@ struct EmailSettingsSection: View {
         }
     }
 
-    /// One catalog key, split only to keep the line short.
     private static let readingDetails = "LokalBot reads headers first and downloads a conversation only if you wrote in it, "
         + "or if someone on your calendar takes part and it isn't bulk mail. It never reads Spam, Trash, or Drafts, "
         + "and it keeps attachment names but never their contents. It checks for new mail at launch, every few hours, "

@@ -2,8 +2,6 @@ import DigUpKit
 import XCTest
 @testable import LokalBot
 
-/// File search for external agents: the grant and folder list the app keeps,
-/// and `search_files` over a real Files index, as the CLI and MCP see them.
 @MainActor
 final class FilesAccessTests: XCTestCase {
     private var root: URL!
@@ -54,7 +52,7 @@ final class FilesAccessTests: XCTestCase {
         manager.refresh()
         XCTAssertEqual(gate.readProjection()?.folders, [chosen.path, other.path])
 
-        folders = nil   // Files turned off
+        folders = nil
         manager.refresh()
         XCTAssertNil(gate.readProjection())
         XCTAssertTrue(gate.isEnabled, "the grant stays; there is just nothing to search")
@@ -87,7 +85,6 @@ final class FilesAccessTests: XCTestCase {
         let hit = try XCTUnwrap(report.results.first)
         XCTAssertEqual(hit.kind, "doc")
         XCTAssertTrue(hit.passage?.contains("Thursday") == true)
-        // The walk reports the real path (/private/var for /var).
         XCTAssertEqual(hit.path, FolderSelection.realPath(chosen.appendingPathComponent("budget.txt").path))
 
         XCTAssertEqual(try XCTUnwrap(search("basil", kinds: ["pdf"]).success).results.count, 0, "kinds filter")
@@ -98,11 +95,6 @@ final class FilesAccessTests: XCTestCase {
         XCTAssertEqual(try XCTUnwrap(search("basil").success).results.count, 0, "a deleted file isn't returned")
     }
 
-    /// Folders and dates are applied after ranking. With a limit of 1 the
-    /// search looked at the best four matches only; when those were all in a
-    /// folder agents may not search, a match in the chosen folder was never
-    /// seen and the answer was "nothing". The eight files outside hold both
-    /// words of the query and the one inside holds one, so it ranks last.
     func testAMatchRankedBelowOnesOutsideTheChosenFoldersIsStillFound() async throws {
         for number in 1...8 {
             try write("bill-\(number).txt", in: other, "Invoice number \(number) for the studio rent.")
@@ -143,8 +135,6 @@ final class FilesAccessTests: XCTestCase {
         XCTAssertTrue(invalid.text.hasPrefix("[invalid_arguments]"), invalid.text)
     }
 
-    // MARK: - Helpers
-
     private func search(_ query: String, kinds: [String]? = nil, after: String? = nil,
                         limit: Int? = nil) -> Result<FilesSearchTool.Report, FilesSearchTool.Failure> {
         FilesSearchTool.report(query: query, kinds: kinds, after: after, limit: limit, gate: gate)
@@ -155,7 +145,6 @@ final class FilesAccessTests: XCTestCase {
                                                           atomically: true, encoding: .utf8)
     }
 
-    /// Reads `folders` into the Files index where the CLI looks for it.
     private func index(folders: [URL]) async throws {
         let service = FileSearchService(indexFolder: gate.indexDirectory, startEmbedder: { _ in
             .init(source: WordsEmbedder.workerInfo.vectorSource, makeEmbedder: { WordsEmbedder() }, end: {})
@@ -175,7 +164,6 @@ private extension FilesSearchTool.Failure {
     var isInvalid: Bool { if case .invalid = self { true } else { false } }
 }
 
-/// Bag-of-words vectors; the agent search never uses them, the index needs them.
 private final class WordsEmbedder: Embedder {
     static let workerInfo = WorkerInfo(model: "test/words", revision: "0000000", runtime: "fake", dtype: "f32",
                                        dim: 768, textOnly: false, loadSeconds: nil)

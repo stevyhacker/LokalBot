@@ -18,8 +18,6 @@ final class EmailScopeTests: XCTestCase {
         return try JSONDecoder().decode(GmailThreadResource.self, from: json)
     }
 
-    // MARK: Searches
-
     func testSearchesUseEpochSecondsAndSkipBulkTabs() {
         let after = Date(timeIntervalSince1970: 1_792_224_000)
         XCTAssertEqual(EmailScope.sentQuery(after: after), "in:sent after:1792224000")
@@ -38,8 +36,6 @@ final class EmailScopeTests: XCTestCase {
         XCTAssertEqual(searches.map { $0.query.components(separatedBy: "from:").count - 1 }, [15, 15, 1])
         XCTAssertEqual(searches.reduce(into: Set<String>()) { $0.formUnion($1.addresses) }, addresses)
     }
-
-    // MARK: Who counts
 
     func testRobotsAndCalendarResourcesAreNotPeople() {
         let attendees: Set<String> = [
@@ -66,8 +62,6 @@ final class EmailScopeTests: XCTestCase {
         let reply = try resource([message("1", from: "ana@x.com", headers: ["Auto-Submitted": "no"])]).messages![0]
         XCTAssertFalse(EmailScope.isBulk(reply))
     }
-
-    // MARK: Qualifying
 
     func testThreadsYouWroteInAlwaysQualify() throws {
         let thread = try resource([
@@ -102,7 +96,6 @@ final class EmailScopeTests: XCTestCase {
     }
 
     func testASpoofedFromHeaderIsNotTheOwner() throws {
-        // Anyone can put the person's own address in From; only SENT counts.
         let spoofed = try resource([message("1", from: "Me <\(GmailFixtures.me)>")])
         XCTAssertFalse(EmailScope.qualifies(spoofed, people: [], windowStart: windowStart))
         let stored = try XCTUnwrap(EmailScope.thread(
@@ -125,8 +118,6 @@ final class EmailScopeTests: XCTestCase {
         XCTAssertFalse(EmailScope.stillQualifies(stored("ana@x.com", bulk: true), people: people))
         XCTAssertFalse(EmailScope.stillQualifies(stored("stranger@z.com"), people: people))
     }
-
-    // MARK: Building what is stored
 
     func testStoredThreadKeepsOnlyWindowMessagesInOrder() throws {
         var attached = message("3", from: "Ana Petrović <ana@x.com>", daysAgo: 1, plain: "Final numbers attached.")

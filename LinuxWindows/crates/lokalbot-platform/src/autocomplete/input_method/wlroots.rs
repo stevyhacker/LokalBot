@@ -1,19 +1,3 @@
-//! The input method on Sway and Hyprland: `zwp_input_method_v2`, plus
-//! `zwp_virtual_keyboard_v1` for giving keys back.
-//!
-//! The keyboard is grabbed only while a suggestion shows. While it is, every
-//! key but the accept keys and Esc goes straight on through the virtual
-//! keyboard and nothing keeps it.
-//!
-//! A known input method starting later makes this route let go of the seat at
-//! once and say why, as does the compositor reporting that someone else holds
-//! it. It takes the seat again only when that other one has been gone for a
-//! while. A session that has only just started gets a moment first, so that one
-//! starting alongside LokalBot does not lose the seat to it.
-//!
-//! This thread does no blocking work: while the keyboard is grabbed, the
-//! user's typing goes through it.
-
 use std::collections::HashSet;
 use std::fs::File;
 use std::os::fd::{AsFd as _, AsRawFd as _, OwnedFd};
@@ -44,30 +28,19 @@ use super::super::{AcceptKeys, FocusHandler, InterceptedKey};
 use super::surface::{self, Request};
 use super::{Command, Content, Core, Handle, Output, Surrounding};
 
-/// How long the grab waits for keys still down once the ghost has gone.
 const GRAB_RELEASE_LIMIT: Duration = Duration::from_secs(3);
-/// Measured from the compositor's socket.
 const SESSION_SETTLE: Duration = Duration::from_secs(20);
-/// Scans with no other input method before taking the seat back.
 const QUIET_SCANS_BEFORE_RETAKING: u32 = 3;
-/// How long before asking again after the compositor said someone else holds
-/// the seat, without knowing who.
 const UNAVAILABLE_RETRY: Duration = Duration::from_secs(30);
-/// `zwp_input_method_v2` carries strings below 4000 bytes.
 const MAX_STRING: usize = 3990;
-/// Keymaps larger than this are not keymaps.
 const MAX_KEYMAP: usize = 8 * 1024 * 1024;
 
 const KEY_RELEASED: u32 = 0;
 const KEY_PRESSED: u32 = 1;
 
-/// XKB keycodes are evdev scancodes plus this.
 const XKB_OFFSET: u32 = 8;
-/// `KEY_GRAVE`, the physical key left of 1.
 pub(super) const EVDEV_GRAVE: u32 = 41;
 
-/// Whether this compositor offers what the route needs. It cannot change
-/// within a session, so it is asked once.
 pub(super) fn offered_by_compositor() -> bool {
     static OFFERED: OnceLock<bool> = OnceLock::new();
     *OFFERED.get_or_init(|| {
@@ -209,7 +182,6 @@ fn run(
                 revents: 0,
             },
         ];
-        // SAFETY: `fds` is a valid array for its length, for the whole call.
         let ready = unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as libc::nfds_t, timeout) };
         if ready < 0 && std::io::Error::last_os_error().kind() != std::io::ErrorKind::Interrupted {
             log::warn!("autocomplete: could not wait for the desktop");
@@ -252,16 +224,13 @@ pub(super) struct Modifiers {
 }
 
 impl Modifiers {
-    /// Caps Lock and Num Lock are locks, not held: a plain key stays plain.
     pub(super) fn plain(&self) -> bool {
         self.depressed == 0 && self.latched == 0
     }
 }
 
-/// What the current keymap's keys mean to this route.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub(super) struct Keymap {
-    /// Scancodes for the keys that can be taken.
     tab: Option<u32>,
     escape: Option<u32>,
     right: Option<u32>,
@@ -270,9 +239,6 @@ pub(super) struct Keymap {
 }
 
 impl Keymap {
-    /// Reads a keymap the compositor shared. Which keys are which depends on
-    /// it (Caps Lock can be Escape), except the full-accept key, which is the
-    /// physical key left of 1 whatever it types, like the Mac's key code 50.
     pub(super) fn read(fd: &OwnedFd, size: usize) -> anyhow::Result<Self> {
         anyhow::ensure!(size <= MAX_KEYMAP, "implausibly large keymap");
         let file = File::from(fd.try_clone()?);
@@ -356,7 +322,6 @@ impl Keymap {
     }
 }
 
-/// State set by events until the next `done`.
 #[derive(Default)]
 struct Pending {
     activated: Option<bool>,
@@ -364,7 +329,6 @@ struct Pending {
     content: Option<Content>,
 }
 
-/// The protocol objects and the keyboard they hand us.
 struct Wayland {
     qh: QueueHandle<State>,
     seat: wl_seat::WlSeat,
@@ -373,17 +337,13 @@ struct Wayland {
     virtual_keyboard: Option<ZwpVirtualKeyboardV1>,
     keyboard_has_keymap: bool,
     grab: Option<ZwpInputMethodKeyboardGrabV2>,
-    /// The app wants the keys, so a suggestion is on show.
     wants_grab: bool,
     keymap: Option<Keymap>,
-    /// Keys given back and still down, by scancode.
     down: HashSet<u32>,
-    /// Keys taken and still down: their release goes nowhere.
     taken: HashSet<u32>,
     modifiers: Modifiers,
     last_time: u32,
     release_by: Option<Instant>,
-    /// Count of `done` events, which each commit quotes.
     serial: u32,
     active: bool,
 }
@@ -393,7 +353,6 @@ impl Output for Wayland {
         let Some(input_method) = &self.input_method else {
             return;
         };
-        // The caret stays where the user is typing, in front of the ghost.
         input_method.set_preedit_string(clipped(text).to_string(), 0, 0);
         input_method.commit(self.serial);
     }
@@ -409,7 +368,6 @@ impl Output for Wayland {
         if !text.is_empty() {
             input_method.commit_string(clipped(text).to_string());
         }
-        // Preedit does not last from one commit to the next.
         input_method.set_preedit_string(clipped(preedit).to_string(), 0, 0);
         input_method.commit(self.serial);
     }
@@ -442,7 +400,6 @@ impl Wayland {
         } else if self.down.is_empty() {
             self.end_grab();
         } else {
-            // Keys still down keep repeating until they come up.
             self.release_by = Some(Instant::now() + GRAB_RELEASE_LIMIT);
         }
     }
@@ -485,12 +442,10 @@ struct State {
     seat_held: bool,
     quiet_scans: u32,
     retry_at: Option<Instant>,
-    /// The input method in the way, once known by name.
     other: Option<String>,
 }
 
 impl State {
-    /// False to stop.
     fn command(&mut self, command: Command) -> bool {
         match self.core.command(command, &mut self.wayland) {
             None => {}
@@ -525,7 +480,6 @@ impl State {
         }
     }
 
-    /// Milliseconds until `tick` has work, or -1 for none.
     fn poll_timeout(&self, now: Instant) -> i32 {
         [
             self.core.next_deadline(),
@@ -545,7 +499,6 @@ impl State {
         })
     }
 
-    /// A scan found `other` running, or nothing.
     fn on_scanned(&mut self, other: Option<String>) {
         match other {
             Some(name) => {
@@ -591,7 +544,6 @@ impl State {
         self.core.set_limitation(session_module_text());
     }
 
-    /// Someone else holds the seat, or will: nothing of ours stays on it.
     fn let_go_of_seat(&mut self) {
         self.core.deactivate(&mut self.wayland);
         self.wayland.active = false;
@@ -668,7 +620,6 @@ impl State {
     }
 }
 
-/// `text` cut to what the protocol carries.
 pub(super) fn clipped(text: &str) -> &str {
     if text.len() <= MAX_STRING {
         return text;
@@ -680,7 +631,6 @@ pub(super) fn clipped(text: &str) -> &str {
     &text[..end]
 }
 
-/// How much longer to wait before taking the seat, while the session is new.
 fn session_settle_left() -> Option<Duration> {
     let runtime = std::env::var_os("XDG_RUNTIME_DIR")?;
     let display = std::env::var_os("WAYLAND_DISPLAY")?;
@@ -738,7 +688,6 @@ impl Dispatch<ZwpInputMethodV2, ()> for State {
                 cursor,
                 anchor,
             } => {
-                // A field already ruled out: its text is not even held.
                 if !state.core.refuses_text() || state.pending.activated == Some(true) {
                     state.pending.surrounding = Some(Surrounding {
                         text,
@@ -833,8 +782,6 @@ impl Dispatch<ZwpInputMethodKeyboardGrabV2, ()> for State {
 mod tests {
     use super::*;
 
-    /// The core of what `xkbcomp` writes for a US layout, with Caps Lock as
-    /// Escape, as `caps:escape` does.
     const KEYMAP: &str = r#"xkb_keymap {
 xkb_keycodes "t" {
   minimum = 8; maximum = 255;
@@ -865,12 +812,10 @@ xkb_symbols "t" {
     #[test]
     fn keys_are_read_from_the_keymap() {
         let keymap = Keymap::parse(KEYMAP).unwrap();
-        // Scancodes are the keycodes above minus eight.
         assert_eq!(keymap.key(15), Some(InterceptedKey::Tab));
         assert_eq!(keymap.key(106), Some(InterceptedKey::RightArrow));
         assert_eq!(keymap.key(16), None, "q");
         assert_eq!(keymap.scancode(InterceptedKey::Tab), Some(15));
-        // The physical key left of 1, though it types no backtick here.
         assert_eq!(keymap.key(41), Some(InterceptedKey::Backtick));
         assert!(keymap.modifiers.contains(&42), "Left Shift");
         assert!(!keymap.modifiers.contains(&16));

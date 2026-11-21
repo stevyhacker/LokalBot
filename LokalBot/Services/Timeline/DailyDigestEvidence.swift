@@ -1,8 +1,6 @@
 import Foundation
 
 extension DailyEvidenceSnapshot {
-    /// Shared by generation and validation. Summary-only snapshot callers must
-    /// load detailed activity before using this projection as a freshness proof.
     func digestEvidence(calendar: Calendar = .current) -> DayDigestEvidence {
         DayDigestEvidence.build(
             day: day, blocks: activityBlocks, screenContexts: screenContexts,
@@ -45,8 +43,6 @@ extension DailyEvidenceSnapshot {
 }
 
 extension DayDigestEvidence {
-    /// Content consumed by the digest, excluding filesystem timestamps and
-    /// optional daily-summary fields that the digest does not read.
     var contentSignature: String {
         var fields = ["digest-evidence-v1", String(day.timeIntervalSince1970),
                       String(interval.start.timeIntervalSince1970), String(interval.end.timeIntervalSince1970)]
@@ -61,8 +57,6 @@ extension DayDigestEvidence {
         }
         standaloneContexts.forEach(appendContext)
         fields += meetingFields
-        // Appended only when present: journals of days without agent work
-        // keep matching the signature they were generated with.
         for burst in codingAgentBursts {
             fields += ["agent"] + burst.signatureFields
         }

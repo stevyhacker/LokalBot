@@ -1,7 +1,3 @@
-//! The ownership contract for exports and routines (`GeneratedFileWriter.swift`).
-//! A marker identifies a generated file; only the recorded hash grants
-//! permission to replace it. The hash lives in a hidden sidecar beside the file.
-
 use std::path::{Path, PathBuf};
 
 use crate::library::{sha256_hex, write_atomic};
@@ -35,8 +31,6 @@ fn reject_symlink(path: &Path) -> Result<(), WriteError> {
     }
 }
 
-/// Owner-only on Linux, where the mode exists. On Windows a file takes the
-/// access of the folder it's in.
 fn set_private(path: &Path) -> std::io::Result<()> {
     #[cfg(unix)]
     {
@@ -56,9 +50,6 @@ fn record(digest: &str, sidecar: &Path) -> std::io::Result<()> {
     set_private(sidecar)
 }
 
-/// Writes `data` unless the person owns what is there. Returns false when
-/// identical bytes were already present: legacy files can be adopted only then,
-/// without replacing their content.
 pub fn write(data: &[u8], path: &Path, marker: &str) -> Result<bool, WriteError> {
     let sidecar = sidecar_path(path);
     reject_symlink(path)?;
@@ -109,9 +100,7 @@ mod tests {
             std::fs::read_to_string(&sidecar).unwrap(),
             format!("v1:{}\n", sha256_hex(&body("one")))
         );
-        // Identical bytes: nothing rewritten.
         assert!(!write(&body("one"), &note, MARKER).unwrap());
-        // Still what LokalBot wrote: replaced.
         assert!(write(&body("two"), &note, MARKER).unwrap());
         assert_eq!(std::fs::read(&note).unwrap(), body("two"));
         #[cfg(unix)]
@@ -134,7 +123,6 @@ mod tests {
         ));
         assert_eq!(std::fs::read_to_string(&mine).unwrap(), "my own notes");
 
-        // Generated, then edited: the hash no longer matches.
         let edited = dir.path().join("edited.md");
         write(&body("one"), &edited, MARKER).unwrap();
         let mut changed = body("one");
@@ -146,7 +134,6 @@ mod tests {
         ));
         assert_eq!(std::fs::read(&edited).unwrap(), changed);
 
-        // Marker but no sidecar: only identical bytes may be adopted.
         let legacy = dir.path().join("legacy.md");
         std::fs::write(&legacy, body("old")).unwrap();
         assert!(matches!(

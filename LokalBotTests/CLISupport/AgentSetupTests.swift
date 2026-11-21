@@ -1,9 +1,6 @@
 import XCTest
 @testable import LokalBot
 
-/// `setup start` requests as the app reads and answers them, and the setup
-/// methods an agent uses afterwards. Runs against a real `AppState` in a
-/// temporary library; nothing here prompts or restarts.
 @MainActor
 final class AgentSetupTests: XCTestCase {
     private var root: URL!
@@ -154,8 +151,6 @@ final class AgentSetupTests: XCTestCase {
         XCTAssertEqual(answer()?.state, .expired)
     }
 
-    // MARK: Setup methods
-
     private func handled(_ method: AppControlProtocol.Method, _ params: [String: JSONValue]? = nil) async throws -> AppControlResponse {
         let gate = SettingsControlGate(root: app.storage.rootURL)
         try gate.enable()
@@ -171,12 +166,9 @@ final class AgentSetupTests: XCTestCase {
         XCTAssertTrue(AppControlProtocol.modelPresets.contains(plan["models"]?.stringValue ?? ""))
         guard case .array(let needsApproval)? = plan["notes"]?["needsApproval"] else { return XCTFail("no notes") }
         XCTAssertTrue(needsApproval.contains("trackingEnabled"))
-        // Setup in the app shows this choice with the other capture choices;
-        // an agent walking the person through the plan has to show it too.
         XCTAssertEqual(plan["settings"]?["codingAgentEvidenceEnabled"], true)
         XCTAssertTrue(needsApproval.contains("codingAgentEvidenceEnabled"))
         XCTAssertFalse(needsApproval.contains("noteTemplate"))
-        // The printed plan is what setup apply reads.
         XCTAssertNoThrow(try SetupPlan(json: plan))
 
         let lightweight = try await handled(.setupPlan, ["preset": "lightweight"])

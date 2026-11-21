@@ -1,15 +1,11 @@
 import Combine
 import Foundation
 
-/// Where the radar's lines come from: the live transcript preview in the
-/// app, a scripted feed in tests.
 @MainActor
 protocol RadarLineFeed: AnyObject {
     var linesPublisher: AnyPublisher<[LiveMeetingTranscriber.Line], Never> { get }
     var currentLines: [LiveMeetingTranscriber.Line] { get }
     var isRunning: Bool { get }
-    /// Lines arrive turn by turn, about a second after being said, rather
-    /// than in windows of several seconds, so passes can follow each turn.
     var deliversTurns: Bool { get }
     func activatePreview()
 }
@@ -21,20 +17,6 @@ extension LiveMeetingTranscriber: RadarLineFeed {
     func activatePreview() { activate() }
 }
 
-/// Live Radar for the meeting being recorded. It reads the live transcript
-/// preview, and every pass gives only the lines that arrived since the last
-/// one (plus a little context, what is already on the radar, and passages
-/// local search found in earlier meetings) to the Think model chosen in
-/// Settings → Models, under that model's own local or remote setting.
-/// Passes run about every 20 s, or after each turn when fast live text
-/// delivers turns: cut at pauses on this Mac, or streamed from Muse Voice
-/// Transcribe. Speaker separation stays on this Mac, and audio does too
-/// unless fast live text streams it to Muse.
-///
-/// Radar starts only when the person presses Start Radar during a recording,
-/// and only once Live Radar is turned on in Settings. It stops with the
-/// recording, after one last pass over lines it hasn't read yet, and saves
-/// what it found to `radar.json` in the meeting folder.
 @MainActor
 final class MeetingRadar: ObservableObject {
     enum State: Equatable {
@@ -43,12 +25,8 @@ final class MeetingRadar: ObservableObject {
     }
 
     struct Timing {
-        /// Shortest gap between the starts of two passes.
         var minimumInterval: Duration = .seconds(20)
-        /// The same gap when the feed delivers turns (fast live text): a
-        /// pass follows each finished turn, batching turns that end close together.
         var turnInterval: Duration = .seconds(3)
-        /// A burst of speech this long doesn't wait for the interval.
         var burstLines = 10
         var idlePoll: Duration = .seconds(1)
         var retryBase: Duration = .seconds(5)
@@ -62,12 +40,9 @@ final class MeetingRadar: ObservableObject {
 
     typealias ModelCall = @MainActor (_ messages: [[String: Any]], _ schema: [String: Any], _ model: String)
         async throws -> MuseChatClient.Reply
-    /// The Think engine for one request, as Settings → Models has it now.
     typealias EngineSource = @MainActor (_ purpose: String) async throws -> TextEngine
 
-    /// A pass lists what it caught as short items and doesn't reason first.
     static let passOptions = TextGenerationOptions(maxTokens: 2_000, reasoningBudgetTokens: 0, temperature: 0)
-    /// A live answer is one tool call per turn, with a little room to choose it.
     static let answerOptions = TextGenerationOptions(maxTokens: 1_500, reasoningBudgetTokens: 256, temperature: 0.1)
 
     @Published private(set) var items: [RadarItem] = []
@@ -76,12 +51,8 @@ final class MeetingRadar: ObservableObject {
     @Published private(set) var statusMessage: String?
     @Published private(set) var totals = Totals()
     @Published private(set) var meetingID: Meeting.ID?
-    /// The name of the model reading this meeting, for the panel and `radar.json`.
     @Published private(set) var model = ""
-    /// The item that changed last: the newest one a pass added, or the
-    /// question that just got an answer. The floating panel shows it.
     @Published private(set) var spotlightID: String?
-    /// What live answers is doing for each question it is looking up.
     @Published private(set) var answerSteps: [String: String] = [:]
 
     var isActive: Bool { state == .running || state == .finishing }
@@ -90,9 +61,6 @@ final class MeetingRadar: ObservableObject {
     static let contextLines = 24
     static let evidenceLimit = 6
     static let maximumConsecutiveFailures = 3
-    /// How long a question that just got an answer keeps the spotlight
-    /// before a newer item takes it, so the answer can be read during the
-    /// call. A contradiction still takes it at once.
     static let answerSpotlightHold: TimeInterval = 12
 
     private let transcriber: RadarLineFeed
@@ -103,8 +71,6 @@ final class MeetingRadar: ObservableObject {
     private let settings: () -> AppSettings
     private let call: ModelCall
     private let modelName: (AppSettings) -> String
-    /// Whether a screen answer's request carries the crops as pictures. The
-    /// Think model reads the text of each crop instead.
     private let sendsScreenCrops: Bool
     private let availability: (AppSettings) -> String?
     private let timing: Timing
@@ -113,8 +79,6 @@ final class MeetingRadar: ObservableObject {
     private var meeting: Meeting?
     private var folder: URL?
     private var record: MeetingRadarRecord?
-    /// Every live line seen this recording, by id. The preview keeps only its
-    /// latest 400 and clears them when recording stops; the radar keeps its own.
     private var lines: [UUID: MeetingRadarAnalyzer.Line] = [:]
     private var order: [UUID] = []
     private var pending: [UUID] = []
@@ -127,16 +91,10 @@ final class MeetingRadar: ObservableObject {
     private var linesSubscription: AnyCancellable?
     private var loop: Task<Void, Never>?
     private var generation = 0
-    /// Screen answers in flight, by question item id.
     private var answerTasks: [String: Task<Void, Never>] = [:]
-    /// Changes when answers are cancelled, so a late reply can't land in the
-    /// next meeting. `finish()` keeps it, so answers still arriving are saved.
     private var answerEpoch = 0
     private var spotlightHeldUntil: Date?
 
-    /// Passes and live answers run on `engine`, the Think model, unless a
-    /// caller supplies `call` or `answerCall` itself (tests, and the hosted
-    /// film of the feature).
     init(transcriber: RadarLineFeed,
          evidenceSource: RadarEvidenceSource,
          screenSource: RadarScreenSource? = nil,
@@ -172,9 +130,6 @@ final class MeetingRadar: ObservableObject {
         }
     }
 
-    /// Why Start Radar can't run, or nil when it can. Live Radar is offered
-    /// only once it is turned on in Settings; after that the Think model's
-    /// own setup decides, and a request it refuses shows as the radar's error.
     static func unavailableReason(_ settings: AppSettings) -> String? {
         settings.liveRadarEnabled ? nil : String(localized: "Turn on Live Radar in Settings → Meetings.")
     }
@@ -204,7 +159,6 @@ final class MeetingRadar: ObservableObject {
         loop = Task { [weak self] in await self?.run(session: session) }
     }
 
-    /// The person pressed Stop Radar. Lines not yet read stay unread.
     func stop() {
         cancelLoop()
         cancelAnswers()
@@ -214,8 +168,6 @@ final class MeetingRadar: ObservableObject {
         save()
     }
 
-    /// The recording ended or moved to another meeting: read what is left,
-    /// save, and turn off.
     func finish() async {
         guard isActive else {
             if case .failed = state { reset(for: nil, folder: nil) }
@@ -233,8 +185,6 @@ final class MeetingRadar: ObservableObject {
         if generation == session { state = .off }
         statusMessage = nil
     }
-
-    // MARK: - Lines
 
     private func reset(for meeting: Meeting?, folder: URL?) {
         cancelLoop()
@@ -274,8 +224,6 @@ final class MeetingRadar: ObservableObject {
             pending.append(line.id)
         }
     }
-
-    // MARK: - Passes
 
     private func cancelLoop() {
         loop?.cancel()
@@ -385,8 +333,6 @@ final class MeetingRadar: ObservableObject {
         }
     }
 
-    // MARK: - Screen answers
-
     private func cancelAnswers() {
         answerTasks.values.forEach { $0.cancel() }
         answerTasks = [:]
@@ -394,9 +340,6 @@ final class MeetingRadar: ObservableObject {
         answerEpoch += 1
     }
 
-    /// Looks for the answer to a question the radar just caught in earlier
-    /// screen captures: local search and cropping on this Mac, then one
-    /// request with the text of up to three crops. Runs beside the passes.
     private func answerFromScreen(_ question: RadarItem) {
         guard let screenSource, let meeting, let folder, answerTasks[question.id] == nil else { return }
         let model = model, call = call, epoch = answerEpoch, sendsScreenCrops = sendsScreenCrops
@@ -458,11 +401,6 @@ final class MeetingRadar: ObservableObject {
         save()
     }
 
-    // MARK: - Live answers
-
-    /// Looks for the answer to a question or problem in the person's work:
-    /// what LokalBot remembers first, then a few read-only lookups. Runs
-    /// beside the passes; the card shows each step while it works.
     private func answerLive(_ question: RadarItem) {
         let key = "live-" + question.id
         guard let answerEnvironment, let meeting, answerTasks[key] == nil else { return }

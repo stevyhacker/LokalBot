@@ -1,5 +1,3 @@
-//! `meta.json`: one recorded meeting (`LokalBot/Models/Meetings/Meeting.swift`).
-
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -16,14 +14,12 @@ pub struct Meeting {
     pub app_name: String,
     #[serde(with = "iso_seconds")]
     pub started_at: DateTime<Utc>,
-    /// `None` while the recording is in progress.
     #[serde(
         default,
         with = "iso_seconds::option",
         skip_serializing_if = "Option::is_none"
     )]
     pub ended_at: Option<DateTime<Utc>>,
-    /// Path relative to the library root, e.g. `meetings/2026/10/15-customer-call`.
     pub relative_path: String,
     #[serde(default)]
     pub has_system_track: bool,
@@ -76,10 +72,8 @@ pub struct Meeting {
         rename = "mergedIntoMeetingID"
     )]
     pub merged_into_meeting_id: Option<Uuid>,
-    /// Original file names of an imported recording (`MeetingImportService.swift`).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub imported_file_names: Option<Vec<String>>,
-    /// Longest recorded track, in seconds.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub recorded_duration: Option<f64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -88,13 +82,8 @@ pub struct Meeting {
     pub content_range_source: Option<ContentRangeSource>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub capture_intent: Option<CaptureIntent>,
-    /// Set on the bundled sample meeting ("orders-api/en"): a made-up call
-    /// with synthetic voices. Ask, search and agents still see it; personal
-    /// memory (digests, the day, people, projects, actions) leaves it out.
     #[serde(default, skip_serializing_if = "Option::is_none", rename = "sampleID")]
     pub sample_id: Option<String>,
-    /// Keys this build doesn't know, written by macOS or a newer release. Kept
-    /// as they are so saving `meta.json` here never drops them.
     #[serde(flatten)]
     pub extra: serde_json::Map<String, serde_json::Value>,
 }
@@ -105,7 +94,6 @@ pub struct CalendarParticipantIdentity {
     pub id: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Kept in local metadata only; never shown, indexed, exported or prompted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub email_address: Option<String>,
 }
@@ -121,9 +109,6 @@ impl ContentRange {
         self.start.is_finite() && self.end.is_finite() && self.start >= 0.0 && self.end > self.start
     }
 
-    /// Keeps segments wholly inside the range (`ContentRange.applying`). A
-    /// segment crossing a boundary can't be clipped as text; transcribing
-    /// again cuts the audio there instead.
     pub fn apply(&self, transcript: &mut crate::model::Transcript) {
         let valid = self.is_valid();
         transcript
@@ -165,7 +150,6 @@ const GENERIC_TITLES: &[&str] = &[
 ];
 
 impl Meeting {
-    /// A new meeting with a fresh ID, still recording until `ended_at` is set.
     pub fn new(
         title: &str,
         app_name: &str,
@@ -213,9 +197,6 @@ impl Meeting {
         self.sample_id.is_some()
     }
 
-    /// Whether this meeting is the user's own work: what digests, the day,
-    /// people, projects, action lists and briefings are built from. Merged
-    /// sources live on in their merged meeting, and the sample is made up.
     pub fn is_own_work(&self) -> bool {
         !self.is_merged_source() && !self.is_sample()
     }
@@ -232,8 +213,6 @@ impl Meeting {
             .is_some_and(|ids| !ids.is_empty())
     }
 
-    /// The reviewed range, when it is usable.
-    /// Audio saved past the reviewed end (`additionalSavedAudioDuration`).
     pub fn additional_saved_audio_duration(&self) -> f64 {
         match (&self.content_range, self.recorded_duration) {
             (Some(range), Some(recorded)) => (recorded - range.end).max(0.0),
@@ -245,15 +224,12 @@ impl Meeting {
         self.content_range.filter(ContentRange::is_valid)
     }
 
-    /// The time `seconds` after the start. A length the calendar cannot hold
-    /// (a damaged `meta.json`) gives the start itself: chrono's `+` panics.
     pub fn started_plus(&self, seconds: f64) -> DateTime<Utc> {
         chrono::TimeDelta::try_milliseconds((seconds * 1000.0) as i64)
             .and_then(|length| self.started_at.checked_add_signed(length))
             .unwrap_or(self.started_at)
     }
 
-    /// Wall-clock span, or the recorded duration when known.
     pub fn duration_seconds(&self) -> f64 {
         if let Some(recorded) = self.recorded_duration {
             return recorded;
@@ -262,7 +238,6 @@ impl Meeting {
         (end - self.started_at).num_milliseconds().max(0) as f64 / 1000.0
     }
 
-    /// Generic titles fall back to the calendar title, then "<App> at <time>".
     pub fn display_title(&self) -> String {
         let trimmed = self.title.trim();
         let lower = trimmed.to_lowercase();

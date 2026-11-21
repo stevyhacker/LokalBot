@@ -2,14 +2,12 @@ import AppKit
 import XCTest
 @testable import LokalBot
 
-// MARK: - Mirror render mode
-
 final class CotypingRenderModeTests: XCTestCase {
     func testIsCaretAtEndOfLine() {
         XCTAssertTrue(CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: ""))
         XCTAssertTrue(CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: "\nrest"))
         XCTAssertFalse(CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: "world"))
-        XCTAssertFalse(CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: " \n"))  // leading space = mid-line
+        XCTAssertFalse(CotypingRenderModePolicy.isCaretAtEndOfLine(trailingText: " \n"))
     }
 
     func testAutoExactEndOfLineIsInline() {
@@ -29,10 +27,6 @@ final class CotypingRenderModeTests: XCTestCase {
         XCTAssertEqual(midLine, .mirror(reason: .caretMidLine))
     }
 
-    /// The 2026-10-09 report: in Viber, which reports no caret at all, and
-    /// in Chrome text areas, the suggestion appeared above or below the field
-    /// until the caret was found on screen, then on the line, and back again.
-    /// Where the caret will be found, the suggestion waits for it.
     func testAnEstimatedCaretThatWillBeFoundOnScreenIsWaitedFor() {
         let auto = CotypingRenderModePolicy(userPreference: .auto)
         XCTAssertEqual(auto.mode(caretIsExact: false, isCaretAtEndOfLine: true, caretIsFoundOnScreen: true), .withheld)
@@ -50,7 +44,6 @@ final class CotypingRenderModeTests: XCTestCase {
     }
 
     func testAlwaysInlineMidLineStillOverrides() {
-        // An explicit inline pin cannot render mid-line, so it is promoted too.
         let mode = CotypingRenderModePolicy(userPreference: .alwaysInline).mode(caretIsExact: true, isCaretAtEndOfLine: false)
         XCTAssertEqual(mode, .mirror(reason: .caretMidLine))
     }

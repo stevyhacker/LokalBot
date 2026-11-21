@@ -1,6 +1,5 @@
 import XCTest
 
-/// Hosted regressions for retrieval submission and Timeline capture cleanup.
 final class RecallInteractionUITests: XCTestCase {
     private var fixture: SyntheticFixture.Library!
     private var app: XCUIApplication!
@@ -22,12 +21,9 @@ final class RecallInteractionUITests: XCTestCase {
         try launch(["LOKALBOT_INITIAL_SECTION": "timeline", "LOKALBOT_CAPTURE_SIZE": "1000x700"])
         let raw = app.buttons["timeline.rawCapture"]
         XCTAssertTrue(raw.waitForExistence(timeout: 8))
-        // All captured activity is pinned to the foot of the rail.
         raw.click()
         XCTAssertTrue(element("timeline.track").waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["Play context rewind"].exists, "Context rewind was removed")
-        // "Delete screen moments…" is a toggle button: it keeps its name and
-        // reads as on while the range controls are open.
         let toggle = element("timeline.deleteRange.toggle")
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
         toggle.click()
@@ -37,7 +33,6 @@ final class RecallInteractionUITests: XCTestCase {
         review.click()
         XCTAssertTrue(UITestHarness.staticText(containing: "Review capture deletion", in: app)
             .waitForExistence(timeout: 3))
-        // The review's own Cancel, in its sheet.
         app.sheets.firstMatch.buttons["Cancel"].click()
         XCTAssertTrue(UITestHarness.waitUntil {
             !UITestHarness.staticText(containing: "Review capture deletion", in: self.app).exists
@@ -53,20 +48,15 @@ final class RecallInteractionUITests: XCTestCase {
         let field = app.textFields["search.field"]
         field.click()
         field.typeText("failover benchmark?\r")
-        // The button keeps saying Ask; the matches heading says they are still arriving.
         XCTAssertTrue(element("ask.waitingForSources").waitForExistence(timeout: 3))
         XCTAssertFalse(app.buttons["ask.submit"].isEnabled, "A queued question must not be sent twice")
         XCTAssertFalse(element("chat.message.user").exists)
         XCTAssertTrue(element("chat.message.user").waitForExistence(timeout: 10))
-        // The row identifier and scoped value are inherited by its metadata;
-        // only the question text has this label.
         let questions = app.staticTexts.matching(NSPredicate(
             format: "identifier == %@ AND label == %@", "chat.message.user", "failover benchmark?"))
         XCTAssertTrue(questions.firstMatch.waitForExistence(timeout: 4), app.debugDescription)
         XCTAssertEqual(questions.count, 1, questions.debugDescription)
         XCTAssertEqual(field.value as? String, "")
-        // A full question reads everything in the chosen sources, whether or
-        // not matches were listed, and the sources menu keeps saying so.
         XCTAssertEqual(element("ask.sources").value as? String, "All sources",
                        "A full question must not be narrowed to the matches on screen")
         XCTAssertFalse(element("ask.selectedEvidence").exists, "Scope lives only in the composer menus")
@@ -106,8 +96,6 @@ final class RecallInteractionUITests: XCTestCase {
     }
 
     private func launch(_ environment: [String: String]) throws {
-        // Invalid inference destination exercises the saved user turn and
-        // source scope without downloading a model or contacting a server.
         let run = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "RecallInteraction",
             settingsJSON: #"{"menuBarOnly":false,"calendarDetectionEnabled":false,"semanticSearchEnabled":false,"cotypingEnabled":false,"summarizerBackend":"OpenAI-compatible server","openAIBaseURL":"invalid"}"#,
             environment: environment)

@@ -1,16 +1,11 @@
 import AppKit
 import SwiftUI
 
-/// A compact native control for transcript speaker labels. AppKit owns the hit
-/// testing and accessibility role while the attributed title preserves meeting
-/// find highlighting. This avoids SwiftUI flattening a plain button inside the
-/// nested meeting ScrollView on macOS 15.
 struct TranscriptSpeakerButton: NSViewRepresentable {
     let title: String
     let query: String
     let activeMatchIndex: Int?
     let identifier: String
-    /// A voice nobody has named yet reads as a prompt to name it.
     var isUnnamed = false
     let action: () -> Void
     @Environment(\.appTextScale) private var textScale
@@ -44,9 +39,6 @@ struct TranscriptSpeakerButton: NSViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, nsView: NSButton, context: Context) -> CGSize? {
-        // No wider than the name: the button used to fill the whole line, so
-        // a click anywhere beside the name opened the rename sheet. A long
-        // name still truncates inside the width it is offered.
         CGSize(width: min(proposal.width ?? .infinity, nsView.intrinsicContentSize.width),
                height: proposal.height ?? nsView.intrinsicContentSize.height)
     }

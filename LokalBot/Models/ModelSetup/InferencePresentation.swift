@@ -1,7 +1,5 @@
 import Foundation
 
-/// Presentation of the configured destination, independent of whether a model
-/// is downloaded or has passed a test. Authorization stays in endpoint policy.
 enum InferencePresentation: Equatable {
     case onDevice
     case remote(host: String)
@@ -72,11 +70,6 @@ enum InferencePresentation: Equatable {
 }
 
 extension AppSettings {
-    /// Every server that receives what this Mac's AI features send, each
-    /// named once: Think's, the transcription server and, while autocomplete
-    /// is on, the server it sends typing to. The sidebar's privacy summary
-    /// lists them: with autocomplete left out it read "AI: on this Mac" while
-    /// every suggestion request went to a server.
     var remoteAIHosts: [String] {
         var presentations = [InferencePresentation(settings: self), transcriptionPresentation]
         if let host = cotypingRemoteHost { presentations.append(.remote(host: host)) }

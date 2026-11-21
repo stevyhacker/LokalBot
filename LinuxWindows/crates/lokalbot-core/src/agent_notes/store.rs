@@ -1,8 +1,3 @@
-//! Write side of the saved coding-agent notes (`AgentMemoryStore`). The file
-//! holds only what the readers kept of the agents' own files, so it is rebuilt
-//! from them at any time and deleted outright when the person turns the
-//! feature off.
-
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 use std::time::Duration;
@@ -15,7 +10,6 @@ use super::{AgentNote, NoteScan, database_path};
 use crate::coding_agents::CodingAgentKind;
 use crate::time::to_epoch;
 
-/// The Mac's schema, so either app reads a file the other wrote.
 const SCHEMA: &str = "
     CREATE TABLE IF NOT EXISTS notes (
         rowid INTEGER PRIMARY KEY,
@@ -34,7 +28,6 @@ const SCHEMA: &str = "
         title, summary, text, tokenize='unicode61 remove_diacritics 2');
 ";
 
-/// What one [`apply`] changed.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct Change {
     pub added: usize,
@@ -64,15 +57,11 @@ fn digest(note: &AgentNote) -> String {
     hex::encode(Sha256::digest(material.as_bytes()))
 }
 
-/// Makes the saved notes of `agents` match `scan`, and drops notes of any
-/// other agent. While a file could not be read, a note missing from the scan
-/// stays: an unreadable file is not a deleted one.
 pub fn apply(root: &Path, scan: &NoteScan, agents: &[CodingAgentKind]) -> Result<Change> {
     let path = database_path(root);
     let mut db = Connection::open(&path)
         .with_context(|| format!("Could not open the agent notes at {}.", path.display()))?;
     db.busy_timeout(Duration::from_secs(5))?;
-    // As the Mac opens it: readers proceed while notes are replaced.
     db.pragma_update(None, "journal_mode", "WAL")?;
     db.pragma_update(None, "synchronous", "NORMAL")?;
     db.execute_batch(SCHEMA)?;
@@ -161,9 +150,6 @@ pub fn apply(root: &Path, scan: &NoteScan, agents: &[CodingAgentKind]) -> Result
     Ok(change)
 }
 
-/// Removes every saved note. The agents' own files are untouched. Returns
-/// whether the file is gone: on Windows a search that has it open for a moment
-/// keeps it until the next try.
 pub fn delete_all(root: &Path) -> bool {
     let path = database_path(root);
     for suffix in ["-wal", "-shm", "-journal", ""] {
@@ -334,7 +320,6 @@ pub(crate) mod tests {
                 .mode();
             assert_eq!(mode & 0o777, 0o600);
         }
-        // A search leaves SQLite's side files; they go too.
         assert_eq!(index.search("release", None, 5).unwrap().len(), 1);
 
         assert!(delete_all(dir.path()));

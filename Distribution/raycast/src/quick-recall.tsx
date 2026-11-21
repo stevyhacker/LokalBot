@@ -10,7 +10,6 @@ interface SearchHit {
   snippet: string;
 }
 
-/** Strip markdown heading hashes and collapse whitespace for list display. */
 function cleanSnippet(snippet: string): string {
   return snippet
     .replace(/^#+\s*/gm, "")
@@ -65,8 +64,6 @@ export default function Command(
       ) : (
         hits?.map((hit, index) => (
           <List.Item
-            // One meeting can match several times with the same kind
-            // (transcript lines), so the position makes the key unique.
             key={`${hit.meeting_id}-${hit.match_kind}-${index}`}
             title={hit.meeting_title}
             subtitle={cleanSnippet(hit.snippet)}

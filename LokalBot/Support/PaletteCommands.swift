@@ -1,12 +1,6 @@
 import AppKit
 
-/// One command the Quick Recall window can run. ⌘K and the system-wide
-/// shortcut open the same window, so there is one list of commands.
 struct PaletteCommand: Identifiable {
-    /// Where a command's result appears. Workspace commands show something in
-    /// the main window. Background commands (recording, dictation) act in
-    /// place, so Quick Recall hands focus back to the app the person was
-    /// using before running them.
     enum Placement: Equatable {
         case workspace
         case background
@@ -15,55 +9,35 @@ struct PaletteCommand: Identifiable {
     let id: String
     let icon: String
     let title: String
-    /// The area the command belongs to ("Library", "Recording"). Typed words
-    /// match it; the row does not show it.
     let subtitle: String
-    /// English words that still find a translated command.
     var searchAliases: String = ""
     var placement: Placement = .workspace
-    /// Grey text after the title, when it says something ("2 open").
     var detail: String?
-    /// The command's own keyboard shortcut, shown at the row's end.
     var shortcut: String?
     let action: () -> Void
 }
 
 enum PaletteCommandFilter {
     enum Matching {
-        /// Each query word may appear anywhere.
         case substring
-        /// Each query word must start a word.
         case wordPrefix
     }
 
-    /// The commands typed words find in Quick Recall: those where each word
-    /// starts a word of the command first, then those that only hold the
-    /// words somewhere, as the ⌘K palette matched. Each part keeps the
-    /// catalog's order.
     static func ranked(_ commands: [PaletteCommand], query: String) -> [PaletteCommand] {
         let split = split(commands, query: query)
         return split.leading + split.loose
     }
 
-    /// The same commands in two parts. `leading` are those where each typed
-    /// word starts a word of the command; Quick Recall lists them first, so
-    /// Return runs the top one. `loose` only hold the words somewhere ("ion"
-    /// in "Start dictation"); Quick Recall lists them under the search
-    /// results, where they can be found but Return alone never runs one.
     static func split(_ commands: [PaletteCommand], query: String) -> (leading: [PaletteCommand], loose: [PaletteCommand]) {
         let leading = filter(commands, query: query, matching: .wordPrefix)
         let leadingIDs = Set(leading.map(\.id))
         return (leading, filter(commands, query: query, matching: .substring).filter { !leadingIDs.contains($0.id) })
     }
 
-    /// The order before anything is typed: what acts in place (recording,
-    /// dictation) first, then the rest as the catalog lists them.
     static func idleOrder(_ commands: [PaletteCommand]) -> [PaletteCommand] {
         commands.filter { $0.placement == .background } + commands.filter { $0.placement != .background }
     }
 
-    /// Commands whose title, subtitle, and aliases contain every query word.
-    /// An empty query matches nothing; callers decide what idle shows.
     static func filter(_ commands: [PaletteCommand], query: String, matching: Matching) -> [PaletteCommand] {
         let tokens = matching == .substring
             ? query.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
@@ -76,8 +50,6 @@ enum PaletteCommandFilter {
                 let lowered = haystack.lowercased()
                 return tokens.allSatisfy { lowered.contains($0) }
             case .wordPrefix:
-                // Chinese titles have no spaces between words; match those
-                // anywhere instead.
                 let lowered = haystack.lowercased()
                 let candidates = words(in: haystack)
                 return tokens.allSatisfy { token in
@@ -96,14 +68,8 @@ enum PaletteCommandFilter {
     }
 }
 
-/// The app-wide commands, computed live from app state so titles follow
-/// recording and dictation status.
 @MainActor
 enum PaletteCommandCatalog {
-    /// `inWorkspace` adds commands that act on the main window's current
-    /// section (Agent tasks), which only make sense when Quick Recall was
-    /// opened from it. `source` labels recording and dictation starts in the
-    /// log.
     static func commands(app: AppState, source: String, inWorkspace: Bool) -> [PaletteCommand] {
         var commands = appCommands(app: app, source: source)
         if inWorkspace, app.navSection == .agent {
@@ -118,7 +84,6 @@ enum PaletteCommandCatalog {
                       shortcut: "⌥⌘B", action: { app.agentSessions.resultsRequest += 1 }),
             ]
         }
-        // Translate app commands before adding user-owned task titles.
         commands = commands.map { command in
             PaletteCommand(id: command.id, icon: command.icon,
                            title: app.settings.appLanguage.localized(command.title),
@@ -188,7 +153,6 @@ enum PaletteCommandCatalog {
             .init(id: "dictation", icon: dictationIcon,
                   title: dictationTitle,
                   subtitle: "Automation", placement: .background,
-                  // The dictation shortcut is registered only while Dictation is on.
                   shortcut: app.settings.dictationEnabled ? app.settings.dictationShortcut.displayLabel : nil,
                   action: { app.dictation.toggle(source: source) }),
             .init(id: "nav.dictation", icon: "mic.badge.plus",
@@ -204,7 +168,6 @@ enum PaletteCommandCatalog {
             .init(id: "nav.settings", icon: "gearshape", title: "Go to Settings",
                   subtitle: "Settings", shortcut: "⌘,", action: { app.openSettings() }),
         ]
-        // From the system-wide window this hands focus back, ready to paste.
         if !app.dictation.history.entries.isEmpty,
            let index = commands.firstIndex(where: { $0.id == "dictation" }) {
             commands.insert(

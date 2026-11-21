@@ -1,22 +1,11 @@
 import Foundation
 
-/// An in-memory store over record envelopes. It serves the bundled sample
-/// library ("Try it without a computer"), previews and tests, and follows the same
-/// rules as the Rust store: upsert by (kind, key) keeping the higher version,
-/// tombstones remove, merged meetings are hidden.
 public actor FixtureStore: CompanionStore {
     public struct Configuration: Sendable {
-        /// "Today" for overdue actions and the Ask demo.
         public var now: @Sendable () -> Date
-        /// Status changes stay "waiting for your computer" instead of applying at once.
         public var keepsChangesPending: Bool
-        /// Present a paired Mac (previews and screenshots); otherwise the
-        /// store reports itself as the sample library.
         public var pairedStatus: SyncStatus?
-        /// Whether Ask reaches the (pretend) Mac.
         public var macReachable: Bool
-        /// The first this many answers drop after their first word, as on a
-        /// lock screen: the question is queued and asking again picks it up.
         public var droppedAnswers: Int
 
         public init(now: @escaping @Sendable () -> Date = { Date() }, keepsChangesPending: Bool = false,
@@ -43,12 +32,10 @@ public actor FixtureStore: CompanionStore {
         Self.ingest(envelopes, into: &records)
     }
 
-    /// The bundled sample library: Companion/protocol/fixtures/sample-library.json.
     public static func sampleLibrary(configuration: Configuration = .init()) throws -> FixtureStore {
         FixtureStore(envelopes: try SampleLibrary.envelopes(), configuration: configuration)
     }
 
-    /// Adds envelopes as a sync batch would.
     public func importRecords(_ envelopes: [RecordEnvelope]) {
         Self.ingest(envelopes, into: &records)
     }
@@ -75,8 +62,6 @@ public actor FixtureStore: CompanionStore {
 
     private var today: DayKey { DayKey(configuration.now()) }
 
-    // MARK: Reads
-
     public func manifest() -> Manifest? {
         if case .manifest(let manifest)? = records[RecordKind.manifest.rawValue]?["library"]?.body { return manifest }
         return nil
@@ -98,8 +83,6 @@ public actor FixtureStore: CompanionStore {
         return nil
     }
 
-    /// A meeting's own actions say which ones wait for the computer, as the
-    /// Rust store's do.
     private func markingPending(_ meeting: Meeting) -> Meeting {
         guard !pendingActions.isEmpty else { return meeting }
         var meeting = meeting
@@ -153,8 +136,6 @@ public actor FixtureStore: CompanionStore {
         return nil
     }
 
-    /// People and projects are rebuilt on the Mac; until then, reflect status
-    /// changes made here.
     private func currentOpenWork(_ person: Person) -> Person {
         var person = person
         person.openWork = person.openWork.filter { actionStatus($0.meetingId, $0.actionId) ?? .open == .open }
@@ -226,8 +207,6 @@ public actor FixtureStore: CompanionStore {
             + (end < text.endIndex ? "…" : "")
     }
 
-    // MARK: Changes
-
     public func setActionStatus(meetingID: String, actionID: String, status: ActionStatus) throws {
         guard case .meeting(var meeting)? = records[RecordKind.meeting.rawValue]?[meetingID]?.body,
               let index = meeting.actions.firstIndex(where: { $0.id == actionID }),
@@ -240,8 +219,6 @@ public actor FixtureStore: CompanionStore {
     }
 
     private static func actionKey(_ meetingID: String, _ actionID: String) -> String { "\(meetingID)/\(actionID)" }
-
-    // MARK: Questions
 
     public func ask(_ request: AskRequest, extraAddresses: [String],
                     onDelta: @escaping @Sendable (String) -> Void) async throws -> AskResult {
@@ -270,8 +247,6 @@ public actor FixtureStore: CompanionStore {
         return result
     }
 
-    /// A short answer built from the library's own decisions and actions, so
-    /// the sample shows cited answers without a Mac.
     private func sampleAnswer(to question: String) -> (String, [AskCitation]) {
         let stopWords: Set<String> = ["what", "when", "where", "which", "about", "this", "that", "with", "week",
                                       "have", "does", "did", "from", "were", "will", "there", "they", "their"]
@@ -307,8 +282,6 @@ public actor FixtureStore: CompanionStore {
 
     public func askHistory(limit: Int) -> [AskExchange] { Array(history.prefix(limit)) }
 
-    // MARK: Pairing and sync
-
     public func pair(payload: String) throws -> PairedMac {
         _ = try PairingPayload.parse(payload)
         throw CompanionStoreError.pairingUnavailable
@@ -334,9 +307,6 @@ public actor FixtureStore: CompanionStore {
         return SyncReport(opsApplied: applied, cursor: syncStatus.cursor, address: syncStatus.lastAddress, finishedAt: configuration.now())
     }
 
-    // MARK: Recordings
-
-    /// Sets the list directly, for previews and screenshots.
     public func setRecordings(_ items: [RecordingItem]) {
         recordingItems = items
     }
@@ -409,7 +379,6 @@ public actor FixtureStore: CompanionStore {
                      failed: recordingItems.filter { $0.state == .failed }.count)
     }
 
-    /// What the core does when the Mac removes this device.
     public func forgetPairingKeepingRecordings() {
         let kept = recordingItems
         unpair()
@@ -440,7 +409,6 @@ public actor FixtureStore: CompanionStore {
     public func isSample() -> Bool { configuration.pairedStatus == nil && !records.isEmpty }
 }
 
-/// The bundled sample library.
 public enum SampleLibrary {
     public static var url: URL? { Bundle.module.url(forResource: "sample-library", withExtension: "json") }
 
@@ -453,8 +421,6 @@ public enum SampleLibrary {
         try CompanionJSON.decode([RecordEnvelope].self, from: json())
     }
 
-    /// When the sample library was made (its manifest's `generatedAt`): the
-    /// sample's "today", so it reads the same whenever it is opened.
     public static let referenceDate: Date = {
         let manifest = (try? envelopes())?.lazy.compactMap { envelope -> Manifest? in
             if case .manifest(let manifest) = envelope.body { manifest } else { nil }

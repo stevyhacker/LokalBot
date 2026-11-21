@@ -1,8 +1,3 @@
-//! The People list and a person's page as plain data
-//! (`PeopleListPresentation.swift`): who matches the search, grouped by time
-//! only, each row's wording, and the wording put together from counts, dates
-//! and names on the page. Kept apart from drawing so it can be tested.
-
 use lokalbot_i18n::{directional, fill};
 use std::collections::{HashMap, HashSet};
 
@@ -10,26 +5,17 @@ use chrono::{DateTime, Local, NaiveDate, Utc};
 use lokalbot_core::people::upcoming::PersonUpcomingMeeting;
 use lokalbot_core::{MeetingRef, PersonProfile};
 
-/// Decisions shown before "Show N more".
 pub(super) const VISIBLE_DECISIONS: usize = 3;
-/// Meeting titles shown in the side column before "Show N more".
 pub(super) const VISIBLE_SERIES: usize = 8;
-/// Other invited people named on the next-meeting card.
 pub(super) const VISIBLE_INVITEES: usize = 3;
-/// "Last 2 weeks" reaches this many days back.
 pub(super) const RECENT_DAYS: u64 = 14;
 
-// ------------------------------------------------------------- meetings
-
-/// One meeting as it happened (`PersonProfile.Occasion`): a call recorded in
-/// several parts is one occasion with several recordings, newest first.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Occasion {
     pub recordings: Vec<MeetingRef>,
 }
 
 impl Occasion {
-    /// The longest recording, which is the one worth opening.
     pub fn primary(&self) -> &MeetingRef {
         lokalbot_core::people::primary(&self.recordings)
     }
@@ -47,8 +33,6 @@ impl Occasion {
     }
 }
 
-/// Occasions that share a title, such as a weekly standup
-/// (`PersonProfile.Series`). Newest first.
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Series {
     pub title: String,
@@ -60,13 +44,11 @@ impl Series {
         &self.occasions[0]
     }
 
-    /// Stable across reloads while the series keeps its title.
     pub fn key(&self) -> String {
         lokalbot_core::people::normalized(&self.title)
     }
 }
 
-/// Recordings grouped into the meetings they belong to, newest first.
 pub(super) fn occasions(person: &PersonProfile) -> Vec<Occasion> {
     lokalbot_core::people::occasions(&person.meetings)
         .into_iter()
@@ -74,7 +56,6 @@ pub(super) fn occasions(person: &PersonProfile) -> Vec<Occasion> {
         .collect()
 }
 
-/// Occasions grouped by title; the series with the newest meeting first.
 pub(super) fn series(occasions: Vec<Occasion>) -> Vec<Series> {
     let mut order: Vec<String> = Vec::new();
     let mut by_key: HashMap<String, Series> = HashMap::new();
@@ -98,8 +79,6 @@ pub(super) fn series(occasions: Vec<Occasion>) -> Vec<Series> {
         .collect()
 }
 
-/// The person's initials as their avatar shows them: the first and last
-/// words that start with a letter (`InitialsAvatar.initials`).
 pub(crate) fn initials(name: &str) -> String {
     let words: Vec<&str> = name
         .split(' ')
@@ -117,7 +96,6 @@ pub(crate) fn initials(name: &str) -> String {
         .collect()
 }
 
-/// The first word of the person's name (`PersonProfile.firstName`).
 pub(super) fn first_name(person: &PersonProfile) -> &str {
     person
         .name
@@ -126,10 +104,6 @@ pub(super) fn first_name(person: &PersonProfile) -> &str {
         .unwrap_or(&person.name)
 }
 
-// ----------------------------------------------------------------- list
-
-/// The list's groups: calendar meetings in the next week, then when you
-/// last met.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(super) enum Group {
     ComingUp,
@@ -147,8 +121,6 @@ impl Group {
     }
 }
 
-/// Which way open work runs, as one badge. Work the user owes shows first:
-/// when both directions are open, the badge counts the user's.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(super) enum Badge {
     YouOwe(usize),
@@ -166,7 +138,6 @@ impl Badge {
         }
     }
 
-    /// Amber for the user's own work, quiet for the other person's.
     pub fn needs_attention(self) -> bool {
         matches!(self, Badge::YouOwe(_))
     }
@@ -187,12 +158,9 @@ impl Badge {
 
 #[derive(Clone, Debug, PartialEq)]
 pub(super) struct Row {
-    /// The person's ID.
     pub id: String,
     pub name: String,
-    /// The next meeting's title under Coming up, else the latest one's.
     pub detail: String,
-    /// The next meeting's time, else the day you last met.
     pub when: String,
     pub badge: Option<Badge>,
 }
@@ -209,7 +177,6 @@ pub(super) struct ListContent {
 }
 
 impl ListContent {
-    /// Every row's person ID, in the order shown.
     pub fn person_ids(&self) -> impl Iterator<Item = &str> {
         self.sections
             .iter()
@@ -220,8 +187,6 @@ impl ListContent {
         self.sections.is_empty()
     }
 
-    /// Where a person's row sits among the list's children, counting each
-    /// group's heading row, so the list can scroll to it.
     pub fn child_index(&self, person_id: &str) -> Option<usize> {
         let mut index = 0;
         for section in &self.sections {
@@ -234,9 +199,6 @@ impl ListContent {
         None
     }
 
-    /// `upcoming` holds each person's next calendar meeting, by person ID;
-    /// it is empty without calendar use, and then there is no Coming up.
-    /// `query` matches a person's name or any other name they appear as.
     pub fn build(
         people: &[PersonProfile],
         hidden: &HashSet<String>,
@@ -331,15 +293,10 @@ fn row(person: &PersonProfile, next: Option<&PersonUpcomingMeeting>, now: DateTi
     }
 }
 
-// -------------------------------------------------------------- wording
-
-/// The moment on the local clock.
 pub(crate) fn local(date: DateTime<Utc>) -> DateTime<Local> {
     date.with_timezone(&Local)
 }
 
-/// The moment on the local clock in a date pattern, in the interface's
-/// locale (`lokalbot_i18n::date_pattern`).
 pub(crate) fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
     local(date)
         .format_localized(
@@ -349,20 +306,14 @@ pub(crate) fn formatted(date: DateTime<Utc>, pattern: &str) -> String {
         .to_string()
 }
 
-/// "Nov 10", with the year once it is not this year
-/// (`lokalbot_i18n::short_date` on the local days).
 pub(crate) fn short_date(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     lokalbot_i18n::short_date(local(date).date_naive(), local(now).date_naive())
 }
 
-/// "Today", "Yesterday", "Fri, Nov 6" for the rest of the past week, then
-/// "Oct 27" (`lokalbot_i18n::day_label` on the local days).
 pub(crate) fn day(date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     lokalbot_i18n::day_label(local(date).date_naive(), local(now).date_naive())
 }
 
-/// "Thu 2:00 PM", or the time alone for a meeting today. A meeting under way
-/// still shows when it started.
 pub(super) fn upcoming_time(meeting: &PersonUpcomingMeeting, now: DateTime<Utc>) -> String {
     let time = lokalbot_core::time::clock_time(meeting.start);
     if local(meeting.start).date_naive() == local(now).date_naive() {
@@ -372,8 +323,6 @@ pub(super) fn upcoming_time(meeting: &PersonUpcomingMeeting, now: DateTime<Utc>)
     }
 }
 
-/// "2:00 – 2:30 PM": a twelve-hour clock says AM or PM once when both ends
-/// share it, as the Mac's interval format does.
 pub(super) fn time_range(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     let pattern = lokalbot_i18n::date_pattern("%-I:%M %p");
     let clock = |date: DateTime<Utc>, pattern: &str| {
@@ -387,7 +336,6 @@ pub(super) fn time_range(start: DateTime<Utc>, end: DateTime<Utc>) -> String {
     format!("{} – {}", clock(start, pattern), clock(end, pattern))
 }
 
-/// How far away a day is: "today", "tomorrow", "in 3 days".
 fn days_away(days: i64) -> String {
     match days {
         ..=0 => lokalbot_i18n::tr("today").to_string(),
@@ -399,8 +347,6 @@ fn days_away(days: i64) -> String {
     }
 }
 
-/// "Next meeting in 2 days · Thu, Nov 12, 2:00 – 2:30 PM", or "In progress
-/// · …" while it is under way.
 pub(super) fn next_meeting_line(meeting: &PersonUpcomingMeeting, now: DateTime<Utc>) -> String {
     let lead = if meeting.is_in_progress(now) {
         lokalbot_i18n::tr("In progress").to_string()
@@ -418,7 +364,6 @@ pub(super) fn next_meeting_line(meeting: &PersonUpcomingMeeting, now: DateTime<U
     directional(format!("{lead} · {day}, {time}"))
 }
 
-/// "Also invited: Daniel Ortiz, Priya Nair +2", or "Just the two of you".
 pub(super) fn invited(others: &[String]) -> String {
     if others.is_empty() {
         return lokalbot_i18n::tr("Just the two of you").to_string();
@@ -435,8 +380,6 @@ pub(super) fn invited(others: &[String]) -> String {
     fill(lokalbot_i18n::tr("Also invited: %@"), &[&names])
 }
 
-/// "31 meetings since Mar 4", "Met once, Oct 22", or "Named in actions" for
-/// someone who only owns an action.
 pub(super) fn subtitle(person: &PersonProfile, now: DateTime<Utc>) -> String {
     let occasions = occasions(person);
     let Some(first) = occasions.last().map(Occasion::started_at) else {
@@ -453,13 +396,10 @@ pub(super) fn subtitle(person: &PersonProfile, now: DateTime<Utc>) -> String {
     })
 }
 
-/// "Design review meeting · Nov 10".
 pub(crate) fn meeting_link(title: &str, date: DateTime<Utc>, now: DateTime<Utc>) -> String {
     format!("{title} · {}", short_date(date, now))
 }
 
-/// Under a title in the side column: "22 meetings · Nov 10" for a series,
-/// the date alone for a single meeting.
 pub(super) fn series_detail(series: &Series, now: DateTime<Utc>) -> String {
     let day = short_date(series.latest().started_at(), now);
     let count = series.occasions.len();
@@ -475,7 +415,6 @@ pub(super) fn series_detail(series: &Series, now: DateTime<Utc>) -> String {
     ))
 }
 
-/// "2 recordings" beside a call recorded in parts, nothing for one.
 pub(super) fn recordings_note(occasion: &Occasion) -> Option<String> {
     let count = occasion.recordings.len();
     (count > 1).then(|| {
@@ -486,12 +425,10 @@ pub(super) fn recordings_note(occasion: &Occasion) -> Option<String> {
     })
 }
 
-/// A series' date row: "Tue, Nov 10".
 pub(super) fn occasion_day(occasion: &Occasion) -> String {
     formatted(occasion.started_at(), "%a, %b %-d")
 }
 
-/// "Restore 2 hidden entries".
 pub(super) fn restore_hidden(count: usize) -> String {
     let template = if count == 1 {
         lokalbot_i18n::tr("Restore %lld hidden entry")
@@ -501,7 +438,6 @@ pub(super) fn restore_hidden(count: usize) -> String {
     fill(template, &[&lokalbot_i18n::number(count)])
 }
 
-/// "Show 3 more" or "Show fewer".
 pub(crate) fn show_more(expanded: bool, hidden: usize) -> String {
     if expanded {
         lokalbot_i18n::tr("Show fewer").to_string()
@@ -513,17 +449,14 @@ pub(crate) fn show_more(expanded: bool, hidden: usize) -> String {
     }
 }
 
-/// How many rows stay behind "Show N more".
 pub(crate) fn hidden_count(total: usize, visible: usize) -> usize {
     total.saturating_sub(visible)
 }
 
-/// The day the list's wording was made for: rows say "Today" and "Thu".
 pub(super) fn local_day(now: DateTime<Utc>) -> NaiveDate {
     local(now).date_naive()
 }
 
-/// Below this width the toolbar's Ask button shows its icon alone.
 pub(super) const COMPACT_TOOLBAR_WIDTH: f32 = 720.;
 
 #[cfg(test)]
@@ -533,8 +466,6 @@ mod tests {
     use lokalbot_core::model::{CalendarParticipantIdentity, Meeting};
     use lokalbot_core::people::{PeopleInput, build_people};
 
-    /// A Tuesday at noon, local time, so the day words do not depend on the
-    /// machine's time zone.
     fn now() -> DateTime<Utc> {
         Local
             .with_ymd_and_hms(2026, 11, 10, 12, 0, 0)
@@ -584,8 +515,6 @@ mod tests {
     const PETAR: (&str, &str) = ("Petar Lazić", "petar@example.com");
     const LENA: (&str, &str) = ("Lena Novak", "lena@example.com");
 
-    /// Ana: met yesterday. Marko: three days ago. Petar: an hour ago.
-    /// Ivana: 20 days ago. Lena: 40 days ago.
     fn library() -> Vec<PersonProfile> {
         build(&[
             meeting("Design review", 24, &[ANA]),
@@ -672,7 +601,6 @@ mod tests {
             content.person_ids().next(),
             Some(id("Lena Novak", &people).as_str())
         );
-        // Each group's heading is a row of the list too.
         assert_eq!(content.child_index(&id("Lena Novak", &people)), Some(1));
         assert_eq!(content.child_index(&id("Petar Lazić", &people)), Some(5));
         assert_eq!(content.child_index(&id("Ivana Ilić", &people)), Some(7));

@@ -1,10 +1,3 @@
-//! Tesseract as a separate program, for the scripts ocrs can't read.
-//!
-//! Pixels reach it over a pipe as a grayscale PGM and text comes back over
-//! another: `tesseract stdin stdout`. No image file exists at any point, and
-//! nothing it prints is logged. It runs on one thread at low priority and is
-//! killed at a deadline, so a slow read can't take the computer from the person.
-
 use std::io::{Read as _, Write as _};
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
@@ -16,29 +9,16 @@ use parking_lot::Mutex;
 
 use super::OcrLine;
 
-/// How long one read may take. The densest screen measured took 9.4 s.
 const DEADLINE: Duration = Duration::from_secs(20);
-/// A read that ran out of time leaves Tesseract alone for this long.
 const HOLD_OFF: Duration = Duration::from_secs(300);
-/// How long what the program offers is trusted before asking again.
 const PROBE_LIFETIME: Duration = Duration::from_secs(30);
 const PROBE_DEADLINE: Duration = Duration::from_secs(3);
-/// Images up to this size are enlarged for the languages that need it.
 const ENLARGE_UP_TO: u32 = 1_600;
 
-/// Chinese, Japanese and Korean at 11–14 px read far better twice the size
-/// (Japanese 35% to 96% on a downscaled window) for 20–40% more time. Other
-/// scripts gain little and take about 80% more, so they stay as they are.
 const ENLARGED_LANGUAGES: [&str; 4] = ["chi_sim", "chi_tra", "jpn", "kor"];
-/// A window with at least this share of one gray is an interface or a page, not
-/// a picture. Enlarging a photo took 6–20 s to find only noise (1–2 s at its size).
 const FLAT_SHARE: f32 = 0.2;
-/// In a picture, words less sure than this are noise: of 364 characters found in
-/// pure noise 9 stay. Real text would lose too many this way (99% to 93% on
-/// English), so interfaces and pages keep every word.
 const PICTURE_CONFIDENCE: f32 = 50.0;
 
-/// Whether Tesseract ran out of time recently.
 struct HoldOff(Mutex<Option<Instant>>);
 
 impl HoldOff {
@@ -57,14 +37,12 @@ impl HoldOff {
 
 static HELD_OFF: HoldOff = HoldOff::new();
 
-/// The program and the languages in its own data folder.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct Probe {
     pub program: Option<PathBuf>,
     pub languages: Vec<String>,
 }
 
-/// What is installed now, asked at most every [`PROBE_LIFETIME`].
 pub fn probe() -> Probe {
     static CACHE: OnceLock<Mutex<Option<(Instant, Probe)>>> = OnceLock::new();
     let mut cache = CACHE.get_or_init(|| Mutex::new(None)).lock();
@@ -108,7 +86,6 @@ fn find_program(name: &str) -> Option<PathBuf> {
         })
 }
 
-/// The names after the header of `tesseract --list-langs`.
 fn parse_language_list(output: &str) -> Vec<String> {
     output
         .lines()
@@ -120,11 +97,9 @@ fn parse_language_list(output: &str) -> Vec<String> {
         .collect()
 }
 
-/// One way of running the program, cheap to keep.
 #[derive(Debug)]
 pub(super) struct Tesseract {
     program: PathBuf,
-    /// The folder of the language data, when it isn't the program's own.
     tessdata: Option<PathBuf>,
     languages: String,
     enlarge: bool,
@@ -142,7 +117,6 @@ impl Tesseract {
         }
     }
 
-    /// The lines in an RGBA image, in the image's pixels.
     pub(super) fn read(&self, rgba: &[u8], width: u32, height: u32) -> Result<Vec<OcrLine>> {
         if HELD_OFF.active(Instant::now()) {
             bail!("tesseract ran out of time recently");
@@ -180,13 +154,9 @@ impl Tesseract {
         }
         command
             .args(["-l", &self.languages])
-            // Sparse text suits windows: labels on buttons and in sidebars stay
-            // apart, and colourful screens read better (English 77% to 83%).
             .args(["--psm", "11", "--dpi", "96"])
             .args(["-c", "tessedit_create_tsv=1"])
-            // More threads cost 2.7 times the CPU for a fifth off the time.
             .env("OMP_THREAD_LIMIT", "1")
-            // It looks for `stdin.uzn` here, so nowhere anyone could put one.
             .current_dir(Path::new("/"));
         command
     }
@@ -196,8 +166,6 @@ impl Tesseract {
 #[error("tesseract did not finish in time")]
 struct TimedOut;
 
-/// Runs `command`, feeding it `input`, and returns what it prints. Its standard
-/// error goes nowhere. Killed at `deadline`, and held to low priority.
 fn run(command: &mut Command, input: &[u8], deadline: Duration) -> Result<Vec<u8>> {
     let mut child = command
         .stdin(Stdio::piped())
@@ -205,14 +173,12 @@ fn run(command: &mut Command, input: &[u8], deadline: Duration) -> Result<Vec<u8
         .stderr(Stdio::null())
         .spawn()
         .context("starting tesseract")?;
-    // SAFETY: a plain system call with no pointers, on the process just started.
     unsafe {
         libc::setpriority(libc::PRIO_PROCESS, child.id(), 10);
     }
     let mut stdin = child.stdin.take().context("no pipe to tesseract")?;
     let mut stdout = child.stdout.take().context("no pipe from tesseract")?;
     std::thread::scope(|scope| {
-        // A program that stops reading ends the write with a broken pipe.
         scope.spawn(move || {
             let _ = stdin.write_all(input);
         });
@@ -246,7 +212,6 @@ fn grayscale(rgba: &[u8]) -> Vec<u8> {
         .collect()
 }
 
-/// One shade covers much of the image, as an interface's background does.
 fn mostly_flat(gray: &[u8]) -> bool {
     let mut counts = [0u32; 256];
     for value in gray {
@@ -258,8 +223,6 @@ fn mostly_flat(gray: &[u8]) -> bool {
         .is_some_and(|most| *most as f32 >= gray.len() as f32 * FLAT_SHARE)
 }
 
-/// The image as a binary grayscale PGM, the form Tesseract reads from a pipe
-/// with the least to send.
 fn pgm(gray: Vec<u8>, width: u32, height: u32, scale: u32) -> Vec<u8> {
     let (w, h) = (width as usize, height as usize);
     let (pixels, w, h) = if scale == 2 {
@@ -272,7 +235,6 @@ fn pgm(gray: Vec<u8>, width: u32, height: u32, scale: u32) -> Vec<u8> {
     out
 }
 
-/// Twice the size. Existing pixels stay; new ones are Catmull-Rom between them.
 fn enlarged(gray: &[u8], w: usize, h: usize) -> Vec<u8> {
     let between = |a: u8, b: u8, c: u8, d: u8| {
         let value = (9 * (b as i32 + c as i32) - a as i32 - d as i32 + 8) >> 4;
@@ -301,8 +263,6 @@ fn enlarged(gray: &[u8], w: usize, h: usize) -> Vec<u8> {
     out
 }
 
-/// The lines in Tesseract's TSV, whose word rows (level 5) carry a box and text.
-/// `scale` is how much the image was enlarged; words below `confidence` are left out.
 fn parse_tsv(tsv: &str, scale: i32, confidence: f32) -> Vec<OcrLine> {
     struct Line<'a> {
         key: (&'a str, &'a str, &'a str),
@@ -361,7 +321,6 @@ fn parse_tsv(tsv: &str, scale: i32, confidence: f32) -> Vec<OcrLine> {
     lines
         .into_iter()
         .filter_map(|line| {
-            // Right-to-left runs come marked; the text is already in reading order.
             let text = super::collapse_cjk_spaces(&line.words.join(" "))
                 .replace(['\u{200e}', '\u{200f}'], "");
             let text = text.trim();
@@ -416,7 +375,6 @@ mod tests {
         );
         assert_eq!(lines[1].text, "Save");
         assert_eq!(parse_tsv("", 1, 0.0), Vec::new());
-        // In a picture, unsure words are left out.
         let picture = parse_tsv(&tsv, 1, 95.5);
         assert_eq!(picture[0].text, "Hello");
         assert_eq!(picture.len(), 1);
@@ -450,7 +408,6 @@ mod tests {
 
     #[test]
     fn pixels_become_a_grayscale_pgm() {
-        // White, black, then pure green, which weighs 587/1000.
         let rgba = [255, 255, 255, 255, 0, 0, 0, 255, 0, 255, 0, 255, 0, 0, 0, 0];
         let image = pgm(grayscale(&rgba), 2, 2, 1);
         assert_eq!(&image[..12], b"P5 2 2 255\n\xff");
@@ -469,7 +426,6 @@ mod tests {
                 assert_eq!(big[2 * y * 8 + 2 * x], gradient[y * 4 + x]);
             }
         }
-        // Halfway between two pixels on a straight ramp.
         assert_eq!(big[3], 15);
         let image = pgm(vec![9], 1, 1, 2);
         assert_eq!(image, b"P5 2 2 255\n\x09\x09\x09\x09");
@@ -484,8 +440,6 @@ mod tests {
         assert!(!mostly_flat(&picture));
     }
 
-    /// A stand-in program, written to a folder and run. Forking elsewhere in the
-    /// test process can keep it open for a moment, so this waits until it runs.
     fn stand_in(dir: &Path, script: &str) -> PathBuf {
         use std::os::unix::fs::PermissionsExt as _;
         let path = dir.join("tesseract");
@@ -515,7 +469,6 @@ mod tests {
     fn pixels_only_ever_travel_over_the_pipe() {
         let dir = tempfile::tempdir().unwrap();
         let seen = dir.path().join("args");
-        // Records its arguments, and passes on the image it was sent on stdin.
         let script = format!(
             "echo \"$@\" > '{}'\n\
              size=$(wc -c)\n\
@@ -525,13 +478,11 @@ mod tests {
         let program = stand_in(dir.path(), &script);
         let engine = Tesseract::new(program, Some(dir.path().to_path_buf()), &["eng"]);
         let lines = engine.read(&[0u8; 400 * 300 * 4], 400, 300).unwrap();
-        // A header and 120,000 gray pixels reached standard input.
         let header = "P5 400 300 255\n".len();
         assert_eq!(lines[0].text, format!("{}", header + 400 * 300));
         let args = std::fs::read_to_string(&seen).unwrap();
         assert!(args.starts_with("stdin stdout "), "{args}");
         assert!(args.contains("-l eng"), "{args}");
-        // No path to any image; the one path is the language data's folder.
         let paths = args
             .split_whitespace()
             .filter(|arg| arg.contains('/'))
@@ -578,7 +529,6 @@ mod tests {
         assert!(!hold_off.active(now + HOLD_OFF));
     }
 
-    /// Reads with the real program when this computer has it and English data.
     #[test]
     fn the_real_program_reads_a_rendered_banner_when_it_is_installed() {
         let found = ask_program();
@@ -594,7 +544,6 @@ mod tests {
         let engine = Tesseract::new(program, None, &["eng"]);
         let lines = engine.read(&rgba, width, height).unwrap();
         let text: String = lines.iter().map(|line| line.text.as_str()).collect();
-        // The blocky test font's letters can be misread one at a time.
         assert!(text.to_uppercase().contains("BOT"), "{text}");
         assert!(lines[0].width > 100 && lines[0].height > 20, "{lines:?}");
     }

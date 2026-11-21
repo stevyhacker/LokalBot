@@ -59,3 +59,15 @@ jobs:
           python3 Website/generator/render_web.py --check
           python3 Distribution/huggingface/scripts/sync_from_leaderboard.py --check
           node --test Website/generator/test_benchmarks.mjs Website/generator/test_migrate.mjs Website/generator/test_hardware.mjs
+
+  comments:
+    # Code takes no comments. Decisions go to Docs/decisions/ and hacks to
+    # issues; Scripts/ci/comment-baseline.json lists the comments still left,
+    # and a file may only lose them. See .claude/skills/delete-comment/SKILL.md.
+    name: Comment ratchet
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: No file gains comments
+        run: python3 Scripts/ci/comment-ratchet.py --check

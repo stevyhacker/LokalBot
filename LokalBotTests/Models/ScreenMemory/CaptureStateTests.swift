@@ -1,12 +1,7 @@
 import XCTest
 @testable import LokalBot
 
-/// The Timeline/Meetings detail pane's pure policy (spec §2.2 + §6): the
-/// selection→inspector-state resolution, testable without any view or
-/// AppState.
 final class CaptureStateTests: XCTestCase {
-
-    // MARK: Inspector state (meeting vs. block vs. none)
 
     func testSingleMeetingSelectionWinsOverBlock() {
         let id = UUID()
@@ -30,8 +25,6 @@ final class CaptureStateTests: XCTestCase {
             .block(42))
     }
 
-    /// A block picked in Timeline lingers in the shared model; on a surface
-    /// without a block list (Meetings) it must not outrank the empty state.
     func testStaleBlockSelectionIgnoredWhereBlocksAreNotShown() {
         XCTAssertEqual(
             CaptureInspectorState.resolve(meetingIDs: [], blockSelection: 42,
@@ -45,8 +38,6 @@ final class CaptureStateTests: XCTestCase {
                                           allowsBlockSelection: true),
             .overview)
     }
-
-    // MARK: Day digest presentation and local-day identity
 
     func testSelectableDigestBuildsOneContinuousVisibleString() {
         let rendered = SelectableDigestText.attributedText(from: """

@@ -1,7 +1,3 @@
-//! Voice samples for remembering speakers. macOS gets per-speaker chunk
-//! embeddings from its diarizer; sherpa-onnx returns only turns, so each chunk
-//! here is embedded separately from that speaker's own audio.
-
 use std::path::Path;
 
 use anyhow::{Result, anyhow};
@@ -12,24 +8,17 @@ use sherpa_onnx::{SpeakerEmbeddingExtractor, SpeakerEmbeddingExtractorConfig};
 use crate::attribution::Turn;
 use crate::vad::SAMPLE_RATE;
 
-/// A chunk is 3–10 s of one voice, like the Mac's.
 pub const MIN_CHUNK_SECONDS: f64 = 3.0;
 pub const MAX_CHUNK_SECONDS: f64 = 10.0;
-/// Call speech pauses between sentences, and a pause is not another person.
 const CALL_PAUSE_SECONDS: f64 = 1.5;
-/// A microphone sample has to sit inside one uninterrupted turn.
 const MICROPHONE_PAUSE_SECONDS: f64 = 0.5;
-/// More than matching ever reads (16 for a call voice, 8 for a microphone).
 const CHUNKS_PER_VOICE: usize = 24;
 
-/// TitaNet-small through sherpa-onnx.
 pub struct VoiceExtractor {
     inner: SpeakerEmbeddingExtractor,
 }
 
 impl VoiceExtractor {
-    /// Fails when the model's vectors aren't [`VOICE_DIMENSION`] long, so a
-    /// different model can't write samples under [`VOICE_MODEL`].
     pub fn load(model: &Path, threads: usize) -> Result<Self> {
         let config = SpeakerEmbeddingExtractorConfig {
             model: Some(model.to_string_lossy().into_owned()),
@@ -47,7 +36,6 @@ impl VoiceExtractor {
         Ok(Self { inner })
     }
 
-    /// A voice vector of 16 kHz mono `samples`, when there are enough.
     pub fn embed(&self, samples: &[f32]) -> Option<Vec<f32>> {
         let stream = self.inner.create_stream()?;
         stream.accept_waveform(SAMPLE_RATE as i32, samples);
@@ -59,7 +47,6 @@ impl VoiceExtractor {
     }
 }
 
-/// One speaker's stretch of a track, and which parts of it are their voice.
 #[derive(Clone, Debug, PartialEq)]
 pub struct VoiceChunk {
     pub speaker: i32,
@@ -73,7 +60,6 @@ impl VoiceChunk {
     }
 }
 
-/// The parts of each turn no other speaker overlaps, in time order.
 fn clean_turns(turns: &[Turn]) -> Vec<Turn> {
     let mut sorted: Vec<&Turn> = turns.iter().filter(|t| t.end > t.start).collect();
     sorted.sort_by(|a, b| a.start.total_cmp(&b.start));
@@ -109,8 +95,6 @@ fn clean_turns(turns: &[Turn]) -> Vec<Turn> {
     out
 }
 
-/// Windows of contiguous speech from one voice, with no other voice between
-/// their turns. The longest of each voice are kept.
 pub fn voice_chunks(turns: &[Turn], source: AttributionSource) -> Vec<VoiceChunk> {
     let pause = if source == AttributionSource::System {
         CALL_PAUSE_SECONDS
@@ -128,7 +112,6 @@ pub fn voice_chunks(turns: &[Turn], source: AttributionSource) -> Vec<VoiceChunk
         }
         let mut start = turn.start;
         while start < turn.end {
-            // A pause can carry the next turn past this window's end.
             if open
                 .as_ref()
                 .is_some_and(|chunk| start >= chunk.range.start + MAX_CHUNK_SECONDS - 1e-9)
@@ -154,7 +137,6 @@ pub fn voice_chunks(turns: &[Turn], source: AttributionSource) -> Vec<VoiceChunk
     chunks.retain(|c| {
         c.range.duration() >= MIN_CHUNK_SECONDS && c.speech() >= MIN_CHUNK_SECONDS * 0.6
     });
-    // Longest first within each voice, then back in time order.
     chunks.sort_by(|a, b| {
         a.speaker
             .cmp(&b.speaker)
@@ -177,8 +159,6 @@ pub fn voice_chunks(turns: &[Turn], source: AttributionSource) -> Vec<VoiceChunk
     kept
 }
 
-/// Vectors for a track's chunks, hearing only each speaker's own frames. The
-/// `speaker` is the diarizer's until `lokalbot_core::voice::label_samples` runs.
 pub fn voice_samples(
     extractor: &VoiceExtractor,
     samples_16k: &[f32],
@@ -212,7 +192,6 @@ pub fn voice_samples(
     out
 }
 
-/// A diarizer turn as `lokalbot_core::voice::label_turns` wants it.
 pub fn raw_turns(turns: &[Turn]) -> Vec<(String, TurnAnchor)> {
     turns
         .iter()
@@ -249,7 +228,6 @@ mod tests {
             turn(8.0, 33.0, 1),
         ];
         let chunks = voice_chunks(&turns, AttributionSource::System);
-        // The pause joined the first two; the other voice ended that chunk.
         assert_eq!(chunks[0].speaker, 1);
         assert_eq!(chunks[0].frames, vec![(0.0, 2.0), (3.0, 6.0)]);
         assert_eq!(
@@ -259,7 +237,6 @@ mod tests {
                 end: 6.0
             }
         );
-        // 2 s of voice 2 is too short; 25 s of voice 1 splits, and its 5 s tail stays.
         assert!(chunks.iter().all(|c| c.speaker == 1));
         let lengths: Vec<f64> = chunks.iter().map(|c| c.range.duration()).collect();
         assert_eq!(lengths, vec![6.0, 10.0, 10.0, 5.0]);

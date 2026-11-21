@@ -1,19 +1,3 @@
-//! The action row as the Actions page draws it (`ActionThreadRow` with an
-//! `ActionListRowStyle` in `OutcomeOverviewViews.swift`): the page's own
-//! source and due wording, a selection the page owns, and status changes the
-//! page confirms and keeps in view. The links a row has on other pages live
-//! in that page's details pane, so the meta line is plain text here.
-//!
-//! ```ignore
-//! let row = action_row::list_row(
-//!     format!("actions-row-{ix}").into(),
-//!     thread,
-//!     ListRowStyle { source, due, selected, batch, hint, on_click, on_status, on_edit, on_not_mine },
-//!     &data,
-//!     cx,
-//! );
-//! ```
-
 use std::rc::Rc;
 
 use crate::i18n::h_flex;
@@ -33,25 +17,16 @@ use super::thread::{open_meeting, set_excluded};
 use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, metric, ty};
 
-/// A click on a row, with the modifier keys held.
 pub(crate) type OnRowClick = Rc<dyn Fn(&ClickEvent, &mut Window, &mut App)>;
-/// A status the row asks for.
 pub(crate) type OnStatus = Rc<dyn Fn(ActionStatus, &mut Window, &mut App)>;
-/// A menu entry that needs the page ("Edit…", "Not mine").
 pub(crate) type OnRowAction = Rc<dyn Fn(&mut Window, &mut App)>;
 
-/// What a page passes for each row (`ActionListRowStyle`).
 #[derive(Clone)]
 pub(crate) struct ListRowStyle {
-    /// The meeting it came from, as the page words it; empty for none.
     pub source: String,
-    /// The due words and their tone.
     pub due: Option<(String, DueTone)>,
     pub selected: bool,
-    /// Several rows are selected: a row's menu shows only under the pointer.
     pub batch: bool,
-    /// The evidence beside "Looks done?" ("Mail showed “Message sent” · Mon
-    /// 5:48 PM"), when a later screen suggests the action is done.
     pub hint: Option<String>,
     pub on_click: OnRowClick,
     pub on_status: OnStatus,
@@ -59,8 +34,6 @@ pub(crate) struct ListRowStyle {
     pub on_not_mine: OnRowAction,
 }
 
-/// Agent, then each coding agent installed on this computer, by name: the
-/// Actions page's "Hand off" (`ActionThreadRow.handOffItems`).
 pub(crate) fn hand_off_items(
     menu: PopupMenu,
     thread: &ActionThread,
@@ -84,8 +57,6 @@ pub(crate) fn hand_off_items(
     menu
 }
 
-/// The row's "…" menu and its context menu: the same entries (`listMenu`).
-/// "Draft next steps…" is left out: this app has no Follow Through.
 fn list_menu(
     menu: PopupMenu,
     thread: &ActionThread,
@@ -184,11 +155,6 @@ fn list_menu(
     )
 }
 
-/// One row of the Actions list: completion circle, the action, a quiet line
-/// with its source and due words, a "Looks done?" line when a later screen
-/// suggests it, and the "…" menu on the selected row and under the pointer.
-/// A click goes to `style.on_click`; the circle and the menu keep their
-/// clicks to themselves. `id` must be unique on the page.
 pub(crate) fn list_row(
     id: SharedString,
     thread: &ActionThread,
@@ -273,9 +239,6 @@ pub(crate) fn list_row(
             )
     });
 
-    // The menu shows on the selected row and under the pointer. It stays in
-    // the tree either way, so an open menu is not taken away when the pointer
-    // moves onto its items.
     let shows_menu = style.selected && !style.batch;
     let menu = {
         let thread = thread.clone();
@@ -356,8 +319,6 @@ pub(crate) fn list_row(
         .into_any_element()
 }
 
-/// "Nov 12, 2026" for a moment, on its local day, as a reference's menu entry
-/// names it.
 fn reference_day(at: chrono::DateTime<chrono::Utc>) -> String {
     at.with_timezone(&Local)
         .format_localized(

@@ -1,19 +1,13 @@
 import AppKit
 import SwiftUI
 
-/// What the download step and its footer share while the window is open.
 struct OnboardingDownloadSession: Equatable {
     var includeAutocomplete = false
-    /// Download was pressed in this window.
     var started = false
-    /// The roles that were on this Mac when the download began, so the
-    /// progress counts only what this download fetches.
     var readyBefore: Set<ModelRole>?
     var opensSampleMeeting = true
 }
 
-/// First-run setup in three steps. Choices stay a draft until setup finishes;
-/// permissions and model downloads happen only through their named actions.
 struct OnboardingView: View {
     static let size = CGSize(width: 650, height: 668)
 
@@ -22,17 +16,11 @@ struct OnboardingView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var permissions = PermissionManager.shared
     @State private var step: OnboardingStep = .choose
-    /// Direction of the last step change, so the incoming page arrives from
-    /// the side the user is moving toward.
     @State private var forward = true
     @State private var draft = CaptureSetupDraft(settings: AppSettings())
-    /// The choices the settings held when this draft was started.
     @State private var baseline = CaptureSetupDraft(settings: AppSettings())
     @State private var download = OnboardingDownloadSession()
-    /// Permissions whose System Settings pane this window opened.
     @State private var requested: Set<AppPermission> = []
-    /// False until the window has loaded its state, and again once setup
-    /// has finished, so nothing is saved for a setup that is not under way.
     @State private var saves = false
 
     private var access: OnboardingAccess {
@@ -67,7 +55,6 @@ struct OnboardingView: View {
         .onChange(of: draft) { save() }
         .onChange(of: download.includeAutocomplete) { save() }
         .onChange(of: download.opensSampleMeeting) { save() }
-        // A grant is the moment before a restart, asked for here or by macOS.
         .onChange(of: permissions.granted) { save() }
     }
 
@@ -129,8 +116,6 @@ struct OnboardingView: View {
         }
     }
 
-    // MARK: Actions
-
     private func allow(_ permission: AppPermission, from frame: CGRect) {
         requested.insert(permission)
         PermissionGuidanceController.shared.requestAccess(for: permission, sourceFrameInScreen: frame)
@@ -151,18 +136,12 @@ struct OnboardingView: View {
         app.modelRoles.startCoreModelDownloads(includeAutocomplete: download.includeAutocomplete)
     }
 
-    /// Applies the choices and ends setup. The sample meeting opens only
-    /// when the person saw that option, which is once a download exists.
     private func finish(opensSampleMeeting: Bool) {
         saves = false
         app.finishOnboarding(applying: draft, opensSampleMeeting: opensSampleMeeting)
         dismiss()
     }
 
-    // MARK: Resuming after a restart
-
-    /// Every time the window opens: continue the setup that was under way
-    /// for these settings, or start from the settings as they are now.
     private func begin() {
         permissions.refresh()
         permissions.startPolling()
@@ -173,7 +152,6 @@ struct OnboardingView: View {
             step = saved.step
             download.includeAutocomplete = saved.includeAutocomplete
             download.opensSampleMeeting = saved.opensSampleMeeting
-            // The restart it was saved for has happened.
             if saved.reopensAfterRestart { save() }
         } else {
             draft = baseline
@@ -191,10 +169,6 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Window layout
-
-/// The setup window: the stepper as its top bar, one scrolling step, and the
-/// footer that moves between steps.
 struct OnboardingFrame<Content: View, Footer: View>: View {
     let step: OnboardingStep
     var forward = true
@@ -202,13 +176,10 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
     @ViewBuilder var content: Content
     @ViewBuilder var footer: Footer
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    /// Height of the window's own title bar, which pushes the content down.
     @State private var titleBar: CGFloat = 0
 
     var body: some View {
         VStack(spacing: 0) {
-            // In a window, the steps share the title bar with the traffic
-            // lights and line up with them; elsewhere they get a bar of their own.
             OnboardingStepper(current: step, select: select)
                 .frame(maxWidth: .infinity)
                 .frame(height: titleBar > 0 ? titleBar : 40)
@@ -216,8 +187,6 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
                 .padding(.top, -titleBar)
             Divider()
             ScrollView {
-                // The ZStack lets the outgoing and incoming pages overlap
-                // while they cross instead of stacking vertically.
                 ZStack(alignment: .top) {
                     content
                         .padding(.horizontal, 44).padding(.top, 18).padding(.bottom, 12)
@@ -231,17 +200,12 @@ struct OnboardingFrame<Content: View, Footer: View>: View {
                 .padding(.horizontal, 20)
                 .frame(height: 56)
         }
-        // The title bar is part of the window's height, so the content gives it up.
         .frame(width: OnboardingView.size.width, height: OnboardingView.size.height - titleBar)
         .background(WindowTitleBarReader(height: $titleBar))
         .toggleStyle(LBAccentSwitchStyle())
     }
 }
 
-/// Reads how far the window's title bar pushes its content down. AppKit
-/// knows this on every system; the geometry SwiftUI reported for it was
-/// zero on macOS 26, which left the stepper in a bar of its own below the
-/// traffic lights and the window a title bar too tall.
 private struct WindowTitleBarReader: NSViewRepresentable {
     @Binding var height: CGFloat
 
@@ -272,7 +236,6 @@ private struct WindowTitleBarReader: NSViewRepresentable {
 
         func report() {
             guard let content = window?.contentView else { return }
-            // A stray value must not push the stepper out of the window.
             let height = min(max(content.safeAreaInsets.top.rounded(), 0), 60)
             guard height != reported else { return }
             reported = height
@@ -281,10 +244,6 @@ private struct WindowTitleBarReader: NSViewRepresentable {
     }
 }
 
-// MARK: - Stepper
-
-/// The window's top bar: the three steps by name. A finished step shows a
-/// check and goes back to it when clicked.
 struct OnboardingStepper: View {
     let current: OnboardingStep
     let select: (OnboardingStep) -> Void
@@ -364,9 +323,6 @@ struct OnboardingStepper: View {
     }
 }
 
-// MARK: - Shared parts
-
-/// A step's title with one lead sentence, centred.
 struct OnboardingHeading: View {
     let title: LocalizedStringKey
     var lead: LocalizedStringKey?
@@ -391,7 +347,6 @@ struct OnboardingHeading: View {
     }
 }
 
-/// Rows in one grouped card. Callers place a `Divider()` between rows.
 struct OnboardingCard<Content: View>: View {
     @ViewBuilder var content: Content
 
@@ -402,7 +357,6 @@ struct OnboardingCard<Content: View>: View {
     }
 }
 
-/// One card row: a symbol tile, its text, and a control or state at the end.
 struct OnboardingRow<Detail: View, Trailing: View>: View {
     let symbol: String
     var alignment: VerticalAlignment = .center
@@ -422,7 +376,6 @@ struct OnboardingRow<Detail: View, Trailing: View>: View {
     }
 }
 
-/// A row's title, with the quiet tag that says what it is for.
 struct OnboardingRowTitle: View {
     let title: LocalizedStringKey
     var tag: LocalizedStringKey?
@@ -441,7 +394,6 @@ struct OnboardingRowTitle: View {
     }
 }
 
-/// A quiet line under a card: a small symbol and one sentence.
 struct OnboardingNote: View {
     let symbol: String
     let text: LocalizedStringKey
@@ -457,7 +409,6 @@ struct OnboardingNote: View {
     }
 }
 
-/// A green check with one word: Allowed, Ready.
 struct OnboardingDoneLabel: View {
     let text: LocalizedStringKey
 

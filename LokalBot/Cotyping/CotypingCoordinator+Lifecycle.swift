@@ -2,12 +2,7 @@ import AppKit
 import CoreGraphics
 import Foundation
 
-/// Lifecycle entry points, settings reconciliation, and callback wiring.
 extension CotypingCoordinator {
-    // MARK: - Lifecycle
-
-    /// Start or stop to match the current settings + permissions. Idempotent —
-    /// call on launch and whenever the cotyping settings change.
     func applySettings() {
         let settings = settingsProvider()
         let privacySettings = CotypingPrivacySettings(
@@ -43,8 +38,6 @@ extension CotypingCoordinator {
             return
         }
         if shouldRefreshFocus {
-            // Drop any field snapshot captured under the previous boundary and
-            // invalidate an AX read that may still be in flight.
             focusTracker.stop()
             focusTracker.start()
         }
@@ -63,8 +56,6 @@ extension CotypingCoordinator {
         try await learningStore.forgetAll()
     }
 
-    /// Drop both visible and cached text before source deletion/correction or
-    /// permission revocation. Accepted facts are not copied into local learning.
     func invalidateMemoryContext() {
         contextEpoch &+= 1
         memoryLookup.reset()
@@ -112,8 +103,6 @@ extension CotypingCoordinator {
         state = .idle
     }
 
-    /// Reads focus shortly after a click or an app switch, once the app has
-    /// moved it.
     func refreshFocusSoon() {
         guard isRunning else { return }
         focusRefreshTask?.cancel()
@@ -152,9 +141,6 @@ extension CotypingCoordinator {
         if let reason { state = .disabled(reason) } else { state = .idle }
     }
 
-    /// Called by AppState when a meeting recording starts or stops. Pausing
-    /// drops any live ghost text immediately; the per-generation gate in
-    /// `generate(work:)` keeps new suggestions from appearing while active.
     func meetingRecordingStateChanged(active: Bool) {
         guard isRunning else { return }
         if active {

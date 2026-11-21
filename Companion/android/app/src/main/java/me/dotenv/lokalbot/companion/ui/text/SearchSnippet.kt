@@ -1,10 +1,5 @@
 package me.dotenv.lokalbot.companion.ui.text
 
-/**
- * A search snippet split into plain text and matched words. The sync core's
- * full-text search marks each match with `«` and `»`; the sample library's
- * search marks nothing, so its snippets come back as one plain part.
- */
 object SearchSnippet {
     data class Part(val text: String, val isMatch: Boolean)
 
@@ -17,7 +12,6 @@ object SearchSnippet {
             if (open > rest) parts += Part(snippet.substring(rest, open), isMatch = false)
             val close = snippet.indexOf(CLOSE, open + 1)
             if (close < 0) {
-                // A mark the excerpt cut short: drop it and keep the words.
                 rest = open + 1
                 break
             }
