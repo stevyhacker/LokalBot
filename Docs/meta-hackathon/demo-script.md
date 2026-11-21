@@ -15,9 +15,9 @@ The video is built around four moments:
 
 ## Before recording
 
-Follow [recording-checklist.md](recording-checklist.md). `Scripts/meta-hackathon-demo.sh` (removed, see above) ran LokalBot Dev on a separate demo library and settings. That library already holds the earlier "Launch planning" meeting the radar contradicts, and the two folders live answers read: the Northwind pricing sheet and launch brief, and a copy of the LokalBot repository. The checklist covers:
+The original live-take checklist (`recording-checklist.md`), synthetic pages (`demo-pages/`), and `Scripts/meta-hackathon-demo.sh` were removed after the hackathon (they remain in git history). `Scripts/meta-hackathon-demo.sh` ran LokalBot Dev on a separate demo library and settings that held the earlier "Launch planning" meeting the radar contradicts, plus the two folders live answers read: the Northwind pricing sheet and launch brief, and a copy of the LokalBot repository. The setup covered:
 - the permissions and the Meta key;
-- capturing the two synthetic pages in [demo-pages/](demo-pages/) into screen memory;
+- capturing the two synthetic pages into screen memory;
 - keeping the floating panel visible to the screen recording;
 - consent from everyone recorded.
 
