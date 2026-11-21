@@ -51,7 +51,7 @@ def contains(text, phrase):
     return bool(expected) and any(actual[i:i + len(expected)] == expected for i in range(len(actual)))
 
 
-def replay_input(corpus, cases, variant, routing=None, cleanup=None):
+def replay_input(corpus, cases, variant, routing=None, cleanup=None, word_lock=None):
     visible, meetings, screens, window = flags(variant)
     allowed = {'id', 'speech', 'visible', 'transcribe', 'screen'}
     data = {'cases': [{k: v for k, v in case.items() if k in allowed} for case in cases],
@@ -63,6 +63,8 @@ def replay_input(corpus, cases, variant, routing=None, cleanup=None):
         data['routing'] = routing
     if cleanup:
         data['cleanupPrompt'] = cleanup
+    if word_lock:
+        data['wordLock'] = word_lock
     return data
 
 
@@ -139,6 +141,8 @@ def main():
                         help='writing-request rule to evaluate (default: the build\'s production rule)')
     parser.add_argument('--cleanup-prompt', choices=['composeDecides', 'transcriptAsData'],
                         help='cleanup prompt for direct speech (default: the build\'s production prompt)')
+    parser.add_argument('--word-lock', choices=['off', 'digitsNamesNegation'],
+                        help='word lock on cleaned direct speech (default: the build\'s production lock)')
     args = parser.parse_args()
     variants = VARIANT_SETS[args.variant_set]
     args.output.mkdir(parents=True, exist_ok=False)
@@ -157,6 +161,7 @@ def main():
                 'split': args.split, 'caseIDs': [c['id'] for c in cases], 'serverArguments': command,
                 'variants': variants, 'windowPolicies': WINDOW_POLICIES, 'routing': args.routing or 'production',
                 'cleanupPrompt': args.cleanup_prompt or 'production',
+                'wordLock': args.word_lock or 'production',
                 'settings': 'Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed',
                 'scope': 'Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library.'}
     (args.output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -180,7 +185,7 @@ def main():
                 time.sleep(0.2)
             for variant in variants:
                 fixture = args.output / f'{variant}-input.json'
-                fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt), ensure_ascii=False) + '\n')
+                fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt, args.word_lock), ensure_ascii=False) + '\n')
                 with tempfile.TemporaryDirectory(prefix='lokalbot-dictation-eval-') as temporary:
                     root = Path(temporary)
                     (root / 'home').mkdir()

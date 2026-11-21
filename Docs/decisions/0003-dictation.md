@@ -15,6 +15,12 @@ Transcribe inserts the recognized speech as it is, with no model call and no con
 
 Where: `LinuxWindows/crates/lokalbot-ai/src/dictation.rs`, `LokalBot/Dictation/DictationComposition.swift` (`DictationCleanupPrompt.transcriptAsData`, `DictationCleanupPrompt.composeDecides`), `LokalBotTests/Dictation/DictationGroundingTests.swift` (`testDirectSpeechIsCleanedAsDataNotAsAnInstruction`).
 
+### Cleaned direct speech keeps its digits, names and negation, or the transcript is inserted
+
+The cleanup-only prompt asks the model to keep numbers, names and negation, but a 4B model doesn't always: v2's "na 3 sastanka" came back as "na tri sastanka". The cleaned text is checked against the transcript: it may not contain a digit run that wasn't spoken or lose one that was, every spoken English negation word must remain, and a capitalized word that isn't a sentence's first word must remain or be respelled to a glossary term. A self-correction ("3, no, 4", "I mean", "actually") exempts what it corrects, because cleanup is meant to drop false starts, and repeating a phrase is not a loss; an invented digit is never exempt. When a check fails, the transcript is inserted instead, as Transcribe would insert it, and the log names only the check. Writing requests are not checked, since their answer is meant to differ from the speech. Scored offline on the recorded production runs (674 cleaned direct-speech outputs), the lock fired 9 times, all on failed cases, and never on a correct one.
+
+Where: `LokalBot/Dictation/DictationWordLock.swift` (`DictationWordLock`), `LokalBot/Dictation/DictationTextPreparation.swift` (`DictationTextPreparation.prepare`), `LokalBot/Dictation/DictationContextReplay.swift` (`wordLock`), `Benchmarks/transcribe/Dictation/context_replay.py` (`--word-lock`), `LokalBotTests/Dictation/DictationWordLockTests.swift`.
+
 ### A relay counts as a writing request only when it points at context
 
 `DictationRequestRouting` decides which spoken openings count as a writing request that may use context; production uses `.production`, and the replay benchmark compares the others (`Benchmarks/transcribe/Dictation/results/2026-10-08-routing-window`). `relays` answered more requests but routed "Tell him I am running 10 minutes late" as one and copied a screen fact into it. `referencedRelays`, which needs a pointer to context, still answered new requests and never routed a self-contained relay.
