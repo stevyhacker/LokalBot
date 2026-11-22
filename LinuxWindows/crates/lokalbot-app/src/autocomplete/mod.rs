@@ -715,15 +715,19 @@ impl Autocomplete {
             field_frame: field.field_frame,
             pid: field.pid,
         };
-        self.send(context, cx);
+        self.send(context, field.before_truncated, cx);
     }
 
-    fn send(&mut self, context: FieldContext, cx: &mut Context<Self>) {
+    fn send(&mut self, context: FieldContext, before_truncated: bool, cx: &mut Context<Self>) {
         if self.last_context.as_ref() == Some(&context) {
             return;
         }
-        self.sent
-            .record(context.field_id, &context.before, Instant::now());
+        self.sent.record(
+            context.field_id,
+            &context.before,
+            before_truncated,
+            Instant::now(),
+        );
         self.last_context = Some(context.clone());
         if self.fake.is_some() {
             self.fake_suggestion(&context, cx);
@@ -782,7 +786,7 @@ impl Autocomplete {
                     return;
                 }
                 let before = self.practice.before.clone();
-                let fitted = self.fitted(field_id, &before, &text, &kind);
+                let fitted = self.fitted(field_id, &before, false, &text, &kind);
                 log::debug!(
                     "autocomplete: practice suggestion of {} characters",
                     fitted.chars().count()
@@ -816,7 +820,20 @@ impl Autocomplete {
                     .map(|s| s.anchor.as_str())
                     .or_else(|| pending.map(|p| p.target.as_str()))
                     .unwrap_or(field.before.as_str());
-                let fitted = self.fitted(field_id, effective_before, &text, &kind);
+                let effective_truncated = self
+                    .session
+                    .as_ref()
+                    .filter(|s| s.field_id == field_id && s.awaiting.is_some())
+                    .map(|s| s.anchor_truncated)
+                    .or_else(|| pending.map(|p| p.truncated))
+                    .unwrap_or(field.before_truncated);
+                let fitted = self.fitted(
+                    field_id,
+                    effective_before,
+                    effective_truncated,
+                    &text,
+                    &kind,
+                );
                 if fitted.is_empty() {
                     if self
                         .session
@@ -912,11 +929,18 @@ impl Autocomplete {
         }
     }
 
-    fn fitted(&self, field_id: u64, before: &str, text: &str, kind: &SuggestionKind) -> String {
+    fn fitted(
+        &self,
+        field_id: u64,
+        before: &str,
+        before_truncated: bool,
+        text: &str,
+        kind: &SuggestionKind,
+    ) -> String {
         match kind {
             SuggestionKind::Continuation | SuggestionKind::Emoji => self
                 .sent
-                .fit(field_id, before, text, Instant::now())
+                .fit(field_id, before, before_truncated, text, Instant::now())
                 .to_string(),
             SuggestionKind::Macro { .. } | SuggestionKind::Correction { .. } => text.to_string(),
         }
@@ -1176,7 +1200,7 @@ impl Autocomplete {
         let exhausted = session.is_exhausted();
         let now = Instant::now();
         self.last_accept_at = Some(now);
-        self.sent.record(field_id, &accepted_anchor, now);
+        self.sent.record(field_id, &accepted_anchor, truncated, now);
         if self.inline.is_none() {
             PendingInsert::record(
                 &mut self.pending_insert,
@@ -1403,6 +1427,7 @@ impl Autocomplete {
                 field_frame: None,
                 pid: 0,
             },
+            false,
             cx,
         );
     }

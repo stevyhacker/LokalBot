@@ -120,29 +120,29 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 let Some(state) = state.as_mut() else {
                     return false;
                 };
-                if state.hook.is_none() || !state.keys.takes(key) {
+                if state.hook.is_none() {
                     return false;
                 }
                 let active = state.active.load(Ordering::SeqCst);
                 let slot = index(key);
-                if active {
-                    if pressed && !modifiers_down() {
-                        state.taken[slot] = true;
-                        (state.handler)(key);
-                        true
-                    } else if released && state.taken[slot] {
+                if state.taken[slot] {
+                    if released {
                         state.taken[slot] = false;
-                        true
-                    } else {
-                        false
+                        if !active && state.taken == [false; 4] {
+                            wake_thread = Some(state.thread_id);
+                        }
+                        return true;
                     }
-                } else if pressed && state.taken[slot] {
-                    true
-                } else if released && state.taken[slot] {
-                    state.taken[slot] = false;
-                    if state.taken == [false; 4] {
-                        wake_thread = Some(state.thread_id);
+                    if pressed && (!active || !state.keys.takes(key)) {
+                        return true;
                     }
+                }
+                if !state.keys.takes(key) {
+                    return false;
+                }
+                if active && pressed && !modifiers_down() {
+                    state.taken[slot] = true;
+                    (state.handler)(key);
                     true
                 } else {
                     false

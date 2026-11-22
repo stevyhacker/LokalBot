@@ -78,7 +78,6 @@ pub enum Reconciled {
 }
 
 const WINDOWED_TEXT_BYTES: usize = 1_024;
-const MAX_WINDOW_SHIFT: usize = 512;
 
 pub fn inline_after(after: &str) -> &str {
     after
@@ -167,26 +166,17 @@ pub fn typed_since<'a>(expected: &str, before: &'a str) -> Option<&'a str> {
     if let Some(rest) = before.strip_prefix(expected) {
         return Some(rest);
     }
-    if expected.len() < WINDOWED_TEXT_BYTES {
+    if expected.len() < WINDOWED_TEXT_BYTES || before.len() < WINDOWED_TEXT_BYTES {
         return None;
-    }
-    if let Some(rest) = (1..=MAX_WINDOW_SHIFT.min(expected.len() - WINDOWED_TEXT_BYTES))
-        .filter(|shift| expected.is_char_boundary(*shift))
-        .find_map(|shift| before.strip_prefix(&expected[shift..]))
-    {
-        return Some(rest);
     }
     let tail_start = expected
         .char_indices()
         .rev()
         .nth(PREFIX_TAIL_CHARACTERS - 1)
         .map_or(0, |(index, _)| index);
-    let tail = &expected[tail_start..];
-    if tail.is_empty() {
-        return None;
-    }
-    let at = before.rfind(tail)?;
-    Some(&before[at + tail.len()..])
+    (1..=tail_start)
+        .filter(|shift| expected.is_char_boundary(*shift))
+        .find_map(|shift| before.strip_prefix(&expected[shift..]))
 }
 
 pub fn is_stale_acceptance_echo(
@@ -439,6 +429,15 @@ mod tests {
         };
         assert_eq!(walked.remaining(), " words");
         assert_eq!(typed_since("short", "different"), None);
+        let long_expected = format!("A{}", "x".repeat(1_200));
+        let edited_start = format!("B{}", "x".repeat(1_200));
+        assert_eq!(typed_since(&long_expected, &edited_start), None);
+        let repeated_expected = format!("A{}", "x".repeat(1_023));
+        let repeated_shifted = "x".repeat(1_024);
+        assert_eq!(
+            typed_since(&repeated_expected, &repeated_shifted),
+            Some("x")
+        );
     }
 
     #[test]

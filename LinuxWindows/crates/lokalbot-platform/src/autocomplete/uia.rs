@@ -684,13 +684,14 @@ impl Reader {
                     )
                     .is_ok_and(|ord| ord < 0)
             {
-                clamped_before_start = before_range
+                before_range
                     .MoveEndpointByRange(
                         TextPatternRangeEndpoint_Start,
                         doc,
                         TextPatternRangeEndpoint_Start,
                     )
-                    .is_ok();
+                    .map_err(|_| Refusal::Unsupported(reasons::NO_CARET))?;
+                clamped_before_start = true;
             }
             let raw_before_text = normalize_newlines(&bstr(before_range.GetText(-1)));
             let expanded_before =
@@ -713,13 +714,14 @@ impl Reader {
                     )
                     .is_ok_and(|ord| ord > 0)
             {
-                clamped_after_end = after_range
+                after_range
                     .MoveEndpointByRange(
                         TextPatternRangeEndpoint_End,
                         doc,
                         TextPatternRangeEndpoint_End,
                     )
-                    .is_ok();
+                    .map_err(|_| Refusal::Unsupported(reasons::NO_CARET))?;
+                clamped_after_end = true;
             }
             let (raw_after, stripped_after) =
                 policy::strip_non_text_glyphs(&normalize_newlines(&bstr(after_range.GetText(-1))));

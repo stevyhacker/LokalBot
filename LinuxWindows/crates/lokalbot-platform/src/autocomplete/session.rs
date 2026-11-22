@@ -10,6 +10,7 @@ pub struct GhostSession {
     pub remaining: String,
     pub anchor_truncated: bool,
     pub awaiting: Option<String>,
+    pub awaiting_deleted: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -35,6 +36,7 @@ impl GhostSession {
             remaining,
             anchor_truncated,
             awaiting: None,
+            awaiting_deleted: None,
         }
     }
 
@@ -42,6 +44,7 @@ impl GhostSession {
         let truncated = self.anchor_truncated || before_truncated;
         if before == self.anchor {
             self.awaiting = None;
+            self.awaiting_deleted = None;
             self.anchor_truncated = before_truncated;
             return Reconcile::Unchanged;
         }
@@ -54,11 +57,21 @@ impl GhostSession {
             };
             if actual == expected {
                 self.awaiting = None;
+                self.awaiting_deleted = None;
                 self.anchor = before.to_string();
                 self.anchor_truncated = before_truncated;
                 return Reconcile::Unchanged;
             }
+            if !actual.is_empty()
+                && self
+                    .awaiting_deleted
+                    .as_deref()
+                    .is_some_and(|deleted| deleted.starts_with(actual))
+            {
+                return Reconcile::Unchanged;
+            }
             if expected.starts_with(actual) {
+                self.awaiting_deleted = None;
                 return Reconcile::Unchanged;
             }
             let Some(extra) = actual.strip_prefix(expected) else {
@@ -69,6 +82,7 @@ impl GhostSession {
             }
             let typed = extra.to_string();
             self.awaiting = None;
+            self.awaiting_deleted = None;
             self.remaining = self.remaining[typed.len()..].to_string();
             self.anchor = before.to_string();
             self.anchor_truncated = before_truncated;
@@ -121,7 +135,13 @@ impl GhostSession {
             &original
         };
         match &mut self.awaiting {
-            None => self.awaiting = Some(floor.to_string()),
+            None => {
+                self.awaiting = Some(floor.to_string());
+                self.awaiting_deleted = (backward > 0)
+                    .then(|| original.strip_prefix(floor).map(str::to_string))
+                    .flatten()
+                    .filter(|s| !s.is_empty());
+            }
             Some(start)
                 if !floor.starts_with(start.as_str())
                     && !(self.anchor_truncated && typed_since(start, floor, true).is_some()) =>
@@ -133,6 +153,7 @@ impl GhostSession {
                     .last()
                     .map_or(0, |((idx, ch), _)| idx + ch.len_utf8());
                 start.truncate(common);
+                self.awaiting_deleted = None;
             }
             Some(_) => {}
         }
@@ -142,6 +163,7 @@ impl GhostSession {
 
     pub fn stop_awaiting(&mut self) {
         self.awaiting = None;
+        self.awaiting_deleted = None;
     }
 
     pub fn is_exhausted(&self) -> bool {
@@ -182,12 +204,9 @@ pub fn typed_since<'a>(anchor: &str, before: &'a str, truncated: bool) -> Option
         .rev()
         .nth(255)
         .map_or(0, |(index, _)| index);
-    let tail = &anchor[tail_start..];
-    if tail.is_empty() {
-        return None;
-    }
-    let at = before.rfind(tail)?;
-    Some(&before[at + tail.len()..])
+    (1..=tail_start)
+        .filter(|shift| anchor.is_char_boundary(*shift))
+        .find_map(|shift| before.strip_prefix(&anchor[shift..]))
 }
 
 pub fn drop_graphemes(text: &str, count: usize) -> String {
@@ -235,22 +254,23 @@ pub fn inline_text(text: &str, whole: bool) -> Option<String> {
 
 #[derive(Clone, Debug, Default)]
 pub struct SentContexts {
-    sent: VecDeque<(u64, String, Instant)>,
+    sent: VecDeque<(u64, String, bool, Instant)>,
 }
 
 impl SentContexts {
     const KEEP: usize = 8;
     const MAX_AGE: Duration = Duration::from_secs(3);
 
-    pub fn record(&mut self, field_id: u64, before: &str, now: Instant) {
+    pub fn record(&mut self, field_id: u64, before: &str, truncated: bool, now: Instant) {
         if self
             .sent
             .back()
-            .is_some_and(|(id, text, _)| *id == field_id && text == before)
+            .is_some_and(|(id, text, t, _)| *id == field_id && text == before && *t == truncated)
         {
             return;
         }
-        self.sent.push_back((field_id, before.to_string(), now));
+        self.sent
+            .push_back((field_id, before.to_string(), truncated, now));
         while self.sent.len() > Self::KEEP {
             self.sent.pop_front();
         }
@@ -264,14 +284,15 @@ impl SentContexts {
         &self,
         field_id: u64,
         latest: &str,
+        latest_truncated: bool,
         suggestion: &'a str,
         now: Instant,
     ) -> &'a str {
-        for (id, older, at) in self.sent.iter().rev() {
+        for (id, older, older_truncated, at) in self.sent.iter().rev() {
             if *id != field_id || now.duration_since(*at) > Self::MAX_AGE || older == latest {
                 continue;
             }
-            let truncated = older.len() >= 1_024 || latest.len() >= 1_024;
+            let truncated = *older_truncated || latest_truncated;
             let Some(typed) = typed_since(older.as_str(), latest, truncated) else {
                 continue;
             };
@@ -451,12 +472,37 @@ mod tests {
     fn late_suggestions_fit_the_text_typed_since() {
         let now = Instant::now();
         let mut sent = SentContexts::default();
-        sent.record(3, "Hello", now);
-        sent.record(3, "Hello ", now);
-        assert_eq!(sent.fit(3, "Hello ", " world", now), "world");
-        assert_eq!(sent.fit(3, "Hello ", "world", now), "world");
-        assert_eq!(sent.fit(4, "Hello ", " world", now), " world");
+        sent.record(3, "Hello", false, now);
+        sent.record(3, "Hello ", false, now);
+        assert_eq!(sent.fit(3, "Hello ", false, " world", now), "world");
+        assert_eq!(sent.fit(3, "Hello ", false, "world", now), "world");
+        assert_eq!(sent.fit(4, "Hello ", false, " world", now), " world");
         let later = now + Duration::from_secs(10);
-        assert_eq!(sent.fit(3, "Hello ", " world", later), " world");
+        assert_eq!(sent.fit(3, "Hello ", false, " world", later), " world");
+
+        let long_base = format!("A{} tail", "x".repeat(1_200));
+        let edited_start = format!("B{} tail up", "x".repeat(1_200));
+        sent.record(5, &long_base, false, now);
+        assert_eq!(
+            sent.fit(5, &edited_start, false, " up next", now),
+            " up next"
+        );
+        let repeated_anchor = format!("A{}", "x".repeat(1_023));
+        let repeated_shifted = "x".repeat(1_024);
+        assert_eq!(
+            typed_since(&repeated_anchor, &repeated_shifted, true),
+            Some("x")
+        );
+    }
+
+    #[test]
+    fn replacement_stays_pending_through_deletion_phase() {
+        let mut ghost = GhostSession::new(7, "Launch :rock".into(), "🚀".into(), false);
+        assert!(ghost.accept("🚀", "🚀", 5));
+        assert_eq!(ghost.reconcile("Launch :rock", false), Reconcile::Unchanged);
+        assert_eq!(ghost.reconcile("Launch :roc", false), Reconcile::Unchanged);
+        assert_eq!(ghost.reconcile("Launch ", false), Reconcile::Unchanged);
+        assert_eq!(ghost.reconcile("Launch 🚀", false), Reconcile::Unchanged);
+        assert!(ghost.awaiting.is_none());
     }
 }
