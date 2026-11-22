@@ -434,6 +434,12 @@ fn russian_model_free_brief_localizes_labels_and_keeps_verbatim_evidence() {
         &DailySummaryLanguage::resolve("ru", "en", &["en"]),
     );
     assert!(russian.narrative.contains("Встречи: 1"));
+    assert!(
+        russian.narrative.contains("м отслежено"),
+        "{}",
+        russian.narrative
+    );
+    assert!(!russian.narrative.contains("m отслежено"));
     assert!(!russian.narrative.contains("No model"));
     assert_eq!(russian.attention, english.attention);
     assert_eq!(russian.top_actions, english.top_actions);
@@ -443,4 +449,12 @@ fn russian_model_free_brief_localizes_labels_and_keeps_verbatim_evidence() {
             .iter()
             .any(|line| line.contains(&format!("`{}`", meeting.short_id())))
     );
+}
+
+#[test]
+fn model_free_durations_use_the_note_language_units() {
+    assert_eq!(super::localized_duration(7_800.0, "ru"), "2ч 10м");
+    assert_eq!(super::localized_duration(600.0, "ru"), "10м");
+    assert_eq!(super::localized_duration(0.0, "ru"), "0м");
+    assert_eq!(super::localized_duration(7_800.0, "en"), "2h 10m");
 }

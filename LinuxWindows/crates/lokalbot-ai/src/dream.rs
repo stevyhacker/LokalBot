@@ -97,6 +97,22 @@ fn duration(seconds: f64) -> String {
     }
 }
 
+fn localized_duration(seconds: f64, locale: &str) -> String {
+    let minutes = (seconds.round() as i64 / 60).max(0);
+    if minutes >= 60 {
+        lokalbot_i18n::format_in(
+            locale,
+            "{hours}h {minutes}m",
+            &[
+                ("hours", (minutes / 60).to_string()),
+                ("minutes", (minutes % 60).to_string()),
+            ],
+        )
+    } else {
+        lokalbot_i18n::format_in(locale, "{minutes}m", &[("minutes", minutes.to_string())])
+    }
+}
+
 fn active_outcomes(outcomes: &MeetingOutcomes, references: &[ActionReference]) -> MeetingOutcomes {
     let mut result = outcomes.clone();
     result.action_items = references
@@ -401,7 +417,7 @@ pub fn fallback_report(
         format!(
             "{}: {count} · {} {} · {}",
             language.text("Meetings"),
-            duration(evidence.stats.tracked_seconds),
+            localized_duration(evidence.stats.tracked_seconds, language.fallback_locale),
             language.text("tracked"),
             lokalbot_i18n::format_in(
                 language.fallback_locale,

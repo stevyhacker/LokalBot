@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Menjalankan Gemini CLI milik Anda dengan alat-alatnya dimatikan. Masuk ke gemini di Terminal terlebih dahulu; LokalBot tidak pernah melihat info masuk Google Anda.";
 "Signed in" = "Sudah masuk";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot berhenti membaca sesi agen pemrograman dan menghapus yang telah disimpannya. Claude Code, Codex, Antigravity, dan T3 Code menyimpan file sesi mereka sendiri.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Tidak ada model yang dapat dijangkau semalam; ringkasan berbasis bukti saja ini disimpan secara lokal.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Model membalas, tetapi responsnya tidak dapat dibaca; ringkasan berbasis bukti saja ini disimpan secara lokal.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Tidak ada hal penting yang direkam hari itu, jadi tidak ada model yang dijalankan; placeholder ini hanya menjaga catatan tetap lengkap.";
+"Written as an evidence-only fallback and saved locally." = "Ditulis sebagai cadangan berbasis bukti saja dan disimpan secara lokal.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Dibuat oleh %1$@ menggunakan inferensi jarak jauh yang disetujui di %2$@. Laporan disimpan di pustaka lokal Anda.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dibuat oleh %@ menggunakan inferensi jarak jauh yang disetujui. Laporan disimpan di pustaka lokal Anda.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dibuat oleh %@ menggunakan model Pikirkan yang Anda konfigurasi. Laporan disimpan di pustaka lokal Anda.";
+"Dreamed by %@ on this Mac." = "Dibuat oleh %@ di Mac ini.";

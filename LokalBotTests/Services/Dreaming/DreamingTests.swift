@@ -113,6 +113,8 @@ final class DreamingTests: XCTestCase {
             from: evidence, generatedAt: generatedAt, reason: .engineUnavailable, note: "No model.",
             language: DailySummaryLanguage(notes: .ru, interface: .english))
         XCTAssertTrue(russian.narrative.contains("Встречи: 1"))
+        XCTAssertTrue(russian.narrative.contains("4 ч отслежено"), russian.narrative)
+        XCTAssertFalse(russian.narrative.contains("4h"))
         XCTAssertFalse(russian.narrative.contains("No model"))
         XCTAssertEqual(russian.attention, english.attention)
         XCTAssertEqual(russian.topActions, english.topActions)
@@ -120,6 +122,26 @@ final class DreamingTests: XCTestCase {
         XCTAssertEqual(russian.fallbackReason, .engineUnavailable)
     }
 
+
+    func testTodayCardProvenanceFollowsTheInterfaceLanguageWhileMarkdownStaysCanonical() throws {
+        let evidence = try sampleEvidence()
+        let report = DreamCompiler.fallbackReport(
+            from: evidence, generatedAt: try date("2026-07-19T04:01:00Z"),
+            reason: .engineUnavailable, note: "No model.",
+            language: DailySummaryLanguage(notes: .ru, interface: .english))
+        XCTAssertEqual(report.provenanceDescription(localized: { AppLanguage.russian.localized($0) }),
+                       "Ночью не было доступной модели; эта сводка только по материалам сохранена локально.")
+        XCTAssertEqual(report.provenanceDescription,
+                       "No model was reachable overnight; this evidence-only brief was saved locally.")
+        XCTAssertTrue(report.markdown().contains("_No model was reachable overnight;"))
+
+        var local = report
+        local.engineName = "Qwen"
+        local.inferenceProvenance = DreamInferenceProvenance(location: .local, origin: nil)
+        XCTAssertEqual(local.provenanceDescription(localized: { AppLanguage.russian.localized($0) }),
+                       "Dream выполнен моделью Qwen на этом Mac.")
+        XCTAssertEqual(local.provenanceDescription, "Dreamed by Qwen on this Mac.")
+    }
 
     func testShouldRunWaitsForHourAndSkipsDreamedDays() throws {
         XCTAssertFalse(DreamScheduler.shouldRun(

@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Pokreće vaš Gemini CLI sa isključenim alatima. Prvo se prijavite u gemini u Terminalu; LokalBot nikada ne vidi vašu Google prijavu.";
 "Signed in" = "Prijavljeni ste";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot prestaje da čita sesije agenata za programiranje i briše ono što je sačuvao. Claude Code, Codex, Antigravity i T3 Code zadržavaju sopstvene datoteke sesija.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Preko noći nijedan model nije bio dostupan; ovaj brifing zasnovan samo na dokazima sačuvan je lokalno.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Model je odgovorio, ali njegov odgovor nije mogao da se pročita; ovaj brifing zasnovan samo na dokazima sačuvan je lokalno.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Tog dana nije snimljeno ništa bitno, pa nijedan model nije pokrenut; ovaj čuvar mesta samo održava evidenciju potpunom.";
+"Written as an evidence-only fallback and saved locally." = "Upisano kao rezervna varijanta zasnovana samo na dokazima i sačuvano lokalno.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Dream je izvršio model %1$@ putem odobrenog udaljenog zaključivanja na %2$@. Izveštaj je sačuvan u vašoj lokalnoj biblioteci.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream je izvršio model %@ putem odobrenog udaljenog zaključivanja. Izveštaj je sačuvan u vašoj lokalnoj biblioteci.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream je izvršio model %@ pomoću vašeg podešenog modela za Razmišljanje. Izveštaj je sačuvan u vašoj lokalnoj biblioteci.";
+"Dreamed by %@ on this Mac." = "Dream je izvršio model %@ na ovom Mac računaru.";

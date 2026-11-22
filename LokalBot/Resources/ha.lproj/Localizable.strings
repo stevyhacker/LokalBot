@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Yana gudanar da Gemini CLI naku tare da kashe kayan aikinsa. Fara shiga gemini a Terminal tukuna; LokalBot ba ya taɓa ganin shigarku ta Google.";
 "Signed in" = "An shiga";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot yana daina karanta zaman wakilan rubuta lambar shiri kuma yana goge abin da ya adana. Claude Code, Codex, Antigravity da T3 Code suna riƙe fayilolin zamansu.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Babu samfurin da aka iya isa cikin dare; an adana wannan taƙaitaccen bayani na shaida kawai a gida.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Samfurin ya amsa, amma ba a iya karanta amsarsa ba; an adana wannan taƙaitaccen bayani na shaida kawai a gida.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Ba a yi rikodin wani abu mai muhimmanci a wannan ranar ba, don haka babu samfurin da ya gudana; wannan wurin zama kawai yana kiyaye rikodin cikakke.";
+"Written as an evidence-only fallback and saved locally." = "An rubuta shi a matsayin madadin shaida kawai kuma an adana shi a gida.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "%1$@ ya yi mafarki ta amfani da sarrafawa ta nesa da aka amince da ita a %2$@. An adana rahoton a ɗakin karatunka na gida.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ya yi mafarki ta amfani da sarrafawa ta nesa da aka amince da ita. An adana rahoton a ɗakin karatunka na gida.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ ya yi mafarki ta amfani da samfurin Tunani da ka saita. An adana rahoton a ɗakin karatunka na gida.";
+"Dreamed by %@ on this Mac." = "%@ ya yi mafarki a wannan Mac.";

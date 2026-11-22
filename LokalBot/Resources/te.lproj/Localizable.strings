@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "మీ స్వంత Gemini CLIను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. ముందుగా Terminalలో geminiలో సైన్ ఇన్ చేయండి; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
 "Signed in" = "సైన్ ఇన్ అయ్యారు";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot కోడింగ్ ఏజెంట్ సెషన్‌లను చదవడం ఆపి, సేవ్ చేసినదాన్ని తొలగిస్తుంది. Claude Code, Codex, Antigravity, T3 Code తమ సొంత సెషన్ ఫైల్‌లను ఉంచుకుంటాయి.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "రాత్రి ఏ మోడల్ అందుబాటులో లేదు; ఆధారాలతో మాత్రమే ఉన్న ఈ సారాంశం స్థానికంగా సేవ్ చేయబడింది.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "మోడల్ స్పందించింది, కానీ దాని జవాబును చదవలేకపోయింది; ఆధారాలతో మాత్రమే ఉన్న ఈ సారాంశం స్థానికంగా సేవ్ చేయబడింది.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "ఆ రోజు గణనీయమైనది ఏదీ రికార్డ్ కాలేదు, కాబట్టి ఏ మోడల్ నడవలేదు; ఈ ప్లేస్‌హోల్డర్ రికార్డును పూర్తిగా ఉంచుతుంది.";
+"Written as an evidence-only fallback and saved locally." = "ఆధారాలతో మాత్రమే ఉన్న ప్రత్యామ్నాయంగా రాయబడి స్థానికంగా సేవ్ చేయబడింది.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "%1$@ ఆమోదించిన రిమోట్ ఇన్ఫరెన్స్‌ను ఉపయోగించి %2$@ వద్ద తయారు చేసింది. నివేదిక మీ స్థానిక లైబ్రరీలో సేవ్ చేయబడింది.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ఆమోదించిన రిమోట్ ఇన్ఫరెన్స్‌ను ఉపయోగించి తయారు చేసింది. నివేదిక మీ స్థానిక లైబ్రరీలో సేవ్ చేయబడింది.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ మీరు కాన్ఫిగర్ చేసిన ఆలోచన మోడల్‌ను ఉపయోగించి తయారు చేసింది. నివేదిక మీ స్థానిక లైబ్రరీలో సేవ్ చేయబడింది.";
+"Dreamed by %@ on this Mac." = "ఈ Mac లో %@ తయారు చేసింది.";

@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Ejecuta tu propio Gemini CLI con sus herramientas desactivadas. Inicia sesión primero en gemini desde Terminal; LokalBot nunca ve tu inicio de sesión de Google.";
 "Signed in" = "Sesión iniciada";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot deja de leer las sesiones de agentes de código y elimina lo que guardó. Claude Code, Codex, Antigravity y T3 Code conservan sus propios archivos de sesión.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Ningún modelo estuvo accesible durante la noche; este resumen basado solo en evidencias se guardó localmente.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "El modelo respondió, pero no se pudo leer su respuesta; este resumen basado solo en evidencias se guardó localmente.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Ese día no se registró nada sustancial, así que no se ejecutó ningún modelo; este marcador solo mantiene el registro completo.";
+"Written as an evidence-only fallback and saved locally." = "Escrito como alternativa basada solo en evidencias y guardado localmente.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Dream realizado por %1$@ con inferencia remota aprobada en %2$@. El informe se guardó en tu biblioteca local.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream realizado por %@ con inferencia remota aprobada. El informe se guardó en tu biblioteca local.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream realizado por %@ con tu modelo Pensar configurado. El informe se guardó en tu biblioteca local.";
+"Dreamed by %@ on this Mac." = "Dream realizado por %@ en este Mac.";

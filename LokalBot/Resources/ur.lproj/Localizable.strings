@@ -2628,3 +2628,11 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "آپ کا اپنا Gemini CLI اس کے ٹولز بند کر کے چلاتا ہے۔ پہلے Terminal میں gemini میں سائن ان کریں؛ LokalBot آپ کا Google سائن ان کبھی نہیں دیکھتا۔";
 "Signed in" = "سائن ان ہے";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot کوڈنگ ایجنٹ کے سیشن پڑھنا بند کر دیتا ہے اور جو محفوظ کیا تھا وہ حذف کر دیتا ہے۔ Claude Code، Codex، Antigravity اور T3 Code اپنی سیشن فائلیں خود رکھتے ہیں۔";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "رات بھر کوئی ماڈل دستیاب نہیں تھا؛ شواہد پر مبنی یہ خلاصہ مقامی طور پر محفوظ کر لیا گیا۔";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "ماڈل نے جواب دیا، لیکن اس کا جواب پڑھا نہیں جا سکا؛ شواہد پر مبنی یہ خلاصہ مقامی طور پر محفوظ کر لیا گیا۔";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "اس دن کوئی اہم چیز ریکارڈ نہیں ہوئی، اس لیے کوئی ماڈل نہیں چلا؛ یہ جگہ بھرنے والا اندراج صرف ریکارڈ کو مکمل رکھتا ہے۔";
+"Written as an evidence-only fallback and saved locally." = "صرف شواہد پر مبنی متبادل کے طور پر لکھا گیا اور مقامی طور پر محفوظ کیا گیا۔";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Dream کو %1$@ نے منظور شدہ ریموٹ انفرنس کے ذریعے %2$@ پر تیار کیا۔ رپورٹ آپ کی مقامی لائبریری میں محفوظ کی گئی۔";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream کو %@ نے منظور شدہ ریموٹ انفرنس کے ذریعے تیار کیا۔ رپورٹ آپ کی مقامی لائبریری میں محفوظ کی گئی۔";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream کو %@ نے آپ کے ترتیب دیے گئے سوچ ماڈل کے ذریعے تیار کیا۔ رپورٹ آپ کی مقامی لائبریری میں محفوظ کی گئی۔";
+"Dreamed by %@ on this Mac." = "Dream کو %@ نے اس Mac پر تیار کیا۔";

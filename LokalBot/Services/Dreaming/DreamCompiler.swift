@@ -211,7 +211,8 @@ enum DreamCompiler {
                 + "\(evidence.stats.appCount) apps."
         } else {
             narrative = language.text("Meetings") + ": \(meetingCount) · "
-                + duration(evidence.stats.trackedSeconds) + " " + language.text("tracked")
+                + duration(evidence.stats.trackedSeconds, locale: language.fallbackLanguage.locale)
+                + " " + language.text("tracked")
                 + " · " + String(format: language.text("%lld apps"), evidence.stats.appCount)
         }
 
@@ -286,6 +287,12 @@ enum DreamCompiler {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }
         return trimmed
+    }
+
+    private static func duration(_ seconds: TimeInterval, locale: Locale) -> String {
+        let minutes = max(0, Int(seconds.rounded()) / 60)
+        return Duration.seconds(minutes * 60)
+            .formatted(.units(allowed: [.hours, .minutes], width: .narrow).locale(locale))
     }
 
     private static func duration(_ seconds: TimeInterval) -> String {
