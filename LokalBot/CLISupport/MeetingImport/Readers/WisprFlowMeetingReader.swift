@@ -83,6 +83,9 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
               let map = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
               let people = map["people"] as? [String: [String: Any]],
               let assignments = map["assignments"] as? [String: [String: Any]] else { return [:] }
+        let ownNames = Set(people.values.filter { $0["origin"] as? String == "self" }.compactMap {
+            ($0["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        }.filter { !$0.isEmpty })
         var result: [Int: Speaker] = [:]
         for (key, assignment) in assignments {
             guard let id = Int(key) else { continue }
@@ -90,7 +93,7 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
                 guard let person = (assignment[source] as? String).flatMap({ people[$0] }),
                       let name = (person["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                       !name.isEmpty else { return nil }
-                return Speaker(name: name, isMe: person["origin"] as? String == "self")
+                return Speaker(name: name, isMe: person["origin"] as? String == "self" || ownNames.contains(name.lowercased()))
             }
             if let speaker = named.first { result[id] = speaker }
         }

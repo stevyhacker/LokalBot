@@ -57,6 +57,13 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
         XCTAssertNil(speakers[4])
     }
 
+    func testAVoiceCarryingTheOwnersNameIsTheOwner() {
+        let map = #"{"people":{"contact-1":{"name":"Ana Example","origin":"self"},"voice-1":{"name":"ana example","origin":"platform"},"voice-2":{"name":"Mila Novak","origin":"platform"}},"assignments":{"1":{"dom":"voice-1"},"2":{"dom":"voice-2"}}}"#
+        let speakers = WisprFlowMeetingReader.speakers(map)
+        XCTAssertEqual(speakers[1]?.isMe, true)
+        XCTAssertEqual(speakers[2]?.isMe, false)
+    }
+
     func testReadingLeavesWisprsFilesUnchanged() throws {
         let folder = try makeWisprFolder("wispr-meetings-untouched")
         let before = listing(folder)
