@@ -17,8 +17,8 @@ mod x11;
 pub(crate) use linux::{AppResolver, FrontWindow, FrontWindows, WindowLister};
 #[cfg(windows)]
 pub(crate) use win32::{
-    detached_webview_window_for_foreground, effective_app_for_pid, foreground_pid, window_owns_pid,
-    window_thread_for_pid,
+    detached_webview_window_for_foreground, effective_app_for_pid, foreground_pid,
+    host_app_for_pid, window_owns_pid, window_thread_for_pid,
 };
 
 pub trait ActivitySource: Send {

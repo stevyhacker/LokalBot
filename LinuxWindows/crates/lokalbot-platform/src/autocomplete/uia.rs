@@ -477,9 +477,21 @@ impl Reader {
                 .unwrap_or_else(|| ("Unknown app".into(), String::new()));
             fixed.app_name = name;
             fixed.app_id = id;
-            if !self.policy.allows_app(&fixed.app_name, &fixed.app_id) {
+            let host_app = crate::activity::host_app_for_pid(pid);
+            let disallowed = if !self.policy.allows_app(&fixed.app_name, &fixed.app_id) {
+                Some((fixed.app_name.clone(), fixed.app_id.clone()))
+            } else if let Some((host_name, host_id)) = host_app
+                && !self.policy.allows_app(&host_name, &host_id)
+            {
+                fixed.app_name = host_name.clone();
+                fixed.app_id = host_id.clone();
+                Some((host_name, host_id))
+            } else {
+                None
+            };
+            if let Some((blocked_name, blocked_id)) = disallowed {
                 fixed.refusal = Some(Refusal::Unsupported(
-                    if policy::is_terminal_app(&fixed.app_name, &fixed.app_id) {
+                    if policy::is_terminal_app(&blocked_name, &blocked_id) {
                         reasons::TERMINAL
                     } else {
                         reasons::EXCLUDED_APP

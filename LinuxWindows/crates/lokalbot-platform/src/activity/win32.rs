@@ -5,7 +5,7 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use lokalbot_core::ActivitySample;
-use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM, RECT};
+use windows::Win32::Foundation::{CloseHandle, FILETIME, HWND, LPARAM, RECT};
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
 };
@@ -14,7 +14,8 @@ use windows::Win32::System::Diagnostics::ToolHelp::{
 };
 use windows::Win32::System::SystemInformation::GetTickCount;
 use windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    GetProcessTimes, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    QueryFullProcessImageNameW,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
 use windows::Win32::UI::WindowsAndMessaging::{
@@ -119,22 +120,29 @@ fn app_for_pid(pid: u32) -> Option<(String, String)> {
     Some((friendly_name(&image), file_name(&image).to_lowercase()))
 }
 
+pub(crate) fn host_app_for_pid(pid: u32) -> Option<(String, String)> {
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.0.is_null() {
+        return None;
+    }
+    let host_pid = window_pid(fg);
+    if host_pid == 0
+        || host_pid == pid
+        || is_shell_or_host_wrapper(host_pid)
+        || !window_owns_pid(fg, pid)
+    {
+        return None;
+    }
+    app_for_pid(host_pid)
+}
+
 pub(crate) fn effective_app_for_pid(pid: u32) -> Option<(String, String)> {
     let image = process_image(pid)?;
     let exe = file_name(&image);
-    if exe.eq_ignore_ascii_case("msedgewebview2.exe") {
-        let fg = unsafe { GetForegroundWindow() };
-        if !fg.0.is_null() {
-            let host_pid = window_pid(fg);
-            if host_pid != 0
-                && host_pid != pid
-                && !is_shell_or_host_wrapper(host_pid)
-                && window_owns_pid(fg, pid)
-                && let Some(host_app) = app_for_pid(host_pid)
-            {
-                return Some(host_app);
-            }
-        }
+    if exe.eq_ignore_ascii_case("msedgewebview2.exe")
+        && let Some(host_app) = host_app_for_pid(pid)
+    {
+        return Some(host_app);
     }
     Some((friendly_name(&image), exe.to_lowercase()))
 }
@@ -290,20 +298,55 @@ pub(crate) fn window_owns_pid(window: HWND, target_pid: u32) -> bool {
     if window.0.is_null() || target_pid == 0 {
         return false;
     }
-    let owner = window_pid(window);
-    owner != 0 && !is_shell_or_host_wrapper(owner) && process_has_ancestor(target_pid, owner)
+    let detached = detached_webview_windows_for(window);
+    if detached.is_empty() {
+        return false;
+    }
+    if detached.iter().any(|(_, pid, _)| *pid == target_pid) {
+        return true;
+    }
+    let parents = process_parents();
+    detached
+        .iter()
+        .any(|(_, pid, _)| has_ancestor_in(&parents, target_pid, *pid))
+}
+
+fn is_shell_or_host_wrapper_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "explorer.exe"
+            | "applicationframehost.exe"
+            | "svchost.exe"
+            | "services.exe"
+            | "wininit.exe"
+            | "wt.exe"
+            | "wsl.exe"
+            | "bash.exe"
+            | "sh.exe"
+            | "git-bash.exe"
+    ) || crate::insert::TERMINALS.contains(&lower.as_str())
 }
 
 fn is_shell_or_host_wrapper(pid: u32) -> bool {
     let Some(image) = process_image(pid) else {
-        return false;
+        return true;
     };
-    let name = file_name(&image);
-    name.eq_ignore_ascii_case("explorer.exe")
-        || name.eq_ignore_ascii_case("ApplicationFrameHost.exe")
-        || name.eq_ignore_ascii_case("svchost.exe")
-        || name.eq_ignore_ascii_case("services.exe")
-        || name.eq_ignore_ascii_case("wininit.exe")
+    is_shell_or_host_wrapper_name(&file_name(&image))
+}
+
+fn process_creation_time(pid: u32) -> Option<u64> {
+    unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut creation = FILETIME::default();
+        let mut exit = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        let result = GetProcessTimes(process, &mut creation, &mut exit, &mut kernel, &mut user);
+        let _ = CloseHandle(process);
+        result.ok()?;
+        Some((u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime))
+    }
 }
 
 fn process_parents() -> HashMap<u32, u32> {
@@ -329,7 +372,16 @@ fn process_parents() -> HashMap<u32, u32> {
     parents
 }
 
-fn has_ancestor_in(parents: &HashMap<u32, u32>, mut pid: u32, ancestor: u32) -> bool {
+fn has_ancestor_with(
+    parents: &HashMap<u32, u32>,
+    mut pid: u32,
+    ancestor: u32,
+    is_wrapper: impl Fn(u32) -> bool,
+    creation_time: impl Fn(u32) -> Option<u64>,
+) -> bool {
+    if pid == 0 || ancestor == 0 || pid == ancestor {
+        return false;
+    }
     for _ in 0..4 {
         let Some(&parent) = parents.get(&pid) else {
             return false;
@@ -337,10 +389,18 @@ fn has_ancestor_in(parents: &HashMap<u32, u32>, mut pid: u32, ancestor: u32) -> 
         if parent == 0 || parent == pid {
             return false;
         }
+        let (Some(child_created), Some(parent_created)) =
+            (creation_time(pid), creation_time(parent))
+        else {
+            return false;
+        };
+        if parent_created > child_created {
+            return false;
+        }
         if parent == ancestor {
             return true;
         }
-        if is_shell_or_host_wrapper(parent) {
+        if is_wrapper(parent) {
             return false;
         }
         pid = parent;
@@ -348,12 +408,14 @@ fn has_ancestor_in(parents: &HashMap<u32, u32>, mut pid: u32, ancestor: u32) -> 
     false
 }
 
-fn process_has_ancestor(pid: u32, ancestor: u32) -> bool {
-    if pid == 0 || ancestor == 0 || pid == ancestor {
-        return false;
-    }
-    let parents = process_parents();
-    has_ancestor_in(&parents, pid, ancestor)
+fn has_ancestor_in(parents: &HashMap<u32, u32>, pid: u32, ancestor: u32) -> bool {
+    has_ancestor_with(
+        parents,
+        pid,
+        ancestor,
+        is_shell_or_host_wrapper,
+        process_creation_time,
+    )
 }
 
 fn child_window_overlap_area(
@@ -402,22 +464,21 @@ unsafe extern "system" fn collect_webview_windows(hwnd: HWND, lparam: LPARAM) ->
     BOOL(1)
 }
 
-pub(crate) fn detached_webview_window_for_foreground() -> Option<HWND> {
-    let fg = unsafe { GetForegroundWindow() };
-    if fg.0.is_null() {
-        return None;
+fn detached_webview_windows_for(window: HWND) -> Vec<(HWND, u32, i64)> {
+    if window.0.is_null() {
+        return Vec::new();
     }
-    let fg_pid = window_pid(fg);
-    if fg_pid == 0 || is_shell_or_host_wrapper(fg_pid) {
-        return None;
+    let owner = window_pid(window);
+    if owner == 0 || is_shell_or_host_wrapper(owner) {
+        return Vec::new();
     }
-    let mut fg_rect = RECT::default();
-    if unsafe { GetWindowRect(fg, &mut fg_rect) }.is_err() {
-        return None;
+    let mut bounds = RECT::default();
+    if unsafe { GetWindowRect(window, &mut bounds) }.is_err() {
+        return Vec::new();
     }
     let mut candidates = WebViewCandidates {
-        exclude_pid: fg_pid,
-        host_bounds: (fg_rect.left, fg_rect.top, fg_rect.right, fg_rect.bottom),
+        exclude_pid: owner,
+        host_bounds: (bounds.left, bounds.top, bounds.right, bounds.bottom),
         items: Vec::new(),
     };
     unsafe {
@@ -427,13 +488,20 @@ pub(crate) fn detached_webview_window_for_foreground() -> Option<HWND> {
         );
     }
     if candidates.items.is_empty() {
-        return None;
+        return Vec::new();
     }
     let parents = process_parents();
     candidates
         .items
         .into_iter()
-        .filter(|(_, pid, _)| has_ancestor_in(&parents, *pid, fg_pid))
+        .filter(|(_, pid, _)| has_ancestor_in(&parents, *pid, owner))
+        .collect()
+}
+
+pub(crate) fn detached_webview_window_for_foreground() -> Option<HWND> {
+    let fg = unsafe { GetForegroundWindow() };
+    detached_webview_windows_for(fg)
+        .into_iter()
         .max_by_key(|(_, _, overlap)| *overlap)
         .map(|(hwnd, _, _)| hwnd)
 }
@@ -558,5 +626,60 @@ mod tests {
             None
         );
         assert_eq!(child_window_overlap_area((100, 100, 110, 110), host), None);
+    }
+
+    #[test]
+    fn host_wrapper_filter_excludes_shells_and_terminals() {
+        for blocked in [
+            "explorer.exe",
+            "ApplicationFrameHost.exe",
+            "WindowsTerminal.exe",
+            "cmd.exe",
+            "powershell.exe",
+            "pwsh.exe",
+            "conhost.exe",
+            "wsl.exe",
+            "bash.exe",
+        ] {
+            assert!(is_shell_or_host_wrapper_name(blocked), "{blocked}");
+        }
+        for allowed in ["olk.exe", "WhatsApp.exe", "ms-teams.exe", "steam.exe"] {
+            assert!(!is_shell_or_host_wrapper_name(allowed), "{allowed}");
+        }
+    }
+
+    #[test]
+    fn ancestor_walk_rejects_reused_pids_missing_times_and_terminal_hops() {
+        let parents = HashMap::from([(300, 200), (200, 100)]);
+        let ordered_times = HashMap::from([(100, 10), (200, 20), (300, 30)]);
+        assert!(has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| ordered_times.get(&pid).copied(),
+        ));
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |pid| pid == 200,
+            |pid| ordered_times.get(&pid).copied(),
+        ));
+        let reused_parent_times = HashMap::from([(100, 40), (200, 20), (300, 30)]);
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| reused_parent_times.get(&pid).copied(),
+        ));
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| (pid != 200).then_some(10),
+        ));
     }
 }
