@@ -238,8 +238,11 @@ comes from reading Omarchy's repository; it has not been tried on Omarchy. See
 
 Wayland lets no ordinary app take a key from another app, show text at its caret or type into it, so LokalBot
 takes part as an input method there, the way language input tools do. It sees the text around the caret, and
-shows a suggestion inline in the field, in the app's own text style with its usual underline for text not yet
-entered. What it sees and keeps is in [PRIVACY.md](../PRIVACY.md).
+shows a suggestion in a click-through pill under the caret on KDE Plasma and on compositors that place input method
+popups (Sway 1.10 and later, Hyprland), so browsers and mail apps that commit an input method's pending text on
+blur never insert an unaccepted suggestion. On GNOME, and on Sway 1.9 and other compositors that do not place the
+pill, the suggestion is shown inline in the field instead. What it sees and keeps is in
+[PRIVACY.md](../PRIVACY.md).
 
 | Desktop | How | Tried on |
 | --- | --- | --- |
@@ -266,8 +269,8 @@ nothing. After an update, log out and back in once so Plasma starts the new help
 | App | Sway | GNOME | KDE Plasma |
 | --- | --- | --- | --- |
 | GTK 3 and GTK 4 | Suggestions, accepts and Esc, run here | Suggestions, accepts and Esc, run here | GTK 3: suggestions, accepts and Esc, run here. GTK 4: a suggestion and its accept, run here |
-| Firefox 159 (Wayland) | Suggestions, accepts and Esc, run here | Stays quiet without the Window Calls extension, which names the app. Works with a stand-in for it, run here; the extension itself has not been tried | Not run |
-| Chrome 156 (Wayland) | Suggestions, accepts and Esc, run here, with no flags | As Firefox | Not run |
+| Firefox 159 (Wayland) | Suggestions, accepts and Esc, run here | Stays quiet without the Window Calls extension, which names the app. Works with a stand-in for it, run here; the extension itself has not been tried | Suggestions, accepts, Esc and focus loss without committing, run here |
+| Chrome 156 (Wayland) | Suggestions, accepts and Esc, run here, with no flags | As Firefox | Suggestions, accepts, Esc and focus loss without committing, run here |
 | Older Chromium and Electron | From their documentation, they need `--enable-wayland-ime` before they use an input method at all. Not run | Same | Same |
 | Qt 6 | From its documentation, it has text-input-v3. Not run | Same | A suggestion and its accept, run here |
 | Qt 5 (Kate) | No input method reaches it, so no suggestions; typing is unaffected. Run here | Not run | KWin gives Qt 5 its own text input protocol, so it works: a suggestion and its accept, run here |

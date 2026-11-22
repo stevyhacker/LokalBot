@@ -426,9 +426,34 @@ final class ActivityStore {
                 """, bind: bindings, row: Self.screenshot(from:))
     }
 
-    func screenshots(forMeeting meetingID: UUID, from start: Date, to end: Date) -> [Screenshot] {
+    func screenshots(
+        forMeeting meetingID: UUID,
+        additionalMeetingID: UUID? = nil,
+        from start: Date,
+        to end: Date
+    ) -> [Screenshot] {
         guard end > start else { return [] }
         do {
+            if let additionalMeetingID {
+                return try requiredDatabase().queryChecked("""
+                    SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
+                           shot.capture_trigger, shot.perceptual_hash,
+                           shot.similarity_group, shot.source_url, shot.document_name,
+                           shot.meeting_id, shot.privacy_redactions,
+                           bookmark.snapshot_id IS NOT NULL
+                    FROM screenshots AS shot
+                    LEFT JOIN screen_bookmarks AS bookmark ON bookmark.snapshot_id = shot.id
+                    WHERE shot.ts >= ?2 AND shot.ts <= ?3
+                      AND (shot.meeting_id = ?1 OR shot.meeting_id = ?4 OR shot.meeting_id = '')
+                    ORDER BY shot.ts, shot.id
+                    """, bind: [
+                        meetingID.uuidString,
+                        start.timeIntervalSince1970,
+                        end.timeIntervalSince1970,
+                        additionalMeetingID.uuidString,
+                    ],
+                    row: Self.screenshot(from:))
+            }
             return try requiredDatabase().queryChecked("""
                 SELECT shot.id, shot.ts, shot.path, shot.app, shot.window_title,
                        shot.capture_trigger, shot.perceptual_hash,

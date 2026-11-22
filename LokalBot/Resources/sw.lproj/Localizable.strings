@@ -2627,6 +2627,9 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Huendesha Gemini CLI yako mwenyewe huku zana zake zikiwa zimezimwa. Ingia kwenye gemini katika Terminal kwanza; LokalBot haioni kamwe maelezo yako ya kuingia kwenye Google.";
 "Signed in" = "Umeingia";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot huacha kusoma vipindi vya mawakala wa msimbo na kufuta ilichohifadhi. Claude Code, Codex, Antigravity na T3 Code hubaki na faili zao za vipindi.";
+"Clear Selection" = "Ondoa Uteuzi";
+"Trim to Selection" = "Kata hadi Uteuzi";
+"New Meeting from Selection" = "Mkutano Mpya kutoka Uteuzi";
 "Import from Wispr Flow…" = "Leta kutoka Wispr Flow…";
 "Add %lld words from Wispr Flow?" = "Ongeza maneno %lld kutoka Wispr Flow?";
 "Add Words" = "Ongeza Maneno";

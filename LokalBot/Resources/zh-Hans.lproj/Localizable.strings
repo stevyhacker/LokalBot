@@ -2626,6 +2626,9 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "在关闭工具的情况下运行你自己的 Gemini CLI。请先在终端中登录 gemini；LokalBot 永远看不到你的 Google 登录信息。";
 "Signed in" = "已登录";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot 会停止读取编程智能体会话并删除已保存的内容。Claude Code、Codex、Antigravity 和 T3 Code 自己的会话文件不受影响。";
+"Clear Selection" = "清除选区";
+"Trim to Selection" = "裁剪为所选范围";
+"New Meeting from Selection" = "从所选范围新建会议";
 "Import from Wispr Flow…" = "从 Wispr Flow 导入…";
 "Add %lld words from Wispr Flow?" = "要从 Wispr Flow 添加 %lld 个词吗？";
 "Add Words" = "添加词语";

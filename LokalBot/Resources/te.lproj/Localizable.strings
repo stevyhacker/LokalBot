@@ -2627,6 +2627,9 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "మీ స్వంత Gemini CLIను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. ముందుగా Terminalలో geminiలో సైన్ ఇన్ చేయండి; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
 "Signed in" = "సైన్ ఇన్ అయ్యారు";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot కోడింగ్ ఏజెంట్ సెషన్‌లను చదవడం ఆపి, సేవ్ చేసినదాన్ని తొలగిస్తుంది. Claude Code, Codex, Antigravity, T3 Code తమ సొంత సెషన్ ఫైల్‌లను ఉంచుకుంటాయి.";
+"Clear Selection" = "ఎంపికను క్లియర్ చేయండి";
+"Trim to Selection" = "ఎంపికకు కత్తిరించండి";
+"New Meeting from Selection" = "ఎంపిక నుండి కొత్త మీటింగ్";
 "Import from Wispr Flow…" = "Wispr Flow నుండి దిగుమతి చేయండి…";
 "Add %lld words from Wispr Flow?" = "Wispr Flow నుండి %lld పదాలను జోడించాలా?";
 "Add Words" = "పదాలను జోడించండి";

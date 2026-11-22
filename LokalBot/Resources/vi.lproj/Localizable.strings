@@ -2627,6 +2627,9 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Chạy Gemini CLI của chính bạn với các công cụ đã tắt. Đăng nhập vào gemini trong Terminal trước; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
 "Signed in" = "Đã đăng nhập";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot ngừng đọc các phiên của tác nhân lập trình và xóa những gì đã lưu. Claude Code, Codex, Antigravity và T3 Code vẫn giữ tệp phiên của riêng chúng.";
+"Clear Selection" = "Xóa vùng chọn";
+"Trim to Selection" = "Cắt theo vùng chọn";
+"New Meeting from Selection" = "Cuộc họp mới từ vùng chọn";
 "Import from Wispr Flow…" = "Nhập từ Wispr Flow…";
 "Add %lld words from Wispr Flow?" = "Thêm %lld từ của Wispr Flow?";
 "Add Words" = "Thêm từ";
