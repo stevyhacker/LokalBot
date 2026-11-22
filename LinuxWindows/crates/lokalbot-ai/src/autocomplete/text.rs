@@ -23,6 +23,13 @@ pub(crate) fn is_control(c: char) -> bool {
             | '\u{FFF9}'..='\u{FFFB}')
 }
 
+pub(crate) fn is_non_text_glyph(c: char) -> bool {
+    matches!(
+        u32::from(c),
+        0xFFFC | 0xFFFD | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD
+    )
+}
+
 pub(crate) fn is_punctuation_or_symbol(c: char) -> bool {
     !is_word_char(c) && !c.is_whitespace() && !is_control(c)
 }

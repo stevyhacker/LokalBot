@@ -28,10 +28,11 @@ use windows::Win32::UI::Accessibility::{
     IUIAutomationFocusChangedEventHandler, IUIAutomationFocusChangedEventHandler_Impl,
     IUIAutomationTextPattern, IUIAutomationTextRange, IUIAutomationTreeWalker,
     IUIAutomationValuePattern, TextPatternRangeEndpoint_End, TextPatternRangeEndpoint_Start,
-    TextUnit_Character, TreeScope_Element, UIA_BackgroundColorAttributeId,
-    UIA_BoundingRectanglePropertyId, UIA_ComboBoxControlTypeId, UIA_ControlTypePropertyId,
-    UIA_DocumentControlTypeId, UIA_EVENT_ID, UIA_EditControlTypeId, UIA_FontNameAttributeId,
-    UIA_FontSizeAttributeId, UIA_ForegroundColorAttributeId, UIA_HyperlinkControlTypeId,
+    TextUnit_Character, TreeScope_Descendants, TreeScope_Element, UIA_BackgroundColorAttributeId,
+    UIA_BoundingRectanglePropertyId, UIA_ButtonControlTypeId, UIA_ComboBoxControlTypeId,
+    UIA_ControlTypePropertyId, UIA_DocumentControlTypeId, UIA_EVENT_ID, UIA_EditControlTypeId,
+    UIA_FontNameAttributeId, UIA_FontSizeAttributeId, UIA_ForegroundColorAttributeId,
+    UIA_HasKeyboardFocusPropertyId, UIA_HyperlinkControlTypeId, UIA_ImageControlTypeId,
     UIA_IsOffscreenPropertyId, UIA_IsPasswordPropertyId, UIA_MenuBarControlTypeId,
     UIA_MenuControlTypeId, UIA_NamePropertyId, UIA_PaneControlTypeId, UIA_ScrollBarControlTypeId,
     UIA_TEXTATTRIBUTE_ID, UIA_Text_TextChangedEventId, UIA_Text_TextSelectionChangedEventId,
@@ -40,9 +41,9 @@ use windows::Win32::UI::Accessibility::{
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     GUITHREADINFO, GWL_STYLE, GetForegroundWindow, GetGUIThreadInfo, GetWindowLongW,
-    GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId,
+    GetWindowTextLengthW, GetWindowTextW,
 };
-use windows_core::{Ref, implement};
+use windows_core::{BSTR, Ref, implement};
 
 use super::geometry::{FieldStyle, Rect, Rgb};
 use super::policy::{self, FlickerGate, PollBackoff, ReadPolicy, reasons};
@@ -173,6 +174,7 @@ struct Fixed {
     window_title: String,
     url: Option<String>,
     single_line: Option<bool>,
+    leading_button_right: Option<f32>,
     is_integrated_terminal: bool,
     style: Option<FieldStyle>,
     refusal: Option<Refusal>,
@@ -194,6 +196,7 @@ struct Reader {
     watched: Option<IUIAutomationElement>,
     fixed: Option<Fixed>,
     visible: Option<(String, Option<String>)>,
+    logged_glyph_key: Option<String>,
     last: FocusSnapshot,
     gate: FlickerGate,
     backoff: PollBackoff,
@@ -234,6 +237,7 @@ impl Reader {
                 watched: None,
                 fixed: None,
                 visible: None,
+                logged_glyph_key: None,
                 last: FocusSnapshot::none(),
                 gate: FlickerGate::default(),
                 backoff: PollBackoff::default(),
@@ -308,7 +312,18 @@ impl Reader {
     }
 
     fn follow_focus(&mut self) {
-        let focused = unsafe { self.automation.GetFocusedElement() }.ok();
+        let mut focused = unsafe { self.automation.GetFocusedElement() }.ok();
+        if focused.as_ref().is_none_or(|el| !is_editable_control(el)) {
+            if let Some(current) = &self.current
+                && is_still_focused_in_foreground(current)
+            {
+                focused = Some(current.clone());
+            } else if let Some(webview) = crate::activity::detached_webview_window_for_foreground()
+                && let Some(inner) = self.focused_inside_window(webview)
+            {
+                focused = Some(inner);
+            }
+        }
         let same = match (&focused, &self.current) {
             (Some(a), Some(b)) => {
                 unsafe { self.automation.CompareElements(a, b) }.is_ok_and(|same| same.as_bool())
@@ -322,7 +337,22 @@ impl Reader {
         self.current = focused.clone();
         self.fixed = None;
         self.visible = None;
+        self.logged_glyph_key = None;
         self.watch_text(focused);
+    }
+
+    fn focused_inside_window(
+        &self,
+        hwnd: windows::Win32::Foundation::HWND,
+    ) -> Option<IUIAutomationElement> {
+        unsafe {
+            let root = self.automation.ElementFromHandle(hwnd).ok()?;
+            let condition = self
+                .automation
+                .CreatePropertyCondition(UIA_HasKeyboardFocusPropertyId, &VARIANT::from(true))
+                .ok()?;
+            root.FindFirst(TreeScope_Descendants, &condition).ok()
+        }
     }
 
     fn watch_text(&mut self, element: Option<IUIAutomationElement>) {
@@ -432,6 +462,7 @@ impl Reader {
                 window_title: String::new(),
                 url: None,
                 single_line: None,
+                leading_button_right: None,
                 is_integrated_terminal: false,
                 style: None,
                 refusal: None,
@@ -442,7 +473,7 @@ impl Reader {
                 fixed.refusal = Some(Refusal::Unsupported("Off in LokalBot."));
                 return Some(fixed);
             }
-            let (name, id) = crate::activity::app_for_pid(pid)
+            let (name, id) = crate::activity::effective_app_for_pid(pid)
                 .unwrap_or_else(|| ("Unknown app".into(), String::new()));
             fixed.app_name = name;
             fixed.app_id = id;
@@ -497,20 +528,77 @@ impl Reader {
                 fixed.refusal = Some(Refusal::Unsupported(reasons::CODE_FIELD));
                 return Some(fixed);
             }
+            let class_name = bstr(element.CurrentClassName());
+            if policy::is_inaccessible_editor_placeholder(&name, &class_name) {
+                fixed.refusal = Some(Refusal::Unsupported(reasons::NO_SURROUNDING_TEXT));
+                return Some(fixed);
+            }
             fixed.single_line = single_line(element, control);
-            fixed.is_integrated_terminal =
-                policy::is_integrated_terminal(&bstr(element.CurrentClassName()));
+            if fixed.single_line != Some(false) {
+                fixed.leading_button_right = self.leading_button_right(element);
+            }
+            fixed.is_integrated_terminal = policy::is_integrated_terminal(&class_name);
             fixed.window_title = foreground_title(pid).unwrap_or_default();
             if crate::privacy::is_browser(&fixed.app_name, &fixed.app_id) {
                 fixed.url = self.document_url(element);
             }
             if self.policy.match_host_style {
-                fixed.style = text
-                    .as_ref()
-                    .and_then(|pattern| caret_range(pattern))
-                    .and_then(|range| style_near(&range));
+                fixed.style = text.as_ref().and_then(|pattern| {
+                    let range = caret_range(pattern)?;
+                    let doc = pattern.DocumentRange().ok();
+                    style_near(&range, doc.as_ref())
+                });
             }
             Some(fixed)
+        }
+    }
+
+    unsafe fn leading_button_right(&self, element: &IUIAutomationElement) -> Option<f32> {
+        unsafe {
+            let r = element.CurrentBoundingRectangle().ok()?;
+            let frame = Rect::new(
+                r.left as f32,
+                r.top as f32,
+                (r.right - r.left) as f32,
+                (r.bottom - r.top) as f32,
+            );
+            if frame.width <= 0.0 || frame.height <= 0.0 || frame.height > 80.0 {
+                return None;
+            }
+            let mut right_edge: Option<f32> = None;
+            let mut child = self.walker.GetFirstChildElement(element).ok();
+            let mut visited = 0usize;
+            while let Some(node) = child {
+                visited += 1;
+                if visited > 8 {
+                    break;
+                }
+                child = self.walker.GetNextSiblingElement(&node).ok();
+                if node.CurrentControlType().ok() != Some(UIA_ButtonControlTypeId) {
+                    continue;
+                }
+                if node.CurrentIsOffscreen().is_ok_and(|b| b.as_bool()) {
+                    continue;
+                }
+                let Ok(cr) = node.CurrentBoundingRectangle() else {
+                    continue;
+                };
+                let button = Rect::new(
+                    cr.left as f32,
+                    cr.top as f32,
+                    (cr.right - cr.left) as f32,
+                    (cr.bottom - cr.top) as f32,
+                );
+                if button.width > 0.0
+                    && button.height > 0.0
+                    && button.x <= frame.x + 16.0
+                    && button.right() < frame.x + frame.width * 0.35
+                {
+                    right_edge =
+                        Some(right_edge.map_or(button.right(), |prev| prev.max(button.right())));
+                }
+            }
+            right_edge
         }
     }
 
@@ -535,7 +623,7 @@ impl Reader {
     }
 
     fn read_text(
-        &self,
+        &mut self,
         element: &IUIAutomationElement,
         fixed: &Fixed,
     ) -> Result<FieldSnapshot, Refusal> {
@@ -554,6 +642,25 @@ impl Reader {
             {
                 return Err(Refusal::Blocked(reasons::SELECTION));
             }
+            let doc = pattern.DocumentRange().ok();
+            let caret_in_doc_start = doc.as_ref().is_some_and(|doc| {
+                caret
+                    .CompareEndpoints(
+                        TextPatternRangeEndpoint_Start,
+                        doc,
+                        TextPatternRangeEndpoint_Start,
+                    )
+                    .is_ok_and(|ord| ord >= 0)
+            });
+            let caret_in_doc_end = doc.as_ref().is_some_and(|doc| {
+                caret
+                    .CompareEndpoints(
+                        TextPatternRangeEndpoint_End,
+                        doc,
+                        TextPatternRangeEndpoint_End,
+                    )
+                    .is_ok_and(|ord| ord <= 0)
+            });
             let max_before = policy::MAX_BEFORE_UTF16 as i32 + 1;
             let max_after = policy::MAX_AFTER_UTF16 as i32 + 1;
             let before_range = caret
@@ -566,17 +673,71 @@ impl Reader {
                     -max_before,
                 )
                 .unwrap_or(0);
-            let raw_before = normalize_newlines(&bstr(before_range.GetText(-1)));
+            let mut clamped_before_start = false;
+            if caret_in_doc_start
+                && let Some(doc) = &doc
+                && before_range
+                    .CompareEndpoints(
+                        TextPatternRangeEndpoint_Start,
+                        doc,
+                        TextPatternRangeEndpoint_Start,
+                    )
+                    .is_ok_and(|ord| ord < 0)
+            {
+                clamped_before_start = before_range
+                    .MoveEndpointByRange(
+                        TextPatternRangeEndpoint_Start,
+                        doc,
+                        TextPatternRangeEndpoint_Start,
+                    )
+                    .is_ok();
+            }
+            let raw_before_text = normalize_newlines(&bstr(before_range.GetText(-1)));
+            let expanded_before =
+                expand_inline_mentions(&self.automation, element, &before_range, &raw_before_text);
+            let (raw_before, stripped_before) = policy::strip_non_text_glyphs(&expanded_before);
             let after_range = caret
                 .Clone()
                 .map_err(|_| Refusal::Unsupported(reasons::NO_CARET))?;
             let moved_on = after_range
                 .MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, max_after)
                 .unwrap_or(0);
-            let raw_after = normalize_newlines(&bstr(after_range.GetText(-1)));
-            let (before, before_truncated) =
-                policy::bounded_before(&raw_before, -moved_back >= max_before);
-            let after = policy::bounded_after(&raw_after, moved_on >= max_after);
+            let mut clamped_after_end = false;
+            if caret_in_doc_end
+                && let Some(doc) = &doc
+                && after_range
+                    .CompareEndpoints(
+                        TextPatternRangeEndpoint_End,
+                        doc,
+                        TextPatternRangeEndpoint_End,
+                    )
+                    .is_ok_and(|ord| ord > 0)
+            {
+                clamped_after_end = after_range
+                    .MoveEndpointByRange(
+                        TextPatternRangeEndpoint_End,
+                        doc,
+                        TextPatternRangeEndpoint_End,
+                    )
+                    .is_ok();
+            }
+            let (raw_after, stripped_after) =
+                policy::strip_non_text_glyphs(&normalize_newlines(&bstr(after_range.GetText(-1))));
+            if let Some(code) = stripped_before.or(stripped_after)
+                && self.logged_glyph_key.as_deref() != Some(fixed.key.as_str())
+            {
+                self.logged_glyph_key = Some(fixed.key.clone());
+                log::debug!(
+                    "autocomplete: stripped non-text glyph U+{code:04X} from {} field",
+                    fixed.app_id
+                );
+            }
+            let (before, before_truncated) = policy::bounded_before(
+                &raw_before,
+                !clamped_before_start && -moved_back >= max_before,
+            );
+            let after =
+                policy::bounded_after(&raw_after, !clamped_after_end && moved_on >= max_after);
 
             let field_frame = element.CurrentBoundingRectangle().ok().and_then(|r| {
                 let rect = Rect::new(
@@ -587,8 +748,8 @@ impl Reader {
                 );
                 (rect.width > 0.0 && rect.height > 0.0).then_some(rect)
             });
-            let empty_range = first_rect(caret.GetBoundingRectangles().ok());
-            let previous = caret.Clone().ok().and_then(|previous| {
+            let mut empty_range = first_rect(caret.GetBoundingRectangles().ok());
+            let mut previous = caret.Clone().ok().and_then(|previous| {
                 let moved = previous
                     .MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, -1)
                     .ok()?;
@@ -597,11 +758,59 @@ impl Reader {
                 }
                 first_rect(previous.GetBoundingRectangles().ok())
             });
+            let mut origin_stuck = false;
+            if let Some(sample) = empty_range.or(previous) {
+                let single_candidate = fixed.single_line.unwrap_or_else(|| {
+                    field_frame.is_some_and(|frame| frame.height < sample.height * 2.2)
+                });
+                let need_origin_check = before.contains('\n')
+                    || before.chars().filter(|c| !c.is_control()).count() >= 3;
+                let need_button_shift = empty_range.is_none()
+                    && single_candidate
+                    && fixed.leading_button_right.is_some();
+                if need_origin_check || need_button_shift {
+                    let first = if need_button_shift {
+                        pattern
+                            .DocumentRange()
+                            .ok()
+                            .and_then(|doc| first_char_of_range(&doc))
+                    } else {
+                        first_char_of_range(&before_range)
+                    };
+                    if let Some(first) = first {
+                        if let Some(empty) = empty_range
+                            && policy::is_stuck_at_origin_caret(first, empty, &before)
+                        {
+                            empty_range = None;
+                            origin_stuck = true;
+                        }
+                        if let Some(prev) = previous {
+                            if policy::is_stuck_at_origin_caret(first, prev, &before) {
+                                previous = None;
+                                origin_stuck = true;
+                            } else if empty_range.is_none()
+                                && single_candidate
+                                && let (Some(button_right), Some(frame)) =
+                                    (fixed.leading_button_right, field_frame)
+                            {
+                                previous = Some(policy::translate_for_leading_button(
+                                    prev,
+                                    first,
+                                    frame,
+                                    button_right,
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
             let rtl = policy::is_right_to_left(&before);
             let mut caret_rect = policy::choose_caret(empty_range, previous, field_frame, rtl)
                 .map(|rect| (rect, true));
-            if caret_rect.is_none() {
-                caret_rect = system_caret(fixed.pid).map(|rect| (rect, true));
+            if caret_rect.is_none() && !origin_stuck {
+                caret_rect = system_caret(fixed.pid)
+                    .filter(|rect| policy::is_plausible_system_caret(*rect, field_frame))
+                    .map(|rect| (rect, true));
             }
             let (caret_rect, caret_exact) = match (caret_rect, field_frame) {
                 (Some(found), _) => found,
@@ -614,6 +823,11 @@ impl Reader {
             let single_line = fixed.single_line.unwrap_or_else(|| {
                 field_frame.is_some_and(|frame| frame.height < caret_rect.height * 2.2)
             });
+            let style = if self.policy.match_host_style {
+                style_near(&caret, doc.as_ref()).or_else(|| fixed.style.clone())
+            } else {
+                None
+            };
             Ok(FieldSnapshot {
                 focus_key: fixed.key.clone(),
                 app_name: fixed.app_name.clone(),
@@ -630,7 +844,7 @@ impl Reader {
                 is_integrated_terminal: fixed.is_integrated_terminal,
                 url: fixed.url.clone(),
                 visible_text: None,
-                style: fixed.style.clone(),
+                style,
                 target: InsertTarget { pid: fixed.pid },
             })
         }
@@ -732,15 +946,153 @@ unsafe fn caret_range(pattern: &IUIAutomationTextPattern) -> Option<IUIAutomatio
     }
 }
 
-unsafe fn style_near(caret: &IUIAutomationTextRange) -> Option<FieldStyle> {
+unsafe fn expand_inline_mentions<'a>(
+    automation: &IUIAutomation,
+    field_element: &IUIAutomationElement,
+    range: &IUIAutomationTextRange,
+    raw: &'a str,
+) -> std::borrow::Cow<'a, str> {
+    let total = raw.matches('\u{FFFC}').count();
+    if total == 0 {
+        return std::borrow::Cow::Borrowed(raw);
+    }
+    let Ok(search) = (unsafe { range.Clone() }) else {
+        return std::borrow::Cow::Borrowed(raw);
+    };
+    let needle = BSTR::from("\u{FFFC}");
+    let limit = total.min(8);
+    let mut from_end: Vec<Option<String>> = Vec::with_capacity(limit);
+    for _ in 0..limit {
+        let Ok(found) = (unsafe { search.FindText(&needle, true, false) }) else {
+            break;
+        };
+        let label = unsafe { inline_mention_label(automation, field_element, &found) };
+        from_end.push(label);
+        let progressed = unsafe {
+            search
+                .CompareEndpoints(
+                    TextPatternRangeEndpoint_End,
+                    &found,
+                    TextPatternRangeEndpoint_Start,
+                )
+                .is_ok_and(|ord| ord > 0)
+                && search
+                    .MoveEndpointByRange(
+                        TextPatternRangeEndpoint_End,
+                        &found,
+                        TextPatternRangeEndpoint_Start,
+                    )
+                    .is_ok()
+        };
+        if !progressed {
+            break;
+        }
+    }
+    if from_end.is_empty() || from_end.iter().all(Option::is_none) {
+        return std::borrow::Cow::Borrowed(raw);
+    }
+    let resolved = from_end.len();
+    let first_resolved = total.saturating_sub(resolved);
+    let mut seen = 0usize;
+    let mut out = String::with_capacity(raw.len() + 16);
+    for c in raw.chars() {
+        if c == '\u{FFFC}' {
+            if seen >= first_resolved
+                && let Some(Some(label)) = from_end.get(total - 1 - seen)
+            {
+                out.push_str(label);
+            } else {
+                out.push(c);
+            }
+            seen += 1;
+        } else {
+            out.push(c);
+        }
+    }
+    std::borrow::Cow::Owned(out)
+}
+
+unsafe fn inline_mention_label(
+    automation: &IUIAutomation,
+    field_element: &IUIAutomationElement,
+    found: &IUIAutomationTextRange,
+) -> Option<String> {
+    unsafe {
+        let enclosing = found.GetEnclosingElement().ok()?;
+        if automation
+            .CompareElements(&enclosing, field_element)
+            .is_ok_and(|same| same.as_bool())
+        {
+            return None;
+        }
+        if enclosing.CurrentControlType().ok() == Some(UIA_ImageControlTypeId) {
+            return None;
+        }
+        let name = bstr(enclosing.CurrentName());
+        let trimmed = name.trim();
+        let len = trimmed.chars().count();
+        if (2..=40).contains(&len)
+            && (trimmed.starts_with('@') || trimmed.starts_with('#'))
+            && !trimmed
+                .chars()
+                .any(|c| c.is_control() || c == '\n' || c == '\r')
+        {
+            Some(trimmed.to_string())
+        } else {
+            None
+        }
+    }
+}
+
+unsafe fn style_near(
+    caret: &IUIAutomationTextRange,
+    doc: Option<&IUIAutomationTextRange>,
+) -> Option<FieldStyle> {
     unsafe {
         let range = caret.Clone().ok()?;
-        if range
+        let moved_back = range
             .MoveEndpointByUnit(TextPatternRangeEndpoint_Start, TextUnit_Character, -1)
             .ok()
-            != Some(-1)
-        {
-            let _ = range.MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 1);
+            == Some(-1);
+        let escaped_start = moved_back
+            && doc.is_some_and(|doc| {
+                range
+                    .CompareEndpoints(
+                        TextPatternRangeEndpoint_Start,
+                        doc,
+                        TextPatternRangeEndpoint_Start,
+                    )
+                    .is_ok_and(|ord| ord < 0)
+            });
+        if escaped_start {
+            let _ = range.MoveEndpointByRange(
+                TextPatternRangeEndpoint_Start,
+                caret,
+                TextPatternRangeEndpoint_Start,
+            );
+        }
+        if !moved_back || escaped_start {
+            let moved_fwd = range
+                .MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 1)
+                .ok()
+                == Some(1);
+            if moved_fwd
+                && doc.is_some_and(|doc| {
+                    range
+                        .CompareEndpoints(
+                            TextPatternRangeEndpoint_End,
+                            doc,
+                            TextPatternRangeEndpoint_End,
+                        )
+                        .is_ok_and(|ord| ord > 0)
+                })
+            {
+                let _ = range.MoveEndpointByRange(
+                    TextPatternRangeEndpoint_End,
+                    caret,
+                    TextPatternRangeEndpoint_End,
+                );
+            }
         }
         let attribute = |id: UIA_TEXTATTRIBUTE_ID| range.GetAttributeValue(id).ok();
         let style = FieldStyle {
@@ -794,12 +1146,7 @@ unsafe fn single_line(
 fn foreground_title(pid: u32) -> Option<String> {
     unsafe {
         let window = GetForegroundWindow();
-        if window.0.is_null() {
-            return None;
-        }
-        let mut owner = 0u32;
-        GetWindowThreadProcessId(window, Some(&mut owner));
-        if owner != pid {
+        if !crate::activity::window_owns_pid(window, pid) {
             return None;
         }
         let length = GetWindowTextLengthW(window);
@@ -815,14 +1162,7 @@ fn foreground_title(pid: u32) -> Option<String> {
 fn system_caret(pid: u32) -> Option<Rect> {
     unsafe {
         let window = GetForegroundWindow();
-        if window.0.is_null() {
-            return None;
-        }
-        let mut owner = 0u32;
-        let thread = GetWindowThreadProcessId(window, Some(&mut owner));
-        if owner != pid {
-            return None;
-        }
+        let thread = crate::activity::window_thread_for_pid(window, pid)?;
         let mut info = GUITHREADINFO {
             cbSize: size_of::<GUITHREADINFO>() as u32,
             ..Default::default()
@@ -863,6 +1203,48 @@ unsafe fn runtime_key(element: &IUIAutomationElement) -> Option<String> {
                 .collect::<Vec<_>>()
                 .join("."),
         )
+    }
+}
+
+fn is_editable_control(element: &IUIAutomationElement) -> bool {
+    let Ok(control) = (unsafe { element.CurrentControlType() }) else {
+        return false;
+    };
+    control == UIA_EditControlTypeId
+        || control == UIA_DocumentControlTypeId
+        || control == UIA_ComboBoxControlTypeId
+}
+
+fn is_still_focused_in_foreground(element: &IUIAutomationElement) -> bool {
+    unsafe {
+        let Ok(pid) = element.CurrentProcessId() else {
+            return false;
+        };
+        if !element.CurrentHasKeyboardFocus().is_ok_and(|b| b.as_bool()) {
+            return false;
+        }
+        let fg = GetForegroundWindow();
+        crate::activity::window_owns_pid(fg, pid as u32)
+    }
+}
+
+unsafe fn first_char_of_range(range: &IUIAutomationTextRange) -> Option<Rect> {
+    unsafe {
+        let probe = range.Clone().ok()?;
+        probe
+            .MoveEndpointByRange(
+                TextPatternRangeEndpoint_End,
+                &probe,
+                TextPatternRangeEndpoint_Start,
+            )
+            .ok()?;
+        let moved = probe
+            .MoveEndpointByUnit(TextPatternRangeEndpoint_End, TextUnit_Character, 1)
+            .ok()?;
+        if moved != 1 {
+            return None;
+        }
+        first_rect(probe.GetBoundingRectangles().ok())
     }
 }
 

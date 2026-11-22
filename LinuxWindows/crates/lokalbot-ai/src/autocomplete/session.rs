@@ -80,12 +80,34 @@ pub enum Reconciled {
 const WINDOWED_TEXT_BYTES: usize = 1_024;
 const MAX_WINDOW_SHIFT: usize = 512;
 
+pub fn inline_after(after: &str) -> &str {
+    after
+        .split(['\n', '\r'])
+        .next()
+        .unwrap_or("")
+        .trim_end_matches([' ', '\t'])
+}
+
 pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
-    if after != session.after {
+    if inline_after(after) != inline_after(&session.after) {
+        return Reconciled::Stale;
+    }
+    if session.kind == SuggestionKind::Emoji {
+        if before == session.before && after == session.after {
+            return Reconciled::Unchanged;
+        }
+        if let Some(hit) = super::emoji::match_trailing(before)
+            && hit.glyph == session.full_text
+        {
+            let mut next = session.clone();
+            next.before = before.to_string();
+            next.after = after.to_string();
+            return Reconciled::Advanced(next);
+        }
         return Reconciled::Stale;
     }
     let expected = session.expected_before();
-    let (session, typed) = match typed_since(&expected, before) {
+    let (mut session, typed) = match typed_since(&expected, before) {
         Some(typed) => (session.clone(), typed),
         None => {
             let accepted = session.accepted();
@@ -103,6 +125,7 @@ pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
             }
         }
     };
+    session.after = after.to_string();
     if typed.is_empty() {
         return if session.expected_before() == expected {
             Reconciled::Unchanged
@@ -116,6 +139,30 @@ pub fn reconcile(session: &Session, before: &str, after: &str) -> Reconciled {
     }
 }
 
+pub fn is_catching_up(session: &Session, previous_before: &str, before: &str, after: &str) -> bool {
+    if session.consumed == 0 || inline_after(after) != inline_after(&session.after) {
+        return false;
+    }
+    if typed_since(previous_before, before).is_none() {
+        return false;
+    }
+    let accepted = session.accepted();
+    if let Some(landed) = typed_since(&session.before, before)
+        && landed.len() < accepted.len()
+        && accepted.starts_with(landed)
+    {
+        return true;
+    }
+    let spaced_base = format!("{} ", session.before);
+    if let Some(landed) = typed_since(&spaced_base, before)
+        && landed.len() < accepted.len()
+        && accepted.starts_with(landed)
+    {
+        return true;
+    }
+    false
+}
+
 pub fn typed_since<'a>(expected: &str, before: &'a str) -> Option<&'a str> {
     if let Some(rest) = before.strip_prefix(expected) {
         return Some(rest);
@@ -123,9 +170,23 @@ pub fn typed_since<'a>(expected: &str, before: &'a str) -> Option<&'a str> {
     if expected.len() < WINDOWED_TEXT_BYTES {
         return None;
     }
-    (1..=MAX_WINDOW_SHIFT.min(expected.len() - WINDOWED_TEXT_BYTES))
+    if let Some(rest) = (1..=MAX_WINDOW_SHIFT.min(expected.len() - WINDOWED_TEXT_BYTES))
         .filter(|shift| expected.is_char_boundary(*shift))
         .find_map(|shift| before.strip_prefix(&expected[shift..]))
+    {
+        return Some(rest);
+    }
+    let tail_start = expected
+        .char_indices()
+        .rev()
+        .nth(PREFIX_TAIL_CHARACTERS - 1)
+        .map_or(0, |(index, _)| index);
+    let tail = &expected[tail_start..];
+    if tail.is_empty() {
+        return None;
+    }
+    let at = before.rfind(tail)?;
+    Some(&before[at + tail.len()..])
 }
 
 pub fn is_stale_acceptance_echo(
@@ -378,6 +439,60 @@ mod tests {
         };
         assert_eq!(walked.remaining(), " words");
         assert_eq!(typed_since("short", "different"), None);
+    }
+
+    #[test]
+    fn lagging_snapshots_along_accepted_words_count_as_catching_up() {
+        let s = session(" world today.", "Hello").advanced(" world today".len());
+        assert!(is_catching_up(&s, "Hello", "Hello world", ""));
+        assert!(is_catching_up(&s, "Hello wor", "Hello world", ""));
+        assert!(!is_catching_up(&s, "Hello world today", "Hello world", ""));
+        assert!(!is_catching_up(&s, "Hello", "Hello world today", ""));
+        assert!(!is_catching_up(&s, "Hello", "Hello there", ""));
+        assert!(!is_catching_up(&s, "Hello", "Hello world", "!"));
+        assert!(is_catching_up(
+            &s,
+            "Hello",
+            "Hello world",
+            "\nupdated preview below"
+        ));
+    }
+
+    #[test]
+    fn trailing_updates_on_lines_below_do_not_invalidate_session() {
+        let s = Session::new(
+            "    - item",
+            "\n    - old below",
+            " continuation here",
+            SuggestionKind::Continuation,
+        );
+        assert_eq!(
+            reconcile(&s, "    - item", "\n    - rerendered below"),
+            Reconciled::Unchanged
+        );
+        assert_eq!(reconcile(&s, "    - item", "   \n"), Reconciled::Unchanged);
+        let Reconciled::Advanced(walked) = reconcile(&s, "    - item ", "\n12 Settings Found")
+        else {
+            panic!("walked with live status below")
+        };
+        assert_eq!(walked.after, "\n12 Settings Found");
+        assert_eq!(walked.remaining(), "continuation here");
+        assert_eq!(
+            reconcile(&s, "    - item", " same-line collision"),
+            Reconciled::Stale
+        );
+    }
+
+    #[test]
+    fn emoji_shortcode_typing_advances_anchor_when_glyph_matches() {
+        let emoji = Session::new("Ship it :ro", "", "🚀", SuggestionKind::Emoji);
+        let Reconciled::Advanced(next) = reconcile(&emoji, "Ship it :rock", "\npopup") else {
+            panic!("emoji shortcode should stay active")
+        };
+        assert_eq!(next.before, "Ship it :rock");
+        assert_eq!(next.after, "\npopup");
+        assert_eq!(next.full_text, "🚀");
+        assert_eq!(reconcile(&next, "Ship it :smile", ""), Reconciled::Stale);
     }
 
     #[test]

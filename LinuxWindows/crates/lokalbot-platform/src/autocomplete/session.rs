@@ -20,6 +20,13 @@ pub enum Reconcile {
     Stale,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum InsertProgress {
+    InFlight,
+    Settled,
+    Diverged,
+}
+
 impl GhostSession {
     pub fn new(field_id: u64, anchor: String, remaining: String, anchor_truncated: bool) -> Self {
         Self {
@@ -32,17 +39,45 @@ impl GhostSession {
     }
 
     pub fn reconcile(&mut self, before: &str, before_truncated: bool) -> Reconcile {
+        let truncated = self.anchor_truncated || before_truncated;
         if before == self.anchor {
             self.awaiting = None;
+            self.anchor_truncated = before_truncated;
             return Reconcile::Unchanged;
         }
-        if let Some(start) = &self.awaiting
-            && self.anchor.starts_with(before)
-            && before.starts_with(start.as_str())
-        {
-            return Reconcile::Unchanged;
+        if let Some(start) = self.awaiting.clone() {
+            let (Some(expected), Some(actual)) = (
+                typed_since(&start, &self.anchor, truncated),
+                typed_since(&start, before, truncated),
+            ) else {
+                return Reconcile::Stale;
+            };
+            if actual == expected {
+                self.awaiting = None;
+                self.anchor = before.to_string();
+                self.anchor_truncated = before_truncated;
+                return Reconcile::Unchanged;
+            }
+            if expected.starts_with(actual) {
+                return Reconcile::Unchanged;
+            }
+            let Some(extra) = actual.strip_prefix(expected) else {
+                return Reconcile::Stale;
+            };
+            if extra.chars().any(char::is_control) || !self.remaining.starts_with(extra) {
+                return Reconcile::Stale;
+            }
+            let typed = extra.to_string();
+            self.awaiting = None;
+            self.remaining = self.remaining[typed.len()..].to_string();
+            self.anchor = before.to_string();
+            self.anchor_truncated = before_truncated;
+            return if self.remaining.is_empty() {
+                Reconcile::Exhausted
+            } else {
+                Reconcile::Advanced { typed }
+            };
         }
-        let truncated = self.anchor_truncated || before_truncated;
         let Some(typed) = typed_since(&self.anchor, before, truncated) else {
             return Reconcile::Stale;
         };
@@ -69,9 +104,7 @@ impl GhostSession {
         if chunk.is_empty() || !self.remaining.starts_with(chunk) {
             return false;
         }
-        if self.awaiting.is_none() {
-            self.awaiting = Some(self.anchor.clone());
-        }
+        let original = self.anchor.clone();
         self.remaining = self.remaining[chunk.len()..].to_string();
         if backward > 0 {
             let keep = self
@@ -81,6 +114,27 @@ impl GhostSession {
                 .nth(backward - 1)
                 .map_or(0, |(index, _)| index);
             self.anchor.truncate(keep);
+        }
+        let floor = if backward > 0 {
+            &self.anchor
+        } else {
+            &original
+        };
+        match &mut self.awaiting {
+            None => self.awaiting = Some(floor.to_string()),
+            Some(start)
+                if !floor.starts_with(start.as_str())
+                    && !(self.anchor_truncated && typed_since(start, floor, true).is_some()) =>
+            {
+                let common = start
+                    .char_indices()
+                    .zip(floor.chars())
+                    .take_while(|((_, a), b)| *a == *b)
+                    .last()
+                    .map_or(0, |((idx, ch), _)| idx + ch.len_utf8());
+                start.truncate(common);
+            }
+            Some(_) => {}
         }
         self.anchor.push_str(insertion);
         true
@@ -95,7 +149,28 @@ impl GhostSession {
     }
 }
 
-fn typed_since<'a>(anchor: &str, before: &'a str, truncated: bool) -> Option<&'a str> {
+pub fn progression_between(
+    floor: &str,
+    target: &str,
+    before: &str,
+    truncated: bool,
+) -> InsertProgress {
+    let (Some(expected), Some(actual)) = (
+        typed_since(floor, target, truncated),
+        typed_since(floor, before, truncated),
+    ) else {
+        return InsertProgress::Diverged;
+    };
+    if actual == expected {
+        InsertProgress::Settled
+    } else if expected.starts_with(actual) {
+        InsertProgress::InFlight
+    } else {
+        InsertProgress::Diverged
+    }
+}
+
+pub fn typed_since<'a>(anchor: &str, before: &'a str, truncated: bool) -> Option<&'a str> {
     if let Some(rest) = before.strip_prefix(anchor) {
         return Some(rest);
     }
@@ -196,7 +271,8 @@ impl SentContexts {
             if *id != field_id || now.duration_since(*at) > Self::MAX_AGE || older == latest {
                 continue;
             }
-            let Some(typed) = latest.strip_prefix(older.as_str()) else {
+            let truncated = older.len() >= 1_024 || latest.len() >= 1_024;
+            let Some(typed) = typed_since(older.as_str(), latest, truncated) else {
                 continue;
             };
             if !typed.is_empty() && suggestion.len() > typed.len() && suggestion.starts_with(typed)
@@ -289,6 +365,8 @@ mod tests {
         let mut emoji = GhostSession::new(2, "Launch :rock".into(), "🚀".into(), false);
         assert!(emoji.accept("🚀", "🚀", 5));
         assert_eq!(emoji.anchor, "Launch 🚀");
+        assert_eq!(emoji.reconcile("Launch ", false), Reconcile::Unchanged);
+        assert_eq!(emoji.reconcile("Launch 🚀", false), Reconcile::Unchanged);
         assert!(emoji.is_exhausted());
         assert_eq!(drop_graphemes("ing now", 3), " now");
         assert_eq!(drop_graphemes("e\u{301}x", 1), "x");
@@ -308,6 +386,45 @@ mod tests {
             Reconcile::Advanced { typed: " ".into() }
         );
         assert_eq!(ghost.remaining, "more words");
+    }
+
+    #[test]
+    fn clipped_windows_keep_multi_word_accept_bursts_synced() {
+        let base: String = (0..1000).map(|i| format!("w{i:03} ")).collect();
+        let window_start = base.len() - 4090;
+        let floor = base[window_start..].to_string();
+        let mut ghost = GhostSession::new(1, floor.clone(), " one two three".into(), true);
+        assert!(ghost.accept(" one", " one", 0));
+        assert!(ghost.accept(" two", " two", 0));
+        assert_eq!(ghost.remaining, " three");
+
+        let partial = format!("{} on", &floor[3..]);
+        assert_eq!(ghost.reconcile(&partial, true), Reconcile::Unchanged);
+        assert!(ghost.awaiting.is_some());
+        assert_eq!(
+            progression_between(&floor, &ghost.anchor, &partial, true),
+            InsertProgress::InFlight
+        );
+
+        let mid_word = format!("{} one", &floor[4..]);
+        assert_eq!(ghost.reconcile(&mid_word, true), Reconcile::Unchanged);
+        assert!(ghost.awaiting.is_some());
+
+        let settled = format!("{} one two", &floor[8..]);
+        assert_eq!(
+            progression_between(&floor, &ghost.anchor, &settled, true),
+            InsertProgress::Settled
+        );
+        assert_eq!(ghost.reconcile(&settled, true), Reconcile::Unchanged);
+        assert_eq!(ghost.awaiting, None);
+        assert_eq!(ghost.anchor, settled);
+
+        let walked = format!("{} one two ", &floor[9..]);
+        assert_eq!(
+            ghost.reconcile(&walked, true),
+            Reconcile::Advanced { typed: " ".into() }
+        );
+        assert_eq!(ghost.remaining, "three");
     }
 
     #[test]

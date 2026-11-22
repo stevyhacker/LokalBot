@@ -74,10 +74,13 @@ impl Overlay {
             self.open(frame, content.clone(), cx);
         } else if let Some(window) = self.window {
             let updated = window.update(cx, |view, window, cx| {
+                #[cfg(not(windows))]
                 if view.content != content {
                     view.content = content.clone();
                     cx.notify();
                 }
+                #[cfg(windows)]
+                let _ = (view, cx);
                 window.scale_factor()
             });
             match updated {
@@ -85,11 +88,11 @@ impl Overlay {
                 Err(_) => {
                     self.window = None;
                     self.native = None;
-                    self.open(frame, content, cx);
+                    self.open(frame, content.clone(), cx);
                 }
             }
         }
-        self.move_native(Some(frame), cx);
+        self.move_native(Some((frame, content)), cx);
         self.visible = true;
         if let Some(scale) = platform::scale_at(&frame) {
             self.scale = scale;
@@ -118,27 +121,42 @@ impl Overlay {
         }
     }
 
-    fn move_native(&mut self, frame: Option<Rect>, cx: &mut App) {
+    fn move_native(&mut self, target: Option<(Rect, GhostContent)>, cx: &mut App) {
         let Some(native) = self.native else {
             return;
         };
         #[cfg(windows)]
         {
+            let window = self.window;
             let prepare = (!self.prepared).then_some(self.exclude_from_capture);
             self.prepared = true;
             let id = self.latest_move.get() + 1;
             self.latest_move.set(id);
             let latest = self.latest_move.clone();
-            cx.spawn(async move |_| {
+            cx.spawn(async move |cx| {
                 if let Some(exclude) = prepare
                     && let Err(err) = platform::prepare_overlay(native, exclude)
                 {
                     log::debug!("autocomplete: preparing the ghost window failed: {err:#}");
                 }
-                if latest.get() == id
-                    && let Err(err) = platform::place_overlay(native, frame)
-                {
+                if latest.get() != id {
+                    return;
+                }
+                let frame = target.as_ref().map(|(frame, _)| *frame);
+                if let Err(err) = platform::place_overlay(native, frame) {
                     log::debug!("autocomplete: placing the ghost failed: {err:#}");
+                    return;
+                }
+                if let (Some((_, content)), Some(window)) = (target, window)
+                    && latest.get() == id
+                {
+                    cx.update(|cx| {
+                        let _ = window.update(cx, |view, window, cx| {
+                            view.content = content;
+                            window.refresh();
+                            cx.notify();
+                        });
+                    });
                 }
             })
             .detach();
@@ -146,6 +164,7 @@ impl Overlay {
         #[cfg(not(windows))]
         {
             let _ = cx;
+            let frame = target.map(|(frame, _)| frame);
             if let Err(err) = platform::place_overlay(native, frame) {
                 log::debug!("autocomplete: placing the ghost failed: {err:#}");
             }

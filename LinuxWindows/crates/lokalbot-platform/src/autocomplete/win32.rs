@@ -4,6 +4,8 @@
 // See THIRD_PARTY_NOTICES.md.
 
 use std::cell::RefCell;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::thread::JoinHandle;
 
 use anyhow::Context as _;
@@ -19,7 +21,7 @@ use windows::Win32::Graphics::Gdi::{
     ReleaseDC,
 };
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use windows::Win32::UI::HiDpi::{GetDpiForMonitor, MDT_EFFECTIVE_DPI};
+use windows::Win32::UI::HiDpi::{GetDpiForMonitor, GetDpiForWindow, MDT_EFFECTIVE_DPI};
 use windows::Win32::UI::Input::KeyboardAndMouse::{
     GetAsyncKeyState, INPUT, INPUT_0, INPUT_KEYBOARD, KEYBD_EVENT_FLAGS, KEYBDINPUT,
     KEYEVENTF_EXTENDEDKEY, KEYEVENTF_KEYUP, KEYEVENTF_UNICODE, MAPVK_VSC_TO_VK, MapVirtualKeyW,
@@ -27,17 +29,17 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     VK_RIGHT, VK_RWIN, VK_SHIFT, VK_TAB,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
-    CallNextHookEx, GWL_EXSTYLE, GWL_STYLE, GetForegroundWindow, GetWindowLongPtrW,
-    GetWindowThreadProcessId, HC_ACTION, HHOOK, HWND_TOPMOST, KBDLLHOOKSTRUCT, LWA_ALPHA, SW_HIDE,
-    SWP_FRAMECHANGED, SWP_NOACTIVATE, SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW,
-    SetLayeredWindowAttributes, SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos,
-    SetWindowsHookExW, ShowWindow, UnhookWindowsHookEx, WDA_EXCLUDEFROMCAPTURE, WH_KEYBOARD_LL,
-    WINDOW_EX_STYLE, WINDOW_STYLE, WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WS_BORDER,
-    WS_CAPTION, WS_DLGFRAME, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST,
-    WS_EX_TRANSPARENT, WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
+    CallNextHookEx, GWL_EXSTYLE, GWL_STYLE, GetForegroundWindow, GetWindowLongPtrW, HC_ACTION,
+    HHOOK, HWND_TOPMOST, KBDLLHOOKSTRUCT, LWA_ALPHA, SW_HIDE, SWP_FRAMECHANGED, SWP_NOACTIVATE,
+    SWP_NOMOVE, SWP_NOSIZE, SWP_NOZORDER, SWP_SHOWWINDOW, SetLayeredWindowAttributes,
+    SetWindowDisplayAffinity, SetWindowLongPtrW, SetWindowPos, SetWindowsHookExW, ShowWindow,
+    UnhookWindowsHookEx, WDA_EXCLUDEFROMCAPTURE, WH_KEYBOARD_LL, WINDOW_EX_STYLE, WINDOW_STYLE,
+    WM_KEYDOWN, WM_KEYUP, WM_SYSKEYDOWN, WM_SYSKEYUP, WS_BORDER, WS_CAPTION, WS_DLGFRAME,
+    WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT,
+    WS_MAXIMIZEBOX, WS_MINIMIZEBOX, WS_POPUP, WS_SYSMENU, WS_THICKFRAME,
 };
 
-use super::geometry::Rect;
+use super::geometry::{Rect, Rgb};
 use super::{AcceptKeys, Edit, FieldSnapshot, InterceptedKey, KeyHandler};
 
 pub(super) const MARKER: usize = 0x4C4F_4B41;
@@ -45,14 +47,15 @@ const CHUNK: usize = 20;
 const BACKTICK_SCAN_CODE: u32 = 0x29;
 
 enum Command {
-    Active(bool),
+    Sync,
     Keys(AcceptKeys),
-    PassThrough(InterceptedKey),
     Stop,
 }
 
 struct HookState {
     handler: KeyHandler,
+    active: Arc<AtomicBool>,
+    thread_id: u32,
     hook: Option<HHOOK>,
     keys: AcceptKeys,
     taken: [bool; 4],
@@ -111,6 +114,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
             let message = wparam.0 as u32;
             let pressed = message == WM_KEYDOWN || message == WM_SYSKEYDOWN;
             let released = message == WM_KEYUP || message == WM_SYSKEYUP;
+            let mut wake_thread = None;
             let take = STATE.with(|state| {
                 let mut state = state.borrow_mut();
                 let Some(state) = state.as_mut() else {
@@ -119,18 +123,34 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
                 if state.hook.is_none() || !state.keys.takes(key) {
                     return false;
                 }
+                let active = state.active.load(Ordering::SeqCst);
                 let slot = index(key);
-                if pressed && !modifiers_down() {
-                    state.taken[slot] = true;
-                    (state.handler)(key);
+                if active {
+                    if pressed && !modifiers_down() {
+                        state.taken[slot] = true;
+                        (state.handler)(key);
+                        true
+                    } else if released && state.taken[slot] {
+                        state.taken[slot] = false;
+                        true
+                    } else {
+                        false
+                    }
+                } else if pressed && state.taken[slot] {
                     true
                 } else if released && state.taken[slot] {
                     state.taken[slot] = false;
+                    if state.taken == [false; 4] {
+                        wake_thread = Some(state.thread_id);
+                    }
                     true
                 } else {
                     false
                 }
             });
+            if let Some(thread_id) = wake_thread {
+                crate::win32_loop::wake(thread_id);
+            }
             if take {
                 return LRESULT(1);
             }
@@ -140,6 +160,7 @@ unsafe extern "system" fn hook_proc(code: i32, wparam: WPARAM, lparam: LPARAM) -
 }
 
 pub(super) struct Hook {
+    active: Arc<AtomicBool>,
     commands: Sender<Command>,
     thread_id: u32,
     thread: Option<JoinHandle<()>>,
@@ -147,16 +168,19 @@ pub(super) struct Hook {
 
 impl Hook {
     pub(super) fn start(handler: KeyHandler) -> anyhow::Result<Self> {
+        let active = Arc::new(AtomicBool::new(false));
+        let hook_active = active.clone();
         let (commands, receiver) = unbounded();
         let (ready_tx, ready_rx) = crossbeam_channel::bounded(1);
         let thread = std::thread::Builder::new()
             .name("lokalbot-autocomplete-keys".into())
-            .spawn(move || run(handler, receiver, ready_tx))
+            .spawn(move || run(handler, hook_active, receiver, ready_tx))
             .context("could not start the key thread")?;
         let thread_id = ready_rx
             .recv()
             .context("the key thread stopped before it started")?;
         Ok(Self {
+            active,
             commands,
             thread_id,
             thread: Some(thread),
@@ -169,7 +193,8 @@ impl Hook {
     }
 
     pub(super) fn set_active(&self, active: bool) {
-        self.send(Command::Active(active));
+        self.active.store(active, Ordering::SeqCst);
+        self.send(Command::Sync);
     }
 
     pub(super) fn set_keys(&self, keys: AcceptKeys) {
@@ -177,12 +202,16 @@ impl Hook {
     }
 
     pub(super) fn pass_through(&self, key: InterceptedKey) {
-        self.send(Command::PassThrough(key));
+        let vk = virtual_key(key);
+        if let Err(err) = send(&[key_input(vk, false), key_input(vk, true)]) {
+            log::debug!("autocomplete: passing a key on failed: {err:#}");
+        }
     }
 }
 
 impl Drop for Hook {
     fn drop(&mut self) {
+        self.active.store(false, Ordering::SeqCst);
         self.send(Command::Stop);
         if let Some(thread) = self.thread.take() {
             let _ = thread.join();
@@ -190,53 +219,56 @@ impl Drop for Hook {
     }
 }
 
-fn run(handler: KeyHandler, commands: Receiver<Command>, ready: Sender<u32>) {
-    STATE.with(|state| {
-        *state.borrow_mut() = Some(HookState {
-            handler,
-            hook: None,
-            keys: AcceptKeys::default(),
-            taken: [false; 4],
-        })
-    });
+fn run(
+    handler: KeyHandler,
+    active: Arc<AtomicBool>,
+    commands: Receiver<Command>,
+    ready: Sender<u32>,
+) {
     crate::win32_loop::run(
         |thread_id| {
+            STATE.with(|state| {
+                *state.borrow_mut() = Some(HookState {
+                    handler,
+                    active,
+                    thread_id,
+                    hook: None,
+                    keys: AcceptKeys::default(),
+                    taken: [false; 4],
+                })
+            });
             let _ = ready.send(thread_id);
         },
         || {
             while let Ok(command) = commands.try_recv() {
                 match command {
-                    Command::Active(active) => set_hook(active),
+                    Command::Sync => {}
                     Command::Keys(keys) => STATE.with(|state| {
                         if let Some(state) = state.borrow_mut().as_mut() {
                             state.keys = keys;
                         }
                     }),
-                    Command::PassThrough(key) => {
-                        let vk = virtual_key(key);
-                        if let Err(err) = send(&[key_input(vk, false), key_input(vk, true)]) {
-                            log::debug!("autocomplete: passing a key on failed: {err:#}");
-                        }
-                    }
                     Command::Stop => {
-                        set_hook(false);
+                        force_unhook();
                         return false;
                     }
                 }
             }
+            sync_hook();
             true
         },
     );
-    set_hook(false);
+    force_unhook();
 }
 
-fn set_hook(active: bool) {
+fn sync_hook() {
     STATE.with(|state| {
         let mut state = state.borrow_mut();
         let Some(state) = state.as_mut() else {
             return;
         };
-        match (active, state.hook) {
+        let want = state.active.load(Ordering::SeqCst);
+        match (want, state.hook) {
             (true, None) => {
                 let installed = unsafe {
                     let module = GetModuleHandleW(None).ok();
@@ -247,13 +279,25 @@ fn set_hook(active: bool) {
                     Err(err) => log::warn!("autocomplete: the keyboard hook failed: {err}"),
                 }
             }
-            (false, Some(hook)) => {
+            (false, Some(hook)) if state.taken == [false; 4] => {
                 let _ = unsafe { UnhookWindowsHookEx(hook) };
                 state.hook = None;
-                state.taken = [false; 4];
             }
             _ => {}
         }
+    });
+}
+
+fn force_unhook() {
+    STATE.with(|state| {
+        let mut state = state.borrow_mut();
+        let Some(state) = state.as_mut() else {
+            return;
+        };
+        if let Some(hook) = state.hook.take() {
+            let _ = unsafe { UnhookWindowsHookEx(hook) };
+        }
+        state.taken = [false; 4];
     });
 }
 
@@ -313,19 +357,14 @@ fn send(inputs: &[INPUT]) -> anyhow::Result<()> {
     Ok(())
 }
 
-fn foreground_pid() -> Option<u32> {
+fn foreground_owns_pid(target_pid: u32) -> bool {
     let window = unsafe { GetForegroundWindow() };
-    if window.0.is_null() {
-        return None;
-    }
-    let mut pid = 0u32;
-    unsafe { GetWindowThreadProcessId(window, Some(&mut pid)) };
-    (pid != 0).then_some(pid)
+    crate::activity::window_owns_pid(window, target_pid)
 }
 
 pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
     anyhow::ensure!(
-        foreground_pid() == Some(field.target.pid),
+        foreground_owns_pid(field.target.pid),
         "the field's app is no longer in front"
     );
     let mut deletions = Vec::new();
@@ -426,7 +465,7 @@ pub(super) fn prepare_overlay(hwnd: isize, exclude_from_capture: bool) -> anyhow
     Ok(())
 }
 
-pub(super) fn scale_at(rect: &Rect) -> Option<f32> {
+fn dpi_at(rect: &Rect) -> Option<u32> {
     let point = POINT {
         x: (rect.x + rect.width / 2.0) as i32,
         y: rect.mid_y() as i32,
@@ -436,7 +475,11 @@ pub(super) fn scale_at(rect: &Rect) -> Option<f32> {
         let monitor = MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST);
         GetDpiForMonitor(monitor, MDT_EFFECTIVE_DPI, &mut dpi_x, &mut dpi_y).ok()?;
     }
-    (dpi_x > 0).then(|| dpi_x as f32 / 96.0)
+    (dpi_x > 0).then_some(dpi_x)
+}
+
+pub(super) fn scale_at(rect: &Rect) -> Option<f32> {
+    dpi_at(rect).map(|dpi| dpi as f32 / 96.0)
 }
 
 pub(super) fn place_overlay(hwnd: isize, frame: Option<Rect>) -> anyhow::Result<()> {
@@ -445,13 +488,32 @@ pub(super) fn place_overlay(hwnd: isize, frame: Option<Rect>) -> anyhow::Result<
         match frame {
             Some(frame) => {
                 let frame = frame.integral();
+                let x = frame.x as i32;
+                let y = frame.y as i32;
+                let w = frame.width.max(1.0) as i32;
+                let h = frame.height.max(1.0) as i32;
+                let window_dpi = GetDpiForWindow(window);
+                if let Some(target_dpi) = dpi_at(&frame)
+                    && window_dpi > 0
+                    && window_dpi != target_dpi
+                {
+                    let _ = SetWindowPos(
+                        window,
+                        None,
+                        x,
+                        y,
+                        0,
+                        0,
+                        SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE,
+                    );
+                }
                 SetWindowPos(
                     window,
                     Some(HWND_TOPMOST),
-                    frame.x as i32,
-                    frame.y as i32,
-                    frame.width.max(1.0) as i32,
-                    frame.height.max(1.0) as i32,
+                    x,
+                    y,
+                    w,
+                    h,
                     SWP_NOACTIVATE | SWP_SHOWWINDOW,
                 )
                 .context("SetWindowPos")?;
@@ -488,30 +550,41 @@ pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     }
 }
 
-pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
+pub(super) fn sample_luminance(rect: &Rect, field: Option<Rect>) -> Option<f32> {
+    let probes = super::policy::luminance_probe_xs(*rect, field, &[4.0, 10.0, 16.0]);
+    if probes.is_empty() {
+        return None;
+    }
     unsafe {
         let dc = GetDC(None);
         if dc.is_invalid() {
             return None;
         }
-        let y = rect.mid_y() as i32;
-        let mut total = 0.0;
-        let mut count = 0.0;
-        for dx in [2, 4, 6] {
-            let color = GetPixel(dc, rect.right() as i32 + dx, y);
-            if color.0 == u32::MAX {
-                continue;
+        let glyph_band = rect.height.clamp(4.0, 28.0);
+        let top = (rect.bottom() - glyph_band + 2.0).clamp(rect.y, rect.bottom() - 1.0) as i32;
+        let mid = (rect.bottom() - glyph_band * 0.5).clamp(rect.y, rect.bottom() - 1.0) as i32;
+        let bottom = (rect.bottom() - 2.0).clamp(rect.y, rect.bottom() - 1.0) as i32;
+        let mut samples = Vec::with_capacity(9);
+        for y in [top, mid, bottom] {
+            for &x in &probes {
+                let color = GetPixel(dc, x, y);
+                if color.0 == u32::MAX {
+                    continue;
+                }
+                let rgb = Rgb {
+                    r: (color.0 & 0xff) as u8,
+                    g: ((color.0 >> 8) & 0xff) as u8,
+                    b: ((color.0 >> 16) & 0xff) as u8,
+                };
+                samples.push(rgb.luminance());
             }
-            let (r, g, b) = (
-                color.0 & 0xff,
-                (color.0 >> 8) & 0xff,
-                (color.0 >> 16) & 0xff,
-            );
-            total += (0.299 * r as f32 + 0.587 * g as f32 + 0.114 * b as f32) / 255.0;
-            count += 1.0;
         }
         ReleaseDC(None, dc);
-        (count > 0.0).then(|| total / count)
+        if samples.is_empty() {
+            return None;
+        }
+        samples.sort_by(f32::total_cmp);
+        Some(samples[samples.len() / 2])
     }
 }
 
