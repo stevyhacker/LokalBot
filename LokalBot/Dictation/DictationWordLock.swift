@@ -34,6 +34,8 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         let units = "one|two|three|four|five|six|seven|eight|nine"
         guard !remaining.isEmpty, let expression = try? NSRegularExpression(
             pattern: "[0-9]+|\\b(?:\(tens))[- ](?:\(units))\\b|\\p{L}+", options: [.caseInsensitive]) else { return nil }
+        let joined = joinedDigits(spoken)
+        var consumed = 0
         var result = ""
         var last = cleaned.startIndex
         var changed = false
@@ -43,16 +45,32 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
             if token.first?.isNumber == true {
                 guard remaining.hasPrefix(token) else { return nil }
                 remaining = remaining.dropFirst(token.count)
+                consumed += token.count
                 continue
             }
             guard let value = numberValue(token), remaining.hasPrefix(String(value)) else { continue }
+            let digits = String(value).count
+            guard !joined[consumed..<(consumed + digits)].contains(true) else { return nil }
             result += cleaned[last..<range.lowerBound] + String(value)
             last = range.upperBound
-            remaining = remaining.dropFirst(String(value).count)
+            remaining = remaining.dropFirst(digits)
+            consumed += digits
             changed = true
         }
         guard changed, remaining.isEmpty else { return nil }
         return result + cleaned[last...]
+    }
+
+    private static func joinedDigits(_ spoken: String) -> [Bool] {
+        var flags: [Bool] = []
+        guard let expression = try? NSRegularExpression(pattern: "[0-9]+(?:[.,:/][0-9]+)*") else { return flags }
+        for match in expression.matches(in: spoken, range: NSRange(spoken.startIndex..., in: spoken)) {
+            guard let range = Range(match.range, in: spoken) else { continue }
+            let token = spoken[range]
+            let digits = token.filter(\.isNumber).count
+            flags += Array(repeating: digits != token.count, count: digits)
+        }
+        return flags
     }
 
     private static func numberValue(_ token: String) -> Int? {

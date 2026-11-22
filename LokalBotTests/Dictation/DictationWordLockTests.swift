@@ -62,6 +62,17 @@ final class DictationWordLockTests: XCTestCase {
         XCTAssertEqual(broken("let's meet at 3, no, 4", "Let's meet at 4 or 5."), [.digits], "inventing a digit still breaks it")
     }
 
+    func testATimeOrDecimalSpelledOutKeepsTheTranscriptInsteadOfLosingItsSeparator() {
+        let lock = DictationWordLock.digitsNamesNegation
+        let time = lock.kept(spoken: "um the call is at 3:30 tomorrow", cleaned: "The call is at three thirty tomorrow.")
+        XCTAssertEqual(time.text, "um the call is at 3:30 tomorrow")
+        XCTAssertEqual(time.broken, [.digits])
+        let decimal = lock.kept(spoken: "it grew 2.5 percent", cleaned: "It grew two point five percent.")
+        XCTAssertEqual(decimal.text, "it grew 2.5 percent")
+        let mixed = lock.kept(spoken: "at 3:30 for 2 weeks", cleaned: "At 3:30 for two weeks.")
+        XCTAssertEqual(mixed.text, "At 3:30 for 2 weeks.")
+    }
+
     func testSpelledOutNumbersAreTurnedBackIntoTheSpokenDigits() {
         let lock = DictationWordLock.production
         XCTAssertEqual(lock.kept(spoken: "uh the last 3 releases slipped", cleaned: "The last three releases slipped.").text,
