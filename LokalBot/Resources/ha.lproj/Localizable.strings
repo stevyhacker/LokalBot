@@ -849,7 +849,7 @@
 "Question or search" = "Tambaya ko bincike";
 "Quit LokalBot" = "Fita daga LokalBot";
 "Read coding agent sessions" = "Karanta zaman wakilin rubuta lamba";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Karanta zaman Claude Code da Codex naka domin LokalBot ya tuna abin da wakilanka suka yi. Fayiloli suna nan a wannan Mac.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Karanta zaman Claude Code, Codex, Antigravity da T3 Code naka domin LokalBot ya tuna abin da wakilanka suka yi. Fayiloli suna nan a wannan Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Yana karanta rubutun tagar da ake aiki da ita daga hoton allo. Yana buƙatar Rikodin Allo; ba a adana hoton ko rubutun ba.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Yana karanta rubutun mu'amala da ake gani ta Sauƙin amfani; ba a adana hotunan allo ba.";
 "Reads window titles and visible interface text for activity and text-context features." = "Yana karanta taken tagogi da rubutun mu'amala da ake gani don fasalin ayyuka da mahallin rubutu.";
@@ -2640,3 +2640,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Yana gudanar da Antigravity CLI (agy) naku tare da kashe kayan aikinsa. Ku ne kuke shiga agy da kanku; LokalBot ba ya taɓa ganin shigarku ta Google.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Yana gudanar da Gemini CLI naku tare da kashe kayan aikinsa. Fara shiga gemini a Terminal tukuna; LokalBot ba ya taɓa ganin shigarku ta Google.";
 "Signed in" = "An shiga";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot yana daina karanta zaman wakilan rubuta lambar shiri kuma yana goge abin da ya adana. Claude Code, Codex, Antigravity da T3 Code suna riƙe fayilolin zamansu.";

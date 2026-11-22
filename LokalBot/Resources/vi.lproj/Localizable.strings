@@ -849,7 +849,7 @@
 "Question or search" = "Câu hỏi hoặc tìm kiếm";
 "Quit LokalBot" = "Thoát LokalBot";
 "Read coding agent sessions" = "Đọc phiên tác nhân lập trình";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Đọc các phiên Claude Code và Codex của bạn để LokalBot nhớ các tác nhân đã làm gì. Tệp vẫn nằm trên Mac này.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Đọc các phiên Claude Code, Codex, Antigravity và T3 Code của bạn để LokalBot nhớ các tác nhân đã làm gì. Tệp vẫn nằm trên Mac này.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Đọc văn bản cửa sổ đang được chọn từ ảnh chụp màn hình. Cần quyền Ghi màn hình; ảnh và văn bản không được lưu.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Đọc văn bản giao diện hiển thị qua Trợ năng; không lưu ảnh chụp màn hình.";
 "Reads window titles and visible interface text for activity and text-context features." = "Đọc tiêu đề cửa sổ và văn bản giao diện hiển thị cho tính năng hoạt động và ngữ cảnh văn bản.";
@@ -2640,3 +2640,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Chạy Antigravity CLI (agy) của chính bạn với các công cụ đã tắt. Bạn tự đăng nhập vào agy; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Chạy Gemini CLI của chính bạn với các công cụ đã tắt. Đăng nhập vào gemini trong Terminal trước; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
 "Signed in" = "Đã đăng nhập";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot ngừng đọc các phiên của tác nhân lập trình và xóa những gì đã lưu. Claude Code, Codex, Antigravity và T3 Code vẫn giữ tệp phiên của riêng chúng.";

@@ -849,7 +849,7 @@
 "Question or search" = "質問または検索";
 "Quit LokalBot" = "LokalBotを終了";
 "Read coding agent sessions" = "コーディングエージェントのセッションを読み取る";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Claude CodeとCodexのセッションを読み取り、エージェントが行ったことをLokalBotが記憶できるようにします。ファイルはこのMac上に残ります。";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Claude Code、Codex、Antigravity、T3 Codeのセッションを読み取り、エージェントが行ったことをLokalBotが記憶できるようにします。ファイルはこのMac上に残ります。";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "スクリーンショットからフォーカス中のウィンドウのテキストを読み取ります。画面収録の権限が必要です。画像とテキストは保存しません。";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "アクセシビリティ経由で表示中のインターフェースのテキストを読み取ります。スクリーンショットは保存しません。";
 "Reads window titles and visible interface text for activity and text-context features." = "アクティビティとテキストコンテキスト機能のために、ウィンドウのタイトルと表示中のインターフェースのテキストを読み取ります。";
@@ -2640,3 +2640,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "ツールをオフにした状態で、あなた自身の Antigravity CLI (agy) を実行します。agy へのサインインはご自身で行います。LokalBot が Google のサインイン情報を見ることはありません。";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "ツールをオフにした状態で、あなた自身の Gemini CLI を実行します。先にターミナルで gemini にサインインしてください。LokalBot が Google のサインイン情報を見ることはありません。";
 "Signed in" = "サインイン済み";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBotはコーディングエージェントのセッションの読み取りを停止し、保存した内容を削除します。Claude Code、Codex、Antigravity、T3 Codeのセッションファイルはそのまま残ります。";

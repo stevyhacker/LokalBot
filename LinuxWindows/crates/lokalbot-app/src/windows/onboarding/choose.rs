@@ -254,7 +254,7 @@ impl Onboarding {
                 .child(row_name(lokalbot_i18n::tr("Coding agent sessions"), cx))
                 .child(quiet(
                     lokalbot_i18n::tr(
-                        "Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this computer.",
+                        "Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this computer.",
                     ),
                     cx,
                 )),

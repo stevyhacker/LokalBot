@@ -49,9 +49,6 @@
       "Show full question",
       "This removes “\\(…)” from Ask history."
     ],
-    "CodingAgentEvidenceSettings.swift": [
-      "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code and Codex keep their own session files."
-    ],
     "CotypingModelPreparationView.swift": [
       "This selects \\(…) and keeps inline suggestions separate from the model used for meetings and Ask."
     ],

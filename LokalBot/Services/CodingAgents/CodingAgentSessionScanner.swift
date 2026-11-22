@@ -30,6 +30,11 @@ struct CodingAgentSessionScanner: Sendable {
                         root: home.appendingPathComponent(".claude/projects", isDirectory: true))
                 case .codex:
                     CodexSessionReader(root: home.appendingPathComponent(".codex", isDirectory: true))
+                case .antigravity:
+                    AntigravitySessionReader.standard(home: home)
+                case .t3Code:
+                    T3CodeSessionReader(
+                        root: home.appendingPathComponent(".t3/userdata", isDirectory: true))
                 }
             }
         return CodingAgentSessionScanner(readers: readers, excludedFolders: excludedFolders)
@@ -50,12 +55,19 @@ struct CodingAgentSessionScanner: Sendable {
         var scan = CodingAgentDayScan(
             interval: interval, bursts: [], sessionCount: 0, filesRead: 0, bytesRead: 0,
             unreadableFiles: [], excludedSessions: 0)
-        for reader in readers {
-            let result = reader.transcripts(in: interval, cache: cache)
+        let results = readers.map { $0.transcripts(in: interval, cache: cache) }
+        var claimed: Set<CodingAgentSessionKey> = []
+        for result in results {
             scan.filesRead += result.filesRead
             scan.bytesRead += result.bytesRead
             scan.unreadableFiles += result.unreadableFiles
+            claimed.formUnion(result.claimedSessions)
+        }
+        for result in results {
             for transcript in result.transcripts {
+                if claimed.contains(CodingAgentSessionKey(agent: transcript.agent, sessionID: transcript.sessionID)) {
+                    continue
+                }
                 guard !isExcluded(transcript.workingDirectory) else {
                     scan.excludedSessions += 1
                     continue

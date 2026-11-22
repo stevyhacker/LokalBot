@@ -417,7 +417,7 @@ pub const ENTRIES: &[Entry] = &[
         id: "settings.codingAgentEvidenceEnabled",
         title: "Read coding agent sessions",
         category: DayMemory,
-        aliases: "claude code codex agent transcripts sessions digest pull requests commits",
+        aliases: "claude code codex antigravity t3 code agent transcripts sessions digest pull requests commits",
         value: |s| on_off(!s.enabled_coding_agents().is_empty()),
     },
     Entry {
@@ -1426,6 +1426,20 @@ pub const ENTRIES: &[Entry] = &[
         category: DayMemory,
         aliases: "coding agent codex sessions",
         value: |s| on_off(s.coding_agent_reads_codex),
+    },
+    Entry {
+        id: "settings.codingAgentReadsAntigravity",
+        title: "Read Antigravity sessions",
+        category: DayMemory,
+        aliases: "coding agent antigravity sessions",
+        value: |s| on_off(s.coding_agent_reads_antigravity),
+    },
+    Entry {
+        id: "settings.codingAgentReadsT3Code",
+        title: "Read T3 Code sessions",
+        category: DayMemory,
+        aliases: "coding agent t3 code sessions",
+        value: |s| on_off(s.coding_agent_reads_t3_code),
     },
     Entry {
         id: "settings.dictationMicrophoneID",

@@ -202,9 +202,11 @@ impl Attribution {
     }
 
     fn agent_shares(&self, block: &ActivityBlock, duration: f64) -> Vec<Share> {
-        let runs_claude = hosts(&block.app, CodingAgentKind::ClaudeCode);
-        let runs_codex = hosts(&block.app, CodingAgentKind::Codex);
-        if !runs_claude && !runs_codex {
+        let hosted: Vec<CodingAgentKind> = CodingAgentKind::ALL
+            .into_iter()
+            .filter(|&agent| hosts(&block.app, agent))
+            .collect();
+        if hosted.is_empty() {
             return Vec::new();
         }
         let margin = chrono::Duration::seconds(EDGE_MARGIN_SECONDS);
@@ -215,10 +217,7 @@ impl Attribution {
             if burst.start - margin >= window_end {
                 break;
             }
-            let runs_agent = match burst.agent {
-                CodingAgentKind::ClaudeCode => runs_claude,
-                CodingAgentKind::Codex => runs_codex,
-            };
+            let runs_agent = hosted.contains(&burst.agent);
             let Some(project) = project.as_deref().filter(|_| runs_agent) else {
                 continue;
             };
@@ -314,6 +313,9 @@ const SHARED_HOST_PREFIXES: &[&str] = &["t3 code", "zed "];
 
 pub fn hosts(app: &str, agent: CodingAgentKind) -> bool {
     let name = app.trim().to_lowercase();
+    if agent == CodingAgentKind::T3Code {
+        return name.starts_with("t3 code");
+    }
     if SHARED_HOSTS.contains(&name.as_str())
         || SHARED_HOST_PREFIXES.iter().any(|p| name.starts_with(p))
     {
@@ -322,6 +324,8 @@ pub fn hosts(app: &str, agent: CodingAgentKind) -> bool {
     match agent {
         CodingAgentKind::ClaudeCode => name == "claude",
         CodingAgentKind::Codex => name == "codex" || name == "chatgpt",
+        CodingAgentKind::Antigravity => name == "antigravity" || name.starts_with("antigravity "),
+        CodingAgentKind::T3Code => false,
     }
 }
 

@@ -1,8 +1,10 @@
+mod antigravity;
 mod builder;
 mod cache;
 mod claude;
 mod codex;
 mod scanner;
+mod t3code;
 #[cfg(test)]
 mod tests;
 pub mod text;

@@ -26,6 +26,7 @@ sha2.workspace = true
 hex.workspace = true
 regex.workspace = true
 serde.workspace = true
+rusqlite.workspace = true
 thiserror.workspace = true
 zip = { version = "9", default-features = false, features = ["deflate-flate2"] }
 # Codex compresses the session logs it is done with (`*.jsonl.zst`).

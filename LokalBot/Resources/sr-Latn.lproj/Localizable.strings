@@ -849,7 +849,7 @@
 "Question or search" = "Pitanje ili pretraga";
 "Quit LokalBot" = "Izađi iz LokalBota";
 "Read coding agent sessions" = "Čitaj sesije agenata za programiranje";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Čita vaše sesije u alatima Claude Code i Codex da bi LokalBot zapamtio šta su vaši agenti uradili. Datoteke ostaju na ovom Mac-u.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Čita vaše sesije u alatima Claude Code, Codex, Antigravity i T3 Code da bi LokalBot zapamtio šta su vaši agenti uradili. Datoteke ostaju na ovom Mac-u.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Čita tekst aktivnog prozora sa snimka ekrana. Zahteva Snimanje ekrana; slika i tekst se ne čuvaju.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Čita vidljivi tekst interfejsa preko Pristupačnosti; snimci ekrana se ne čuvaju.";
 "Reads window titles and visible interface text for activity and text-context features." = "Čita naslove prozora i vidljivi tekst interfejsa za funkcije aktivnosti i tekstualnog konteksta.";
@@ -2640,3 +2640,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Pokreće vaš Antigravity CLI (agy) sa isključenim alatima. U agy se prijavljujete sami; LokalBot nikada ne vidi vašu Google prijavu.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Pokreće vaš Gemini CLI sa isključenim alatima. Prvo se prijavite u gemini u Terminalu; LokalBot nikada ne vidi vašu Google prijavu.";
 "Signed in" = "Prijavljeni ste";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot prestaje da čita sesije agenata za programiranje i briše ono što je sačuvao. Claude Code, Codex, Antigravity i T3 Code zadržavaju sopstvene datoteke sesija.";

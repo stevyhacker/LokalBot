@@ -849,7 +849,7 @@
 "Question or search" = "Вопрос или поиск";
 "Quit LokalBot" = "Завершить LokalBot";
 "Read coding agent sessions" = "Читать сеансы агента программирования";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Читает ваши сеансы Claude Code и Codex, чтобы LokalBot помнил, что сделали ваши агенты. Файлы остаются на этом Mac.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Читает ваши сеансы Claude Code, Codex, Antigravity и T3 Code, чтобы LokalBot помнил, что сделали ваши агенты. Файлы остаются на этом Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Читает текст активного окна со снимка экрана. Нужна Запись экрана; изображение и текст не сохраняются.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Читает видимый текст интерфейса через Универсальный доступ; снимки экрана не сохраняются.";
 "Reads window titles and visible interface text for activity and text-context features." = "Читает заголовки окон и видимый текст интерфейса для функций активности и текстового контекста.";
@@ -2640,3 +2640,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Запускает ваш собственный Antigravity CLI (agy) с отключёнными инструментами. Вы входите в agy сами; LokalBot никогда не видит ваш вход в Google.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Запускает ваш собственный Gemini CLI с отключёнными инструментами. Сначала войдите в gemini в Терминале; LokalBot никогда не видит ваш вход в Google.";
 "Signed in" = "Вход выполнен";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot перестаёт читать сеансы агентов программирования и удаляет сохранённое. Claude Code, Codex, Antigravity и T3 Code хранят собственные файлы сеансов.";
