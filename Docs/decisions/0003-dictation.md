@@ -137,6 +137,24 @@ When paste cannot be set up, dictation types the text in short Unicode keystroke
 
 Where: `LokalBot/Cotyping/CotypingInserter.swift` (`CotypingInserter.typeInChunks`).
 
+### A paste fits its spacing and first capital to the text before the caret
+
+Back-to-back dictations ran together ("right now.Next") and a dictation that finished a typed sentence kept the transcriber's capital ("we should Probably wait"). A space goes in front after a word, but not after whitespace, a new line or an opening character, before punctuation the dictation starts with, or next to a script written without spaces (Chinese, Japanese, Thai, Lao, Khmer, Myanmar, full-width forms; Korean keeps its spaces). In the middle of a sentence a capitalized everyday first word is lowered; a sentence end (`.!?…:`, `。！？`, also behind a closing quote or bracket), a new line or a list marker (`-`, `*`, `1.`, `a)`) keeps the capital, and "I", acronyms and mixed-case words are never lowered.
+
+Where: `LokalBot/Dictation/DictationPasteSeam.swift` (`DictationPasteSeam.fit`, `DictationPasteSeam.needsSpace`, `DictationPasteSeam.continuesSentence`, `DictationPasteSeam.loweringFirstWord`), `LokalBotTests/Dictation/DictationPasteSeamTests.swift`.
+
+### The capital rule is English only and keeps words the dictionary capitalizes
+
+Other languages capitalize differently (German nouns), so only English dictations are lowered: the transcription language is English, or Automatic and `NLLanguageRecognizer` reads the field's last 200 characters plus the dictation as English at 0.8 or more. A word counts as everyday when macOS's English dictionary knows it in lower case and does not offer it capitalized as its top guess, which keeps Monday, English and Google. A name that is also an everyday word ("Mark", "Will") cannot be told apart and is lowered.
+
+Where: `LokalBot/Dictation/DictationPasteSeam.swift` (`DictationPasteSeam.lowersSentenceCapital`, `DictationPasteSeam.isEverydayEnglishWord`), `LokalBot/Dictation/DictationCoordinator.swift` (`DictationCoordinator.fittedToField`).
+
+### The fit reads the field when the paste's turn comes, under the read-back's rules, and changes only what is pasted
+
+`fitToField` runs inside the paste queue, just before the text goes on the pasteboard, so the second of two quick dictations sees the first in the field. It reads the bounded text before the caret under the read-back's rules: only the field bound at the shortcut, never a secure field or an app on the exclusion list, nothing kept; an unreadable field, a selection or a timeout pastes the text unchanged. Only the paste and the typed fallback get the fitted text; history, clipboard copies (including a paste no app reads) and the delivery notice keep the dictation as transcribed.
+
+Where: `LokalBot/Cotyping/CotypingInserter.swift` (`CotypingInserter.insertViaPaste`, `CotypingInserter.pasteAndConfirm`), `LokalBot/Dictation/DictationCoordinator.swift` (`DictationCoordinator.deliver`, `DictationCoordinator.fittedToField`), `LokalBotTests/Dictation/DictationPasteSeamTests.swift`.
+
 ## Shortcut and keys
 
 ### The shortcut never cancels finished speech

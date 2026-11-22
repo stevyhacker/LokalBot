@@ -1411,9 +1411,11 @@ request and any enabled screen context or saved facts included in the prompt.
 Dictation displays that disclosure. Text already inserted into another app is
 not removed by later source deletion.
 
-After pasting, dictation reads up to the bounded text before the caret in the
-same focused field once or a few times within about a second, to confirm the text
-arrived. It reads only the exact field the text was pasted into, identified when
+Just before pasting, dictation reads up to the bounded text before the caret in
+the same focused field once, to decide whether the text needs a leading space or
+a lower-case first word. After pasting, it reads that text again once or a few
+times within about a second, to confirm the text arrived. It reads only the
+exact field the text was pasted into, identified when
 dictation started, and never a secure field; when that field could not be
 identified, nothing is read back. The read is compared in memory and discarded; nothing from it is saved,
 logged or sent anywhere. With **Learn from my dictation** on, it also reads
