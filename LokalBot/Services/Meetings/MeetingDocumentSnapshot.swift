@@ -39,6 +39,7 @@ struct MeetingDocumentSnapshot: Sendable {
                 meeting: meeting,
                 screenshots: screenStore.screenshots(
                     forMeeting: meeting.id,
+                    additionalMeetingID: meeting.extractedFromMeetingID,
                     from: meeting.startedAt.addingTimeInterval(-5),
                     to: end.addingTimeInterval(5)))
         }

@@ -25,7 +25,12 @@ Examples:
   cargo test --workspace --locked
   python3 scripts/sync-localizations.py --check
 
-For UI changes, attach a screenshot or short screen recording.
+For a change people can see, show it before and after. Run the same steps on
+master ("Before") and on your branch ("After"), and attach a short recording
+of each (screenshots are fine for a static change): one pair per app or
+scenario, each with a line on what to look for. Use sample data, never your
+own meetings, messages or documents. A good example:
+https://github.com/stevyhacker/lokalbot/pull/578#issuecomment-7078094930
 For changes that can't be verified end-to-end yet, say so explicitly.
 -->
 

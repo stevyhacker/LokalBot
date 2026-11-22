@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ने स्वीकृत रिमोट इन्फ़रेंस से तैयार किया। रिपोर्ट आपकी स्थानीय लाइब्रेरी में सहेजी गई।";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ ने आपके कॉन्फ़िगर किए गए विचार मॉडल से तैयार किया। रिपोर्ट आपकी स्थानीय लाइब्रेरी में सहेजी गई।";
 "Dreamed by %@ on this Mac." = "इस Mac पर %@ ने तैयार किया।";
+"Clear Selection" = "चयन साफ़ करें";
+"Trim to Selection" = "चयन तक काटें";
+"New Meeting from Selection" = "चयन से नई मीटिंग";

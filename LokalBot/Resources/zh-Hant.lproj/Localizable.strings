@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "夜間回顧由 %@ 透過已核准的遠端推論完成。報告已儲存到你的本機資料庫。";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "夜間回顧由 %@ 使用你設定的思考模型完成。報告已儲存到你的本機資料庫。";
 "Dreamed by %@ on this Mac." = "夜間回顧由 %@ 在這台 Mac 上完成。";
+"Clear Selection" = "清除選取範圍";
+"Trim to Selection" = "裁剪為選取範圍";
+"New Meeting from Selection" = "從選取範圍建立新會議";

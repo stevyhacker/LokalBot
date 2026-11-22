@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Đánh giá qua đêm do %@ thực hiện bằng suy luận từ xa đã phê duyệt. Báo cáo đã được lưu trong thư viện cục bộ của bạn.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Đánh giá qua đêm do %@ thực hiện bằng mô hình Suy nghĩ bạn đã cấu hình. Báo cáo đã được lưu trong thư viện cục bộ của bạn.";
 "Dreamed by %@ on this Mac." = "Đánh giá qua đêm do %@ thực hiện trên máy Mac này.";
+"Clear Selection" = "Xóa vùng chọn";
+"Trim to Selection" = "Cắt theo vùng chọn";
+"New Meeting from Selection" = "Cuộc họp mới từ vùng chọn";

@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ya yi mafarki ta amfani da sarrafawa ta nesa da aka amince da ita. An adana rahoton a ɗakin karatunka na gida.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ ya yi mafarki ta amfani da samfurin Tunani da ka saita. An adana rahoton a ɗakin karatunka na gida.";
 "Dreamed by %@ on this Mac." = "%@ ya yi mafarki a wannan Mac.";
+"Clear Selection" = "Share zaɓi";
+"Trim to Selection" = "Yanke zuwa zaɓi";
+"New Meeting from Selection" = "Sabon taro daga zaɓi";

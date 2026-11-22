@@ -362,7 +362,7 @@ final class RedesignUITests: XCTestCase {
         XCTAssertTrue(transport.buttons["Pause"].waitForExistence(timeout: 3), "A cited time plays from there")
         XCTAssertTrue(owner.exists, "Playing a cited time must not leave the summary")
         XCTAssertFalse(app.staticTexts["transcript.segment.3.text"].exists)
-        app.buttons["meeting.player.showInTranscript"].click()
+        app.buttons["meeting.player.caption"].click()
         XCTAssertTrue(app.staticTexts["transcript.segment.3.text"].waitForExistence(timeout: 5))
         transport.buttons["Pause"].click()
 

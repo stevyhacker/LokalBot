@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream выполнен моделью %@ с использованием одобренного удалённого вывода. Отчёт сохранён в вашей локальной библиотеке.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream выполнен моделью %@ с использованием настроенной модели Думать. Отчёт сохранён в вашей локальной библиотеке.";
 "Dreamed by %@ on this Mac." = "Dream выполнен моделью %@ на этом Mac.";
+"Clear Selection" = "Снять выделение";
+"Trim to Selection" = "Обрезать по выделению";
+"New Meeting from Selection" = "Новая встреча из выделения";

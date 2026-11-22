@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dibuat oleh %@ menggunakan inferensi jarak jauh yang disetujui. Laporan disimpan di pustaka lokal Anda.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dibuat oleh %@ menggunakan model Pikirkan yang Anda konfigurasi. Laporan disimpan di pustaka lokal Anda.";
 "Dreamed by %@ on this Mac." = "Dibuat oleh %@ di Mac ini.";
+"Clear Selection" = "Hapus Pilihan";
+"Trim to Selection" = "Potong ke Pilihan";
+"New Meeting from Selection" = "Rapat Baru dari Pilihan";

@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ఆమోదించిన రిమోట్ ఇన్ఫరెన్స్‌ను ఉపయోగించి తయారు చేసింది. నివేదిక మీ స్థానిక లైబ్రరీలో సేవ్ చేయబడింది.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ మీరు కాన్ఫిగర్ చేసిన ఆలోచన మోడల్‌ను ఉపయోగించి తయారు చేసింది. నివేదిక మీ స్థానిక లైబ్రరీలో సేవ్ చేయబడింది.";
 "Dreamed by %@ on this Mac." = "ఈ Mac లో %@ తయారు చేసింది.";
+"Clear Selection" = "ఎంపికను క్లియర్ చేయండి";
+"Trim to Selection" = "ఎంపికకు కత్తిరించండి";
+"New Meeting from Selection" = "ఎంపిక నుండి కొత్త మీటింగ్";

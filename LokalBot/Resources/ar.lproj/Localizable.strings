@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "أُنشئ Dream بواسطة %@ باستخدام الاستنتاج البعيد المعتمد. حُفظ التقرير في مكتبتك المحلية.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "أُنشئ Dream بواسطة %@ باستخدام نموذج التفكير الذي أعددته. حُفظ التقرير في مكتبتك المحلية.";
 "Dreamed by %@ on this Mac." = "أُنشئ Dream بواسطة %@ على جهاز Mac هذا.";
+"Clear Selection" = "مسح التحديد";
+"Trim to Selection" = "قص إلى التحديد";
+"New Meeting from Selection" = "اجتماع جديد من التحديد";

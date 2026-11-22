@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Imeotwa na %@ kwa kutumia uchakataji wa mbali ulioidhinishwa. Ripoti ilihifadhiwa kwenye maktaba yako ya ndani.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Imeotwa na %@ kwa kutumia modeli yako ya Fikiri iliyosanidiwa. Ripoti ilihifadhiwa kwenye maktaba yako ya ndani.";
 "Dreamed by %@ on this Mac." = "Imeotwa na %@ kwenye Mac hii.";
+"Clear Selection" = "Ondoa Uteuzi";
+"Trim to Selection" = "Kata hadi Uteuzi";
+"New Meeting from Selection" = "Mkutano Mpya kutoka Uteuzi";

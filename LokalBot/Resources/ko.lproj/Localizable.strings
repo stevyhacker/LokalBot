@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@이(가) 승인된 원격 추론으로 야간 검토를 작성했습니다. 보고서는 로컬 라이브러리에 저장되었습니다.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@이(가) 설정된 사고 모델로 야간 검토를 작성했습니다. 보고서는 로컬 라이브러리에 저장되었습니다.";
 "Dreamed by %@ on this Mac." = "%@이(가) 이 Mac에서 야간 검토를 작성했습니다.";
+"Clear Selection" = "선택 해제";
+"Trim to Selection" = "선택 영역으로 자르기";
+"New Meeting from Selection" = "선택 영역으로 새 회의 만들기";

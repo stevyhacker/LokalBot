@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream کو %@ نے منظور شدہ ریموٹ انفرنس کے ذریعے تیار کیا۔ رپورٹ آپ کی مقامی لائبریری میں محفوظ کی گئی۔";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream کو %@ نے آپ کے ترتیب دیے گئے سوچ ماڈل کے ذریعے تیار کیا۔ رپورٹ آپ کی مقامی لائبریری میں محفوظ کی گئی۔";
 "Dreamed by %@ on this Mac." = "Dream کو %@ نے اس Mac پر تیار کیا۔";
+"Clear Selection" = "انتخاب صاف کریں";
+"Trim to Selection" = "انتخاب کے مطابق کاٹیں";
+"New Meeting from Selection" = "انتخاب سے نئی میٹنگ";

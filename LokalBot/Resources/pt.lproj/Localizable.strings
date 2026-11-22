@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream feito por %@ usando inferência remota aprovada. O relatório foi salvo na sua biblioteca local.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream feito por %@ usando o seu modelo Pensar configurado. O relatório foi salvo na sua biblioteca local.";
 "Dreamed by %@ on this Mac." = "Dream feito por %@ neste Mac.";
+"Clear Selection" = "Limpar seleção";
+"Trim to Selection" = "Cortar para a seleção";
+"New Meeting from Selection" = "Nova reunião a partir da seleção";

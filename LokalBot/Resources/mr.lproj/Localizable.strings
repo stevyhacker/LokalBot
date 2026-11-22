@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ने मंजूर रिमोट अनुमान वापरून तयार केले. अहवाल तुमच्या स्थानिक लायब्ररीत जतन केला गेला.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ ने तुमचे कॉन्फिगर केलेले विचार मॉडेल वापरून तयार केले. अहवाल तुमच्या स्थानिक लायब्ररीत जतन केला गेला.";
 "Dreamed by %@ on this Mac." = "या Mac वर %@ ने तयार केले.";
+"Clear Selection" = "निवड साफ करा";
+"Trim to Selection" = "निवडीपुरते कापा";
+"New Meeting from Selection" = "निवडीपासून नवीन मीटिंग";

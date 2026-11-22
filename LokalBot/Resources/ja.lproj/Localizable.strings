@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ が承認済みのリモート推論で夜間レビューを作成しました。レポートはローカルライブラリに保存されました。";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ が設定済みの思考モデルで夜間レビューを作成しました。レポートはローカルライブラリに保存されました。";
 "Dreamed by %@ on this Mac." = "%@ がこの Mac 上で夜間レビューを作成しました。";
+"Clear Selection" = "選択を解除";
+"Trim to Selection" = "選択範囲にトリミング";
+"New Meeting from Selection" = "選択範囲から新規ミーティング";

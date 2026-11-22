@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream je izvršio model %@ putem odobrenog udaljenog zaključivanja. Izveštaj je sačuvan u vašoj lokalnoj biblioteci.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream je izvršio model %@ pomoću vašeg podešenog modela za Razmišljanje. Izveštaj je sačuvan u vašoj lokalnoj biblioteci.";
 "Dreamed by %@ on this Mac." = "Dream je izvršio model %@ na ovom Mac računaru.";
+"Clear Selection" = "Poništi izbor";
+"Trim to Selection" = "Iseci na izbor";
+"New Meeting from Selection" = "Novi sastanak iz izbora";

@@ -2636,3 +2636,6 @@
 "Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ dream am with approved remote inference. Dem save the report inside your local library.";
 "Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ dream am with your configured Think model. Dem save the report inside your local library.";
 "Dreamed by %@ on this Mac." = "%@ dream am for this Mac.";
+"Clear Selection" = "Clear Selection";
+"Trim to Selection" = "Cut am to Selection";
+"New Meeting from Selection" = "New Meeting from Selection";
