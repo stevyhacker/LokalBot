@@ -77,6 +77,8 @@ final class ScreenContextPrivacyTests: XCTestCase {
         XCTAssertTrue(ScreenContextPrivacy.isPrivateWindow(title: "Инкогнито — Яндекс Браузер"))
         XCTAssertTrue(ScreenContextPrivacy.isPrivateWindow(title: "Приватный просмотр — Mozilla Firefox"))
         XCTAssertTrue(ScreenContextPrivacy.isPrivateWindow(title: "Новое приватное окно"))
+        XCTAssertTrue(ScreenContextPrivacy.isPrivateWindow(title: "Частный доступ"))
+        XCTAssertTrue(ScreenContextPrivacy.isPrivateWindow(title: "Новая вкладка — Частный доступ"))
         XCTAssertFalse(ScreenContextPrivacy.isPrivateWindow(title: "Политика приватности — Документы"))
 
         XCTAssertTrue(ScreenContextPrivacy.isExcluded(
