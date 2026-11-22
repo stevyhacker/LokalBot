@@ -82,12 +82,10 @@ fn windows_file_id(path: &Path) -> Option<(u64, u64)> {
         let mut info: BY_HANDLE_FILE_INFORMATION = std::mem::zeroed();
         let ok = GetFileInformationByHandle(handle, &mut info) != 0;
         CloseHandle(handle);
-        ok.then(|| {
-            (
-                ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64,
-                info.dwVolumeSerialNumber as u64,
-            )
-        })
+        ok.then_some((
+            ((info.nFileIndexHigh as u64) << 32) | info.nFileIndexLow as u64,
+            info.dwVolumeSerialNumber as u64,
+        ))
     }
 }
 
