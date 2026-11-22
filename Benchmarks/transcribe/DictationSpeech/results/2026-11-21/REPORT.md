@@ -63,7 +63,7 @@ runs in llama-server, not the app), Parakeet 0.69 s where Release took 0.29 s.
 ## Not covered
 
 - **Comparison with QwenLlamaCpp's 42× real time:** that harness decodes merged windows of up to 60 s; dictation decodes
-  each voice-activity span by itself (a median of about 9 per recording here), so its per-request overhead is higher.
+  each voice-activity span by itself (a median of 11 per recording here), so its per-request overhead is higher.
 
 - **Read speech, not dictation:** no fillers, restarts or thinking pauses; spontaneous speech has more pauses, so more spans.
   Both models may have seen LibriSpeech's training set; these are its test sets.
