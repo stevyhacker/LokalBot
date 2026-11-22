@@ -863,7 +863,7 @@
 "Question or search" = "提问或搜索";
 "Quit LokalBot" = "退出 LokalBot";
 "Read coding agent sessions" = "读取编程智能体会话";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "读取你的 Claude Code 和 Codex 会话，让 LokalBot 记住智能体完成的工作。文件留在这台 Mac 上。";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "读取你的 Claude Code、Codex、Antigravity 和 T3 Code 会话，让 LokalBot 记住智能体完成的工作。文件留在这台 Mac 上。";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "通过截图读取当前窗口的文字。需要屏幕录制权限；图像和文字都不会保存。";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "通过辅助功能读取可见的界面文字，不保存屏幕截图。";
 "Reads window titles and visible interface text for activity and text-context features." = "读取窗口标题和界面可见文字，用于活动记录和文字上下文功能。";
@@ -2625,3 +2625,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "在关闭工具的情况下运行你自己的 Antigravity CLI (agy)。你自行登录 agy；LokalBot 永远看不到你的 Google 登录信息。";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "在关闭工具的情况下运行你自己的 Gemini CLI。请先在终端中登录 gemini；LokalBot 永远看不到你的 Google 登录信息。";
 "Signed in" = "已登录";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot 会停止读取编程智能体会话并删除已保存的内容。Claude Code、Codex、Antigravity 和 T3 Code 自己的会话文件不受影响。";

@@ -27,15 +27,26 @@ pub enum CodingAgentKind {
     ClaudeCode,
     #[serde(rename = "codex")]
     Codex,
+    #[serde(rename = "antigravity")]
+    Antigravity,
+    #[serde(rename = "t3-code")]
+    T3Code,
 }
 
 impl CodingAgentKind {
-    pub const ALL: [Self; 2] = [Self::ClaudeCode, Self::Codex];
+    pub const ALL: [Self; 4] = [
+        Self::ClaudeCode,
+        Self::Codex,
+        Self::Antigravity,
+        Self::T3Code,
+    ];
 
     pub fn raw_value(self) -> &'static str {
         match self {
             Self::ClaudeCode => "claude-code",
             Self::Codex => "codex",
+            Self::Antigravity => "antigravity",
+            Self::T3Code => "t3-code",
         }
     }
 
@@ -43,6 +54,8 @@ impl CodingAgentKind {
         match self {
             Self::ClaudeCode => "Claude Code",
             Self::Codex => "Codex",
+            Self::Antigravity => "Antigravity",
+            Self::T3Code => "T3 Code",
         }
     }
 }
@@ -540,6 +553,12 @@ pub fn project_name(working_directory: Option<&str>) -> String {
         && components.get(marker + 1) == Some(&"worktrees")
     {
         return components[marker - 1].to_string();
+    }
+    if let Some(marker) = components.iter().rposition(|c| *c == ".t3")
+        && components.get(marker + 1) == Some(&"worktrees")
+        && let Some(repo) = components.get(marker + 2)
+    {
+        return (*repo).to_string();
     }
     components
         .last()

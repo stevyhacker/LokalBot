@@ -11,8 +11,8 @@ use crate::state::AppData;
 use crate::theme::{LbThemeExt as _, ty};
 use crate::ui::settings_row;
 
-const DETAILS_UNIX: &str = "LokalBot reads the session files in ~/.claude/projects and ~/.codex/sessions, never the agents' credentials or settings. It keeps your requests, the agent's final report, changed file names, and actions such as commits, pull requests, pushes, and test runs. Tool output, command output, file contents, and reasoning are skipped, and detected credentials are redacted. Work in progress is added after ten quiet minutes. Saved sessions follow screen-text retention, and turning this off keeps them until you delete them. The agents' own files are never changed.";
-const DETAILS_WINDOWS: &str = "LokalBot reads the session files in %USERPROFILE%\\.claude\\projects and %USERPROFILE%\\.codex\\sessions, never the agents' credentials or settings. It keeps your requests, the agent's final report, changed file names, and actions such as commits, pull requests, pushes, and test runs. Tool output, command output, file contents, and reasoning are skipped, and detected credentials are redacted. Work in progress is added after ten quiet minutes. Saved sessions follow screen-text retention, and turning this off keeps them until you delete them. The agents' own files are never changed.";
+const DETAILS_UNIX: &str = "LokalBot reads the session files in ~/.claude/projects, ~/.codex/sessions, and ~/.gemini/antigravity*/brain, plus T3 Code's session database in ~/.t3/userdata/statev2.sqlite (read-only), never the agents' credentials or settings. It keeps your requests, the agent's final report, changed file names, and actions such as commits, pull requests, pushes, and test runs. Tool output, command output, file contents, and reasoning are skipped, and detected credentials are redacted. Work in progress is added after ten quiet minutes. Saved sessions follow screen-text retention, and turning this off keeps them until you delete them. The agents' own files are never changed.";
+const DETAILS_WINDOWS: &str = "LokalBot reads the session files in %USERPROFILE%\\.claude\\projects, %USERPROFILE%\\.codex\\sessions, and %USERPROFILE%\\.gemini\\antigravity*\\brain, plus T3 Code's session database in %USERPROFILE%\\.t3\\userdata\\statev2.sqlite (read-only), never the agents' credentials or settings. It keeps your requests, the agent's final report, changed file names, and actions such as commits, pull requests, pushes, and test runs. Tool output, command output, file contents, and reasoning are skipped, and detected credentials are redacted. Work in progress is added after ten quiet minutes. Saved sessions follow screen-text retention, and turning this off keeps them until you delete them. The agents' own files are never changed.";
 
 const NOTES_DETAILS_UNIX: &str = "LokalBot reads the Markdown notes in ~/.claude/projects/*/memory and, from ~/.codex/memories, MEMORY.md, memory_summary.md and the session summaries. It reads nothing else there: no credentials, settings, skills or instruction files. It keeps each note's title, text and file path in its library, with detected credentials redacted, and checks for changes every ten minutes. Notes about a folder listed above are left out. A note the agent deletes leaves LokalBot at the next check, and turning this off deletes every copy. Notes are an agent's own summary, so Ask treats them as leads to check, not as facts.";
 const NOTES_DETAILS_WINDOWS: &str = "LokalBot reads the Markdown notes in %USERPROFILE%\\.claude\\projects\\*\\memory and, from %USERPROFILE%\\.codex\\memories, MEMORY.md, memory_summary.md and the session summaries. It reads nothing else there: no credentials, settings, skills or instruction files. It keeps each note's title, text and file path in its library, with detected credentials redacted, and checks for changes every ten minutes. Notes about a folder listed above are left out. A note the agent deletes leaves LokalBot at the next check, and turning this off deletes every copy. Notes are an agent's own summary, so Ask treats them as leads to check, not as facts.";
@@ -32,7 +32,7 @@ fn confirm_deletion(data: Entity<AppData>, window: &mut Window, cx: &mut App) {
         alert
             .title(lokalbot_i18n::tr("Delete saved agent sessions?"))
             .description(lokalbot_i18n::tr(
-                "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code and Codex keep their own session files.",
+                "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files.",
             ))
             .confirm()
             .ok_text(lokalbot_i18n::tr("Delete and Stop Reading"))
@@ -88,9 +88,9 @@ impl SettingsPage {
         let notes_data = self.data.clone();
         let data = self.data.clone();
         let help: SharedString = if settings.coding_agent_evidence_confirmed {
-            lokalbot_i18n::tr("Adds Claude Code and Codex sessions on this computer to the day digest: your requests, changed file names, commits, and pull requests. Tool output and file contents are never read.").into()
+            lokalbot_i18n::tr("Adds Claude Code, Codex, Antigravity, and T3 Code sessions on this computer to the day digest: your requests, changed file names, commits, and pull requests. Tool output and file contents are never read.").into()
         } else {
-            lokalbot_i18n::tr("Off until you choose. LokalBot hasn't read anything in your Claude Code or Codex folders. Turn this on to add their sessions on this computer to the day digest: your requests, changed file names, commits, and pull requests. Tool output and file contents are never read.").into()
+            lokalbot_i18n::tr("Off until you choose. LokalBot hasn't read anything in your Claude Code, Codex, Antigravity, or T3 Code folders. Turn this on to add their sessions on this computer to the day digest: your requests, changed file names, commits, and pull requests. Tool output and file contents are never read.").into()
         };
         let mut section = Section::new(lokalbot_i18n::tr("Coding agent sessions")).row(
             "settings.codingAgentEvidenceEnabled",
@@ -155,16 +155,41 @@ impl SettingsPage {
                         |s, v| s.coding_agent_reads_codex = v,
                         cx,
                     ),
-                )
-                .row(
-                    "settings.codingAgentExcludedFolders",
-                    settings_row::content_row(
-                        "settings.codingAgentExcludedFolders",
-                        self.coding_agent_folders.clone(),
-                        self.is_focused("settings.codingAgentExcludedFolders"),
-                        cx,
-                    ),
                 );
+            if reading {
+                section = section
+                    .row(
+                        "settings.codingAgentReadsAntigravity",
+                        self.toggle(
+                            "settings.codingAgentReadsAntigravity",
+                            "Antigravity",
+                            None,
+                            settings.coding_agent_reads_antigravity,
+                            |s, v| s.coding_agent_reads_antigravity = v,
+                            cx,
+                        ),
+                    )
+                    .row(
+                        "settings.codingAgentReadsT3Code",
+                        self.toggle(
+                            "settings.codingAgentReadsT3Code",
+                            "T3 Code",
+                            None,
+                            settings.coding_agent_reads_t3_code,
+                            |s, v| s.coding_agent_reads_t3_code = v,
+                            cx,
+                        ),
+                    );
+            }
+            section = section.row(
+                "settings.codingAgentExcludedFolders",
+                settings_row::content_row(
+                    "settings.codingAgentExcludedFolders",
+                    self.coding_agent_folders.clone(),
+                    self.is_focused("settings.codingAgentExcludedFolders"),
+                    cx,
+                ),
+            );
         }
         let delete_data = self.data.clone();
         section = section
@@ -255,7 +280,7 @@ mod tests {
 
         choose(&mut settings, true);
         assert!(reads_sessions(&settings));
-        assert_eq!(settings.enabled_coding_agents().len(), 2);
+        assert_eq!(settings.enabled_coding_agents().len(), 4);
 
         choose(&mut settings, false);
         assert!(!reads_sessions(&settings));

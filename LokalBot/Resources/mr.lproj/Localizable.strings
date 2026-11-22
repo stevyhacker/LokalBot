@@ -849,7 +849,7 @@
 "Question or search" = "प्रश्न किंवा शोध";
 "Quit LokalBot" = "LokalBot बंद करा";
 "Read coding agent sessions" = "कोडिंग एजंट सत्रे वाचा";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "तुमची Claude Code आणि Codex सत्रे वाचा, जेणेकरून तुमच्या एजंटांनी काय केले ते LokalBot लक्षात ठेवेल. फाइल्स याच Mac वर राहतात.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "तुमची Claude Code, Codex, Antigravity आणि T3 Code सत्रे वाचा, जेणेकरून तुमच्या एजंटांनी काय केले ते LokalBot लक्षात ठेवेल. फाइल्स याच Mac वर राहतात.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "स्क्रीनशॉटमधून सक्रिय विंडोचा मजकूर वाचतो. स्क्रीन रेकॉर्डिंग आवश्यक; प्रतिमा आणि मजकूर जतन होत नाहीत.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "सुलभतेद्वारे दिसणारा इंटरफेस मजकूर वाचतो; स्क्रीनशॉट जतन होत नाहीत.";
 "Reads window titles and visible interface text for activity and text-context features." = "हालचाली आणि मजकूर संदर्भ सुविधांसाठी विंडोची शीर्षके आणि दिसणारा इंटरफेस मजकूर वाचतो.";
@@ -2626,3 +2626,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "तुमचे स्वतःचे Antigravity CLI (agy) त्याची साधने बंद ठेवून चालवते. agy मध्ये तुम्ही स्वतः साइन इन करता; LokalBot तुमचे Google साइन-इन कधीही पाहत नाही.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "तुमचे स्वतःचे Gemini CLI त्याची साधने बंद ठेवून चालवते. आधी Terminal मध्ये gemini मध्ये साइन इन करा; LokalBot तुमचे Google साइन-इन कधीही पाहत नाही.";
 "Signed in" = "साइन इन केले आहे";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot कोडिंग एजंट सत्रे वाचणे थांबवतो आणि जे जतन केले होते ते हटवतो. Claude Code, Codex, Antigravity आणि T3 Code त्यांच्या स्वतःच्या सत्र फाइल्स स्वतः ठेवतात.";
