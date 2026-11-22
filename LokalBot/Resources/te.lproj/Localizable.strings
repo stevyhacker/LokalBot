@@ -2639,3 +2639,10 @@
 "Clear Selection" = "ఎంపికను క్లియర్ చేయండి";
 "Trim to Selection" = "ఎంపికకు కత్తిరించండి";
 "New Meeting from Selection" = "ఎంపిక నుండి కొత్త మీటింగ్";
+"Import from Wispr Flow…" = "Wispr Flow నుండి దిగుమతి చేయండి…";
+"Add %lld words from Wispr Flow?" = "Wispr Flow నుండి %lld పదాలను జోడించాలా?";
+"Add Words" = "పదాలను జోడించండి";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "స్నిప్పెట్‌లు, తొలగించిన ఎంట్రీలు, సాధారణ పదాలు, ఇప్పటికే జాబితాలో ఉన్న పదాలు వదిలివేయబడతాయి; ఎక్కువగా వాడినవి ముందుగా, గరిష్టంగా 40 పదాలు జోడించబడతాయి.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow యొక్క flow.sqlite ను ఎంచుకోండి. LokalBot దాని నిఘంటువును మాత్రమే చదువుతుంది.";
+"Wispr Flow's dictionary has no new words to add." = "Wispr Flow నిఘంటువులో జోడించడానికి కొత్త పదాలు లేవు.";
+"Couldn't read Wispr Flow's dictionary." = "Wispr Flow నిఘంటువును చదవలేకపోయింది.";

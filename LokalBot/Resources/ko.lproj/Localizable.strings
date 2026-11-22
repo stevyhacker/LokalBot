@@ -2639,3 +2639,10 @@
 "Clear Selection" = "선택 해제";
 "Trim to Selection" = "선택 영역으로 자르기";
 "New Meeting from Selection" = "선택 영역으로 새 회의 만들기";
+"Import from Wispr Flow…" = "Wispr Flow에서 가져오기…";
+"Add %lld words from Wispr Flow?" = "Wispr Flow에서 단어 %lld개를 추가할까요?";
+"Add Words" = "단어 추가";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "스니펫, 삭제된 항목, 일상적인 단어, 이미 있는 단어는 제외되며, 가장 많이 쓴 순서로 최대 40개 단어가 추가됩니다.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow의 flow.sqlite를 선택하세요. LokalBot은 사전만 읽습니다.";
+"Wispr Flow's dictionary has no new words to add." = "Wispr Flow 사전에 추가할 새 단어가 없습니다.";
+"Couldn't read Wispr Flow's dictionary." = "Wispr Flow 사전을 읽을 수 없습니다.";

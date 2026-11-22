@@ -2639,3 +2639,10 @@
 "Clear Selection" = "चयन साफ़ करें";
 "Trim to Selection" = "चयन तक काटें";
 "New Meeting from Selection" = "चयन से नई मीटिंग";
+"Import from Wispr Flow…" = "Wispr Flow से आयात करें…";
+"Add %lld words from Wispr Flow?" = "Wispr Flow से %lld शब्द जोड़ें?";
+"Add Words" = "शब्द जोड़ें";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "स्निपेट, हटाई गई प्रविष्टियाँ, आम शब्द और पहले से सूची में मौजूद शब्द छोड़ दिए जाते हैं; सबसे ज़्यादा इस्तेमाल वाले पहले, अधिकतम 40 शब्द जोड़े जाते हैं।";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow की flow.sqlite फ़ाइल चुनें। LokalBot केवल उसका शब्दकोश पढ़ता है।";
+"Wispr Flow's dictionary has no new words to add." = "Wispr Flow के शब्दकोश में जोड़ने के लिए कोई नया शब्द नहीं है।";
+"Couldn't read Wispr Flow's dictionary." = "Wispr Flow का शब्दकोश पढ़ा नहीं जा सका।";

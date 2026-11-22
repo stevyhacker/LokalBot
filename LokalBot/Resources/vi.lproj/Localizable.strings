@@ -2639,3 +2639,10 @@
 "Clear Selection" = "Xóa vùng chọn";
 "Trim to Selection" = "Cắt theo vùng chọn";
 "New Meeting from Selection" = "Cuộc họp mới từ vùng chọn";
+"Import from Wispr Flow…" = "Nhập từ Wispr Flow…";
+"Add %lld words from Wispr Flow?" = "Thêm %lld từ của Wispr Flow?";
+"Add Words" = "Thêm từ";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "Đoạn mẫu, mục đã xóa, từ thông dụng và từ đã có trong danh sách sẽ bị bỏ qua; tối đa 40 từ được thêm, ưu tiên từ dùng nhiều nhất.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Chọn tệp flow.sqlite của Wispr Flow. LokalBot chỉ đọc từ điển của nó.";
+"Wispr Flow's dictionary has no new words to add." = "Từ điển Wispr Flow không có từ mới nào để thêm.";
+"Couldn't read Wispr Flow's dictionary." = "Không thể đọc từ điển Wispr Flow.";

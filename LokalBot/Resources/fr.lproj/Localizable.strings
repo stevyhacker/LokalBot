@@ -2639,3 +2639,10 @@
 "Clear Selection" = "Effacer la sélection";
 "Trim to Selection" = "Rogner à la sélection";
 "New Meeting from Selection" = "Nouvelle réunion à partir de la sélection";
+"Import from Wispr Flow…" = "Importer depuis Wispr Flow…";
+"Add %lld words from Wispr Flow?" = "Ajouter %lld mots depuis Wispr Flow ?";
+"Add Words" = "Ajouter les mots";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "Les extraits, les entrées supprimées, les mots courants et les mots déjà présents sont ignorés ; au plus 40 mots sont ajoutés, les plus utilisés d'abord.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Choisissez le fichier flow.sqlite de Wispr Flow. LokalBot ne lit que son dictionnaire.";
+"Wispr Flow's dictionary has no new words to add." = "Le dictionnaire de Wispr Flow ne contient aucun nouveau mot à ajouter.";
+"Couldn't read Wispr Flow's dictionary." = "Impossible de lire le dictionnaire de Wispr Flow.";

@@ -2639,3 +2639,10 @@
 "Clear Selection" = "清除選取範圍";
 "Trim to Selection" = "裁剪為選取範圍";
 "New Meeting from Selection" = "從選取範圍建立新會議";
+"Import from Wispr Flow…" = "從 Wispr Flow 匯入…";
+"Add %lld words from Wispr Flow?" = "要從 Wispr Flow 新增 %lld 個詞嗎？";
+"Add Words" = "新增詞語";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "片段、已刪除的項目、常用詞和已列出的詞不會匯入；最多新增 40 個詞，最常用的優先。";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "請選擇 Wispr Flow 的 flow.sqlite。LokalBot 只讀取其中的詞典。";
+"Wispr Flow's dictionary has no new words to add." = "Wispr Flow 的詞典中沒有可新增的新詞。";
+"Couldn't read Wispr Flow's dictionary." = "無法讀取 Wispr Flow 的詞典。";

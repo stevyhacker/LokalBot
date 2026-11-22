@@ -2639,3 +2639,10 @@
 "Clear Selection" = "Share zaɓi";
 "Trim to Selection" = "Yanke zuwa zaɓi";
 "New Meeting from Selection" = "Sabon taro daga zaɓi";
+"Import from Wispr Flow…" = "Shigo da shi daga Wispr Flow…";
+"Add %lld words from Wispr Flow?" = "A ƙara kalmomi %lld daga Wispr Flow?";
+"Add Words" = "Ƙara Kalmomi";
+"Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first." = "Ana barin gajerun rubutu, shigarwar da aka goge, kalmomin yau da kullum da kalmomin da ke cikin jerin tuni; ana ƙara kalmomi 40 a mafi yawa, waɗanda aka fi amfani da su da farko.";
+"Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Zaɓi fayil ɗin flow.sqlite na Wispr Flow. LokalBot yana karanta ƙamus ɗinsa kawai.";
+"Wispr Flow's dictionary has no new words to add." = "Babu sababbin kalmomi da za a ƙara a ƙamus ɗin Wispr Flow.";
+"Couldn't read Wispr Flow's dictionary." = "Ba a iya karanta ƙamus ɗin Wispr Flow ba.";
