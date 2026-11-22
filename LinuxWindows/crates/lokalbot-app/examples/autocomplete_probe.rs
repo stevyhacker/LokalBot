@@ -131,15 +131,7 @@ fn show(
         lokalbot_ai::autocomplete::AcceptOptions::default(),
     );
     let screen = platform::screen_containing(&field.caret);
-    let reported = field
-        .style
-        .as_ref()
-        .is_some_and(|s| s.color.is_some() && s.background.is_some());
-    let sampled = if reported {
-        None
-    } else {
-        platform::sample_luminance(&field.caret)
-    };
+    let sampled = platform::sample_luminance(&field.caret, field.field_frame);
     let appearance = layout::Appearance {
         dark: false,
         ui_font: if cfg!(windows) {
@@ -158,6 +150,7 @@ fn show(
         let placement = layout::place(
             text,
             &emphasis,
+            true,
             field,
             field.caret,
             screen,

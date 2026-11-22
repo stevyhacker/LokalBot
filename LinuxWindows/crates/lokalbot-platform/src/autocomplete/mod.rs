@@ -602,18 +602,18 @@ pub fn screen_containing(rect: &Rect) -> Option<Rect> {
     }
 }
 
-pub fn sample_luminance(rect: &Rect) -> Option<f32> {
+pub fn sample_luminance(rect: &Rect, field: Option<Rect>) -> Option<f32> {
     #[cfg(target_os = "linux")]
     {
-        x11::sample_luminance(rect)
+        x11::sample_luminance(rect, field)
     }
     #[cfg(windows)]
     {
-        win32::sample_luminance(rect)
+        win32::sample_luminance(rect, field)
     }
     #[cfg(not(any(windows, target_os = "linux")))]
     {
-        let _ = rect;
+        let _ = (rect, field);
         None
     }
 }

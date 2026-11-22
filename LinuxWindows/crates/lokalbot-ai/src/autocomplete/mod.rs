@@ -24,7 +24,7 @@ pub use accept::{AcceptOptions, AcceptScope, AcceptancePlan};
 pub use client::{Cancelled, Completer, Completion, Timings};
 pub use normalize::{Normalized, Suppression};
 pub use prompt::{Extras, Field, Personalization, Request, build_request};
-pub use session::{Reconciled, Session, SuggestionKind};
+pub use session::{Reconciled, Session, SuggestionKind, inline_after};
 
 pub fn accept_chunk(suggestion: &str, options: AcceptOptions) -> String {
     match options.granularity {
