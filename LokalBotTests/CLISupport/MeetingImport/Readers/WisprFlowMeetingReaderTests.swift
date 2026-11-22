@@ -47,6 +47,16 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
         XCTAssertEqual(try WisprFlowMeetingReader.read(inner).meetings, try WisprFlowMeetingReader.read(folder).meetings)
     }
 
+    func testASpeakerMapWithoutAConsensusStillNamesTheSpeaker() {
+        let map = #"{"people":{"a":{"name":"Ana Example","origin":"self"},"b":{"name":"Mila Novak","origin":"platform"},"c":{"name":"Ivo Petrov","origin":"platform"}},"assignments":{"1":{"dom":"a","llm":null,"mic":null,"user":null},"2":{"consensus":null,"dom":null,"llm":"b","voices":["x"]},"3":{"consensus":"b","user":"c"},"4":{"consensus":null,"voices":["x"]}}}"#
+        let speakers = WisprFlowMeetingReader.speakers(map)
+        XCTAssertEqual(speakers[1]?.name, "Ana Example", "older meetings keep only the name the call showed")
+        XCTAssertEqual(speakers[1]?.isMe, true)
+        XCTAssertEqual(speakers[2]?.name, "Mila Novak")
+        XCTAssertEqual(speakers[3]?.name, "Ivo Petrov", "a name the person set wins")
+        XCTAssertNil(speakers[4])
+    }
+
     func testReadingLeavesWisprsFilesUnchanged() throws {
         let folder = try makeWisprFolder("wispr-meetings-untouched")
         let before = listing(folder)

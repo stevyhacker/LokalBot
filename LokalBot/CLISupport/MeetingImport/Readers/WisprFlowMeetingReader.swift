@@ -76,6 +76,8 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
         return lines
     }
 
+    static let assignmentSources = ["user", "consensus", "dom", "mic", "llm"]
+
     static func speakers(_ json: String?) -> [Int: Speaker] {
         guard let data = json?.data(using: .utf8),
               let map = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
@@ -83,10 +85,14 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
               let assignments = map["assignments"] as? [String: [String: Any]] else { return [:] }
         var result: [Int: Speaker] = [:]
         for (key, assignment) in assignments {
-            guard let id = Int(key), let person = (assignment["consensus"] as? String).flatMap({ people[$0] }),
-                  let name = (person["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !name.isEmpty else { continue }
-            result[id] = Speaker(name: name, isMe: person["origin"] as? String == "self")
+            guard let id = Int(key) else { continue }
+            let named = assignmentSources.lazy.compactMap { source -> Speaker? in
+                guard let person = (assignment[source] as? String).flatMap({ people[$0] }),
+                      let name = (person["name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                      !name.isEmpty else { return nil }
+                return Speaker(name: name, isMe: person["origin"] as? String == "self")
+            }
+            if let speaker = named.first { result[id] = speaker }
         }
         return result
     }
