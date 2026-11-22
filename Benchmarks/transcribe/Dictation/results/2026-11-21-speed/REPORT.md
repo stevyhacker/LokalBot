@@ -94,6 +94,11 @@ a word) are unrelated to speculation.
 
 - Only cleanup: Transcribe inserts the recognized text without a model, and for long dictations most of the wait is
   transcription (see the comment on #545).
-- Other users of the main server (Ask, meeting notes, summaries) were not measured.
+- **Meeting notes, a first look only:** the notes replay (`Benchmarks/think/SummaryEfficiency`, now with `--server-arg`) on AMI's
+  manual transcripts of ES2004a and IS1009a, cold runs, twice each. `ngram-cache` changed the notes: the first extraction wrote
+  862 output tokens instead of 834 on ES2004a and 970 instead of 1,885 on IS1009a, the same both times, so unlike dictation
+  cleanup the output is not identical (notes run with reasoning on and their own sampling options). Per output token the first
+  extraction ran at 60 against 59 tokens/s and 68 against 58. The shorter totals (36 to 37 s against 38 s, 28 to 29 s against
+  53 s) come mostly from the different, shorter notes, whose quality was not scored. Ask was not measured.
 - `ngram-cache` keeps what it learns for the server's lifetime, so later dictations that repeat phrases from earlier ones may
   gain a little more than a first-time one; that was not measured.
