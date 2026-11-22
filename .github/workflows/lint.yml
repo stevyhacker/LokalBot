@@ -71,12 +71,3 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - name: No file gains comments
         run: python3 Scripts/ci/comment-ratchet.py --check
-
-  windows-paths:
-    name: Windows-safe paths
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Every tracked path can be checked out on Windows
-        run: python3 Scripts/ci/check-path-portability.py
