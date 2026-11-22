@@ -27,6 +27,11 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
+        if let replay = DictationSpeechReplay.parse(CommandLine.arguments) {
+            Task { @MainActor in exit(await DictationSpeechReplay.run(replay)) }
+            RunLoop.main.run()
+            return
+        }
         if let replay = MeetingRadarReplay.parse(CommandLine.arguments) {
             Task { @MainActor in
                 exit(await MeetingRadarReplay.run(replay))
