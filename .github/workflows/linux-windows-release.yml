@@ -133,39 +133,12 @@ jobs:
           retention-days: 7
           if-no-files-found: error
 
-  source:
-    name: Windows sources
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Archive the Rust workspace
-        working-directory: .
-        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting LICENSE LICENSES THIRD_PARTY_NOTICES.md
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: release-windows-source
-          path: ${{ runner.temp }}/lokalbot-src.tar.gz
-          retention-days: 1
-
   windows:
     name: Windows archive
-    needs: source
     runs-on: windows-2025
     timeout-minutes: 90
     steps:
-      # The macOS fixtures have names Git for Windows cannot check out.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: release-windows-source
-          path: ${{ runner.temp }}
-
-      - name: Extract sources
-        working-directory: ${{ github.workspace }}
-        shell: pwsh
-        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build and package
         run: scripts/package.sh

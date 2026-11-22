@@ -4,7 +4,9 @@
 # makes lokalbot.exe independent of the Visual C++ redistributable.
 # A RUSTFLAGS environment variable replaces these flags; keep +crt-static in it.
 [target.x86_64-pc-windows-msvc]
+linker = "rust-lld"
 rustflags = ["-C", "target-feature=+crt-static"]
 
 [target.aarch64-pc-windows-msvc]
+linker = "rust-lld"
 rustflags = ["-C", "target-feature=+crt-static"]

@@ -59,65 +59,15 @@ permissions:
   contents: read
 
 jobs:
-  # Git for Windows cannot check out the macOS fixtures (names with ':'), even
-  # sparsely, so the Windows jobs receive their scripts/sources from Ubuntu.
-  packaging:
-    name: Windows packaging scripts
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: |
-            LinuxWindows/Cargo.toml
-            LinuxWindows/packaging/windows
-            LinuxWindows/packaging/icons
-            LinuxWindows/scripts/package-windows-installer.ps1
-            LinuxWindows/scripts/ci/check-windows-installer.ps1
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: windows-sign-tools
-          path: LinuxWindows
-          retention-days: 1
-          if-no-files-found: error
-
-  # Secret-free source archive used only by manual workflow_dispatch test runs.
-  source-test:
-    name: Windows sources (test signing)
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Archive the Rust workspace
-        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting LICENSE LICENSES THIRD_PARTY_NOTICES.md
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: release-windows-source-test
-          path: ${{ runner.temp }}/lokalbot-src.tar.gz
-          retention-days: 1
-          if-no-files-found: error
-
   # Secret-free Windows build used only by manual workflow_dispatch test runs so
   # SignPath's GitHub Trusted Build System verifies a genuine GitHub Actions build.
   build-windows-test:
     name: Build Windows archive (test signing)
     if: github.event_name == 'workflow_dispatch'
-    needs: source-test
     runs-on: windows-2025
     timeout-minutes: 90
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: release-windows-source-test
-          path: ${{ runner.temp }}
-
-      - name: Extract sources
-        shell: pwsh
-        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Build and package
         working-directory: LinuxWindows
@@ -133,10 +83,9 @@ jobs:
 
   sign:
     name: Sign Windows binaries and installer
-    needs: [packaging, build-windows-test]
+    needs: build-windows-test
     if: >-
       always()
-      && needs.packaging.result == 'success'
       && (needs.build-windows-test.result == 'success' || needs.build-windows-test.result == 'skipped')
     runs-on: windows-2025
     timeout-minutes: 60
@@ -144,10 +93,14 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          name: windows-sign-tools
-          path: LinuxWindows
+          sparse-checkout: |
+            LinuxWindows/Cargo.toml
+            LinuxWindows/packaging/windows
+            LinuxWindows/packaging/icons
+            LinuxWindows/scripts/package-windows-installer.ps1
+            LinuxWindows/scripts/ci/check-windows-installer.ps1
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
