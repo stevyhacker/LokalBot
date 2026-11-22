@@ -34,6 +34,9 @@ has its own section, [LokalBot for Linux and Windows](#lokalbot-for-linux-and-wi
 | Parakeet Ultra (downloaded on request; moondream post-training of NVIDIA Parakeet v3, Core ML conversion by FluidInference) | CC-BY-4.0 | https://huggingface.co/moondream/parakeet-ultra / https://huggingface.co/FluidInference/parakeet-ultra-coreml |
 | EmbeddingGemma 2 (downloaded on first use of search by meaning, and its image and audio projector when Files is turned on; ggml-org's GGUF conversion) | Apache-2.0 | https://huggingface.co/google/embeddinggemma-2 / https://huggingface.co/ggml-org/embeddinggemma-2-GGUF |
 | Granite Speech 5.0 2B (downloaded on request; official IBM GGUF and projector) | Apache-2.0 | https://huggingface.co/ibm-granite/granite-speech-5.0-2b / https://huggingface.co/ibm-granite/granite-speech-5.0-2b-GGUF |
+| Qwen3.5 4B (LokalBot v3) (downloaded on request; LokalBot fine-tune of Qwen/Qwen3.5-4B) | Apache-2.0 | https://huggingface.co/Qwen/Qwen3.5-4B / https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF |
+| Gemma 4 E2B (LokalBot v4) (downloaded on request; LokalBot fine-tune of google/gemma-4-E2B) | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license / https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF |
+| Qwen3-ASR 1.7B (LokalBot v3) and Qwen3-ASR 0.6B (LokalBot v1) (downloaded on request; LokalBot fine-tunes of Qwen/Qwen3-ASR-1.7B and Qwen/Qwen3-ASR-0.6B) | Apache-2.0 | https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF / https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF |
 
 Downloaded AI models are not bundled with LokalBot. Each model remains subject
 to the license shown by its publisher; review that license before downloading
@@ -228,9 +231,9 @@ itself is not included: on Linux, LokalBot runs the copy your system installed.
 | Kokoro 82M (multi-lang v1.0) | reading summaries and answers aloud | Apache-2.0 | https://huggingface.co/hexgrad/Kokoro-82M |
 | ocrs text detection and recognition | screen text | CC-BY-SA-4.0 | https://huggingface.co/robertknight/ocrs |
 | Tesseract `tessdata_fast` language data | screen text on Linux | Apache-2.0 | https://github.com/tesseract-ocr/tessdata_fast |
-| Qwen3.5 0.8B, 2B and 4B; Qwen3.6 27B and 35B-A3B (GGUF by Unsloth) | Think, Autocomplete | Apache-2.0 | https://huggingface.co/Qwen |
+| Qwen3.5 0.8B, 2B and 4B (including Qwen3.5 4B LokalBot v3); Qwen3.6 27B and 35B-A3B (GGUF by Unsloth / LokalBot) | Think, Autocomplete | Apache-2.0 | https://huggingface.co/Qwen, https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF |
 | LFM2.5 1.2B Instruct (GGUF by Unsloth), 2.6B and 8B-A1B, Liquid AI | Think, Autocomplete | LFM Open License v1.0 | https://huggingface.co/LiquidAI |
-| Gemma 4 E2B base (GGUF by mradermacher), E4B and 12B (GGUF by Unsloth), Google DeepMind | Think, Autocomplete | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license |
+| Gemma 4 E2B (LokalBot v4 and base GGUF by mradermacher), E4B and 12B (GGUF by Unsloth), Google DeepMind | Think, Autocomplete | Apache-2.0 | https://ai.google.dev/gemma/docs/gemma_4_license, https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF |
 | Granite 4.1 3B, IBM | Think | Apache-2.0 | https://huggingface.co/ibm-granite/granite-4.1-3b |
 | Ministral 3 3B Instruct 2512, Mistral AI | Think | Apache-2.0 | https://huggingface.co/mistralai/Ministral-3-3B-Instruct-2512 |
 | EmbeddingGemma 2 (GGUF by ggml-org), Google DeepMind | search | Apache-2.0 | https://huggingface.co/google/embeddinggemma-2 |

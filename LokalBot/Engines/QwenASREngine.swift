@@ -47,6 +47,7 @@ actor QwenASREngine: TranscriptionEngine {
 
     private let variant: Variant
     private var server: LlamaServer?
+    private var serverProjectorPath: String?
     private let preparation = AsyncSingleFlight()
     private var activeUses = 0
     private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
@@ -56,25 +57,43 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
+        try await prepare(upgradingLegacyWeights: false, progress: progress)
+    }
+
+    func upgradeWeights(progress: ModelPreparationProgressHandler? = nil) async throws {
+        try await prepare(upgradingLegacyWeights: true, progress: progress)
+    }
+
+    private func prepare(upgradingLegacyWeights: Bool, progress: ModelPreparationProgressHandler?) async throws {
         report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
         try await preparation.run { [weak self] in
             guard let self else { return }
-            try await self.performPreparation(progress: progress)
+            try await self.performPreparation(upgradingLegacyWeights: upgradingLegacyWeights, progress: progress)
         }
         await idle.bump()
         report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
 
-    private func performPreparation(progress: ModelPreparationProgressHandler?) async throws {
-        try await prepareServer(progress: progress)
+    private func performPreparation(upgradingLegacyWeights: Bool,
+                                    progress: ModelPreparationProgressHandler?) async throws {
+        try await prepareServer(upgradingLegacyWeights: upgradingLegacyWeights, progress: progress)
     }
 
-    private func prepareServer(progress: ModelPreparationProgressHandler?) async throws {
+    private func prepareServer(upgradingLegacyWeights: Bool,
+                               progress: ModelPreparationProgressHandler?) async throws {
         let paths = try await variant.weights.prepareFiles(
-            appSupport: AppDirectories.applicationSupport, progress: progress)
+            appSupport: AppDirectories.applicationSupport,
+            upgradingLegacyWeights: upgradingLegacyWeights,
+            progress: progress)
         report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
+        if let existing = server, serverProjectorPath != paths.projector.path {
+            await existing.stop()
+            server = nil
+            serverProjectorPath = nil
+        }
         let server = self.server ?? variant.weights.makeServer(projector: paths.projector)
         self.server = server
+        self.serverProjectorPath = paths.projector.path
         try await server.ensureRunning(modelAt: paths.model)
     }
 
@@ -211,12 +230,14 @@ actor QwenASREngine: TranscriptionEngine {
     func shutdown() async {
         await server?.stop()
         server = nil
+        serverProjectorPath = nil
     }
 
     private func unload() async {
         guard activeUses == 0, !(await preparation.isRunning) else { return }
         await server?.stop()
         server = nil
+        serverProjectorPath = nil
     }
 
     private func finishUse() {

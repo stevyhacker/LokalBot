@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "A cikin filayen layi ɗaya ban da manhajojin hira da masu gyaran lambar shiri, Tab yana watsar da shawarar ya matsa zuwa filin gaba maimakon karɓa.";
 "Pause in Low Power Mode" = "Dakatar a yanayin ƙarancin wuta";
 "Pause suggestions while Low Power Mode is on to save battery." = "Dakatar da shawarwari lokacin da yanayin ƙarancin wuta ke kunne don adana baturi.";
+"New default models available" = "Sabbin samfuran tsoho suna samuwa";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Haɓaka %@ zuwa sabbin samfuran tsoho da aka gyara na LokalBot (%@). Samfuranka na yanzu za su ci gaba da aiki har sai saukewar ta ƙare.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Canza %@ zuwa sabbin samfuran tsoho da aka gyara na LokalBot. An riga an sauke su.";
+"Upgrade & Download" = "Haɓaka & Sauke";
+"Switch defaults" = "Canza na tsoho";
+"LokalBot default models" = "Samfuran tsoho na LokalBot";

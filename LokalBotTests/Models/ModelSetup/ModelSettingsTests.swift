@@ -365,6 +365,58 @@ final class ModelSettingsTests: XCTestCase {
         XCTAssertNotEqual(first, ModelCheckIdentity(role: .think, settings: settings, apiKey: "synthetic-first-key"))
     }
 
+    func testDefaultModelUpgradeOfferTargetsOnlyLegacyDefaultsAndRespectsDismissal() throws {
+        let fresh = AppSettings()
+        XCTAssertNil(DefaultModelUpgradeOffer.current(settings: fresh, availability: .init()))
+
+        var legacy = AppSettings()
+        legacy.builtInModelID = ModelCatalog.previousDefaultSummarizationID
+        legacy.cotypingBuiltInModelID = ModelCatalog.previousQualityCotypingID
+        legacy.cotypingEnabled = false
+        let thinkOnly = try XCTUnwrap(DefaultModelUpgradeOffer.current(settings: legacy, availability: .init()))
+        XCTAssertEqual(thinkOnly.items.map(\.role), [.think])
+        XCTAssertEqual(thinkOnly.patch.assistantModelID, ModelCatalog.defaultSummarizationID)
+        XCTAssertNil(thinkOnly.patch.autocompleteModelID)
+        XCTAssertFalse(thinkOnly.patch.upgradeTranscriptionWeights)
+
+        let withStockAutoOnDisk = try XCTUnwrap(DefaultModelUpgradeOffer.current(
+            settings: legacy,
+            availability: .init(hasLegacyAutocompleteModel: true)))
+        XCTAssertEqual(withStockAutoOnDisk.items.map(\.role), [.think, .autocomplete])
+        XCTAssertEqual(withStockAutoOnDisk.patch.autocompleteModelID, ModelCatalog.qualityCotypingID)
+
+        legacy.cotypingEnabled = true
+        let allThree = try XCTUnwrap(DefaultModelUpgradeOffer.current(
+            settings: legacy,
+            availability: .init(
+                legacyQwenASRChoices: [.qwenASR17B],
+                legacyQwenASRMissingBytes: [.qwenASR17B: 2_520_744_416])))
+        XCTAssertEqual(allThree.items.map(\.role), [.transcribe, .think, .autocomplete])
+        XCTAssertEqual(allThree.patch.transcription, .qwenASR17B)
+        XCTAssertTrue(allThree.patch.upgradeTranscriptionWeights)
+        XCTAssertGreaterThan(allThree.totalDownloadBytes, 8_000_000_000)
+
+        let alreadyDownloaded = try XCTUnwrap(DefaultModelUpgradeOffer.current(
+            settings: legacy,
+            availability: .init(hasDefaultThinkModel: true, hasDefaultAutocompleteModel: true)))
+        XCTAssertEqual(alreadyDownloaded.totalDownloadBytes, 0)
+
+        legacy.dismissedDefaultModelUpgradeKey = DefaultModelUpgradeOffer.mergedDismissalKey(
+            existing: "", dismissing: thinkOnly)
+        let afterPartialDismiss = try XCTUnwrap(DefaultModelUpgradeOffer.current(settings: legacy, availability: .init()))
+        XCTAssertEqual(afterPartialDismiss.items.map(\.role), [.autocomplete])
+
+        legacy.dismissedDefaultModelUpgradeKey = DefaultModelUpgradeOffer.mergedDismissalKey(
+            existing: legacy.dismissedDefaultModelUpgradeKey, dismissing: afterPartialDismiss)
+        XCTAssertNil(DefaultModelUpgradeOffer.current(settings: legacy, availability: .init()))
+
+        var custom = AppSettings()
+        custom.builtInModelID = ModelCatalog.recommendedSummarizationID
+        custom.cotypingBuiltInModelID = ModelCatalog.lightweightCotypingID
+        custom.cotypingEnabled = true
+        XCTAssertNil(DefaultModelUpgradeOffer.current(settings: custom, availability: .init()))
+    }
+
     private func waitUntil(_ condition: () -> Bool) async {
         let deadline = Date().addingTimeInterval(2)
         while !condition(), Date() < deadline { try? await Task.sleep(for: .milliseconds(5)) }

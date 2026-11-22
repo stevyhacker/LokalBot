@@ -56,9 +56,24 @@ struct ModelStackOverviewView: View {
         "settings.thinkReasoningLevel", "settings.generationBudgetPreset", "settings.modelDownloadSource",
     ]
 
+    private var defaultUpgradeOffer: DefaultModelUpgradeOffer? {
+#if LOKALBOT_UI_TEST_HOST
+        if ProcessInfo.processInfo.environment["LOKALBOT_MODELS_DEMO_READY"] == "1" {
+            return nil
+        }
+#endif
+        guard setup.pending == nil else { return nil }
+        return DefaultModelUpgradeOffer.current(
+            settings: app.settings,
+            availability: roles.defaultUpgradeDiskAvailability)
+    }
+
     var body: some View {
         let presentation = presentation
         VStack(alignment: .leading, spacing: 22) {
+            if let offer = defaultUpgradeOffer {
+                DefaultModelUpgradeBanner(app: app, offer: offer, onToday: false)
+            }
             group("What each model does", identifier: "models.heading.roles") {
                 modelSetRow(presentation)
                 ForEach(presentation.rows) { row in
@@ -525,5 +540,86 @@ struct ModelOtherModelsView: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier("models.supporting.\(sheet.rawValue)")
+    }
+}
+
+struct DefaultModelUpgradeBanner: View {
+    @ObservedObject var app: AppState
+    let offer: DefaultModelUpgradeOffer
+    let onToday: Bool
+
+    private var localized: (String) -> String { app.settings.appLanguage.catalog }
+
+    private var detailText: String {
+        let roles = offer.roleSummary(localized)
+        if offer.totalDownloadBytes > 0 {
+            return String(
+                format: localized("Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes."),
+                roles, SettingsStatus.size(offer.totalDownloadBytes))
+        }
+        return String(
+            format: localized("Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded."),
+            roles)
+    }
+
+    private var primaryButtonTitle: String {
+        localized(offer.totalDownloadBytes > 0 ? "Upgrade & Download" : "Switch defaults")
+    }
+
+    var body: some View {
+        let prefix = onToday ? "today.defaultModelUpgrade" : "models.defaultUpgrade"
+        let content = MeetingStatusBanner(tone: .info, symbol: "sparkles") {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(LocalizedStringKey("New default models available"))
+                    .font(.scaled(.body).weight(.semibold))
+                Text(verbatim: detailText)
+                    .font(.scaled(.callout))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Text(verbatim: offer.targetSummary(localized))
+                    .font(.scaled(.caption))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        } trailing: {
+            HStack(spacing: 8) {
+                Button(localized("Not now")) {
+                    app.settings.dismissedDefaultModelUpgradeKey =
+                        DefaultModelUpgradeOffer.mergedDismissalKey(
+                            existing: app.settings.dismissedDefaultModelUpgradeKey,
+                            dismissing: offer)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityIdentifier("\(prefix).dismiss")
+                Button(primaryButtonTitle) {
+                    app.modelSetup.apply(offer.patch, title: localized("LokalBot default models"))
+                    if onToday {
+                        app.openSettings(tab: .models)
+                    }
+                }
+                .primaryActionButton()
+                .disabled(app.modelSetup.pending != nil)
+                .accessibilityIdentifier("\(prefix).apply")
+            }
+        }
+        content
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier(prefix)
+    }
+}
+
+struct TodayDefaultModelUpgradeCard: View {
+    @ObservedObject var app: AppState
+    @ObservedObject var roles: ModelRoles
+    @ObservedObject var setup: ModelSetupController
+
+    var body: some View {
+        if !app.githubStar.launch.suppressesPrompt,
+           setup.pending == nil,
+           let offer = DefaultModelUpgradeOffer.current(
+               settings: app.settings,
+               availability: roles.defaultUpgradeDiskAvailability) {
+            DefaultModelUpgradeBanner(app: app, offer: offer, onToday: true)
+        }
     }
 }

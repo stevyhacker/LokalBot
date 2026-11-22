@@ -2666,3 +2666,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "在聊天应用和代码编辑器以外的单行输入框中，按 Tab 会关闭建议并移至下一输入框，而不是接受建议。";
 "Pause in Low Power Mode" = "低电量模式下暂停";
 "Pause suggestions while Low Power Mode is on to save battery." = "开启低电量模式时暂停建议以节省电量。";
+"New default models available" = "有新的默认模型可用";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "将 %@ 升级为 LokalBot 新微调的默认模型（%@）。下载完成前，当前模型会继续保持可用。";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "将 %@ 切换为 LokalBot 新微调的默认模型。它们已下载完成。";
+"Upgrade & Download" = "升级并下载";
+"Switch defaults" = "切换默认模型";
+"LokalBot default models" = "LokalBot 默认模型";

@@ -14,11 +14,11 @@ use std::time::Duration;
 use chrono::{DateTime, Local, NaiveDate, Utc};
 use gpui_kit::component::button::{Button, ButtonVariants as _};
 use gpui_kit::component::scroll::ScrollableElement as _;
-use gpui_kit::component::{Disableable as _, Icon, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, v_flex};
 use gpui_kit::{
-    AnyElement, App, AppContext as _, Bounds, Context, Div, Entity, Hsla, InteractiveElement as _,
-    IntoElement, ParentElement as _, Pixels, Render, SharedString, Styled as _, Subscription, Task,
-    Window, canvas, div, px,
+    AnyElement, App, AppContext as _, Bounds, Context, Div, Entity, FontWeight, Hsla,
+    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, Render, SharedString,
+    Styled as _, Subscription, Task, Window, canvas, div, px,
 };
 use lokalbot_core::calendar::CalendarEvent;
 use lokalbot_core::calendar::upcoming as selector;
@@ -28,10 +28,10 @@ use uuid::Uuid;
 
 use crate::i18n::h_flex;
 use crate::pages::Page;
-use crate::state::{AppData, AskRequest};
+use crate::state::{AppData, AskRequest, SettingsCategory};
 use crate::theme::{LbThemeExt as _, metric, ty};
 use crate::ui::section_panel::{page_surface, panel_column, panel_surface};
-use crate::ui::{Ico, action_row};
+use crate::ui::{self, Ico, action_row};
 use model::{AttentionSummary, Entry, EntryStatus, PageLayout, columns};
 
 const CARD_TITLE: Pixels = px(21.);
@@ -308,6 +308,121 @@ impl TodayPage {
             .unwrap_or(1000.);
         page.min(maximum) - f32::from(metric::DETAIL_PADDING) * 2.
     }
+
+    fn render_default_model_upgrade(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
+        use lokalbot_ai::catalog::{DefaultModelUpgradeOffer, DefaultModelUpgradeRole};
+
+        if self.seeded_demo_library {
+            return None;
+        }
+        let offer = {
+            let data = self.data.read(cx);
+            DefaultModelUpgradeOffer::current(&data.settings, &data.models.installed)
+        }?;
+        let lb = cx.lb().clone();
+        let roles = offer
+            .items
+            .iter()
+            .map(|item| match item.role {
+                DefaultModelUpgradeRole::Think => lokalbot_i18n::tr("Think"),
+                DefaultModelUpgradeRole::Autocomplete => lokalbot_i18n::tr("Autocomplete"),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let total = offer.total_download_bytes();
+        let detail = if total > 0 {
+            lokalbot_i18n::fill(
+                lokalbot_i18n::tr(
+                    "Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes.",
+                ),
+                &[&roles, &crate::pages::settings::models::size_label(total)],
+            )
+        } else {
+            lokalbot_i18n::fill(
+                lokalbot_i18n::tr(
+                    "Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded.",
+                ),
+                &[&roles],
+            )
+        };
+        let dismiss_data = self.data.clone();
+        let open_data = self.data.clone();
+        let dismiss_offer = offer;
+        Some(
+            card_surface(Some(lb.accent_fill), cx)
+                .child(
+                    h_flex()
+                        .w_full()
+                        .gap(px(12.))
+                        .px(px(16.))
+                        .py(px(12.))
+                        .items_center()
+                        .child(ui::icon_tile(Ico::Package, lb.accent_text, px(32.)))
+                        .child(
+                            v_flex()
+                                .flex_1()
+                                .min_w_0()
+                                .gap(px(2.))
+                                .child(
+                                    div()
+                                        .text_size(ty::BODY)
+                                        .font_weight(FontWeight::SEMIBOLD)
+                                        .text_color(lb.text)
+                                        .child(lokalbot_i18n::tr("New default models available")),
+                                )
+                                .child(
+                                    div()
+                                        .text_size(ty::SECONDARY)
+                                        .text_color(lb.text_secondary)
+                                        .child(crate::ui::text::paragraph(detail)),
+                                ),
+                        )
+                        .child(
+                            h_flex()
+                                .flex_none()
+                                .gap(px(8.))
+                                .items_center()
+                                .child(
+                                    Button::new("today-default-model-upgrade-dismiss")
+                                        .outline()
+                                        .small()
+                                        .label(lokalbot_i18n::tr("Not now"))
+                                        .on_click(move |_, _, cx| {
+                                            let offer = dismiss_offer.clone();
+                                            dismiss_data.update(cx, |data, cx| {
+                                                let merged =
+                                                    DefaultModelUpgradeOffer::merged_dismissal_key(
+                                                        &data
+                                                            .settings
+                                                            .dismissed_default_model_upgrade_key,
+                                                        &offer,
+                                                    );
+                                                data.update_settings(
+                                                    move |s| {
+                                                        s.dismissed_default_model_upgrade_key =
+                                                            merged
+                                                    },
+                                                    cx,
+                                                );
+                                            });
+                                        }),
+                                )
+                                .child(
+                                    Button::new("today-default-model-upgrade-open")
+                                        .primary()
+                                        .small()
+                                        .label(lokalbot_i18n::tr("Open Models"))
+                                        .on_click(move |_, _, cx| {
+                                            open_data.update(cx, |data, cx| {
+                                                data.open_settings(SettingsCategory::Models, cx);
+                                            });
+                                        }),
+                                ),
+                        ),
+                )
+                .into_any_element(),
+        )
+    }
 }
 
 fn card_surface(tint: Option<Hsla>, cx: &App) -> Div {
@@ -438,6 +553,9 @@ impl Render for TodayPage {
             .sync(next.as_ref(), recording, revision, &self.data, cx);
 
         let mut cards: Vec<AnyElement> = Vec::new();
+        if let Some(upgrade) = self.render_default_model_upgrade(cx) {
+            cards.push(upgrade);
+        }
         cards.extend(self.render_live_card(frame.live.as_ref(), cx));
         if let Some(event) = &next {
             cards.push(self.render_next_meeting(event, frame.now, cx));

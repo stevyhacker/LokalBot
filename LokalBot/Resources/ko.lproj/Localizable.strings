@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "채팅 앱과 코드 편집기 밖의 한 줄 입력란에서는 Tab 키를 누르면 제안을 적용하지 않고 닫은 뒤 다음 필드로 이동합니다.";
 "Pause in Low Power Mode" = "저전력 모드에서 일시 정지";
 "Pause suggestions while Low Power Mode is on to save battery." = "배터리를 절약하기 위해 저전력 모드가 켜져 있는 동안 제안을 일시 정지합니다.";
+"New default models available" = "새 기본 모델을 사용할 수 있습니다";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "%@을(를) LokalBot의 새 미세 조정 기본 모델(%@)로 업그레이드합니다. 다운로드가 완료될 때까지 현재 모델이 계속 활성화됩니다.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "%@을(를) LokalBot의 새 미세 조정 기본 모델로 전환합니다. 이미 다운로드되어 있습니다.";
+"Upgrade & Download" = "업그레이드 및 다운로드";
+"Switch defaults" = "기본 모델 전환";
+"LokalBot default models" = "LokalBot 기본 모델";

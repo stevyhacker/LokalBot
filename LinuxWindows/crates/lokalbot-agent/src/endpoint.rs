@@ -428,7 +428,7 @@ mod tests {
         assert_eq!(
             resolve(&Settings::default(), None),
             Resolution::BuiltIn {
-                model_id: "qwen3.5-4b".into()
+                model_id: "qwen3.5-4b-lokalbot-v3".into()
             }
         );
         assert!(matches!(

@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Di kolom satu baris di luar aplikasi obrolan dan editor kode, Tab menutup saran dan berpindah ke kolom berikutnya alih-alih menerimanya.";
 "Pause in Low Power Mode" = "Jeda saat Mode Daya Rendah";
 "Pause suggestions while Low Power Mode is on to save battery." = "Jeda saran saat Mode Daya Rendah aktif untuk menghemat baterai.";
+"New default models available" = "Model bawaan baru tersedia";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Tingkatkan %@ ke model bawaan baru yang disesuaikan untuk LokalBot (%@). Model Anda saat ini tetap aktif sampai unduhan selesai.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Alihkan %@ ke model bawaan baru yang disesuaikan untuk LokalBot. Model tersebut sudah diunduh.";
+"Upgrade & Download" = "Tingkatkan & Unduh";
+"Switch defaults" = "Ganti bawaan";
+"LokalBot default models" = "Model bawaan LokalBot";

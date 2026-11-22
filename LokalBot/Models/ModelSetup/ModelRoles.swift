@@ -242,6 +242,15 @@ final class ModelRoles: ObservableObject {
         usesInjectedDiscovery ? downloadedTranscriptionModels(settings()) : diskState.downloadedTranscriptionIDs
     }
 
+    var defaultUpgradeDiskAvailability: DefaultModelUpgradeOffer.DiskAvailability {
+        DefaultModelUpgradeOffer.DiskAvailability(
+            hasLegacyAutocompleteModel: diskState.hasLegacyAutocompleteModel,
+            hasDefaultThinkModel: diskState.hasDefaultThinkModel,
+            hasDefaultAutocompleteModel: diskState.hasDefaultAutocompleteModel,
+            legacyQwenASRChoices: diskState.legacyQwenASRChoices,
+            legacyQwenASRMissingBytes: diskState.legacyQwenASRMissingBytes)
+    }
+
     private func refreshDiskState() {
         guard !usesInjectedDiscovery else { return }
         diskTask?.cancel()
@@ -345,7 +354,11 @@ final class ModelRoles: ObservableObject {
         readinessDidChange()
     }
 
-    func prepareTranscriptionModel(_ choice: TranscriptionModelChoice, configuration: AppSettings? = nil) {
+    func prepareTranscriptionModel(
+        _ choice: TranscriptionModelChoice,
+        configuration: AppSettings? = nil,
+        upgradeLegacy: Bool = false
+    ) {
         guard preparationTask == nil else { return }
         let configuration = configuration ?? settings()
         let key = TranscriptionConfiguration(choice, configuration)
@@ -358,12 +371,18 @@ final class ModelRoles: ObservableObject {
             guard let self else { return nil }
             let failure: String?
             do {
-                try await self.prepareTranscription(configuration, choice) { [weak self] update in
+                let progressHandler: ModelPreparationProgressHandler = { [weak self] update in
                     guard let self,
                           self.preparationTask?.token == token else { return }
                     self.transcriptionPreparations[choice.id] = .init(
                         progress: update.fractionCompleted,
                         label: update.status)
+                }
+                if upgradeLegacy, !self.usesInjectedDiscovery,
+                   let engine = configuration.transcriptionEngine(for: choice) as? QwenASREngine {
+                    try await engine.upgradeWeights(progress: progressHandler)
+                } else {
+                    try await self.prepareTranscription(configuration, choice, progressHandler)
                 }
                 failure = nil
             } catch is CancellationError {
@@ -384,9 +403,14 @@ final class ModelRoles: ObservableObject {
         preparationTask = (choice.id, token, key, task)
     }
 
-    func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
+    func ensureTranscriptionAvailable(
+        _ choice: TranscriptionModelChoice,
+        configuration: AppSettings,
+        upgradeLegacy: Bool = false
+    ) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
-        if choice != .funASRNano && choice != .appleSpeech,
+        if !upgradeLegacy,
+           choice != .funASRNano && choice != .appleSpeech,
            downloadedTranscriptionModels(configuration).contains(choice.id),
            preparationErrors[key] == nil {
             return
@@ -395,7 +419,7 @@ final class ModelRoles: ObservableObject {
             throw ModelDownloadManager.PreparationError.failed(
                 "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
         }
-        prepareTranscriptionModel(choice, configuration: configuration)
+        prepareTranscriptionModel(choice, configuration: configuration, upgradeLegacy: upgradeLegacy)
         if let preparationTask {
             let failure = await preparationTask.task.value
             guard !preparationTask.task.isCancelled else { throw CancellationError() }

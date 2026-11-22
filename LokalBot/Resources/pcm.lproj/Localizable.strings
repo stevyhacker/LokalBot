@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "For one-line boxes outside chat apps and code editors, Tab go close di suggestion and move to next field instead of accepting am.";
 "Pause in Low Power Mode" = "Pause for Low Power Mode";
 "Pause suggestions while Low Power Mode is on to save battery." = "Pause suggestions when Low Power Mode dey on to save battery.";
+"New default models available" = "New default models don ready";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Upgrade %@ go LokalBot new fine-tuned defaults (%@). Your current models go still dey work until download finish.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Switch %@ go LokalBot new fine-tuned defaults. Dem don already download.";
+"Upgrade & Download" = "Upgrade & Download";
+"Switch defaults" = "Switch defaults";
+"LokalBot default models" = "LokalBot default models";

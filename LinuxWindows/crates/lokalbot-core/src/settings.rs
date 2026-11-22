@@ -215,6 +215,7 @@ pub struct Settings {
     pub github_star_summary_completed: bool,
     pub github_star_active_days: Vec<String>,
     pub autocomplete_default_adopted: bool,
+    pub dismissed_default_model_upgrade_key: String,
     pub pane_widths: std::collections::BTreeMap<String, f64>,
     pub settings_page: String,
 
@@ -281,7 +282,7 @@ impl Default for Settings {
             transcription_prompt: String::new(),
             auto_transcription_vocabulary: true,
             summarizer_backend: SummarizerBackend::BuiltIn,
-            built_in_model_id: "qwen3.5-4b".into(),
+            built_in_model_id: "qwen3.5-4b-lokalbot-v3".into(),
             ollama_base_url: "http://localhost:11434".into(),
             ollama_model: String::new(),
             openai_base_url: "http://localhost:1234/v1".into(),
@@ -314,7 +315,7 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            cotyping_built_in_model_id: "gemma4-e2b-base-q6".into(),
+            cotyping_built_in_model_id: "gemma4-e2b-lokalbot-v4".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
             cotyping_use_visible_context: true,
@@ -407,6 +408,7 @@ impl Default for Settings {
             github_star_summary_completed: false,
             github_star_active_days: Vec::new(),
             autocomplete_default_adopted: false,
+            dismissed_default_model_upgrade_key: String::new(),
             pane_widths: Default::default(),
             settings_page: String::new(),
             other: serde_json::Map::new(),
@@ -1314,7 +1316,7 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
-        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b\""));
+        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b-lokalbot-v3\""));
     }
 
     #[test]

@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Trong các ô một dòng ngoài ứng dụng trò chuyện và trình soạn thảo mã, Tab sẽ đóng gợi ý và chuyển sang ô tiếp theo thay vì chấp nhận.";
 "Pause in Low Power Mode" = "Tạm dừng ở Chế độ nguồn điện thấp";
 "Pause suggestions while Low Power Mode is on to save battery." = "Tạm dừng gợi ý khi bật Chế độ nguồn điện thấp để tiết kiệm pin.";
+"New default models available" = "Đã có mô hình mặc định mới";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Nâng cấp %@ lên các mô hình mặc định tinh chỉnh mới của LokalBot (%@). Các mô hình hiện tại vẫn hoạt động cho đến khi tải xong.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Chuyển %@ sang các mô hình mặc định tinh chỉnh mới của LokalBot. Chúng đã được tải xuống.";
+"Upgrade & Download" = "Nâng cấp & Tải xuống";
+"Switch defaults" = "Đổi mô hình mặc định";
+"LokalBot default models" = "Mô hình mặc định của LokalBot";

@@ -125,6 +125,7 @@ struct TodayView: View {
         let hasTrailing = layout.showsSections && (hasDay || dream != nil)
 
         TodayColumnsLayout(textScale: textScale) {
+            TodayDefaultModelUpgradeCard(app: app, roles: app.modelRoles, setup: app.modelSetup)
             switch layout {
             case .sections(let gettingStartedBelow):
                 if app.currentMeeting != nil || next != nil {

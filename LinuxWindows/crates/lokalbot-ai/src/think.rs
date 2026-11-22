@@ -2969,7 +2969,10 @@ mod tests {
         let settings = Settings::default();
         let runtime = RuntimeManager::new(lokalbot_core::LibraryPaths::new(dir.path()), &settings);
         let client = ThinkClient::new(&runtime, &settings).unwrap();
-        assert_eq!(client.display_name(), "Qwen3.5 4B · on this PC");
+        assert_eq!(
+            client.display_name(),
+            "Qwen3.5 4B (LokalBot v3) · on this PC"
+        );
         assert!(client.is_local() && client.is_built_in());
         assert_eq!(client.context_tokens(), 32_768);
         let err = client.complete(&ChatRequest::new("s", "u")).unwrap_err();

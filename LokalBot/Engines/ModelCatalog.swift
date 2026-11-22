@@ -53,16 +53,24 @@ struct ModelCatalog {
 
     static let compactFallbackID = "qwen3.5-0.8b"
     static let recommendedSummarizationID = "qwen3.6-35b-a3b"
-    static let qualityCotypingID = "gemma4-e2b-base-q6"
+    static let previousQualityCotypingID = "gemma4-e2b-base-q6"
+    static let qualityCotypingID = "gemma4-e2b-lokalbot-v4"
     static let recommendedCotypingID = qualityCotypingID
     static let lightweightCotypingID = "lfm2.5-1.2b-instruct"
     static let recommendedCotypingLicenseURL = URL(
         string: "https://ai.google.dev/gemma/apache_2")!
-    static let defaultSummarizationID = "qwen3.5-4b"
+    static let previousDefaultSummarizationID = "qwen3.5-4b"
+    static let defaultSummarizationID = "qwen3.5-4b-lokalbot-v3"
 
     static let keystrokeScaleMaxGB = 7.0
 
+    private static let autocompleteOnlyIDs: Set<String> = [
+        qualityCotypingID,
+        previousQualityCotypingID,
+    ]
+
     private static let excludedCotypingIDs: Set<String> = [
+        defaultSummarizationID,
         "gemma4-e4b",
         "granite-4.1-3b",
         "lfm2.5-2.6b",
@@ -84,12 +92,19 @@ struct ModelCatalog {
               sizeBytes: 730_895_584,
               sizeGB: 0.73, blurb: "Lightweight, English-first autocomplete alternative. Under 1 GB.",
               disablesThinking: false),
-        Entry(id: qualityCotypingID, displayName: "Gemma 4 E2B Base (Autocomplete)",
+        Entry(id: qualityCotypingID, displayName: "Gemma 4 E2B (LokalBot v4)",
+              fileName: "Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
+              url: "https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF/resolve/e089648312aee558514a13dbbd4efb19a0b3eb25/Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
+              sha256: "ea8c01dd28abaae0a6664eb9c1324f6bf6cd0ffef99dace496510f7cceb40581",
+              sizeBytes: 3_845_323_008,
+              sizeGB: 3.85, blurb: "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ Macs.",
+              disablesThinking: false),
+        Entry(id: previousQualityCotypingID, displayName: "Gemma 4 E2B Base (Autocomplete)",
               fileName: "gemma-4-E2B.i1-Q6_K.gguf",
               url: "https://huggingface.co/mradermacher/gemma-4-E2B-i1-GGUF/resolve/a9bf638e53783fc93778f357cc5c672eab5393b1/gemma-4-E2B.i1-Q6_K.gguf",
               sha256: "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
               sizeBytes: 3_845_328_608,
-              sizeGB: 3.85, blurb: "Default autocomplete model for higher-quality suggestions. 16 GB+ Macs.",
+              sizeGB: 3.85, blurb: "Stock Gemma 4 E2B Base autocomplete baseline. 16 GB+ Macs.",
               disablesThinking: false),
         Entry(id: "qwen3.5-2b", displayName: "Qwen3.5 2B",
               fileName: "Qwen3.5-2B-Q4_K_M.gguf",
@@ -98,12 +113,19 @@ struct ModelCatalog {
               sizeBytes: 1_280_835_840,
               sizeGB: 1.28, blurb: "Lightweight multilingual cotyping option. Any Apple Silicon Mac.",
               disablesThinking: true),
-        Entry(id: "qwen3.5-4b", displayName: "Qwen3.5 4B",
+        Entry(id: defaultSummarizationID, displayName: "Qwen3.5 4B (LokalBot v3)",
+              fileName: "Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf",
+              url: "https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF/resolve/60f704305746c4390c3b207c156191c761cf66db/Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf",
+              sha256: "ff8e5921a49c1a4d9cf8a22759fb83deac4b7670d95d659e268e565e7af1ec03",
+              sizeBytes: 2_741_241_984,
+              sizeGB: 2.74, blurb: "Default Think model fine-tuned for LokalBot notes, memory, and Ask. 16 GB Macs.",
+              disablesThinking: true),
+        Entry(id: previousDefaultSummarizationID, displayName: "Qwen3.5 4B",
               fileName: "Qwen3.5-4B-Q4_K_M.gguf",
               url: "https://huggingface.co/unsloth/Qwen3.5-4B-GGUF/resolve/e87f176479d0855a907a41277aca2f8ee7a09523/Qwen3.5-4B-Q4_K_M.gguf",
               sha256: "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
               sizeBytes: 2_740_937_888,
-              sizeGB: 2.8, blurb: "Default Think model with balanced local summaries and long context. 16 GB Macs.",
+              sizeGB: 2.8, blurb: "Stock Qwen3.5 4B baseline for local summaries and long context. 16 GB Macs.",
               disablesThinking: true),
         Entry(id: "lfm2.5-2.6b", displayName: "LFM2.5 2.6B Reasoning",
               fileName: "LFM2.5-2.6B-Q4_K_M.gguf",
@@ -180,7 +202,7 @@ struct ModelCatalog {
     }
 
     static func mainLLMEntries(custom: [Entry]) -> [Entry] {
-        selectableEntries(custom: custom).filter { $0.id != qualityCotypingID }
+        selectableEntries(custom: custom).filter { !autocompleteOnlyIDs.contains($0.id) }
     }
 
     static func keystrokeScaleEntries(custom: [Entry],
