@@ -850,7 +850,7 @@
 "Question or search" = "سؤال أو بحث";
 "Quit LokalBot" = "إنهاء LokalBot";
 "Read coding agent sessions" = "قراءة جلسات وكيل البرمجة";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "قراءة جلسات Claude Code وCodex لديك ليتذكّر LokalBot ما فعله وكلاؤك. تبقى الملفات على هذا الـ Mac.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "قراءة جلسات Claude Code وCodex وAntigravity وT3 Code لديك ليتذكّر LokalBot ما فعله وكلاؤك. تبقى الملفات على هذا الـ Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "يقرأ نص النافذة النشطة من لقطة شاشة. يتطلب إذن تسجيل الشاشة؛ ولا تُحفَظ الصورة أو النص.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "يقرأ نص الواجهة الظاهر عبر تسهيلات الاستخدام؛ ولا تُخزَّن لقطات شاشة.";
 "Reads window titles and visible interface text for activity and text-context features." = "يقرأ عناوين النوافذ ونص الواجهة الظاهر لميزات النشاط والسياق النصي.";
@@ -2627,3 +2627,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "يشغّل نسخة Antigravity CLI (agy) الخاصة بك مع إيقاف أدواتها. تسجّل الدخول إلى agy بنفسك، ولا يرى LokalBot بيانات تسجيل دخولك إلى Google أبدًا.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "يشغّل نسخة Gemini CLI الخاصة بك مع إيقاف أدواتها. سجّل الدخول إلى gemini في Terminal أولًا؛ لا يرى LokalBot بيانات تسجيل دخولك إلى Google أبدًا.";
 "Signed in" = "تم تسجيل الدخول";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "يتوقف LokalBot عن قراءة جلسات وكلاء البرمجة ويحذف ما حفظه. يحتفظ Claude Code وCodex وAntigravity وT3 Code بملفات جلساتهم الخاصة.";

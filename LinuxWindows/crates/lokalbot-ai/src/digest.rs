@@ -177,6 +177,8 @@ struct Event {
 const CODING_AGENT_HOST_APPS: &[&str] = &[
     "claude",
     "codex",
+    "antigravity",
+    "t3 code",
     "terminal",
     "iterm",
     "iterm2",
@@ -386,7 +388,11 @@ impl DayEvidence {
         start: DateTime<Utc>,
         end: DateTime<Utc>,
     ) -> bool {
-        CODING_AGENT_HOST_APPS.contains(&app.trim().to_lowercase().as_str())
+        let name = app.trim().to_lowercase();
+        (CODING_AGENT_HOST_APPS.contains(&name.as_str())
+            || ["t3 code", "antigravity ", "zed "]
+                .iter()
+                .any(|prefix| name.starts_with(prefix)))
             && self
                 .coding_agent_bursts
                 .iter()

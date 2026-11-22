@@ -114,13 +114,27 @@ import sys, gi
 gi.require_version('Gtk', '3.0')
 from gi.repository import Gtk
 entry = Gtk.Entry()
+active_preedit = ['']
 if sys.argv[1] == 'password':
     entry.set_visibility(False)
     entry.set_input_purpose(Gtk.InputPurpose.PASSWORD)
     entry.connect('changed', lambda e: print('chars', len(e.get_text()), flush=True))
 else:
+    def on_preedit(_e, p):
+        active_preedit[0] = p
+        print('preedit', repr(p), flush=True)
+    def on_focus_out(e, _ev):
+        # Blink (Chromium/Electron) and Gecko (Firefox/Thunderbird) commit any
+        # active Wayland text-input preedit locally on blur before notifying
+        # the compositor; mirror that when `commit_on_blur` is requested.
+        if sys.argv[1] == 'commit_on_blur' and active_preedit[0]:
+            e.set_text(e.get_text() + active_preedit[0])
+            active_preedit[0] = ''
+        print('blur', repr(e.get_text()), flush=True)
+        return False
     entry.connect('changed', lambda e: print('text', repr(e.get_text()), flush=True))
-    entry.connect('preedit-changed', lambda e, p: print('preedit', repr(p), flush=True))
+    entry.connect('preedit-changed', on_preedit)
+    entry.connect('focus-out-event', on_focus_out)
 window = Gtk.Window(title='Field test')
 window.add(entry)
 window.connect('destroy', Gtk.main_quit)
@@ -161,6 +175,38 @@ impl GtkField {
             seen.push(line);
         }
         panic!("{wanted:?} never came; the field said {seen:?}");
+    }
+
+    fn expect_without_preedit(&self, wanted: &str) {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        let mut seen = Vec::new();
+        while let Ok(line) = self
+            .lines
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        {
+            assert!(
+                !line.starts_with("preedit ") || line == "preedit ''",
+                "suggestion leaked into field preedit: {line:?}"
+            );
+            if line == wanted {
+                return;
+            }
+            seen.push(line);
+        }
+        panic!("{wanted:?} never came; the field said {seen:?}");
+    }
+
+    fn assert_no_nonempty_preedit(&self, window: Duration) {
+        let deadline = Instant::now() + window;
+        while let Ok(line) = self
+            .lines
+            .recv_timeout(deadline.saturating_duration_since(Instant::now()))
+        {
+            assert!(
+                !line.starts_with("preedit ") || line == "preedit ''",
+                "suggestion leaked into field preedit: {line:?}"
+            );
+        }
     }
 }
 
@@ -380,8 +426,7 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
 
     ghost.show(&typed, " up on it");
     keys.set_active(true);
-    field.expect("preedit ' up on it'");
-    std::thread::sleep(Duration::from_millis(200));
+    field.assert_no_nonempty_preedit(Duration::from_millis(250));
 
     keyboard.tap(KEY_TAB);
     assert_eq!(
@@ -393,12 +438,10 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
         ..Edit::default()
     };
     ghost.accept(&typed, &typed.before, &typed.after, &accept, " on it");
-    field.expect("text 'hello up'");
-    field.expect("preedit ' on it'");
+    field.expect_without_preedit("text 'hello up'");
 
     keyboard.type_letters("z");
-    field.expect("text 'hello upz'");
-    field.expect("preedit ' on it'");
+    field.expect_without_preedit("text 'hello upz'");
     let advanced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello upz");
     assert_eq!(keys_taken.try_recv().ok(), None);
 
@@ -408,11 +451,11 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
         ..Edit::default()
     };
     ghost.accept(&advanced, &advanced.before, &advanced.after, &replace, "");
-    field.expect("text 'hello ups'");
+    field.expect_without_preedit("text 'hello ups'");
 
     let replaced = field_where(&focus, Duration::from_secs(5), |f| f.before == "hello ups");
     ghost.show(&replaced, " on it");
-    field.expect("preedit ' on it'");
+    field.assert_no_nonempty_preedit(Duration::from_millis(200));
     keyboard.tap(KEY_GRAVE);
     assert_eq!(
         keys_taken.recv_timeout(Duration::from_secs(2)).unwrap(),
@@ -425,7 +468,6 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     );
     ghost.show(&replaced, "");
     keys.set_active(false);
-    field.expect("preedit ''");
     std::thread::sleep(Duration::from_millis(200));
 
     keyboard.tap(KEY_GRAVE);
@@ -434,6 +476,20 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
         None
     );
     drop(field);
+
+    let blur_field = GtkField::start("commit_on_blur");
+    field_where(&focus, Duration::from_secs(20), |f| f.before.is_empty());
+    keyboard.type_letters("draft");
+    blur_field.expect_without_preedit("text 'draft'");
+    let draft = field_where(&focus, Duration::from_secs(10), |f| f.before == "draft");
+    ghost.show(&draft, " for tomorrow");
+    keys.set_active(true);
+    blur_field.assert_no_nonempty_preedit(Duration::from_millis(250));
+    let other_window = GtkField::start("plain");
+    blur_field.expect_without_preedit("blur 'draft'");
+    keys.set_active(false);
+    drop(other_window);
+    drop(blur_field);
 
     let password = GtkField::start("password");
     let deadline = Instant::now() + Duration::from_secs(10);
@@ -486,11 +542,11 @@ fn kwin_input_method_shows_accepts_and_stays_out_of_passwords() {
     let again = field_where(&focus, Duration::from_secs(10), |f| f.before == "hi");
     ghost.show(&again, " there");
     keys.set_active(true);
-    field.expect("preedit ' there'");
+    field.assert_no_nonempty_preedit(Duration::from_millis(200));
     drop(keys);
     drop(ghost);
     drop(watcher);
-    field.expect("preedit ''");
+    std::thread::sleep(Duration::from_millis(200));
     keyboard.tap(KEY_GRAVE);
-    field.expect("text 'hi`'");
+    field.expect_without_preedit("text 'hi`'");
 }

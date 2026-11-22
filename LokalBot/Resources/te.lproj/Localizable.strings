@@ -850,7 +850,7 @@
 "Question or search" = "ప్రశ్న లేదా శోధన";
 "Quit LokalBot" = "LokalBot నుంచి నిష్క్రమించండి";
 "Read coding agent sessions" = "కోడింగ్ ఏజెంట్ సెషన్‌లను చదవండి";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "మీ Claude Code, Codex సెషన్‌లను చదవండి, తద్వారా మీ ఏజెంట్‌లు ఏమి చేశాయో LokalBot గుర్తుంచుకుంటుంది. ఫైల్‌లు ఈ Macలోనే ఉంటాయి.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "మీ Claude Code, Codex, Antigravity, T3 Code సెషన్‌లను చదవండి, తద్వారా మీ ఏజెంట్‌లు ఏమి చేశాయో LokalBot గుర్తుంచుకుంటుంది. ఫైల్‌లు ఈ Macలోనే ఉంటాయి.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "స్క్రీన్‌షాట్ నుంచి ఫోకస్ ఉన్న విండో వచనం చదువుతుంది. స్క్రీన్ రికార్డింగ్ అవసరం; చిత్రం, వచనం సేవ్ కావు.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "యాక్సెసిబిలిటీ ద్వారా కనిపించే ఇంటర్‌ఫేస్ వచనం చదువుతుంది; స్క్రీన్‌షాట్‌లు సేవ్ కావు.";
 "Reads window titles and visible interface text for activity and text-context features." = "కార్యకలాపం, వచన సందర్భ సదుపాయాల కోసం విండో శీర్షికలు, కనిపించే ఇంటర్‌ఫేస్ వచనం చదువుతుంది.";
@@ -2627,3 +2627,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "మీ స్వంత Antigravity CLI (agy)ను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. agyలో మీరే సైన్ ఇన్ చేస్తారు; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "మీ స్వంత Gemini CLIను దాని టూల్స్ ఆఫ్ చేసి రన్ చేస్తుంది. ముందుగా Terminalలో geminiలో సైన్ ఇన్ చేయండి; LokalBot మీ Google సైన్-ఇన్‌ను ఎప్పుడూ చూడదు.";
 "Signed in" = "సైన్ ఇన్ అయ్యారు";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot కోడింగ్ ఏజెంట్ సెషన్‌లను చదవడం ఆపి, సేవ్ చేసినదాన్ని తొలగిస్తుంది. Claude Code, Codex, Antigravity, T3 Code తమ సొంత సెషన్ ఫైల్‌లను ఉంచుకుంటాయి.";

@@ -96,8 +96,9 @@ static LOKALBOT_COMMAND: LazyLock<Regex> = LazyLock::new(|| {
 });
 static CLAUDE_SCRATCHPAD: LazyLock<Regex> =
     LazyLock::new(|| regex(r"^/(?:private/)?tmp/claude-\d+/[^/]+/[0-9a-f-]{36}/scratchpad/"));
-static WORKTREE_ROOT: LazyLock<Regex> =
-    LazyLock::new(|| regex(r"^.*/\.claude/worktrees/[^/]+/|^.*/\.codex/worktrees/[^/]+/[^/]+/"));
+static WORKTREE_ROOT: LazyLock<Regex> = LazyLock::new(|| {
+    regex(r"^.*/\.claude/worktrees/[^/]+/|^.*/\.(?:codex|t3)/worktrees/[^/]+/[^/]+/")
+});
 
 fn first_capture(expression: &Regex, text: &str) -> Option<String> {
     expression
@@ -152,11 +153,51 @@ pub fn truncated(text: &str, max_characters: usize) -> String {
     sanitize::sanitize(text, Some(max_characters))
 }
 
+pub fn unwrap_antigravity_request(raw: &str) -> String {
+    let mut text = if let Some(extracted) = extract_tag("USER_REQUEST", raw) {
+        extracted
+    } else {
+        let mut cut = raw;
+        for marker in ["<ADDITIONAL_METADATA>", "<USER_SETTINGS_CHANGE>"] {
+            if let Some(index) = cut.find(marker) {
+                cut = &cut[..index];
+            }
+        }
+        cut.to_string()
+    };
+    if let Some(nested) = extract_tag("user_request", &text) {
+        text = nested;
+    }
+    text
+}
+
+fn extract_tag(tag: &str, text: &str) -> Option<String> {
+    let open = format!("<{tag}>");
+    let close = format!("</{tag}>");
+    let start = text.find(&open)? + open.len();
+    let rest = &text[start..];
+    if let Some(end) = rest.find(&close) {
+        return Some(rest[..end].to_string());
+    }
+    let mut tail = rest;
+    for marker in ["<ADDITIONAL_METADATA>", "<USER_SETTINGS_CHANGE>"] {
+        if let Some(index) = tail.find(marker) {
+            tail = &tail[..index];
+        }
+    }
+    Some(tail.to_string())
+}
+
 pub fn prompt(raw: &str) -> Option<String> {
+    let unwrapped = unwrap_antigravity_request(raw);
     let text = ["## My request for Codex:", "## My request:"]
         .iter()
-        .find_map(|marker| raw.find(marker).map(|index| &raw[index + marker.len()..]))
-        .unwrap_or(raw);
+        .find_map(|marker| {
+            unwrapped
+                .find(marker)
+                .map(|index| &unwrapped[index + marker.len()..])
+        })
+        .unwrap_or(&unwrapped);
     let trimmed = text.trim();
     if let Some(automation) = scheduled_run(trimmed) {
         return Some(automation);
@@ -270,6 +311,101 @@ pub fn pull_request_urls(text: &str) -> Vec<String> {
         }
     }
     urls
+}
+
+pub fn pull_request_events(
+    tool_name: &str,
+    raw_title: Option<&str>,
+    raw_number: Option<i64>,
+    raw_url: Option<&str>,
+    raw_urls: &[String],
+) -> Vec<super::builder::EventKind> {
+    use super::builder::EventKind;
+    let normalized = tool_name.trim().to_lowercase();
+    let mut events = Vec::new();
+    if normalized.ends_with("pull_request_create") {
+        if let Some(clean) = raw_title.and_then(title) {
+            events.push(EventKind::Action(CodingAgentAction::OpenedPullRequest {
+                title: clean,
+            }));
+        }
+    } else if normalized.ends_with("pull_request_merge") {
+        events.push(EventKind::Action(CodingAgentAction::MergedPullRequest {
+            number: raw_number,
+        }));
+    } else if normalized.ends_with("link_pull_request") {
+        if let Some(raw_url) = raw_url {
+            for url in pull_request_urls(raw_url) {
+                events.push(EventKind::PullRequest(url));
+            }
+        }
+    } else if normalized.ends_with("link_pull_requests") {
+        for candidate in raw_urls {
+            for url in pull_request_urls(candidate) {
+                events.push(EventKind::PullRequest(url));
+            }
+        }
+    }
+    events
+}
+
+const CHECKOUT_ROOT_NAMES: &[&str] = &[
+    "github",
+    "repos",
+    "repositories",
+    "projects",
+    "code",
+    "dev",
+    "workspace",
+    "workspaces",
+];
+
+pub fn inferred_project_directory(target: &str, is_directory: bool) -> Option<String> {
+    let value = standardized_path(target, home_directory().as_deref());
+    let absolute = value.starts_with('/') || is_windows_path(&value);
+    if !absolute {
+        return None;
+    }
+    let lowered = value.to_lowercase();
+    for fragment in ["/.gemini/", "/.t3/userdata/", "/.claude/", "/.codex/"] {
+        if lowered.contains(fragment) {
+            return None;
+        }
+    }
+    if lowered.starts_with("/tmp/")
+        || lowered.starts_with("/private/tmp/")
+        || lowered.starts_with("/var/")
+        || lowered.starts_with("/private/var/")
+    {
+        return None;
+    }
+    let leading_slash = value.starts_with('/');
+    let parts: Vec<&str> = value.split('/').filter(|p| !p.is_empty()).collect();
+    let join = |slice: &[&str]| {
+        if leading_slash {
+            format!("/{}", slice.join("/"))
+        } else {
+            slice.join("/")
+        }
+    };
+    if let Some(marker) = parts.iter().rposition(|c| *c == ".t3")
+        && parts.get(marker + 1) == Some(&"worktrees")
+        && parts.len() > marker + 2
+    {
+        return Some(join(&parts[..=marker + 2]));
+    }
+    for index in 0..parts.len().saturating_sub(1) {
+        if CHECKOUT_ROOT_NAMES.contains(&parts[index].to_lowercase().as_str()) {
+            return Some(join(&parts[..=index + 1]));
+        }
+    }
+    if is_directory {
+        return Some(value);
+    }
+    if parts.len() <= 1 {
+        return None;
+    }
+    Some(join(&parts[..parts.len() - 1]))
 }
 
 pub fn reads_lokalbot_command(command: &str) -> bool {

@@ -656,6 +656,18 @@ fn text_rules_match_the_mac() {
         prompt("Rotate password=hunter2secret now").as_deref(),
         Some("Rotate password=[REDACTED] now")
     );
+    assert_eq!(
+        prompt("<USER_REQUEST>\nAdd Antigravity\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\n{\"os\":\"linux\"}\n</ADDITIONAL_METADATA>").as_deref(),
+        Some("Add Antigravity")
+    );
+    assert_eq!(
+        prompt("<USER_REQUEST>\n<t3_code_instructions>rules</t3_code_instructions>\n<user_request>\nShip T3 Code\n</user_request>\n</USER_REQUEST>").as_deref(),
+        Some("Ship T3 Code")
+    );
+    assert_eq!(
+        prompt("<USER_REQUEST>\nTruncated prompt without closing tag").as_deref(),
+        Some("Truncated prompt without closing tag")
+    );
     let long = "word ".repeat(200);
     assert!(prompt(&long).unwrap().chars().count() <= PROMPT_CHARACTERS);
     assert!(reply(&long).unwrap().chars().count() <= REPLY_CHARACTERS);
@@ -730,6 +742,10 @@ fn changed_files_read_as_the_person_would_name_them() {
     );
     assert_eq!(
         name("/home/me/.codex/worktrees/ab12/app/src/a.rs", None, home),
+        "src/a.rs"
+    );
+    assert_eq!(
+        name("/home/me/.t3/worktrees/app/t3-abc/src/a.rs", None, home),
         "src/a.rs"
     );
     assert_eq!(
@@ -960,4 +976,478 @@ fn compressed_rollouts_are_named_by_their_plain_path_and_start_day() {
     );
     assert!(!cache::is_compressed(Path::new("/x/notes.zst")));
     assert!(!cache::is_compressed(Path::new("/x/rollout.jsonl")));
+}
+
+#[test]
+fn antigravity_sessions_keep_work_skip_thinking_and_deduplicate_roots() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let at = noon(1);
+    let ag_transcript =
+        home.join(".gemini/antigravity/brain/conv-1/.system_generated/logs/transcript.jsonl");
+    let lines = vec![
+        json!({
+            "step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT",
+            "created_at": iso(at),
+            "content": "<USER_REQUEST>\nAdd Antigravity with ghp_abcdefghijklmnopqrstuvwx1234\n</USER_REQUEST>\n<ADDITIONAL_METADATA>\n{\"os\":\"linux\"}\n</ADDITIONAL_METADATA>"
+        }),
+        json!({
+            "step_index": 1, "source": "SYSTEM", "type": "USER_INPUT",
+            "created_at": iso(at + Duration::seconds(10)),
+            "content": "System reminder"
+        }),
+        json!({
+            "step_index": 2, "source": "MODEL", "type": "PLANNER_RESPONSE",
+            "created_at": iso(at + Duration::seconds(20)),
+            "thinking": "PRIVATE REASONING NEVER KEPT",
+            "content": "Editing files now.",
+            "tool_calls": [
+                {"name": "run_command", "args": {"Cwd": "\"/home/me/GitHub/app\"", "CommandLine": "\"cargo test && git commit -m 'Add Antigravity' && git push\""}},
+                {"name": "edit_file", "args": {"Path": "\"/home/me/GitHub/app/src/reader.rs\""}},
+                {"name": "write_file", "args": {"Path": "\"/home/me/.gemini/antigravity/brain/conv-1/plan.md\""}},
+                {"name": "mcp_t3-code_pull_request_create", "args": {"title": "\"Add Antigravity reader\""}},
+                {"name": "mcp_t3-code_link_pull_request", "args": {"url": "\"https://github.com/acme/app/pull/501\""}},
+            ]
+        }),
+        json!({
+            "step_index": 3, "source": "TOOL", "type": "TOOL_RESULT",
+            "created_at": iso(at + Duration::seconds(30)),
+            "content": "TOOL OUTPUT NEVER KEPT"
+        }),
+        json!({
+            "step_index": 4, "source": "MODEL", "type": "PLANNER_RESPONSE",
+            "created_at": iso(at + Duration::seconds(40)),
+            "thinking": "MORE SECRET THOUGHTS",
+            "content": "Opened PR #501."
+        }),
+    ];
+    write_lines(&ag_transcript, &lines);
+    let annotation = home.join(".gemini/antigravity/annotations/conv-1.pbtxt");
+    fs::create_dir_all(annotation.parent().unwrap()).unwrap();
+    fs::write(&annotation, "title: \"Add Antigravity \\\"support\\\"\"\n").unwrap();
+    fs::write(
+        home.join(".gemini/antigravity/brain/conv-1/.system_generated/logs/transcript_full.jsonl"),
+        "FULL TRANSCRIPT SECRET\n",
+    )
+    .unwrap();
+    let older =
+        home.join(".gemini/antigravity-cli/brain/conv-1/.system_generated/logs/transcript.jsonl");
+    write_lines(
+        &older,
+        &[json!({
+            "step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT",
+            "created_at": iso(at - Duration::minutes(30)),
+            "content": "<USER_REQUEST>\nOlder duplicate\n</USER_REQUEST>"
+        })],
+    );
+    fs::File::options()
+        .write(true)
+        .open(&older)
+        .unwrap()
+        .set_modified(std::time::SystemTime::now() - std::time::Duration::from_secs(600))
+        .unwrap();
+
+    let today = Local::now().date_naive();
+    let window = today - chrono::Duration::days(WINDOW_DAYS - 1);
+    let scanner = Scanner::standard(home, &[CodingAgentKind::Antigravity], Vec::new());
+    let cache = ParseCache::default();
+    let first = scanner.scan(window, today, Some(&cache));
+    let again = scanner.scan(window, today, Some(&cache));
+
+    assert_eq!(first.files_read, 1);
+    assert_eq!(again.files_read, 0);
+    assert_eq!(again.bursts, first.bursts);
+    assert_eq!(first.bursts.len(), 1);
+    let burst = &first.bursts[0];
+    assert_eq!(burst.agent, CodingAgentKind::Antigravity);
+    assert_eq!(burst.session_id, "conv-1");
+    assert_eq!(burst.title, "Add Antigravity \"support\"");
+    assert_eq!(burst.project, "app");
+    assert_eq!(
+        burst.prompts,
+        vec!["Add Antigravity with [REDACTED_TOKEN]".to_string()]
+    );
+    assert_eq!(burst.changed_files, vec!["src/reader.rs".to_string()]);
+    assert!(burst.actions.contains(&CodingAgentAction::Commit {
+        message: "Add Antigravity".into()
+    }));
+    assert!(burst.actions.contains(&CodingAgentAction::Pushed {}));
+    assert!(burst.actions.contains(&CodingAgentAction::RanTests {}));
+    assert!(
+        burst
+            .actions
+            .contains(&CodingAgentAction::OpenedPullRequest {
+                title: "Add Antigravity reader".into()
+            })
+    );
+    assert_eq!(
+        burst.pull_requests,
+        vec!["https://github.com/acme/app/pull/501".to_string()]
+    );
+    assert_eq!(burst.final_reply.as_deref(), Some("Opened PR #501."));
+    let stored = serde_json::to_string(burst).unwrap();
+    for leaked in [
+        "PRIVATE REASONING",
+        "MORE SECRET THOUGHTS",
+        "TOOL OUTPUT NEVER KEPT",
+        "FULL TRANSCRIPT SECRET",
+        "Older duplicate",
+        "System reminder",
+        "plan.md",
+        "ghp_",
+    ] {
+        assert!(!stored.contains(leaked), "leaked {leaked}");
+    }
+}
+
+#[test]
+fn antigravity_infers_project_and_withholds_replies_after_lokalbot_access() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let at = noon(1);
+    write_lines(
+        &home.join(".gemini/antigravity/brain/conv-2/.system_generated/logs/transcript.jsonl"),
+        &[
+            json!({
+                "step_index": 0, "source": "USER_EXPLICIT", "type": "USER_INPUT",
+                "created_at": iso(at),
+                "content": "<USER_REQUEST>\nCheck Ana and update Theme\n</USER_REQUEST>"
+            }),
+            json!({
+                "step_index": 1, "source": "MODEL", "type": "PLANNER_RESPONSE",
+                "created_at": iso(at + Duration::seconds(10)),
+                "tool_calls": [
+                    {"name": "read_file", "args": {"Path": "\"/home/me/.gemini/antigravity/brain/conv-2/notes.md\""}},
+                    {"name": "edit_file", "args": {"Path": "\"/home/me/GitHub/mojo/src/theme.rs\""}},
+                    {"name": "run_command", "args": {"CommandLine": "\"lokalbot-cli search Ana\""}},
+                ]
+            }),
+            json!({
+                "step_index": 2, "source": "MODEL", "type": "PLANNER_RESPONSE",
+                "created_at": iso(at + Duration::seconds(20)),
+                "content": "Ana asked for dark mode."
+            }),
+        ],
+    );
+
+    let scan = scan_today(home, &chosen());
+    assert_eq!(scan.bursts.len(), 1);
+    let burst = &scan.bursts[0];
+    assert_eq!(burst.project, "mojo");
+    assert_eq!(burst.changed_files, vec!["src/theme.rs".to_string()]);
+    assert!(burst.final_reply.is_none());
+}
+
+#[test]
+fn t3_code_v2_sessions_deduplicate_native_agents_and_skip_subagents() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let at = noon(1);
+    let earlier = at - Duration::days(1);
+
+    let db_path = home.join(".t3").join("userdata").join("statev2.sqlite");
+    fs::create_dir_all(db_path.parent().unwrap()).unwrap();
+    let conn = rusqlite::Connection::open(&db_path).unwrap();
+    conn.execute_batch(&format!(
+        r#"
+        PRAGMA journal_mode=WAL;
+        CREATE TABLE auth_sessions (token TEXT);
+        INSERT INTO auth_sessions VALUES ('SECRET AUTH TOKEN');
+        CREATE TABLE projection_projects (project_id TEXT PRIMARY KEY, workspace_root TEXT);
+        INSERT INTO projection_projects VALUES ('p1', '/home/me/GitHub/app');
+        INSERT INTO projection_projects VALUES ('p2', '/home/me/GitHub/secret-client');
+
+        CREATE TABLE orchestration_v2_projection_threads (
+            thread_id TEXT PRIMARY KEY, project_id TEXT, title TEXT,
+            created_at TEXT, updated_at TEXT, deleted_at TEXT, payload_json TEXT
+        );
+        INSERT INTO orchestration_v2_projection_threads VALUES (
+            't-main', 'p1', 'Wire T3 Code sessions',
+            '{t0}', '{t10}', NULL,
+            '{{"branch":"t3/wire-sessions","worktreePath":"/home/me/.t3/worktrees/app/wt-1","pullRequests":[]}}'
+        );
+        INSERT INTO orchestration_v2_projection_threads VALUES (
+            't-deleted', 'p1', 'Deleted thread', '{t0}', '{t5}', '{t6}', '{{}}'
+        );
+        INSERT INTO orchestration_v2_projection_threads VALUES (
+            't-sub', 'p1', 'Subagent thread', '{t5}', '{t6}', NULL,
+            '{{"lineage":{{"parentThreadId":"t-main","relationshipToParent":"subagent"}}}}'
+        );
+        INSERT INTO orchestration_v2_projection_threads VALUES (
+            't-excluded', 'p2', 'Client work', '{t0}', '{t5}', NULL, '{{}}'
+        );
+        INSERT INTO orchestration_v2_projection_threads VALUES (
+            't-lokalbot', 'p1', 'Meeting lookup', '{earlier}', '{t5}', NULL, '{{}}'
+        );
+
+        CREATE TABLE orchestration_v2_projection_messages (
+            message_id TEXT PRIMARY KEY, thread_id TEXT, role TEXT,
+            created_at TEXT, updated_at TEXT, payload_json TEXT
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm1', 't-main', 'user', '{t0}', '{t0}',
+            '{{"text":"Add T3 Code session support","createdBy":"user"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm2', 't-main', 'user', '{t1}', '{t1}',
+            '{{"text":"Delegated task node: child finished","createdBy":"agent","creationSource":"server"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm3', 't-main', 'user', '{t2}', '{t2}',
+            '{{"text":"Nightly audit","createdBy":"agent","creationSource":"schedule"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm4', 't-main', 'assistant', '{t8}', '{t9}',
+            '{{"text":"Added T3 Code support and opened PR #612."}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm5', 't-deleted', 'user', '{t0}', '{t0}', '{{"text":"Deleted prompt"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm6', 't-sub', 'user', '{t5}', '{t5}', '{{"text":"Subagent prompt"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm7', 't-excluded', 'user', '{t0}', '{t0}', '{{"text":"Client secret work"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm8', 't-lokalbot', 'user', '{t2}', '{t2}', '{{"text":"Summarize what we found"}}'
+        );
+        INSERT INTO orchestration_v2_projection_messages VALUES (
+            'm9', 't-lokalbot', 'assistant', '{t3}', '{t3}', '{{"text":"You promised Ana the report."}}'
+        );
+
+        CREATE TABLE orchestration_v2_projection_turn_items (
+            turn_item_id TEXT PRIMARY KEY, thread_id TEXT, type TEXT,
+            ordinal INTEGER, updated_at TEXT, payload_json TEXT
+        );
+        INSERT INTO orchestration_v2_projection_turn_items VALUES (
+            'i1', 't-main', 'command_execution', 1, '{t3}',
+            '{{"startedAt":"{t3}","input":"git commit -m ''Add T3 reader'' && git push","output":"SECRET COMMAND OUTPUT"}}'
+        );
+        INSERT INTO orchestration_v2_projection_turn_items VALUES (
+            'i2', 't-main', 'file_change', 2, '{t4}',
+            '{{"completedAt":"{t4}","changes":[{{"path":"/home/me/.t3/worktrees/app/wt-1/src/t3.rs","diff":"SECRET DIFF"}}]}}'
+        );
+        INSERT INTO orchestration_v2_projection_turn_items VALUES (
+            'i3', 't-main', 'dynamic_tool', 3, '{t5}',
+            '{{"startedAt":"{t5}","toolName":"pull_request_create","input":{{"title":"Add T3 Code reader"}}}}'
+        );
+        INSERT INTO orchestration_v2_projection_turn_items VALUES (
+            'i4', 't-main', 'reasoning', 4, '{t6}',
+            '{{"startedAt":"{t6}","text":"SECRET REASONING"}}'
+        );
+        INSERT INTO orchestration_v2_projection_turn_items VALUES (
+            'i5', 't-lokalbot', 'dynamic_tool', 1, '{earlier}',
+            '{{"startedAt":"{earlier}","toolName":"mcp__lokalbot__search","input":{{"query":"Ana"}}}}'
+        );
+
+        CREATE TABLE orchestration_v2_projection_provider_threads (
+            provider_thread_id TEXT PRIMARY KEY, driver TEXT, updated_at TEXT, payload_json TEXT
+        );
+        INSERT INTO orchestration_v2_projection_provider_threads VALUES (
+            'pt1', 'claudeAgent', '{t9}',
+            '{{"createdAt":"{t0}","nativeThreadRef":{{"nativeId":"claude-owned"}}}}'
+        );
+        INSERT INTO orchestration_v2_projection_provider_threads VALUES (
+            'pt2', 'codex', '{t6}',
+            '{{"createdAt":"{t5}","nativeThreadRef":{{"nativeId":"codex-subagent"}}}}'
+        );
+
+        CREATE TABLE projection_thread_pull_requests (
+            thread_id TEXT, url TEXT, linked_at TEXT
+        );
+        INSERT INTO projection_thread_pull_requests VALUES (
+            't-main', 'https://github.com/acme/app/pull/612', '{t7}'
+        );
+        "#,
+        t0 = iso(at),
+        t1 = iso(at + Duration::minutes(1)),
+        t2 = iso(at + Duration::minutes(2)),
+        t3 = iso(at + Duration::minutes(3)),
+        t4 = iso(at + Duration::minutes(4)),
+        t5 = iso(at + Duration::minutes(5)),
+        t6 = iso(at + Duration::minutes(6)),
+        t7 = iso(at + Duration::minutes(7)),
+        t8 = iso(at + Duration::minutes(8)),
+        t9 = iso(at + Duration::minutes(9)),
+        t10 = iso(at + Duration::minutes(10)),
+        earlier = iso(earlier),
+    ))
+    .unwrap();
+    drop(conn);
+
+    write_lines(
+        &claude_session(home, "claude-owned"),
+        &[claude_user(at, "co1", "Owned by T3 Code")],
+    );
+    write_lines(
+        &claude_session(home, "claude-standalone"),
+        &[claude_user(
+            at + Duration::hours(1),
+            "cs1",
+            "Standalone Claude",
+        )],
+    );
+    write_lines(
+        &home.join(".codex/sessions/2026/10/15/rollout-sub.jsonl"),
+        &codex_rollout("codex-subagent", at + Duration::minutes(5)),
+    );
+    write_lines(
+        &home.join(".codex/sessions/2026/10/15/rollout-solo.jsonl"),
+        &codex_rollout("codex-standalone", at + Duration::hours(1)),
+    );
+
+    let settings = Settings {
+        coding_agent_excluded_folders: "/home/me/GitHub/secret-client".into(),
+        ..chosen()
+    };
+    let scan = scan_today(home, &settings);
+    assert_eq!(scan.excluded_sessions, 1);
+    let ids: std::collections::HashSet<&str> =
+        scan.bursts.iter().map(|b| b.session_id.as_str()).collect();
+    assert_eq!(
+        ids,
+        [
+            "t-main",
+            "t-lokalbot",
+            "claude-standalone",
+            "codex-standalone"
+        ]
+        .into_iter()
+        .collect()
+    );
+
+    let main = scan
+        .bursts
+        .iter()
+        .find(|b| b.session_id == "t-main")
+        .unwrap();
+    assert_eq!(main.agent, CodingAgentKind::T3Code);
+    assert_eq!(main.title, "Wire T3 Code sessions");
+    assert_eq!(main.project, "app");
+    assert_eq!(main.branch.as_deref(), Some("t3/wire-sessions"));
+    assert_eq!(
+        main.prompts,
+        vec![
+            "Add T3 Code session support".to_string(),
+            "Scheduled task: Nightly audit".to_string(),
+        ]
+    );
+    assert_eq!(main.changed_files, vec!["src/t3.rs".to_string()]);
+    assert!(main.actions.contains(&CodingAgentAction::Commit {
+        message: "Add T3 reader".into()
+    }));
+    assert!(main.actions.contains(&CodingAgentAction::Pushed {}));
+    assert!(
+        main.actions
+            .contains(&CodingAgentAction::OpenedPullRequest {
+                title: "Add T3 Code reader".into()
+            })
+    );
+    assert_eq!(
+        main.pull_requests,
+        vec!["https://github.com/acme/app/pull/612".to_string()]
+    );
+    assert_eq!(
+        main.final_reply.as_deref(),
+        Some("Added T3 Code support and opened PR #612.")
+    );
+    let consulted = scan
+        .bursts
+        .iter()
+        .find(|b| b.session_id == "t-lokalbot")
+        .unwrap();
+    assert!(consulted.final_reply.is_none());
+
+    let stored = serde_json::to_string(&scan.bursts).unwrap();
+    for leaked in [
+        "SECRET COMMAND OUTPUT",
+        "SECRET DIFF",
+        "SECRET REASONING",
+        "SECRET AUTH TOKEN",
+        "Delegated task node",
+        "Subagent prompt",
+        "Deleted prompt",
+        "Client secret work",
+    ] {
+        assert!(!stored.contains(leaked), "leaked {leaked}");
+    }
+
+    let without_t3 = Settings {
+        coding_agent_reads_t3_code: false,
+        ..chosen()
+    };
+    let native = scan_today(home, &without_t3);
+    let native_ids: std::collections::HashSet<&str> = native
+        .bursts
+        .iter()
+        .map(|b| b.session_id.as_str())
+        .collect();
+    assert_eq!(
+        native_ids,
+        [
+            "claude-owned",
+            "claude-standalone",
+            "codex-subagent",
+            "codex-standalone",
+        ]
+        .into_iter()
+        .collect()
+    );
+}
+
+#[test]
+fn t3_code_v1_fallback_and_corrupt_database_handling() {
+    let dir = tempfile::tempdir().unwrap();
+    let home = dir.path();
+    let at = noon(1);
+    let v1_path = home.join(".t3").join("userdata").join("state.sqlite");
+    fs::create_dir_all(v1_path.parent().unwrap()).unwrap();
+    let conn = rusqlite::Connection::open(&v1_path).unwrap();
+    conn.execute_batch(&format!(
+        r#"
+        CREATE TABLE projection_projects (project_id TEXT PRIMARY KEY, workspace_root TEXT);
+        INSERT INTO projection_projects VALUES ('p1', '/home/me/GitHub/mojo');
+        CREATE TABLE projection_threads (
+            thread_id TEXT PRIMARY KEY, project_id TEXT, title TEXT, branch TEXT, worktree_path TEXT,
+            created_at TEXT, updated_at TEXT, deleted_at TEXT
+        );
+        INSERT INTO projection_threads VALUES (
+            't-v1', 'p1', 'Legacy T3 session', 'main', NULL, '{t0}', '{t5}', NULL
+        );
+        CREATE TABLE projection_thread_messages (
+            message_id TEXT PRIMARY KEY, thread_id TEXT, role TEXT, text TEXT, created_at TEXT, updated_at TEXT
+        );
+        INSERT INTO projection_thread_messages VALUES ('vm1', 't-v1', 'user', 'Fix legacy layout', '{t0}', '{t0}');
+        INSERT INTO projection_thread_messages VALUES ('vm2', 't-v1', 'assistant', 'Fixed legacy layout.', '{t5}', '{t5}');
+        CREATE TABLE projection_thread_sessions (
+            thread_id TEXT, provider_name TEXT, provider_session_id TEXT, provider_thread_id TEXT, updated_at TEXT
+        );
+        INSERT INTO projection_thread_sessions VALUES ('t-v1', 'claudeAgent', 'v1-claude', NULL, '{t5}');
+        CREATE TABLE projection_thread_pull_requests (thread_id TEXT, url TEXT, linked_at TEXT);
+        INSERT INTO projection_thread_pull_requests VALUES ('t-v1', 'https://github.com/acme/mojo/pull/9', '{t5}');
+        "#,
+        t0 = iso(at),
+        t5 = iso(at + Duration::minutes(5)),
+    ))
+    .unwrap();
+    drop(conn);
+
+    let corrupt = home.join(".t3").join("userdata").join("statev2.sqlite");
+    fs::write(&corrupt, b"not a sqlite database").unwrap();
+
+    let scan = scan_today(home, &chosen());
+    assert_eq!(scan.unreadable_files, vec![corrupt.display().to_string()]);
+    assert_eq!(scan.bursts.len(), 1);
+    let burst = &scan.bursts[0];
+    assert_eq!(burst.agent, CodingAgentKind::T3Code);
+    assert_eq!(burst.session_id, "t-v1");
+    assert_eq!(burst.title, "Legacy T3 session");
+    assert_eq!(burst.project, "mojo");
+    assert_eq!(burst.prompts, vec!["Fix legacy layout".to_string()]);
+    assert_eq!(
+        burst.pull_requests,
+        vec!["https://github.com/acme/mojo/pull/9".to_string()]
+    );
+    assert_eq!(burst.final_reply.as_deref(), Some("Fixed legacy layout."));
 }

@@ -864,7 +864,7 @@
 "Question or search" = "Question or search";
 "Quit LokalBot" = "Quit LokalBot";
 "Read coding agent sessions" = "Read coding agent sessions";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Reads visible interface text through Accessibility; no screenshots are stored.";
 "Reads window titles and visible interface text for activity and text-context features." = "Reads window titles and visible interface text for activity and text-context features.";
@@ -2626,3 +2626,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in.";
 "Signed in" = "Signed in";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files.";

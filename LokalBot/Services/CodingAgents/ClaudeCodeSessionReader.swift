@@ -1,7 +1,13 @@
 import Foundation
 
+struct CodingAgentSessionKey: Hashable, Sendable {
+    var agent: CodingAgentKind
+    var sessionID: String
+}
+
 struct CodingAgentReadResult: Sendable {
     var transcripts: [CodingAgentTranscript] = []
+    var claimedSessions: Set<CodingAgentSessionKey> = []
     var filesRead = 0
     var bytesRead = 0
     var unreadableFiles: [String] = []

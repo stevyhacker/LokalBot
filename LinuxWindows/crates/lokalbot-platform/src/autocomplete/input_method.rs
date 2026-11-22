@@ -2,6 +2,7 @@ mod ibus;
 mod kwin;
 mod kwin_helper;
 mod kwin_wire;
+mod overlay_pill;
 mod surface;
 mod wlroots;
 
@@ -209,6 +210,12 @@ pub(super) fn snapshot(
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct GhostStyle {
+    pub emphasis_chars: usize,
+    pub dark: bool,
+}
+
 pub(super) enum Command {
     Policy(ReadPolicy),
     Refresh,
@@ -218,6 +225,7 @@ pub(super) enum Command {
     Ghost {
         field: String,
         text: String,
+        style: GhostStyle,
     },
     Accept {
         field: String,
@@ -225,6 +233,7 @@ pub(super) enum Command {
         removed_after: String,
         text: String,
         next: String,
+        style: GhostStyle,
     },
     Surface(Surface),
     Scanned(Option<String>),
@@ -271,10 +280,11 @@ impl Handle {
         self.send(Command::PassThrough(key));
     }
 
-    pub(super) fn show(&self, field: &FieldSnapshot, text: &str) {
+    pub(super) fn show(&self, field: &FieldSnapshot, text: &str, style: GhostStyle) {
         self.send(Command::Ghost {
             field: field.focus_key.clone(),
             text: text.to_string(),
+            style,
         });
     }
 
@@ -285,6 +295,7 @@ impl Handle {
         after: &str,
         edit: &Edit,
         next: &str,
+        style: GhostStyle,
     ) {
         let (back, ahead) =
             super::session::replaced_bytes(before, after, edit.backward, edit.forward);
@@ -294,6 +305,7 @@ impl Handle {
             removed_after: after[..ahead].to_string(),
             text: edit.text.clone(),
             next: next.to_string(),
+            style,
         });
     }
 }
@@ -358,7 +370,14 @@ pub(super) fn insert(field: &FieldSnapshot, edit: &Edit) -> anyhow::Result<()> {
         .lock()
         .clone()
         .ok_or_else(|| anyhow::anyhow!("autocomplete's input method is not running"))?;
-    handle.accept(field, &field.before, &field.after, edit, "");
+    handle.accept(
+        field,
+        &field.before,
+        &field.after,
+        edit,
+        "",
+        GhostStyle::default(),
+    );
     Ok(())
 }
 
@@ -429,9 +448,29 @@ const TYPING_LASTS: Duration = Duration::from_secs(5);
 const UNPROMPTED_AFTER: Duration = Duration::from_millis(120);
 const UNPROMPTED_CHANGES: u8 = 3;
 
+const ASK_AFTER_KEY: Duration = Duration::from_millis(35);
+
 trait Output {
     fn preedit(&mut self, text: &str);
+    fn ghost(&mut self, style: GhostStyle, text: &str) {
+        let _ = style;
+        self.preedit(text);
+    }
+    fn nudge(&mut self) {
+        self.preedit("");
+    }
     fn commit(&mut self, removed_before: &str, removed_after: &str, text: &str, preedit: &str);
+    fn commit_styled(
+        &mut self,
+        removed_before: &str,
+        removed_after: &str,
+        text: &str,
+        next: &str,
+        style: GhostStyle,
+    ) {
+        let _ = style;
+        self.commit(removed_before, removed_after, text, next);
+    }
     fn release_keys(&mut self);
 }
 
@@ -440,6 +479,7 @@ struct Core {
     handler: FocusHandler,
     questions: Sender<surface::Request>,
     limitation: Arc<Mutex<Option<String>>>,
+    overlay_ghost: bool,
     active: bool,
     activation: u64,
     content: Content,
@@ -448,8 +488,10 @@ struct Core {
     asked_at: Option<Instant>,
     last: FocusSnapshot,
     ghost: String,
+    ghost_style: GhostStyle,
     previous_ghost: String,
     blanked_at: Option<Instant>,
+    key_nudge_at: Option<Instant>,
     changed_at: Instant,
     asked_field_at: Instant,
     unprompted_changes: u8,
@@ -467,6 +509,7 @@ impl Core {
             handler,
             questions,
             limitation,
+            overlay_ghost: false,
             active: false,
             activation: 0,
             content: Content::default(),
@@ -475,12 +518,19 @@ impl Core {
             asked_at: None,
             last: FocusSnapshot::none(),
             ghost: String::new(),
+            ghost_style: GhostStyle::default(),
             previous_ghost: String::new(),
             blanked_at: None,
+            key_nudge_at: None,
             changed_at: Instant::now(),
             asked_field_at: Instant::now(),
             unprompted_changes: 0,
         }
+    }
+
+    fn with_overlay_ghost(mut self) -> Self {
+        self.overlay_ghost = true;
+        self
     }
 
     fn set_limitation(&self, text: Option<String>) {
@@ -622,9 +672,9 @@ impl Core {
                 }
             }
             Command::Refresh => self.deliver(output),
-            Command::Ghost { field, text } => {
+            Command::Ghost { field, text, style } => {
                 if self.is_current(&field) {
-                    self.show_ghost(text, output);
+                    self.show_ghost(text, style, output);
                 }
             }
             Command::Accept {
@@ -633,11 +683,20 @@ impl Core {
                 removed_after,
                 text,
                 next,
+                style,
             } => {
                 if self.is_current(&field) {
+                    self.ghost_style = style;
                     self.replace_ghost(next);
                     self.blanked_at = None;
-                    output.commit(&removed_before, &removed_after, &text, &self.ghost);
+                    self.key_nudge_at = None;
+                    output.commit_styled(
+                        &removed_before,
+                        &removed_after,
+                        &text,
+                        &self.ghost,
+                        self.ghost_style,
+                    );
                 }
             }
             Command::Surface(surface) => {
@@ -661,13 +720,15 @@ impl Core {
                 .is_some_and(|last| last.focus_key == field)
     }
 
-    fn show_ghost(&mut self, text: String, output: &mut impl Output) {
-        if text == self.ghost && self.blanked_at.is_none() {
+    fn show_ghost(&mut self, text: String, style: GhostStyle, output: &mut impl Output) {
+        if text == self.ghost && style == self.ghost_style && self.blanked_at.is_none() {
             return;
         }
+        self.ghost_style = style;
         self.replace_ghost(text);
         self.blanked_at = None;
-        output.preedit(&self.ghost);
+        self.key_nudge_at = None;
+        output.ghost(self.ghost_style, &self.ghost);
     }
 
     fn replace_ghost(&mut self, text: String) {
@@ -677,11 +738,13 @@ impl Core {
     }
 
     fn drop_ghost(&mut self, output: &mut impl Output) {
+        self.key_nudge_at = None;
         if !self.ghost.is_empty() {
             self.replace_ghost(String::new());
+            self.ghost_style = GhostStyle::default();
             self.blanked_at = None;
-            if self.active {
-                output.preedit("");
+            if self.active || self.overlay_ghost {
+                output.ghost(GhostStyle::default(), "");
             }
         }
         output.release_keys();
@@ -689,15 +752,19 @@ impl Core {
 
     fn blank_for_key(&mut self, output: &mut impl Output) {
         if !self.ghost.is_empty() && self.blanked_at.is_none() {
-            self.blanked_at = Some(Instant::now());
-            output.preedit("");
+            let now = Instant::now();
+            self.blanked_at = Some(now);
+            if self.overlay_ghost && self.unprompted_changes < UNPROMPTED_CHANGES {
+                self.key_nudge_at = Some(now + ASK_AFTER_KEY);
+            }
+            output.ghost(self.ghost_style, "");
         }
     }
 
     fn next_ask(&self) -> Option<Instant> {
         let readable = self.active
             && self.last.field.is_some()
-            && self.ghost.is_empty()
+            && (self.overlay_ghost || self.ghost.is_empty())
             && self.unprompted_changes < UNPROMPTED_CHANGES;
         readable.then(|| {
             let typing = self.changed_at.elapsed() < TYPING_LASTS;
@@ -712,6 +779,7 @@ impl Core {
 
     fn next_deadline(&self) -> Option<Instant> {
         [
+            self.key_nudge_at,
             self.blanked_at.map(|at| at + GHOST_BACK_AFTER),
             self.next_ask(),
         ]
@@ -721,16 +789,23 @@ impl Core {
     }
 
     fn tick(&mut self, now: Instant, output: &mut impl Output) {
+        if self.key_nudge_at.is_some_and(|at| now >= at) {
+            self.key_nudge_at = None;
+            if self.active && self.last.field.is_some() {
+                self.asked_field_at = now;
+                output.nudge();
+            }
+        }
         if self
             .blanked_at
             .is_some_and(|at| now.duration_since(at) >= GHOST_BACK_AFTER)
         {
             self.blanked_at = None;
-            output.preedit(&self.ghost);
+            output.ghost(self.ghost_style, &self.ghost);
         }
         if self.next_ask().is_some_and(|at| now >= at) {
             self.asked_field_at = now;
-            output.preedit("");
+            output.nudge();
         }
     }
 }
@@ -1049,6 +1124,7 @@ mod tests {
         let ghost = Command::Ghost {
             field: key.clone(),
             text: " up".into(),
+            style: GhostStyle::default(),
         };
         assert!(core.command(ghost, &mut output).is_none());
         let accept = Command::Accept {
@@ -1057,6 +1133,7 @@ mod tests {
             removed_after: String::new(),
             text: " up".into(),
             next: String::new(),
+            style: GhostStyle::default(),
         };
         assert!(core.command(accept, &mut output).is_none());
         assert_eq!(output.calls, Vec::<String>::new());
@@ -1074,6 +1151,7 @@ mod tests {
             Command::Ghost {
                 field: key.clone(),
                 text: " up on it".into(),
+                style: GhostStyle::default(),
             },
             &mut output,
         );
@@ -1084,6 +1162,7 @@ mod tests {
                 removed_after: String::new(),
                 text: " up".into(),
                 next: " on it".into(),
+                style: GhostStyle::default(),
             },
             &mut output,
         );
@@ -1091,6 +1170,7 @@ mod tests {
             Command::Ghost {
                 field: key,
                 text: " on it".into(),
+                style: GhostStyle::default(),
             },
             &mut output,
         );
@@ -1125,6 +1205,7 @@ mod tests {
             Command::Ghost {
                 field: key,
                 text: " up".into(),
+                style: GhostStyle::default(),
             },
             &mut output,
         );
@@ -1171,6 +1252,7 @@ mod tests {
             Command::Ghost {
                 field: key,
                 text: " up".into(),
+                style: GhostStyle::default(),
             },
             &mut output,
         );
@@ -1203,5 +1285,91 @@ mod tests {
         assert_eq!(module_override(wayland), None);
         let fcitx = |name: &str| (name == "QT_IM_MODULE").then(|| "fcitx".to_string());
         assert!(module_override(fcitx).unwrap().contains("QT_IM_MODULE"));
+    }
+
+    #[test]
+    fn overlay_ghost_route_never_puts_suggestion_in_preedit_and_keeps_nudging_quiet_fields() {
+        #[derive(Default)]
+        struct OverlayRecorder {
+            calls: Vec<String>,
+        }
+        impl Output for OverlayRecorder {
+            fn preedit(&mut self, text: &str) {
+                panic!("overlay route must never call preedit({text:?})");
+            }
+            fn ghost(&mut self, style: GhostStyle, text: &str) {
+                self.calls.push(format!(
+                    "ghost({}, {}):{text}",
+                    style.emphasis_chars, style.dark
+                ));
+            }
+            fn nudge(&mut self) {
+                self.calls.push("nudge".into());
+            }
+            fn commit(&mut self, _: &str, _: &str, _: &str, _: &str) {
+                panic!("overlay route uses commit_styled");
+            }
+            fn commit_styled(
+                &mut self,
+                before: &str,
+                after: &str,
+                text: &str,
+                next: &str,
+                style: GhostStyle,
+            ) {
+                self.calls.push(format!(
+                    "commit -{before} -{after} +{text} -> ({},{next})",
+                    style.emphasis_chars
+                ));
+            }
+            fn release_keys(&mut self) {
+                self.calls.push("release".into());
+            }
+        }
+
+        let seen = Arc::new(Mutex::new(Vec::new()));
+        let sink = seen.clone();
+        let (questions, _unanswered) = crossbeam_channel::unbounded();
+        let mut core = Core::new(
+            policy(),
+            Arc::new(move |focus| sink.lock().push(focus)),
+            questions,
+            Arc::new(Mutex::new(None)),
+        )
+        .with_overlay_ghost();
+        let mut output = OverlayRecorder::default();
+
+        core.activate(&mut output);
+        core.update(None, Some(around("hello", "")), &mut output);
+        let s = Surface {
+            activation: core.activation,
+            ..surface()
+        };
+        core.command(Command::Surface(s), &mut output);
+        let key = seen.lock().last().unwrap().focus_key.clone().unwrap();
+        output.calls.clear();
+
+        core.command(
+            Command::Ghost {
+                field: key,
+                text: " world".into(),
+                style: GhostStyle {
+                    emphasis_chars: 6,
+                    dark: true,
+                },
+            },
+            &mut output,
+        );
+        assert_eq!(output.calls, ["ghost(6, true): world"]);
+        assert!(core.next_ask().is_some());
+
+        output.calls.clear();
+        core.blank_for_key(&mut output);
+        assert_eq!(output.calls, ["ghost(6, true):"]);
+        core.tick(
+            Instant::now() + ASK_AFTER_KEY + Duration::from_millis(5),
+            &mut output,
+        );
+        assert!(output.calls.contains(&"nudge".to_string()));
     }
 }

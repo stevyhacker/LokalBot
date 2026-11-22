@@ -850,7 +850,7 @@
 "Question or search" = "प्रश्न या खोज";
 "Quit LokalBot" = "LokalBot बंद करें";
 "Read coding agent sessions" = "कोडिंग एजेंट सत्र पढ़ें";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "अपने Claude Code और Codex सत्र पढ़ें, ताकि LokalBot याद रखे कि आपके एजेंटों ने क्या किया। फ़ाइलें इसी Mac पर रहती हैं।";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "अपने Claude Code, Codex, Antigravity और T3 Code सत्र पढ़ें, ताकि LokalBot याद रखे कि आपके एजेंटों ने क्या किया। फ़ाइलें इसी Mac पर रहती हैं।";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "स्क्रीनशॉट से फ़ोकस की गई विंडो का टेक्स्ट पढ़ता है। स्क्रीन रिकॉर्डिंग की ज़रूरत है; चित्र और टेक्स्ट सहेजे नहीं जाते।";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "सुलभता के ज़रिए दिखता इंटरफ़ेस टेक्स्ट पढ़ता है; कोई स्क्रीनशॉट सहेजा नहीं जाता।";
 "Reads window titles and visible interface text for activity and text-context features." = "गतिविधि और टेक्स्ट संदर्भ की सुविधाओं के लिए विंडो शीर्षक और दिखता इंटरफ़ेस टेक्स्ट पढ़ता है।";
@@ -2627,3 +2627,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "आपका अपना Antigravity CLI (agy) उसके टूल बंद करके चलाता है। agy में साइन इन आप खुद करते हैं; LokalBot आपका Google साइन-इन कभी नहीं देखता।";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "आपका अपना Gemini CLI उसके टूल बंद करके चलाता है। पहले Terminal में gemini में साइन इन करें; LokalBot आपका Google साइन-इन कभी नहीं देखता।";
 "Signed in" = "साइन इन है";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot कोडिंग एजेंट सत्र पढ़ना बंद कर देता है और जो सहेजा था उसे हटा देता है। Claude Code, Codex, Antigravity और T3 Code अपनी सत्र फ़ाइलें खुद रखते हैं।";

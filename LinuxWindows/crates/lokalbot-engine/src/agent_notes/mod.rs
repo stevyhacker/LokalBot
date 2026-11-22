@@ -29,7 +29,7 @@ pub fn scan(home: &Path, agents: &[CodingAgentKind], excluded_folders: &[String]
         if !agents.contains(&agent) {
             continue;
         }
-        scan.merge(match agent {
+        let found = match agent {
             CodingAgentKind::ClaudeCode => ClaudeNotesReader {
                 root: home.join(".claude").join("projects"),
             }
@@ -38,7 +38,9 @@ pub fn scan(home: &Path, agents: &[CodingAgentKind], excluded_folders: &[String]
                 root: home.join(".codex").join("memories"),
             }
             .scan(&exclusions),
-        });
+            CodingAgentKind::Antigravity | CodingAgentKind::T3Code => continue,
+        };
+        scan.merge(found);
     }
     scan.notes.sort_by(|a, b| {
         b.modified_at

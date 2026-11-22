@@ -850,7 +850,7 @@
 "Question or search" = "প্রশ্ন বা অনুসন্ধান";
 "Quit LokalBot" = "LokalBot থেকে বের হন";
 "Read coding agent sessions" = "কোডিং এজেন্ট সেশন পড়ুন";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "আপনার Claude Code ও Codex সেশন পড়ুন, যাতে আপনার এজেন্টরা কী করেছে তা LokalBot মনে রাখে। ফাইলগুলো এই Mac-এই থাকে।";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "আপনার Claude Code, Codex, Antigravity ও T3 Code সেশন পড়ুন, যাতে আপনার এজেন্টরা কী করেছে তা LokalBot মনে রাখে। ফাইলগুলো এই Mac-এই থাকে।";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "স্ক্রিনশট থেকে সক্রিয় উইন্ডোর পাঠ্য পড়ে। স্ক্রিন রেকর্ডিংয়ের অনুমতি প্রয়োজন; ছবি ও পাঠ্য সংরক্ষিত হয় না।";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "অ্যাক্সেসিবিলিটির মাধ্যমে দৃশ্যমান ইন্টারফেসের পাঠ্য পড়ে; কোনো স্ক্রিনশট সংরক্ষিত হয় না।";
 "Reads window titles and visible interface text for activity and text-context features." = "কার্যকলাপ ও পাঠ্য প্রসঙ্গের সুবিধার জন্য উইন্ডোর শিরোনাম ও দৃশ্যমান ইন্টারফেসের পাঠ্য পড়ে।";
@@ -2627,3 +2627,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "আপনার নিজের Antigravity CLI (agy) এর টুলগুলি বন্ধ রেখে চালায়। agy-তে আপনি নিজেই সাইন ইন করেন; LokalBot কখনো আপনার Google সাইন-ইন দেখে না।";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "আপনার নিজের Gemini CLI এর টুলগুলি বন্ধ রেখে চালায়। আগে Terminal-এ gemini-তে সাইন ইন করুন; LokalBot কখনো আপনার Google সাইন-ইন দেখে না।";
 "Signed in" = "সাইন ইন করা হয়েছে";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot কোডিং এজেন্ট সেশন পড়া বন্ধ করে এবং যা সংরক্ষণ করেছিল তা মুছে ফেলে। Claude Code, Codex, Antigravity ও T3 Code নিজেদের সেশন ফাইল নিজেরাই রাখে।";

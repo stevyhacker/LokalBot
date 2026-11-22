@@ -850,7 +850,7 @@
 "Question or search" = "Pregunta o búsqueda";
 "Quit LokalBot" = "Salir de LokalBot";
 "Read coding agent sessions" = "Leer sesiones de agentes de programación";
-"Read your Claude Code and Codex sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Lee tus sesiones de Claude Code y Codex para que LokalBot recuerde lo que hicieron tus agentes. Los archivos permanecen en este Mac.";
+"Read your Claude Code, Codex, Antigravity, and T3 Code sessions so LokalBot remembers what your agents did. Files stay on this Mac." = "Lee tus sesiones de Claude Code, Codex, Antigravity y T3 Code para que LokalBot recuerde lo que hicieron tus agentes. Los archivos permanecen en este Mac.";
 "Reads the focused window's text from a screenshot. Needs Screen Recording; the image and text are not saved." = "Lee el texto de la ventana activa desde una captura de pantalla. Requiere Grabación de pantalla; la imagen y el texto no se guardan.";
 "Reads visible interface text through Accessibility; no screenshots are stored." = "Lee el texto visible de la interfaz mediante Accesibilidad; no se guardan capturas de pantalla.";
 "Reads window titles and visible interface text for activity and text-context features." = "Lee títulos de ventanas y texto visible de la interfaz para las funciones de actividad y contexto de texto.";
@@ -2627,3 +2627,4 @@
 "Runs your own Antigravity CLI (agy) with its tools turned off. You sign in to agy yourself; LokalBot never sees your Google sign-in." = "Ejecuta tu propio Antigravity CLI (agy) con sus herramientas desactivadas. Tú inicias sesión en agy; LokalBot nunca ve tu inicio de sesión de Google.";
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Ejecuta tu propio Gemini CLI con sus herramientas desactivadas. Inicia sesión primero en gemini desde Terminal; LokalBot nunca ve tu inicio de sesión de Google.";
 "Signed in" = "Sesión iniciada";
+"LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot deja de leer las sesiones de agentes de código y elimina lo que guardó. Claude Code, Codex, Antigravity y T3 Code conservan sus propios archivos de sesión.";
