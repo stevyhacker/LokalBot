@@ -254,6 +254,11 @@ fn call_app_from_file(path: &Path) -> Result<AdditionalCallApp, &'static str> {
     if lokalbot_platform::meeting::has_built_in_call_detection(&identifier) {
         return Err("LokalBot already supports this app.");
     }
+    if lokalbot_core::settings::starts_other_apps(
+        &lokalbot_core::settings::normalized_executable_name(&identifier),
+    ) {
+        return Err("This file starts other apps, so it can't be a call app.");
+    }
     let name = lokalbot_platform::activity::executable_display_name(path);
     Ok(AdditionalCallApp {
         identifier,

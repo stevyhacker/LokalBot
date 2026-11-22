@@ -944,6 +944,7 @@
   "This desktop lets LokalBot capture the active window.": "এই ডেস্কটপ LokalBot-কে সক্রিয় উইন্ডো ধারণ করতে দেয়।",
   "This desktop lets LokalBot register system-wide shortcuts.": "এই ডেস্কটপ LokalBot-কে সিস্টেম-জুড়ে শর্টকাট নিবন্ধন করতে দেয়।",
   "This desktop supports every enabled feature": "এই ডেস্কটপ প্রতিটি চালু ফিচার সমর্থন করে",
+  "This file starts other apps, so it can't be a call app.": "এই ফাইলটি অন্য অ্যাপ চালু করে, তাই এটি কল অ্যাপ হতে পারে না।",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "এই ছবিটি অন্য কম্পিউটারে বা অন্য LokalBot ইনস্টলের মাধ্যমে ক্যাপচার করা হয়েছে, তাই এটি যে কীটি খুলবে সেটি এই পিসিতে নেই৷ এর পাঠ্যটি এখনও এখানে রয়েছে।",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "এটি পাসওয়ার্ড, কী বা কার্ড নম্বরের মতো দেখাচ্ছে। LokalBot এগুলো মনে রাখে না।",
   "This meeting does not contain a reversible merge.": "এই মিটিংয়ে পূর্বাবস্থায় ফেরানো যায় এমন কোনো একত্রিত করা নেই।",

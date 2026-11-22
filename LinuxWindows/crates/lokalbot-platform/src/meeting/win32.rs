@@ -27,6 +27,7 @@ const UNCONFIRMED_RETRY: Duration = Duration::from_secs(10);
 pub(super) struct WasapiEvidence {
     calls: crate::screen::BrowserCallReader,
     privacy: WindowPrivacyCache,
+    scan_private_windows: bool,
 }
 
 impl WasapiEvidence {
@@ -34,6 +35,7 @@ impl WasapiEvidence {
         Self {
             calls: crate::screen::BrowserCallReader::new(),
             privacy: WindowPrivacyCache::new(),
+            scan_private_windows: false,
         }
     }
 }
@@ -110,6 +112,13 @@ pub(crate) struct BrowserWindow {
 }
 
 impl EvidenceSource for WasapiEvidence {
+    fn scan_private_windows(&mut self, enabled: bool) {
+        self.scan_private_windows = enabled;
+        if !enabled {
+            self.privacy.forget();
+        }
+    }
+
     fn collect(&mut self) -> anyhow::Result<Evidence> {
         let _com = ComScope::enter();
         let processes = process_table();
@@ -132,7 +141,9 @@ impl EvidenceSource for WasapiEvidence {
                 })
                 .collect::<HashSet<_>>();
             let mut windows = browser_windows(&processes);
-            self.privacy.classify(&mut windows, &families);
+            if self.scan_private_windows {
+                self.privacy.classify(&mut windows, &families);
+            }
             windows.into_iter().map(|window| window.title).collect()
         } else {
             self.privacy.forget();

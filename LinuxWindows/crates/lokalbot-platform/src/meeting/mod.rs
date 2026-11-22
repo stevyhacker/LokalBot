@@ -147,6 +147,7 @@ pub(crate) struct Evidence {
 
 pub(crate) trait EvidenceSource: Send {
     fn collect(&mut self) -> anyhow::Result<Evidence>;
+    fn scan_private_windows(&mut self, _enabled: bool) {}
     fn limitation(&self) -> Option<String> {
         None
     }
@@ -874,6 +875,7 @@ impl MeetingDetector {
         apps: &[AdditionalCallApp],
     ) {
         self.core.detect_other_browser_calls = detect_other_browser_calls;
+        self.source.scan_private_windows(detect_other_browser_calls);
         self.core.additional_call_apps = apps
             .iter()
             .filter_map(|app| Some((app.detector_key()?, app.display_name().to_string())))
@@ -1834,6 +1836,28 @@ mod tests {
         fn collect(&mut self) -> anyhow::Result<Evidence> {
             Ok(self.0.clone())
         }
+    }
+
+    struct ScanSwitch(std::sync::Arc<std::sync::Mutex<Vec<bool>>>);
+
+    impl EvidenceSource for ScanSwitch {
+        fn collect(&mut self) -> anyhow::Result<Evidence> {
+            Ok(Evidence::default())
+        }
+
+        fn scan_private_windows(&mut self, enabled: bool) {
+            self.0.lock().unwrap().push(enabled);
+        }
+    }
+
+    #[test]
+    fn private_window_scan_follows_the_browser_call_setting() {
+        let seen = std::sync::Arc::new(std::sync::Mutex::new(Vec::new()));
+        let mut detector = MeetingDetector::with_source(Box::new(ScanSwitch(seen.clone())));
+        detector.set_call_detection(false, &[]);
+        detector.set_call_detection(true, &[]);
+        detector.set_call_detection(false, &[]);
+        assert_eq!(*seen.lock().unwrap(), [false, true, false]);
     }
 
     #[test]

@@ -944,6 +944,7 @@
   "This desktop lets LokalBot capture the active window.": "此桌面環境允許 LokalBot 擷取使用中的視窗。",
   "This desktop lets LokalBot register system-wide shortcuts.": "此桌面環境允許 LokalBot 註冊系統層級的快速鍵。",
   "This desktop supports every enabled feature": "此桌面環境支援所有已啟用的功能",
+  "This file starts other apps, so it can't be a call app.": "此檔案會啟動其他 App，因此不能作為通話 App。",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "此映像是在另一台電腦上擷取的或由另一個 LokalBot 安裝擷取的，因此開啟它的金鑰不在這台 PC 上。它的文字仍然在這裡。",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "這看起來像密碼、金鑰或卡號。LokalBot 不會記住這類內容。",
   "This meeting does not contain a reversible merge.": "這場會議不包含可還原的合併。",

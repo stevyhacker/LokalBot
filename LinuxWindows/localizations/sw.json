@@ -944,6 +944,7 @@
   "This desktop lets LokalBot capture the active window.": "Desktop hii inaruhusu LokalBot kunasa dirisha linalotumika.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Desktop hii inaruhusu LokalBot kusajili njia za mkato za mfumo mzima.",
   "This desktop supports every enabled feature": "Desktop hii inaweza kutumia kila kipengele kilichowashwa",
+  "This file starts other apps, so it can't be a call app.": "Faili hii huanzisha programu nyingine, kwa hivyo haiwezi kuwa programu ya simu.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Picha hii ilinaswa kwenye kompyuta nyingine au kwa usakinishaji mwingine wa LokalBot, kwa hivyo ufunguo unaoifungua hauko kwenye Kompyuta hii. Nakala yake bado iko hapa.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Hii inaonekana kama nenosiri, ufunguo au nambari ya kadi. LokalBot haikumbuki vitu hivyo.",
   "This meeting does not contain a reversible merge.": "Mkutano huu hauna kuunganisha kunakoweza kutenduliwa.",

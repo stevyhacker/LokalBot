@@ -944,6 +944,7 @@
   "This desktop lets LokalBot capture the active window.": "Ovo radno okruženje dozvoljava LokalBot-u da snima aktivni prozor.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Ovo radno okruženje dozvoljava LokalBot-u da registruje prečice na nivou sistema.",
   "This desktop supports every enabled feature": "Ovo radno okruženje podržava sve uključene funkcije",
+  "This file starts other apps, so it can't be a call app.": "Ova datoteka pokreće druge aplikacije, pa ne može biti aplikacija za pozive.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Ova slika je snimljena na drugom računaru ili drugom LokalBot instalacijom, tako da ključ koji je otvara nije na ovom računaru. Njegov tekst je još uvek ovde.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Ovo liči na lozinku, ključ ili broj kartice. LokalBot to ne pamti.",
   "This meeting does not contain a reversible merge.": "Ovaj sastanak ne sadrži spajanje koje može da se opozove.",

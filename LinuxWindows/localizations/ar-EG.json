@@ -944,6 +944,7 @@
   "This desktop lets LokalBot capture the active window.": "بيئة سطح المكتب دي بتسمح لـ LokalBot يلتقط النافذة النشطة.",
   "This desktop lets LokalBot register system-wide shortcuts.": "بيئة سطح المكتب دي بتسمح لـ LokalBot يسجّل اختصارات على مستوى النظام.",
   "This desktop supports every enabled feature": "بيئة سطح المكتب دي بتدعم كل الميزات المفعّلة",
+  "This file starts other apps, so it can't be a call app.": "الملف ده بيشغّل تطبيقات تانية، فمينفعش يكون تطبيق مكالمات.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "تم التقاط هذه الصورة على كمبيوتر آخر أو عن طريق تثبيت LokalBot آخر، لذا فإن المفتاح الذي يفتحها ليس موجودًا على هذا الكمبيوتر. ولا يزال نصها هنا.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "ده شكله باسورد أو مفتاح أو رقم كارت. LokalBot مابيفتكرش الحاجات دي.",
   "This meeting does not contain a reversible merge.": "الاجتماع ده مفيهوش دمج ينفع ترجع فيه.",

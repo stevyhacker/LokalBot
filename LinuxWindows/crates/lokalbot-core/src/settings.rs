@@ -599,12 +599,72 @@ impl AdditionalCallApp {
     pub fn detector_key(&self) -> Option<String> {
         let identifier = self.identifier.trim();
         let key = normalized_executable_name(identifier);
-        (!identifier.contains(['/', '\\']) && !key.is_empty() && key != "lokalbot").then_some(key)
+        (!identifier.contains(['/', '\\'])
+            && !key.is_empty()
+            && key != "lokalbot"
+            && !starts_other_apps(&key))
+        .then_some(key)
     }
 
     pub fn display_name(&self) -> &str {
         self.name.as_deref().unwrap_or(&self.identifier)
     }
+}
+
+pub fn starts_other_apps(key: &str) -> bool {
+    matches!(
+        key,
+        "explorer"
+            | "cmd"
+            | "powershell"
+            | "powershell_ise"
+            | "pwsh"
+            | "windowsterminal"
+            | "wt"
+            | "conhost"
+            | "openconsole"
+            | "svchost"
+            | "services"
+            | "wininit"
+            | "winlogon"
+            | "userinit"
+            | "sihost"
+            | "runtimebroker"
+            | "dllhost"
+            | "rundll32"
+            | "taskhostw"
+            | "taskmgr"
+            | "applicationframehost"
+            | "startmenuexperiencehost"
+            | "shellexperiencehost"
+            | "searchhost"
+            | "wsl"
+            | "wslhost"
+            | "bash"
+            | "sh"
+            | "dash"
+            | "zsh"
+            | "fish"
+            | "mintty"
+            | "systemd"
+            | "init"
+            | "sshd"
+            | "sudo"
+            | "gnome-shell"
+            | "gnome-session-binary"
+            | "gnome-terminal-server"
+            | "plasmashell"
+            | "kwin_x11"
+            | "kwin_wayland"
+            | "krunner"
+            | "konsole"
+            | "kitty"
+            | "alacritty"
+            | "xterm"
+            | "wezterm-gui"
+            | "tmux"
+            | "screen"
+    )
 }
 
 pub fn normalized_executable_name(name: &str) -> String {
@@ -1177,6 +1237,20 @@ mod tests {
             restored.additional_call_apps[1].detector_key().as_deref(),
             Some("other, client")
         );
+    }
+
+    #[test]
+    fn shells_and_system_hosts_never_become_call_apps() {
+        let settings: Settings = serde_json::from_str(
+            r#"{"additionalCallApps":[{"identifier":"explorer.exe"},{"identifier":"CMD.EXE"},{"identifier":"pwsh.exe"},{"identifier":"WindowsTerminal.exe"},{"identifier":"bash"},{"identifier":"eXpressHelper.exe"}]}"#,
+        )
+        .unwrap();
+        let keys: Vec<_> = settings
+            .additional_call_apps
+            .iter()
+            .filter_map(AdditionalCallApp::detector_key)
+            .collect();
+        assert_eq!(keys, ["expresshelper"]);
     }
 
     #[test]
