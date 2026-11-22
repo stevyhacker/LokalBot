@@ -38,7 +38,12 @@ enum WisprFlowLibrary {
         guard FileManager.default.fileExists(atPath: picked.path, isDirectory: &isDirectory), isDirectory.boolValue else {
             return picked
         }
-        return picked.appendingPathComponent(databaseName)
+        let inside = picked.appendingPathComponent(databaseName)
+        let beside = picked.deletingLastPathComponent().appendingPathComponent(databaseName)
+        if !FileManager.default.fileExists(atPath: inside.path), FileManager.default.fileExists(atPath: beside.path) {
+            return beside
+        }
+        return inside
     }
 
     static func dictionary(at picked: URL) throws -> [DictionaryEntry] {

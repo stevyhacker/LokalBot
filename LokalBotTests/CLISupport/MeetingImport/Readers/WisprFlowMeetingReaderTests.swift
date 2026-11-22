@@ -39,6 +39,14 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
         XCTAssertFalse(WisprFlowMeetingReader.recognizes(try temporaryFolder("wispr-elsewhere")))
     }
 
+    func testPickingTheMeetingsFolderInsideWisprsFolderReadsTheSameMeetings() throws {
+        let folder = try makeWisprFolder("wispr-meetings-inner")
+        let inner = folder.appendingPathComponent("meetings", isDirectory: true)
+        XCTAssertTrue(fileManager.fileExists(atPath: inner.path))
+        XCTAssertTrue(WisprFlowMeetingReader.recognizes(inner))
+        XCTAssertEqual(try WisprFlowMeetingReader.read(inner).meetings, try WisprFlowMeetingReader.read(folder).meetings)
+    }
+
     func testReadingLeavesWisprsFilesUnchanged() throws {
         let folder = try makeWisprFolder("wispr-meetings-untouched")
         let before = listing(folder)
