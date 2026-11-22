@@ -23,6 +23,7 @@ use lokalbot_core::{Library, Settings, ids};
 
 use crate::error::{AiError, ai_error};
 use crate::json::{extract_json_object, strip_reasoning};
+use crate::language::DailySummaryLanguage;
 use crate::prompts;
 use crate::sanitize::sanitize;
 use crate::think::{ChatRequest, ThinkClient};
@@ -93,6 +94,22 @@ fn duration(seconds: f64) -> String {
         format!("{}h {}m", minutes / 60, minutes % 60)
     } else {
         format!("{minutes}m")
+    }
+}
+
+fn localized_duration(seconds: f64, locale: &str) -> String {
+    let minutes = (seconds.round() as i64 / 60).max(0);
+    if minutes >= 60 {
+        lokalbot_i18n::format_in(
+            locale,
+            "{hours}h {minutes}m",
+            &[
+                ("hours", (minutes / 60).to_string()),
+                ("minutes", (minutes % 60).to_string()),
+            ],
+        )
+    } else {
+        lokalbot_i18n::format_in(locale, "{minutes}m", &[("minutes", minutes.to_string())])
     }
 }
 
@@ -382,6 +399,7 @@ pub fn fallback_report(
     generated_at: DateTime<Utc>,
     reason: FallbackReason,
     note: &str,
+    language: &DailySummaryLanguage,
 ) -> DreamReport {
     let count = evidence.meetings.len();
     let phrase = if count == 1 {
@@ -389,11 +407,25 @@ pub fn fallback_report(
     } else {
         format!("{count} recorded meetings")
     };
-    let narrative = format!(
-        "{note} The day had {phrase}, {} tracked across {} apps.",
-        duration(evidence.stats.tracked_seconds),
-        evidence.stats.app_count
-    );
+    let narrative = if language.uses_english_catalog() {
+        format!(
+            "{note} The day had {phrase}, {} tracked across {} apps.",
+            duration(evidence.stats.tracked_seconds),
+            evidence.stats.app_count
+        )
+    } else {
+        format!(
+            "{}: {count} · {} {} · {}",
+            language.text("Meetings"),
+            localized_duration(evidence.stats.tracked_seconds, language.fallback_locale),
+            language.text("tracked"),
+            lokalbot_i18n::format_in(
+                language.fallback_locale,
+                "{count} apps",
+                &[("count", evidence.stats.app_count.to_string())]
+            )
+        )
+    };
     let attention: Vec<String> = evidence
         .meetings
         .iter()
@@ -718,8 +750,10 @@ fn generate_synthesis(
     think: &ThinkClient,
     evidence: &DreamEvidence,
     memory: &DreamMemory,
+    language: &DailySummaryLanguage,
 ) -> Result<String> {
-    let first = ChatRequest::new(prompts::DREAM_SYSTEM, prompt(evidence))
+    let system = language.system(prompts::DREAM_SYSTEM);
+    let first = ChatRequest::new(&system, prompt(evidence))
         .context(context(evidence, memory))
         .json_schema(schema())
         .max_tokens(MAX_OUTPUT_TOKENS)
@@ -729,7 +763,7 @@ fn generate_synthesis(
         Ok(text) => Ok(text),
         Err(err) if matches!(ai_error(&err), Some(AiError::Truncated { .. })) => {
             log::info!("dreaming: reply hit the output limit, retrying without reasoning");
-            let retry = ChatRequest::new(prompts::DREAM_SYSTEM, prompt(evidence))
+            let retry = ChatRequest::new(&system, prompt(evidence))
                 .context(context(evidence, memory))
                 .json_schema(schema())
                 .max_tokens(TRUNCATION_RETRY_OUTPUT_TOKENS)
@@ -757,6 +791,7 @@ pub fn inference_provenance(think: &ThinkClient, settings: &Settings) -> Inferen
 
 pub struct DreamRequest<'a> {
     pub day: NaiveDate,
+    pub language: DailySummaryLanguage,
     pub is_automatic: bool,
     pub transient_failures: u32,
     pub make_engine: &'a dyn Fn() -> Result<(ThinkClient, InferenceProvenance)>,
@@ -819,10 +854,11 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
             now(),
             FallbackReason::EmptyDay,
             "Nothing substantive was recorded, so there is no retrospective.",
+            &request.language,
         )
     } else {
         match (request.make_engine)().and_then(|(think, inference)| {
-            let output = generate_synthesis(&think, &evidence, &context_memory)?;
+            let output = generate_synthesis(&think, &evidence, &context_memory, &request.language)?;
             Ok((think, inference, output))
         }) {
             Ok((think, inference, output)) => {
@@ -857,6 +893,7 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
                             now(),
                             FallbackReason::UnparseableResponse,
                             "The model's reply could not be read, so this brief lists evidence only.",
+                            &request.language,
                         )
                     }
                 }
@@ -881,6 +918,7 @@ pub fn dream(library: &Library, request: &DreamRequest<'_>) -> Result<DreamRepor
                     now(),
                     FallbackReason::EngineUnavailable,
                     "No model was reachable overnight, so this brief lists evidence only.",
+                    &request.language,
                 )
             }
         }

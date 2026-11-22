@@ -33,6 +33,7 @@
 "Active projects" = "Aktive Projekte";
 "Activity details" = "Aktivitätsdetails";
 "Activity only" = "Nur Aktivität";
+"Activity was recorded; no more specific outcome was visible." = "Aktivität wurde erfasst; ein genaueres Ergebnis war nicht erkennbar.";
 "Activity results" = "Aktivitätsergebnisse";
 "Activity titles to clear" = "Zu löschende Aktivitätstitel";
 "Activity, captured context, daily briefs, routines, and exports." = "Aktivität, erfasster Kontext, Tagesübersichten, Routinen und Exporte.";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Führt deine eigene Gemini CLI mit deaktivierten Werkzeugen aus. Melde dich zuerst im Terminal bei gemini an; LokalBot sieht deine Google-Anmeldung nie.";
 "Signed in" = "Angemeldet";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot hört auf, Sitzungen von Coding-Agenten zu lesen, und löscht, was es gespeichert hat. Claude Code, Codex, Antigravity und T3 Code behalten ihre eigenen Sitzungsdateien.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Über Nacht war kein Modell erreichbar; diese reine Beleg-Übersicht wurde lokal gespeichert.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Das Modell hat geantwortet, aber seine Antwort konnte nicht gelesen werden; diese reine Beleg-Übersicht wurde lokal gespeichert.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "An diesem Tag wurde nichts Wesentliches aufgezeichnet, daher lief kein Modell; dieser Platzhalter hält die Aufzeichnung nur vollständig.";
+"Written as an evidence-only fallback and saved locally." = "Als reiner Beleg-Ersatz geschrieben und lokal gespeichert.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Im Dream-Lauf von %1$@ mit genehmigter externer Inferenz bei %2$@ erstellt. Der Bericht wurde in deiner lokalen Bibliothek gespeichert.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Im Dream-Lauf von %@ mit genehmigter externer Inferenz erstellt. Der Bericht wurde in deiner lokalen Bibliothek gespeichert.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Im Dream-Lauf von %@ mit deinem konfigurierten Denken-Modell erstellt. Der Bericht wurde in deiner lokalen Bibliothek gespeichert.";
+"Dreamed by %@ on this Mac." = "Im Dream-Lauf von %@ auf diesem Mac erstellt.";
 "Clear Selection" = "Auswahl aufheben";
 "Trim to Selection" = "Auf Auswahl zuschneiden";
 "New Meeting from Selection" = "Neues Meeting aus Auswahl";

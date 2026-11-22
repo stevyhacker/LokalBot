@@ -16,6 +16,7 @@ use lokalbot_core::model::{ActionStatus, DigestCoverage, DigestMeta, DigestQuali
 use lokalbot_core::{Library, Settings};
 
 use crate::error::AiError;
+use crate::language::DailySummaryLanguage;
 use crate::think::{ChatRequest, ThinkClient};
 use crate::{json as model_json, prompts, sanitize};
 
@@ -1505,19 +1506,37 @@ fn candidate_material(block: &FocusBlock, index: usize, priority: Option<&str>) 
     )
 }
 
-fn candidate_summary(block: &FocusBlock) -> String {
+fn displayed_outcome(outcome: &str, language: &DailySummaryLanguage) -> String {
+    if !language.uses_english_catalog()
+        && let Some(labels) = outcome.strip_prefix("Pull requests: ")
+    {
+        format!("PR: {labels}")
+    } else {
+        outcome.to_string()
+    }
+}
+
+fn candidate_summary(block: &FocusBlock, language: &DailySummaryLanguage) -> String {
     let mut summary = block.work_done.clone();
     if !block.outcome.is_empty()
         && !summary
             .to_lowercase()
             .contains(&block.outcome.to_lowercase())
     {
-        summary.push_str(&format!(" Outcome: {}", block.outcome));
+        summary.push_str(&format!(
+            " {}: {}",
+            language.text("Outcome"),
+            displayed_outcome(&block.outcome, language)
+        ));
     }
     clean_summary(&summary, SUMMARY_WORDS)
 }
 
-fn merge_fallback_candidate(block: &FocusBlock, tasks: &mut Vec<NormalizedTask>) {
+fn merge_fallback_candidate(
+    block: &FocusBlock,
+    tasks: &mut Vec<NormalizedTask>,
+    language: &DailySummaryLanguage,
+) {
     let key = task_key(&block.task);
     if let Some(task) = tasks.iter_mut().find(|t| task_key(&t.title) == key) {
         if !task
@@ -1526,7 +1545,7 @@ fn merge_fallback_candidate(block: &FocusBlock, tasks: &mut Vec<NormalizedTask>)
             .contains(&block.work_done.to_lowercase())
         {
             task.summary = clean_summary(
-                &format!("{} {}", task.summary, candidate_summary(block)),
+                &format!("{} {}", task.summary, candidate_summary(block, language)),
                 SUMMARY_WORDS,
             );
         }
@@ -1541,7 +1560,7 @@ fn merge_fallback_candidate(block: &FocusBlock, tasks: &mut Vec<NormalizedTask>)
     tasks.push(NormalizedTask {
         title: block.task.clone(),
         status: block.status.clone(),
-        summary: candidate_summary(block),
+        summary: candidate_summary(block, language),
         next_step: block.next_step.clone(),
     });
 }
@@ -1553,7 +1572,10 @@ struct SessionCandidate {
     pull_requests: Vec<PullRequestReference>,
 }
 
-fn session_candidates(evidence: &DayEvidence) -> Vec<SessionCandidate> {
+fn session_candidates(
+    evidence: &DayEvidence,
+    language: &DailySummaryLanguage,
+) -> Vec<SessionCandidate> {
     evidence
         .coding_agent_sessions()
         .iter()
@@ -1574,19 +1596,32 @@ fn session_candidates(evidence: &DayEvidence) -> Vec<SessionCandidate> {
                 .as_ref()
                 .map(|project| format!(" in {project}"))
                 .unwrap_or_default();
-            let mut work_done =
-                format!("Worked with {}{in_project}.", session.agent.display_name());
-            if !session.actions.is_empty() {
-                work_done.push_str(&format!(
-                    " Recorded actions: {}.",
-                    session
-                        .actions
-                        .iter()
-                        .take(6)
-                        .map(CodingAgentAction::summary)
-                        .collect::<Vec<_>>()
-                        .join("; ")
-                ));
+            let actions = session
+                .actions
+                .iter()
+                .take(6)
+                .map(CodingAgentAction::summary)
+                .collect::<Vec<_>>()
+                .join("; ");
+            let mut work_done = if language.uses_english_catalog() {
+                format!("Worked with {}{in_project}.", session.agent.display_name())
+            } else {
+                let mut line = format!(
+                    "{}: {}",
+                    language.text("Coding agent"),
+                    session.agent.display_name()
+                );
+                if let Some(project) = &project {
+                    line.push_str(&format!(". {}: {project}", language.text("Project")));
+                }
+                line
+            };
+            if !actions.is_empty() {
+                if language.uses_english_catalog() {
+                    work_done.push_str(&format!(" Recorded actions: {actions}."));
+                } else {
+                    work_done.push_str(&format!(". {}: {actions}.", language.text("Actions")));
+                }
             }
             let labels: Vec<String> = session
                 .pull_requests
@@ -1734,7 +1769,11 @@ fn unmentioned_outcome(outcome: &str, summary: &str) -> String {
     }
 }
 
-fn merge_session_candidate(candidate: &SessionCandidate, tasks: &mut Vec<NormalizedTask>) {
+fn merge_session_candidate(
+    candidate: &SessionCandidate,
+    tasks: &mut Vec<NormalizedTask>,
+    language: &DailySummaryLanguage,
+) {
     let block = &candidate.block;
     let key = task_key(&block.task);
     let found = tasks
@@ -1757,12 +1796,15 @@ fn merge_session_candidate(candidate: &SessionCandidate, tasks: &mut Vec<Normali
         tasks.push(NormalizedTask {
             title: block.task.clone(),
             status: block.status.clone(),
-            summary: candidate_summary(block),
+            summary: candidate_summary(block, language),
             next_step: String::new(),
         });
         return;
     };
-    let addition = unmentioned_outcome(&block.outcome, &tasks[index].summary);
+    let addition = displayed_outcome(
+        &unmentioned_outcome(&block.outcome, &tasks[index].summary),
+        language,
+    );
     if !addition.is_empty() {
         tasks[index].summary = clean_summary(
             &format!("{} {addition}", tasks[index].summary),
@@ -1791,6 +1833,7 @@ fn normalized_list(values: &[String], max_words: usize) -> Vec<String> {
 fn normalized_digest(
     draft: Option<&DigestDraft>,
     blocks: &[FocusBlock],
+    language: &DailySummaryLanguage,
 ) -> (Vec<NormalizedTask>, Vec<String>, Vec<String>) {
     let mut tasks: Vec<NormalizedTask> = Vec::new();
     let mut covered: HashSet<usize> = HashSet::new();
@@ -1822,7 +1865,7 @@ fn normalized_digest(
     }
     for (index, block) in blocks.iter().enumerate() {
         if !covered.contains(&index) {
-            merge_fallback_candidate(block, &mut tasks);
+            merge_fallback_candidate(block, &mut tasks, language);
         }
     }
     let decisions = normalized_list(
@@ -1876,13 +1919,22 @@ fn render(
     blocks: &[FocusBlock],
     draft: Option<&DigestDraft>,
     sessions: &[SessionCandidate],
+    language: &DailySummaryLanguage,
 ) -> String {
-    let (mut tasks, decisions, blockers) = normalized_digest(draft, blocks);
+    let (mut tasks, decisions, blockers) = normalized_digest(draft, blocks, language);
     for candidate in sessions {
-        merge_session_candidate(candidate, &mut tasks);
+        merge_session_candidate(candidate, &mut tasks, language);
     }
     if tasks.is_empty() {
-        return RECORDED_ACTIVITY.into();
+        return if language.uses_english_catalog() {
+            RECORDED_ACTIVITY.into()
+        } else {
+            format!(
+                "### Tasks\n- **{}** — {}",
+                language.text("Activity"),
+                language.text("Activity was recorded; no more specific outcome was visible.")
+            )
+        };
     }
     let mut sections = vec![format!(
         "### Tasks\n{}",
@@ -1952,7 +2004,11 @@ fn markdown_section<'a>(name: &str, markdown: &'a str) -> Option<&'a str> {
     })
 }
 
-fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock> {
+fn best_available_blocks(
+    evidence: &DayEvidence,
+    limit: usize,
+    language: &DailySummaryLanguage,
+) -> Vec<FocusBlock> {
     let mut blocks = Vec::new();
     for meeting in &evidence.meetings {
         let title = clean_inline(&meeting.title, TITLE_CHARACTERS);
@@ -1964,12 +2020,20 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
         }
         blocks.push(FocusBlock {
             task: if title.is_empty() {
-                "Recorded meeting".into()
+                if language.uses_english_catalog() {
+                    "Recorded meeting".into()
+                } else {
+                    language.text("Meeting").into()
+                }
             } else {
                 title
             },
             work_done: if work.is_empty() {
-                "Participated in the recorded meeting.".into()
+                if language.uses_english_catalog() {
+                    "Participated in the recorded meeting.".into()
+                } else {
+                    language.text("Meeting").into()
+                }
             } else {
                 work
             },
@@ -2001,11 +2065,21 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
                 .map(|project| format!(" in {project}"))
                 .unwrap_or_default()
         );
-        let work_done = if actions.is_empty() {
-            format!("{context}.")
+        let shown: Vec<&str> = actions.iter().take(4).map(String::as_str).collect();
+        let work_done = if language.uses_english_catalog() {
+            if actions.is_empty() {
+                format!("{context}.")
+            } else {
+                format!("{context}. Recorded actions: {}.", shown.join("; "))
+            }
+        } else if actions.is_empty() {
+            format!(
+                "{}: {}",
+                language.text("Activity"),
+                merged.agent.display_name()
+            )
         } else {
-            let shown: Vec<&str> = actions.iter().take(4).map(String::as_str).collect();
-            format!("{context}. Recorded actions: {}.", shown.join("; "))
+            format!("{}: {}", language.text("Actions"), shown.join("; "))
         };
         blocks.push(FocusBlock {
             task: clean_inline(&merged.work_title(), TITLE_CHARACTERS),
@@ -2051,9 +2125,14 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
         }
         blocks.push(FocusBlock {
             task: title,
-            work_done:
+            work_done: if language.uses_english_catalog() {
                 "Activity related to this item was recorded; no more specific outcome was visible."
-                    .into(),
+                    .into()
+            } else {
+                language
+                    .text("Activity was recorded; no more specific outcome was visible.")
+                    .into()
+            },
             status: "unknown".into(),
             outcome: String::new(),
             next_step: String::new(),
@@ -2066,15 +2145,30 @@ fn best_available_blocks(evidence: &DayEvidence, limit: usize) -> Vec<FocusBlock
     blocks
 }
 
-pub fn fallback_summary(evidence: &DayEvidence) -> String {
+pub fn fallback_summary(evidence: &DayEvidence, language: &DailySummaryLanguage) -> String {
     if evidence.is_empty() {
-        return "### At a glance\n_No activity was recorded._".into();
+        return if language.uses_english_catalog() {
+            "### At a glance\n_No activity was recorded._".into()
+        } else {
+            format!(
+                "### At a glance\n_{}_",
+                language.text("No activity recorded")
+            )
+        };
     }
-    let blocks = best_available_blocks(evidence, 6);
+    let blocks = best_available_blocks(evidence, 6, language);
     if blocks.is_empty() {
-        RECORDED_ACTIVITY.into()
+        if language.uses_english_catalog() {
+            RECORDED_ACTIVITY.into()
+        } else {
+            format!(
+                "### Tasks\n- **{}** — {}",
+                language.text("Activity"),
+                language.text("Activity was recorded; no more specific outcome was visible.")
+            )
+        }
     } else {
-        render(&blocks, None, &[])
+        render(&blocks, None, &[], language)
     }
 }
 
@@ -2158,8 +2252,10 @@ pub fn generate_overview(
     think: &ThinkClient,
     evidence: &DayEvidence,
     custom_prompt: &str,
+    language: &DailySummaryLanguage,
     progress: &mut dyn FnMut(&str),
 ) -> Result<Overview> {
+    let focus_system = language.system(prompts::DAY_DIGEST_FOCUS_SYSTEM);
     let date_context = format!("Date: {}", evidence.day.format("%A, %B %-d, %Y"));
     let day_key = evidence.day.format("%Y-%m-%d").to_string();
     let segments = evidence.summary_segments();
@@ -2167,7 +2263,7 @@ pub fn generate_overview(
     let mut covered = 0.0;
     if segments.is_empty() {
         return Ok(Overview {
-            summary: fallback_summary(evidence),
+            summary: fallback_summary(evidence, language),
             quality: DigestQuality::Complete,
             coverage: None,
         });
@@ -2197,7 +2293,7 @@ pub fn generate_overview(
             "Extract the substantive-work candidates from this evidence segment.\nDecide eligibility from the work content, not from time spent or app usage.\nAllowed screen source IDs: [{ids}]\n\n{}",
             segment.evidence
         );
-        let key = cache_key(think, prompts::DAY_DIGEST_FOCUS_SYSTEM, &focus_prompt);
+        let key = cache_key(think, &focus_system, &focus_prompt);
         let mut accept = |parsed: ParsedFocus, covered: &mut f64| {
             let Some(block) = parsed.block else { return };
             *covered += segment.active_seconds;
@@ -2221,7 +2317,7 @@ pub fn generate_overview(
         let mut attempts = 1;
         let first = generate_json(
             think,
-            prompts::DAY_DIGEST_FOCUS_SYSTEM,
+            &focus_system,
             &focus_prompt,
             &date_context,
             FOCUS_TOKENS,
@@ -2235,7 +2331,7 @@ pub fn generate_overview(
                 attempts = 2;
                 match generate_json(
                     think,
-                    prompts::DAY_DIGEST_FOCUS_SYSTEM,
+                    &focus_system,
                     &retry_prompt,
                     &date_context,
                     FOCUS_RETRY_TOKENS,
@@ -2262,7 +2358,7 @@ pub fn generate_overview(
         if parsed.is_none() && attempts == 1 {
             match generate_json(
                 think,
-                prompts::DAY_DIGEST_FOCUS_SYSTEM,
+                &focus_system,
                 &retry_prompt,
                 &date_context,
                 FOCUS_RETRY_TOKENS,
@@ -2298,14 +2394,14 @@ pub fn generate_overview(
         covered_seconds: covered,
         tracked_seconds: tracked,
     });
-    let sessions = session_candidates(evidence);
+    let sessions = session_candidates(evidence, language);
     let uses_best_available = substantive.is_empty();
     let marks_priority = !substantive.is_empty() && !secondary.is_empty();
     let primary_count = substantive.len();
     let selected: Vec<FocusBlock> = substantive.into_iter().chain(secondary).collect();
     if selected.is_empty() {
         return Ok(Overview {
-            summary: fallback_summary(evidence),
+            summary: fallback_summary(evidence, language),
             quality: if degraded {
                 DigestQuality::Fallback
             } else {
@@ -2347,14 +2443,14 @@ pub fn generate_overview(
         })
         .collect::<Vec<_>>()
         .join("\n");
-    let system = prompts::with_digest_guidance(
+    let system = language.system(&prompts::with_digest_guidance(
         if uses_best_available {
             prompts::DAY_DIGEST_FALLBACK_SYSTEM
         } else {
             prompts::DAY_DIGEST_SYSTEM
         },
         custom_prompt,
-    );
+    ));
     let prompt = format!(
         "Build the daily recap from every accepted candidate below.\nMerge candidates for the same task and include every contributing\ncandidate index in block_indices. {instruction}\n\n{heading}\n{material}"
     );
@@ -2406,7 +2502,7 @@ pub fn generate_overview(
         degraded = true;
     }
     Ok(Overview {
-        summary: render(&selected, draft.as_ref(), &sessions),
+        summary: render(&selected, draft.as_ref(), &sessions, language),
         quality: if degraded {
             DigestQuality::Partial
         } else {
@@ -2430,10 +2526,12 @@ pub fn generate_day_digest(
     } else {
         think.hold()?
     };
+    let language = DailySummaryLanguage::from_settings(settings);
     let overview = match generate_overview(
         think,
         &evidence,
         &settings.day_digest_custom_prompt,
+        &language,
         progress,
     ) {
         Ok(overview) => overview,
@@ -2441,7 +2539,7 @@ pub fn generate_day_digest(
         Err(err) => {
             log::warn!("day digest model pass failed: {err:#}");
             Overview {
-                summary: fallback_summary(&evidence),
+                summary: fallback_summary(&evidence, &language),
                 quality: DigestQuality::Fallback,
                 coverage: None,
             }

@@ -33,6 +33,7 @@
 "Active projects" = "Miradi inayoendelea";
 "Activity details" = "Maelezo ya shughuli";
 "Activity only" = "Shughuli pekee";
+"Activity was recorded; no more specific outcome was visible." = "Shughuli ilirekodiwa; hakuna matokeo mahususi zaidi yaliyoonekana.";
 "Activity results" = "Matokeo ya shughuli";
 "Activity titles to clear" = "Vichwa vya shughuli vya kufuta";
 "Activity, captured context, daily briefs, routines, and exports." = "Shughuli, muktadha ulionaswa, muhtasari wa kila siku, ratiba na uhamishaji.";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Huendesha Gemini CLI yako mwenyewe huku zana zake zikiwa zimezimwa. Ingia kwenye gemini katika Terminal kwanza; LokalBot haioni kamwe maelezo yako ya kuingia kwenye Google.";
 "Signed in" = "Umeingia";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot huacha kusoma vipindi vya mawakala wa msimbo na kufuta ilichohifadhi. Claude Code, Codex, Antigravity na T3 Code hubaki na faili zao za vipindi.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Hakuna modeli iliyoweza kufikiwa usiku kucha; muhtasari huu wa ushahidi pekee ulihifadhiwa ndani ya kifaa.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Modeli ilijibu, lakini jibu lake halikuweza kusomwa; muhtasari huu wa ushahidi pekee ulihifadhiwa ndani ya kifaa.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Hakuna jambo la msingi lililorekodiwa siku hiyo, kwa hivyo hakuna modeli iliyoendeshwa; kishikilia nafasi hiki hukamilisha rekodi tu.";
+"Written as an evidence-only fallback and saved locally." = "Imeandikwa kama mbadala wa ushahidi pekee na kuhifadhiwa ndani ya kifaa.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Imeotwa na %1$@ kwa kutumia uchakataji wa mbali ulioidhinishwa katika %2$@. Ripoti ilihifadhiwa kwenye maktaba yako ya ndani.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Imeotwa na %@ kwa kutumia uchakataji wa mbali ulioidhinishwa. Ripoti ilihifadhiwa kwenye maktaba yako ya ndani.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Imeotwa na %@ kwa kutumia modeli yako ya Fikiri iliyosanidiwa. Ripoti ilihifadhiwa kwenye maktaba yako ya ndani.";
+"Dreamed by %@ on this Mac." = "Imeotwa na %@ kwenye Mac hii.";
 "Clear Selection" = "Ondoa Uteuzi";
 "Trim to Selection" = "Kata hadi Uteuzi";
 "New Meeting from Selection" = "Mkutano Mpya kutoka Uteuzi";

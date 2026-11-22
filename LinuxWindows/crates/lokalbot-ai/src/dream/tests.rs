@@ -163,6 +163,7 @@ fn an_empty_day_writes_a_stub_without_waking_a_model() {
         &library,
         &DreamRequest {
             day,
+            language: DailySummaryLanguage::default(),
             is_automatic: true,
             transient_failures: 0,
             make_engine: &|| panic!("no model call on an empty day"),
@@ -182,6 +183,7 @@ fn request<'a>(
 ) -> DreamRequest<'a> {
     DreamRequest {
         day,
+        language: DailySummaryLanguage::default(),
         is_automatic: true,
         transient_failures: 0,
         make_engine,
@@ -361,4 +363,98 @@ fn today_prefers_yesterday_and_looks_back_only_five_days() {
     assert_eq!(today_report(&library, today).unwrap().day, "2026-10-17");
     save(1, None);
     assert_eq!(today_report(&library, today).unwrap().day, "2026-10-19");
+}
+
+#[test]
+fn russian_dream_survives_retry_and_persists_without_changing_source_ids() {
+    let (_dir, library) = library();
+    let day = yesterday();
+    seed_meeting(&library, day);
+    let seen = std::sync::Arc::new(parking_lot::Mutex::new(Vec::<String>::new()));
+    let captured = seen.clone();
+    let server = StubServer::start(move |request| {
+        if request.path != "/v1/chat/completions" {
+            return Reply::Text(404, String::new());
+        }
+        let body = request.json();
+        let system = body["messages"][0]["content"]
+            .as_str()
+            .unwrap_or_default()
+            .to_string();
+        let mut systems = captured.lock();
+        systems.push(system);
+        if systems.len() == 1 {
+            return Reply::Json(
+                200,
+                json!({"choices":[{"message":{"content":"{"},"finish_reason":"length"}]}),
+            );
+        }
+        Reply::Json(
+            200,
+            json!({"choices":[{"message":{"content":REPLY.replace("The review moved the beta forward.", "Проверили выпуск.")},"finish_reason":"stop"}]}),
+        )
+    });
+    let make = || Ok((think_for(&server), InferenceProvenance::local()));
+    let mut input = request(day, &make);
+    input.language = DailySummaryLanguage::resolve("ru", "en", &["en"]);
+    let report = dream(&library, &input).unwrap();
+    assert_eq!(report.narrative, "Проверили выпуск.");
+    let systems = seen.lock();
+    assert_eq!(systems.len(), 2);
+    assert!(
+        systems
+            .iter()
+            .all(|s| s.contains("memory text in Russian."))
+    );
+    let store = DreamStore::new(library.paths().root());
+    assert_eq!(
+        store.report(&day_key(day)).unwrap().narrative,
+        "Проверили выпуск."
+    );
+}
+
+#[test]
+fn russian_model_free_brief_localizes_labels_and_keeps_verbatim_evidence() {
+    let (_dir, library) = library();
+    let day = yesterday();
+    let meeting = seed_meeting(&library, day);
+    let evidence = compile(&library, day).unwrap();
+    let english = fallback_report(
+        &evidence,
+        Utc::now(),
+        FallbackReason::EngineUnavailable,
+        "No model.",
+        &DailySummaryLanguage::default(),
+    );
+    let russian = fallback_report(
+        &evidence,
+        Utc::now(),
+        FallbackReason::EngineUnavailable,
+        "No model.",
+        &DailySummaryLanguage::resolve("ru", "en", &["en"]),
+    );
+    assert!(russian.narrative.contains("Встречи: 1"));
+    assert!(
+        russian.narrative.contains("м отслежено"),
+        "{}",
+        russian.narrative
+    );
+    assert!(!russian.narrative.contains("m отслежено"));
+    assert!(!russian.narrative.contains("No model"));
+    assert_eq!(russian.attention, english.attention);
+    assert_eq!(russian.top_actions, english.top_actions);
+    assert!(
+        russian
+            .attention
+            .iter()
+            .any(|line| line.contains(&format!("`{}`", meeting.short_id())))
+    );
+}
+
+#[test]
+fn model_free_durations_use_the_note_language_units() {
+    assert_eq!(super::localized_duration(7_800.0, "ru"), "2ч 10м");
+    assert_eq!(super::localized_duration(600.0, "ru"), "10м");
+    assert_eq!(super::localized_duration(0.0, "ru"), "0м");
+    assert_eq!(super::localized_duration(7_800.0, "en"), "2h 10m");
 }

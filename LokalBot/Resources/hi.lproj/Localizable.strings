@@ -33,6 +33,7 @@
 "Active projects" = "सक्रिय प्रोजेक्ट";
 "Activity details" = "गतिविधि का विवरण";
 "Activity only" = "केवल गतिविधि";
+"Activity was recorded; no more specific outcome was visible." = "गतिविधि दर्ज की गई; कोई अधिक विशिष्ट परिणाम नहीं दिखा।";
 "Activity results" = "गतिविधि के नतीजे";
 "Activity titles to clear" = "मिटाने के लिए गतिविधियों के शीर्षक";
 "Activity, captured context, daily briefs, routines, and exports." = "गतिविधि, कैप्चर किया गया संदर्भ, दैनिक सार, दिनचर्याएँ और निर्यात।";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "आपका अपना Gemini CLI उसके टूल बंद करके चलाता है। पहले Terminal में gemini में साइन इन करें; LokalBot आपका Google साइन-इन कभी नहीं देखता।";
 "Signed in" = "साइन इन है";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot कोडिंग एजेंट सत्र पढ़ना बंद कर देता है और जो सहेजा था उसे हटा देता है। Claude Code, Codex, Antigravity और T3 Code अपनी सत्र फ़ाइलें खुद रखते हैं।";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "रात में कोई मॉडल उपलब्ध नहीं था; यह केवल साक्ष्य वाला सार स्थानीय रूप से सहेजा गया।";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "मॉडल ने जवाब दिया, लेकिन उसका जवाब पढ़ा नहीं जा सका; यह केवल साक्ष्य वाला सार स्थानीय रूप से सहेजा गया।";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "उस दिन कोई ठोस बात रिकॉर्ड नहीं हुई, इसलिए कोई मॉडल नहीं चला; यह प्लेसहोल्डर सिर्फ़ रिकॉर्ड को पूरा रखता है।";
+"Written as an evidence-only fallback and saved locally." = "केवल साक्ष्य वाले विकल्प के रूप में लिखा गया और स्थानीय रूप से सहेजा गया।";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "%1$@ ने स्वीकृत रिमोट इन्फ़रेंस से %2$@ पर तैयार किया। रिपोर्ट आपकी स्थानीय लाइब्रेरी में सहेजी गई।";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ ने स्वीकृत रिमोट इन्फ़रेंस से तैयार किया। रिपोर्ट आपकी स्थानीय लाइब्रेरी में सहेजी गई।";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ ने आपके कॉन्फ़िगर किए गए विचार मॉडल से तैयार किया। रिपोर्ट आपकी स्थानीय लाइब्रेरी में सहेजी गई।";
+"Dreamed by %@ on this Mac." = "इस Mac पर %@ ने तैयार किया।";
 "Clear Selection" = "चयन साफ़ करें";
 "Trim to Selection" = "चयन तक काटें";
 "New Meeting from Selection" = "चयन से नई मीटिंग";

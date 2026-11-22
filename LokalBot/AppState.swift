@@ -2845,7 +2845,8 @@ final class AppState: ObservableObject {
                             throw CancellationError()
                         }
                         return (engine, DreamInferenceProvenance(settings: engineSettings))
-                    })
+                    },
+                    language: DailySummaryLanguage(notes: self.settings.summaryLanguage, interface: self.settings.appLanguage))
                 let report = try await service.dream(target: target)
                 self.latestDreamReport = report
                 self.refreshDreamMemory()

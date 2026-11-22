@@ -33,6 +33,7 @@
 "Active projects" = "Активные проекты";
 "Activity details" = "Сведения об активности";
 "Activity only" = "Только активность";
+"Activity was recorded; no more specific outcome was visible." = "Активность записана, но конкретный результат не виден.";
 "Activity results" = "Результаты активности";
 "Activity titles to clear" = "Заголовки активности для удаления";
 "Activity, captured context, daily briefs, routines, and exports." = "Активность, захваченный контекст, ежедневные сводки, процедуры и экспорт.";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Запускает ваш собственный Gemini CLI с отключёнными инструментами. Сначала войдите в gemini в Терминале; LokalBot никогда не видит ваш вход в Google.";
 "Signed in" = "Вход выполнен";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot перестаёт читать сеансы агентов программирования и удаляет сохранённое. Claude Code, Codex, Antigravity и T3 Code хранят собственные файлы сеансов.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Ночью не было доступной модели; эта сводка только по материалам сохранена локально.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Модель ответила, но её ответ не удалось прочитать; эта сводка только по материалам сохранена локально.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "В тот день не было записано ничего существенного, поэтому модель не запускалась; эта заглушка лишь сохраняет полноту записей.";
+"Written as an evidence-only fallback and saved locally." = "Записано как резервный вариант только по материалам и сохранено локально.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Dream выполнен моделью %1$@ с использованием одобренного удалённого вывода на %2$@. Отчёт сохранён в вашей локальной библиотеке.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Dream выполнен моделью %@ с использованием одобренного удалённого вывода. Отчёт сохранён в вашей локальной библиотеке.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Dream выполнен моделью %@ с использованием настроенной модели Думать. Отчёт сохранён в вашей локальной библиотеке.";
+"Dreamed by %@ on this Mac." = "Dream выполнен моделью %@ на этом Mac.";
 "Clear Selection" = "Снять выделение";
 "Trim to Selection" = "Обрезать по выделению";
 "New Meeting from Selection" = "Новая встреча из выделения";

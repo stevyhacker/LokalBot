@@ -52,6 +52,97 @@ final class DreamingTests: XCTestCase {
             openActions: ["- [ ] Fix flaky UI test — `98761234`"])
     }
 
+
+    private actor LanguageRequests {
+        private(set) var systems: [String] = []
+        func record(_ system: String) -> Int {
+            systems.append(system)
+            return systems.count
+        }
+    }
+
+    private struct LanguageEngine: TextEngine {
+        let requests: LanguageRequests
+        var displayName: String { "daily-language-test" }
+        func generate(system: String, prompt: String, context: [String]) async throws -> String { "unused" }
+        func generate(system: String, prompt: String, context: [String],
+                      schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+            if await requests.record(system) == 1 { throw TextEngineError.outputTruncated }
+            return #"{"narrative":"Проверили выпуск.","attention":[],"repeated_work":[],"suggested_checks":[],"frictions":[],"top_actions":[],"active_projects":[],"work_goals":[],"recurring_patterns":[]}"#
+        }
+    }
+
+    func testDailyLanguageUsesExplicitNotesBeforeInterfaceAndResolvesSystem() {
+        let french = DailySummaryLanguage(notes: .fr, interface: .russian)
+        XCTAssertEqual(french.name, "French")
+        XCTAssertEqual(french.fallbackLanguage, .french)
+        let russian = DailySummaryLanguage(notes: .matchTranscript, interface: .system,
+                                          preferredLanguages: ["ru-RU", "en"])
+        XCTAssertEqual(russian.name, "Russian")
+        XCTAssertEqual(russian.fallbackLanguage, .russian)
+        let custom = DailySummaryLanguage(notes: .custom("Klingon"), interface: .russian)
+        XCTAssertEqual(custom.name, "Klingon")
+        XCTAssertEqual(custom.fallbackLanguage, .russian)
+    }
+
+    func testDreamRequestsKeepRussianAfterOutputLimitAndParseTheReply() async throws {
+        let requests = LanguageRequests()
+        let evidence = try sampleEvidence()
+        let root = try temporaryRoot()
+        let service = DreamService(
+            storageRoot: root,
+            makeEngine: { (LanguageEngine(requests: requests), DreamInferenceProvenance(location: .local)) },
+            language: DailySummaryLanguage(notes: .ru, interface: .english),
+            compileEvidence: { _, _ in evidence })
+        let report = try await service.dream(target: DreamScheduler.Target(
+            day: evidence.day, dayKey: evidence.dayKey, calendar: calendar))
+        XCTAssertEqual(report.narrative, "Проверили выпуск.")
+        XCTAssertEqual(DreamStore(root: root).report(forDayKey: evidence.dayKey)?.narrative, "Проверили выпуск.")
+        let systems = await requests.systems
+        XCTAssertEqual(systems.count, 2)
+        XCTAssertTrue(systems.allSatisfy { $0.contains("memory text in Russian.") })
+        XCTAssertTrue(systems.allSatisfy { $0.contains("quoted source text unchanged") })
+    }
+
+    func testRussianFallbackLocalizesAppTextAndPreservesEvidenceAndIDs() throws {
+        let evidence = try sampleEvidence()
+        let generatedAt = try date("2026-07-19T04:01:00Z")
+        let english = DreamCompiler.fallbackReport(
+            from: evidence, generatedAt: generatedAt, reason: .engineUnavailable, note: "No model.")
+        let russian = DreamCompiler.fallbackReport(
+            from: evidence, generatedAt: generatedAt, reason: .engineUnavailable, note: "No model.",
+            language: DailySummaryLanguage(notes: .ru, interface: .english))
+        XCTAssertTrue(russian.narrative.contains("Встречи: 1"))
+        XCTAssertTrue(russian.narrative.contains("4 ч отслежено"), russian.narrative)
+        XCTAssertFalse(russian.narrative.contains("4h"))
+        XCTAssertFalse(russian.narrative.contains("No model"))
+        XCTAssertEqual(russian.attention, english.attention)
+        XCTAssertEqual(russian.topActions, english.topActions)
+        XCTAssertTrue(russian.attention.contains("Who owns the release notes? — `abcd1234`"))
+        XCTAssertEqual(russian.fallbackReason, .engineUnavailable)
+    }
+
+
+    func testTodayCardProvenanceFollowsTheInterfaceLanguageWhileMarkdownStaysCanonical() throws {
+        let evidence = try sampleEvidence()
+        let report = DreamCompiler.fallbackReport(
+            from: evidence, generatedAt: try date("2026-07-19T04:01:00Z"),
+            reason: .engineUnavailable, note: "No model.",
+            language: DailySummaryLanguage(notes: .ru, interface: .english))
+        XCTAssertEqual(report.provenanceDescription(localized: { AppLanguage.russian.localized($0) }),
+                       "Ночью не было доступной модели; эта сводка только по материалам сохранена локально.")
+        XCTAssertEqual(report.provenanceDescription,
+                       "No model was reachable overnight; this evidence-only brief was saved locally.")
+        XCTAssertTrue(report.markdown().contains("_No model was reachable overnight;"))
+
+        var local = report
+        local.engineName = "Qwen"
+        local.inferenceProvenance = DreamInferenceProvenance(location: .local, origin: nil)
+        XCTAssertEqual(local.provenanceDescription(localized: { AppLanguage.russian.localized($0) }),
+                       "Dream выполнен моделью Qwen на этом Mac.")
+        XCTAssertEqual(local.provenanceDescription, "Dreamed by Qwen on this Mac.")
+    }
+
     func testShouldRunWaitsForHourAndSkipsDreamedDays() throws {
         XCTAssertFalse(DreamScheduler.shouldRun(
             at: try date("2026-07-19T03:59:00Z"), hour: 4,

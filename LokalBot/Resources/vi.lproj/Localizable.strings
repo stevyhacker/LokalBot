@@ -33,6 +33,7 @@
 "Active projects" = "Dự án đang hoạt động";
 "Activity details" = "Chi tiết hoạt động";
 "Activity only" = "Chỉ hoạt động";
+"Activity was recorded; no more specific outcome was visible." = "Đã ghi lại hoạt động; không thấy kết quả cụ thể hơn.";
 "Activity results" = "Kết quả hoạt động";
 "Activity titles to clear" = "Tiêu đề hoạt động cần xóa";
 "Activity, captured context, daily briefs, routines, and exports." = "Hoạt động, ngữ cảnh đã ghi lại, bản tóm tắt hằng ngày, tác vụ định kỳ và bản xuất.";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Chạy Gemini CLI của chính bạn với các công cụ đã tắt. Đăng nhập vào gemini trong Terminal trước; LokalBot không bao giờ thấy thông tin đăng nhập Google của bạn.";
 "Signed in" = "Đã đăng nhập";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot ngừng đọc các phiên của tác nhân lập trình và xóa những gì đã lưu. Claude Code, Codex, Antigravity và T3 Code vẫn giữ tệp phiên của riêng chúng.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "Đêm qua không có mô hình nào truy cập được; bản tóm tắt chỉ gồm bằng chứng này đã được lưu cục bộ.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "Mô hình đã phản hồi nhưng không đọc được nội dung; bản tóm tắt chỉ gồm bằng chứng này đã được lưu cục bộ.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "Hôm đó không có nội dung đáng kể nào được ghi lại nên không có mô hình nào chạy; mục giữ chỗ này chỉ để bản ghi đầy đủ.";
+"Written as an evidence-only fallback and saved locally." = "Được viết làm phương án dự phòng chỉ gồm bằng chứng và lưu cục bộ.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "Đánh giá qua đêm do %1$@ thực hiện bằng suy luận từ xa đã phê duyệt tại %2$@. Báo cáo đã được lưu trong thư viện cục bộ của bạn.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "Đánh giá qua đêm do %@ thực hiện bằng suy luận từ xa đã phê duyệt. Báo cáo đã được lưu trong thư viện cục bộ của bạn.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "Đánh giá qua đêm do %@ thực hiện bằng mô hình Suy nghĩ bạn đã cấu hình. Báo cáo đã được lưu trong thư viện cục bộ của bạn.";
+"Dreamed by %@ on this Mac." = "Đánh giá qua đêm do %@ thực hiện trên máy Mac này.";
 "Clear Selection" = "Xóa vùng chọn";
 "Trim to Selection" = "Cắt theo vùng chọn";
 "New Meeting from Selection" = "Cuộc họp mới từ vùng chọn";

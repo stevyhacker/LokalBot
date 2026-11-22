@@ -33,6 +33,7 @@
 "Active projects" = "সক্রিয় প্রকল্প";
 "Activity details" = "কার্যকলাপের বিবরণ";
 "Activity only" = "শুধু কার্যকলাপ";
+"Activity was recorded; no more specific outcome was visible." = "কার্যকলাপ রেকর্ড করা হয়েছে; আরও নির্দিষ্ট কোনো ফলাফল দেখা যায়নি।";
 "Activity results" = "কার্যকলাপের ফলাফল";
 "Activity titles to clear" = "মুছে ফেলার কার্যকলাপের শিরোনাম";
 "Activity, captured context, daily briefs, routines, and exports." = "কার্যকলাপ, ধারণ করা প্রসঙ্গ, দৈনিক সারাংশ, রুটিন ও রপ্তানি।";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "আপনার নিজের Gemini CLI এর টুলগুলি বন্ধ রেখে চালায়। আগে Terminal-এ gemini-তে সাইন ইন করুন; LokalBot কখনো আপনার Google সাইন-ইন দেখে না।";
 "Signed in" = "সাইন ইন করা হয়েছে";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot কোডিং এজেন্ট সেশন পড়া বন্ধ করে এবং যা সংরক্ষণ করেছিল তা মুছে ফেলে। Claude Code, Codex, Antigravity ও T3 Code নিজেদের সেশন ফাইল নিজেরাই রাখে।";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "রাতে কোনো মডেল পাওয়া যায়নি; শুধু প্রমাণভিত্তিক এই সারসংক্ষেপ স্থানীয়ভাবে সংরক্ষিত হয়েছে।";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "মডেল সাড়া দিয়েছিল, কিন্তু তার উত্তর পড়া যায়নি; শুধু প্রমাণভিত্তিক এই সারসংক্ষেপ স্থানীয়ভাবে সংরক্ষিত হয়েছে।";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "সেদিন উল্লেখযোগ্য কিছু রেকর্ড হয়নি, তাই কোনো মডেল চলেনি; এই প্লেসহোল্ডার শুধু রেকর্ডটি সম্পূর্ণ রাখে।";
+"Written as an evidence-only fallback and saved locally." = "শুধু প্রমাণভিত্তিক বিকল্প হিসেবে লেখা হয়েছে এবং স্থানীয়ভাবে সংরক্ষিত হয়েছে।";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "%1$@ অনুমোদিত দূরবর্তী ইনফারেন্স ব্যবহার করে %2$@-এ তৈরি করেছে। প্রতিবেদনটি আপনার স্থানীয় লাইব্রেরিতে সংরক্ষিত হয়েছে।";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "%@ অনুমোদিত দূরবর্তী ইনফারেন্স ব্যবহার করে তৈরি করেছে। প্রতিবেদনটি আপনার স্থানীয় লাইব্রেরিতে সংরক্ষিত হয়েছে।";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "%@ আপনার কনফিগার করা ভাবনা মডেল ব্যবহার করে তৈরি করেছে। প্রতিবেদনটি আপনার স্থানীয় লাইব্রেরিতে সংরক্ষিত হয়েছে।";
+"Dreamed by %@ on this Mac." = "এই Mac-এ %@ তৈরি করেছে।";
 "Clear Selection" = "নির্বাচন মুছুন";
 "Trim to Selection" = "নির্বাচন অনুযায়ী ছাঁটুন";
 "New Meeting from Selection" = "নির্বাচন থেকে নতুন মিটিং";

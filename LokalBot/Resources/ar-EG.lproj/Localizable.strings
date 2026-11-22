@@ -33,6 +33,7 @@
 "Active projects" = "المشاريع النشطة";
 "Activity details" = "تفاصيل النشاط";
 "Activity only" = "النشاط فقط";
+"Activity was recorded; no more specific outcome was visible." = "سُجّل نشاط، ولم تظهر نتيجة أكثر تحديدًا.";
 "Activity results" = "نتائج النشاط";
 "Activity titles to clear" = "عناوين الأنشطة المطلوب مسحها";
 "Activity, captured context, daily briefs, routines, and exports." = "النشاط والسياق اللي اتلقط والملخصات اليومية والمهام الدورية والتصدير.";
@@ -2627,6 +2628,14 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "بيشغّل Gemini CLI بتاعك وأدواته مقفولة. سجّل دخول في gemini من Terminal الأول، وLokalBot عمره ما بيشوف بيانات دخولك في Google.";
 "Signed in" = "مسجّل الدخول";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot بيبطّل يقرا جلسات وكلاء البرمجة وبيمسح اللي حفظه. Claude Code وCodex وAntigravity وT3 Code بيحتفظوا بملفات جلساتهم الخاصة.";
+"No model was reachable overnight; this evidence-only brief was saved locally." = "مفيش نموذج كان متاح طول الليل؛ وده ملخص مبني على الأدلة بس واتحفظ محليًا.";
+"The model replied, but its response could not be read; this evidence-only brief was saved locally." = "النموذج رد بس مقدرناش نقرا رده؛ وده ملخص مبني على الأدلة بس واتحفظ محليًا.";
+"Nothing substantive was recorded that day, so no model ran; this placeholder just keeps the record complete." = "مفيش حاجة مهمة اتسجلت في اليوم ده، فمفيش نموذج اشتغل؛ والعنصر ده موجود بس عشان السجل يفضل كامل.";
+"Written as an evidence-only fallback and saved locally." = "اتكتب كبديل احتياطي مبني على الأدلة بس واتحفظ محليًا.";
+"Dreamed by %1$@ using approved remote inference at %2$@. The report was saved in your local library." = "اتعمل Dream بواسطة %1$@ باستخدام الاستنتاج البعيد المعتمد على %2$@. التقرير اتحفظ في مكتبتك المحلية.";
+"Dreamed by %@ using approved remote inference. The report was saved in your local library." = "اتعمل Dream بواسطة %@ باستخدام الاستنتاج البعيد المعتمد. التقرير اتحفظ في مكتبتك المحلية.";
+"Dreamed by %@ using your configured Think model. The report was saved in your local library." = "اتعمل Dream بواسطة %@ باستخدام نموذج التفكير اللي ظبطته. التقرير اتحفظ في مكتبتك المحلية.";
+"Dreamed by %@ on this Mac." = "اتعمل Dream بواسطة %@ على الـ Mac ده.";
 "Clear Selection" = "امسح التحديد";
 "Trim to Selection" = "قص على قد التحديد";
 "New Meeting from Selection" = "اجتماع جديد من التحديد";
