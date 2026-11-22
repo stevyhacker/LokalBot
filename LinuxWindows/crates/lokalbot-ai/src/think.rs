@@ -2971,7 +2971,7 @@ mod tests {
         let client = ThinkClient::new(&runtime, &settings).unwrap();
         assert_eq!(
             client.display_name(),
-            "Qwen3.5 4B (LokalBot v3) · on this PC"
+            "Qwen3.5 4B (LokalBot v4) · on this PC"
         );
         assert!(client.is_local() && client.is_built_in());
         assert_eq!(client.context_tokens(), 32_768);

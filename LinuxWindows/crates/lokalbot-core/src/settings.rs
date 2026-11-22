@@ -282,7 +282,7 @@ impl Default for Settings {
             transcription_prompt: String::new(),
             auto_transcription_vocabulary: true,
             summarizer_backend: SummarizerBackend::BuiltIn,
-            built_in_model_id: "qwen3.5-4b-lokalbot-v3".into(),
+            built_in_model_id: "qwen3.5-4b-lokalbot-v4".into(),
             ollama_base_url: "http://localhost:11434".into(),
             ollama_model: String::new(),
             openai_base_url: "http://localhost:1234/v1".into(),
@@ -1316,7 +1316,7 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
-        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b-lokalbot-v3\""));
+        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b-lokalbot-v4\""));
     }
 
     #[test]

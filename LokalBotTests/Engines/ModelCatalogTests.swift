@@ -107,13 +107,13 @@ final class ModelCatalogTests: XCTestCase {
     }
 
     func testFreshSettingsDefaultToQwen35FourBOnEveryMac() throws {
-        XCTAssertEqual(ModelCatalog.defaultSummarizationID, "qwen3.5-4b-lokalbot-v3")
+        XCTAssertEqual(ModelCatalog.defaultSummarizationID, "qwen3.5-4b-lokalbot-v4")
         XCTAssertEqual(AppSettings().builtInModelID, ModelCatalog.defaultSummarizationID)
         let entry = try XCTUnwrap(ModelCatalog.entry(id: ModelCatalog.defaultSummarizationID))
-        XCTAssertEqual(entry.fileName, "Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf")
-        XCTAssertEqual(entry.sizeBytes, 2_741_241_984)
-        XCTAssertEqual(entry.sha256, "ff8e5921a49c1a4d9cf8a22759fb83deac4b7670d95d659e268e565e7af1ec03")
-        XCTAssertTrue(entry.url.contains("/resolve/60f704305746c4390c3b207c156191c761cf66db/"))
+        XCTAssertEqual(entry.fileName, "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf")
+        XCTAssertEqual(entry.sizeBytes, 2_741_241_952)
+        XCTAssertEqual(entry.sha256, "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0")
+        XCTAssertTrue(entry.url.contains("/resolve/b7c9e3308abcf996350e35c9dc97d9590bf6a00a/"))
         XCTAssertTrue(ModelCatalog.mainLLMEntries(custom: []).contains(entry))
         XCTAssertFalse(ModelCatalog.keystrokeScaleEntries(custom: []).contains(entry))
     }
@@ -150,7 +150,7 @@ final class ModelCatalogTests: XCTestCase {
 
     func testPresetModelSummaryNamesEveryRoleModel() {
         XCTAssertEqual(ModelStackPreset.recommended.modelSummary,
-                       "Transcribe: Qwen3-ASR 1.7B, Think: Qwen3.5 4B (LokalBot v3), Autocomplete: Gemma 4 E2B (LokalBot v4)")
+                       "Transcribe: Qwen3-ASR 1.7B, Think: Qwen3.5 4B (LokalBot v4), Autocomplete: Gemma 4 E2B (LokalBot v4)")
         XCTAssertEqual(ModelStackPreset.lightweight.modelSummary,
                        "Transcribe: Qwen3-ASR 0.6B, Think: Qwen3.5 0.8B, Autocomplete: LFM2.5 1.2B Instruct")
     }

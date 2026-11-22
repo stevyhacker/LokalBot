@@ -59,7 +59,7 @@ impl ModelEntry {
 
 pub const COMPACT_FALLBACK_ID: &str = "qwen3.5-0.8b";
 pub const PREVIOUS_DEFAULT_THINK_ID: &str = "qwen3.5-4b";
-pub const DEFAULT_THINK_ID: &str = "qwen3.5-4b-lokalbot-v3";
+pub const DEFAULT_THINK_ID: &str = "qwen3.5-4b-lokalbot-v4";
 pub const RECOMMENDED_SUMMARIZATION_ID: &str = "qwen3.6-35b-a3b";
 pub const PREVIOUS_QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-base-q6";
 pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-lokalbot-v4";
@@ -183,13 +183,13 @@ static CATALOG: [ModelEntry; 17] = [
         license: Some("Apache 2.0"),
         ..text(
             DEFAULT_THINK_ID,
-            "Qwen3.5 4B (LokalBot v3)",
+            "Qwen3.5 4B (LokalBot v4)",
             "stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
-            "60f704305746c4390c3b207c156191c761cf66db",
-            "Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf",
+            "b7c9e3308abcf996350e35c9dc97d9590bf6a00a",
+            "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
             "Q4_K_M",
-            2_741_241_984,
-            "ff8e5921a49c1a4d9cf8a22759fb83deac4b7670d95d659e268e565e7af1ec03",
+            2_741_241_952,
+            "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
             "Default Think model fine-tuned for LokalBot notes, memory, and Ask. 16 GB RAM.",
             true,
             false,
@@ -887,7 +887,7 @@ mod tests {
     #[test]
     fn presets_and_pickers_follow_macos() {
         assert_eq!(entry("qwen3.5-4b").unwrap().size_bytes, 2_740_937_888);
-        assert_eq!(entry(DEFAULT_THINK_ID).unwrap().size_bytes, 2_741_241_984);
+        assert_eq!(entry(DEFAULT_THINK_ID).unwrap().size_bytes, 2_741_241_952);
         assert_eq!(
             entry(QUALITY_AUTOCOMPLETE_ID).unwrap().size_bytes,
             3_845_323_008
@@ -926,7 +926,7 @@ mod tests {
     fn autocomplete_defaults_to_gemma_e2b_as_on_macos() {
         let settings = lokalbot_core::Settings::default();
         assert_eq!(settings.built_in_model_id, DEFAULT_THINK_ID);
-        assert_eq!(DEFAULT_THINK_ID, "qwen3.5-4b-lokalbot-v3");
+        assert_eq!(DEFAULT_THINK_ID, "qwen3.5-4b-lokalbot-v4");
         assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
         assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-lokalbot-v4");
         assert_eq!(PRESETS[0].think, settings.built_in_model_id);

@@ -60,7 +60,7 @@ struct ModelCatalog {
     static let recommendedCotypingLicenseURL = URL(
         string: "https://ai.google.dev/gemma/apache_2")!
     static let previousDefaultSummarizationID = "qwen3.5-4b"
-    static let defaultSummarizationID = "qwen3.5-4b-lokalbot-v3"
+    static let defaultSummarizationID = "qwen3.5-4b-lokalbot-v4"
 
     static let keystrokeScaleMaxGB = 7.0
 
@@ -113,11 +113,11 @@ struct ModelCatalog {
               sizeBytes: 1_280_835_840,
               sizeGB: 1.28, blurb: "Lightweight multilingual cotyping option. Any Apple Silicon Mac.",
               disablesThinking: true),
-        Entry(id: defaultSummarizationID, displayName: "Qwen3.5 4B (LokalBot v3)",
-              fileName: "Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf",
-              url: "https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF/resolve/60f704305746c4390c3b207c156191c761cf66db/Qwen3.5-4B-LokalBot-v3-Q4_K_M.gguf",
-              sha256: "ff8e5921a49c1a4d9cf8a22759fb83deac4b7670d95d659e268e565e7af1ec03",
-              sizeBytes: 2_741_241_984,
+        Entry(id: defaultSummarizationID, displayName: "Qwen3.5 4B (LokalBot v4)",
+              fileName: "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+              url: "https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF/resolve/b7c9e3308abcf996350e35c9dc97d9590bf6a00a/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+              sha256: "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+              sizeBytes: 2_741_241_952,
               sizeGB: 2.74, blurb: "Default Think model fine-tuned for LokalBot notes, memory, and Ask. 16 GB Macs.",
               disablesThinking: true),
         Entry(id: previousDefaultSummarizationID, displayName: "Qwen3.5 4B",
