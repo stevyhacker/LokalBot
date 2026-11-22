@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Regression tests for the demo library destination ownership boundary."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 import glob
 import importlib.util
 import json
@@ -251,6 +251,27 @@ class SeedProfileTests(unittest.TestCase):
                       for key in ("startedAt", "endedAt"))
         self.assertEqual(con.execute("SELECT COUNT(*) FROM screenshots WHERE ts BETWEEN ? AND ?",
                                      (start, end)).fetchone()[0], 0)
+
+
+class DemoLibraryFolderNameTests(unittest.TestCase):
+    def test_meeting_folders_have_names_windows_can_hold(self):
+        started = datetime(2026, 10, 4, 16, 0, tzinfo=timezone.utc)
+        meetings = [
+            SEEDER.m("00000007-0000-4000-8000-000000000007", "1:1 with Maya", "FaceTime",
+                     started, 30, False, [], ""),
+            SEEDER.m("00000008-0000-4000-8000-000000000008", "Customer call - Northwind", "Zoom",
+                     started, 30, False, [], ""),
+        ]
+        with tempfile.TemporaryDirectory(prefix="lokalbot-demo-folders-") as temporary:
+            for meeting in meetings:
+                SEEDER.write_meeting(temporary, meeting)
+            names = sorted(path.name for path in Path(temporary, "meetings", "2026", "10").iterdir())
+            self.assertEqual(names, ["04-1-1-with-maya", "04-customer-call---northwind"])
+            with open(os.path.join(temporary, "meetings", "2026", "10", "04-1-1-with-maya", "meta.json")) as f:
+                meta = json.load(f)
+            self.assertEqual(meta["relativePath"], "meetings/2026/10/04-1-1-with-maya")
+            self.assertEqual(meta["title"], "1:1 with Maya")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -10,12 +10,23 @@ use anyhow::Context as _;
 use crossbeam_channel::{Receiver, Sender};
 use wayland_client::backend::WaylandError;
 use wayland_client::globals::{GlobalList, GlobalListContents, registry_queue_init};
-use wayland_client::protocol::{wl_keyboard, wl_registry, wl_seat};
+use wayland_client::protocol::{
+    wl_buffer, wl_compositor, wl_keyboard, wl_region, wl_registry, wl_seat, wl_shm, wl_shm_pool,
+    wl_surface,
+};
 use wayland_client::{Connection, Dispatch, EventQueue, QueueHandle, WEnum, delegate_noop};
+use wayland_protocols::wp::fractional_scale::v1::client::{
+    wp_fractional_scale_manager_v1::WpFractionalScaleManagerV1,
+    wp_fractional_scale_v1::{self, WpFractionalScaleV1},
+};
+use wayland_protocols::wp::viewporter::client::{
+    wp_viewport::WpViewport, wp_viewporter::WpViewporter,
+};
 use wayland_protocols_misc::zwp_input_method_v2::client::{
     zwp_input_method_keyboard_grab_v2::{self, ZwpInputMethodKeyboardGrabV2},
     zwp_input_method_manager_v2::ZwpInputMethodManagerV2,
     zwp_input_method_v2::{self, ZwpInputMethodV2},
+    zwp_input_popup_surface_v2::{self, ZwpInputPopupSurfaceV2},
 };
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::{
     zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1,
@@ -25,10 +36,12 @@ use xkbcommon::xkb;
 
 use super::super::policy::ReadPolicy;
 use super::super::{AcceptKeys, FocusHandler, InterceptedKey};
+use super::overlay_pill::OverlayPill;
 use super::surface::{self, Request};
-use super::{Command, Content, Core, Handle, Output, Surrounding};
+use super::{Command, Content, Core, GhostStyle, Handle, Output, Surrounding};
 
 const GRAB_RELEASE_LIMIT: Duration = Duration::from_secs(3);
+const POPUP_PLACED_WITHIN: Duration = Duration::from_millis(300);
 const SESSION_SETTLE: Duration = Duration::from_secs(20);
 const QUIET_SCANS_BEFORE_RETAKING: u32 = 3;
 const UNAVAILABLE_RETRY: Duration = Duration::from_secs(30);
@@ -101,7 +114,11 @@ pub(super) fn start(
         .name("lokalbot-input-method-surface".into())
         .spawn(move || surface::run(questions, answers, true))
         .context("could not start the input method's reader")?;
-    let core = Core::new(policy, handler, requests.clone(), handle.limitation.clone());
+    let pill = OverlayPill::bind(&globals, &qh);
+    let mut core = Core::new(policy, handler, requests.clone(), handle.limitation.clone());
+    if pill.is_some() {
+        core = core.with_overlay_ghost();
+    }
     let state = State {
         core,
         wayland: Wayland {
@@ -121,6 +138,9 @@ pub(super) fn start(
             release_by: None,
             serial: 0,
             active: false,
+            pill,
+            popup_placed: false,
+            popup_check_by: None,
         },
         manager,
         handle,
@@ -346,6 +366,9 @@ struct Wayland {
     release_by: Option<Instant>,
     serial: u32,
     active: bool,
+    pill: Option<OverlayPill>,
+    popup_placed: bool,
+    popup_check_by: Option<Instant>,
 }
 
 impl Output for Wayland {
@@ -357,7 +380,36 @@ impl Output for Wayland {
         input_method.commit(self.serial);
     }
 
+    fn ghost(&mut self, style: GhostStyle, text: &str) {
+        match &mut self.pill {
+            Some(pill) => {
+                pill.show(clipped(text), style.emphasis_chars, style.dark, &self.qh);
+                if !self.popup_placed && self.popup_check_by.is_none() && !text.trim().is_empty() {
+                    self.popup_check_by = Some(Instant::now() + POPUP_PLACED_WITHIN);
+                }
+            }
+            None => self.preedit(text),
+        }
+    }
+
     fn commit(&mut self, removed_before: &str, removed_after: &str, text: &str, preedit: &str) {
+        self.commit_styled(
+            removed_before,
+            removed_after,
+            text,
+            preedit,
+            GhostStyle::default(),
+        );
+    }
+
+    fn commit_styled(
+        &mut self,
+        removed_before: &str,
+        removed_after: &str,
+        text: &str,
+        next: &str,
+        style: GhostStyle,
+    ) {
         let Some(input_method) = &self.input_method else {
             return;
         };
@@ -368,8 +420,13 @@ impl Output for Wayland {
         if !text.is_empty() {
             input_method.commit_string(clipped(text).to_string());
         }
-        input_method.set_preedit_string(clipped(preedit).to_string(), 0, 0);
+        if self.pill.is_none() {
+            input_method.set_preedit_string(clipped(next).to_string(), 0, 0);
+        }
         input_method.commit(self.serial);
+        if self.pill.is_some() {
+            self.ghost(style, next);
+        }
     }
 
     fn release_keys(&mut self) {
@@ -470,6 +527,18 @@ impl State {
     }
 
     fn tick(&mut self, now: Instant) {
+        if self.wayland.popup_check_by.is_some_and(|by| now >= by) {
+            self.wayland.popup_check_by = None;
+            if !self.wayland.popup_placed
+                && let Some(mut pill) = self.wayland.pill.take()
+            {
+                log::info!(
+                    "autocomplete: the compositor does not place input method popups; suggestions go in the field"
+                );
+                pill.detach();
+                self.core.fall_back_to_preedit(&mut self.wayland);
+            }
+        }
         self.core.tick(now, &mut self.wayland);
         if self.wayland.release_by.is_some_and(|by| now >= by) {
             self.wayland.end_grab();
@@ -484,6 +553,7 @@ impl State {
         [
             self.core.next_deadline(),
             self.wayland.release_by,
+            self.wayland.popup_check_by,
             self.retry_at,
         ]
         .into_iter()
@@ -535,11 +605,13 @@ impl State {
             return;
         }
         log::debug!("autocomplete: taking the input method seat");
-        self.wayland.input_method = Some(self.manager.get_input_method(
-            &self.wayland.seat,
-            &self.wayland.qh,
-            (),
-        ));
+        let input_method = self
+            .manager
+            .get_input_method(&self.wayland.seat, &self.wayland.qh, ());
+        if let Some(pill) = &mut self.wayland.pill {
+            pill.attach_popup(&input_method, &self.wayland.qh);
+        }
+        self.wayland.input_method = Some(input_method);
         self.seat_held = true;
         self.core.set_limitation(session_module_text());
     }
@@ -551,6 +623,9 @@ impl State {
             keyboard.destroy();
         }
         self.wayland.keyboard_has_keymap = false;
+        if let Some(pill) = &mut self.wayland.pill {
+            pill.detach();
+        }
         if let Some(input_method) = self.wayland.input_method.take() {
             input_method.destroy();
         }
@@ -652,6 +727,83 @@ delegate_noop!(State: ignore wl_seat::WlSeat);
 delegate_noop!(State: ZwpInputMethodManagerV2);
 delegate_noop!(State: ZwpVirtualKeyboardManagerV1);
 delegate_noop!(State: ZwpVirtualKeyboardV1);
+delegate_noop!(State: ignore wl_compositor::WlCompositor);
+delegate_noop!(State: ignore wl_region::WlRegion);
+delegate_noop!(State: ignore wl_shm::WlShm);
+delegate_noop!(State: ignore wl_shm_pool::WlShmPool);
+delegate_noop!(State: ignore WpViewporter);
+delegate_noop!(State: ignore WpViewport);
+delegate_noop!(State: ignore WpFractionalScaleManagerV1);
+
+impl Dispatch<ZwpInputPopupSurfaceV2, ()> for State {
+    fn event(
+        state: &mut Self,
+        _: &ZwpInputPopupSurfaceV2,
+        event: zwp_input_popup_surface_v2::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if let zwp_input_popup_surface_v2::Event::TextInputRectangle { .. } = event
+            && !state.wayland.popup_placed
+        {
+            log::debug!("autocomplete: the compositor places input method popups");
+            state.wayland.popup_placed = true;
+            state.wayland.popup_check_by = None;
+        }
+    }
+}
+
+impl Dispatch<wl_surface::WlSurface, ()> for State {
+    fn event(
+        state: &mut Self,
+        _: &wl_surface::WlSurface,
+        event: wl_surface::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wl_surface::Event::PreferredBufferScale { factor } = event
+            && let Some(pill) = &mut state.wayland.pill
+        {
+            pill.on_preferred_buffer_scale(factor, qh);
+        }
+    }
+}
+
+impl Dispatch<WpFractionalScaleV1, ()> for State {
+    fn event(
+        state: &mut Self,
+        _: &WpFractionalScaleV1,
+        event: wp_fractional_scale_v1::Event,
+        _: &(),
+        _: &Connection,
+        qh: &QueueHandle<Self>,
+    ) {
+        if let wp_fractional_scale_v1::Event::PreferredScale { scale } = event
+            && let Some(pill) = &mut state.wayland.pill
+        {
+            pill.on_fractional_scale(scale, qh);
+        }
+    }
+}
+
+impl Dispatch<wl_buffer::WlBuffer, ()> for State {
+    fn event(
+        state: &mut Self,
+        buffer: &wl_buffer::WlBuffer,
+        event: wl_buffer::Event,
+        _: &(),
+        _: &Connection,
+        _: &QueueHandle<Self>,
+    ) {
+        if matches!(event, wl_buffer::Event::Release)
+            && let Some(pill) = &mut state.wayland.pill
+        {
+            pill.on_buffer_release(buffer);
+        }
+    }
+}
 
 impl Dispatch<wl_registry::WlRegistry, GlobalListContents> for State {
     fn event(

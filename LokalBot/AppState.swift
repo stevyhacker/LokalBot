@@ -2130,18 +2130,33 @@ final class AppState: ObservableObject {
         if let stage = pipeline.stages[meeting.id], !stage.isFailure {
             throw TextEngineError.badResponse("Wait for meeting processing to finish before changing its boundaries.")
         }
-        guard range.isValid, let duration = meeting.recordedDuration ?? meeting.duration,
-              range.end <= duration else {
+        let folder = meeting.folderURL(in: storage)
+        let duration = max(
+            meeting.recordedDuration ?? 0,
+            MeetingAudioFiles.longestDuration(in: folder) ?? 0,
+            meeting.duration ?? 0
+        )
+        guard range.isValid, duration.isFinite, duration > 0,
+              range.start < duration, range.end <= duration + 0.05 else {
             throw TextEngineError.badResponse("Choose a start and end within the recorded audio, with the end after the start.")
         }
+        let clampedEnd = min(range.end, duration)
+        guard clampedEnd > range.start else {
+            throw TextEngineError.badResponse("Choose a start and end within the recorded audio, with the end after the start.")
+        }
+        let effectiveRange: Meeting.ContentRange? =
+            (range.start <= 0.05 && clampedEnd >= duration - 0.05)
+            ? nil
+            : .init(start: range.start, end: clampedEnd)
         var updated = meeting
-        updated.contentRange = range
-        updated.contentRangeSource = .userReviewed
-        let folder = updated.folderURL(in: storage)
-        let existing = try pipeline.loadTranscript(from: folder)
+        updated.contentRange = effectiveRange
+        updated.contentRangeSource = effectiveRange == nil ? nil : .userReviewed
+        let existing = try? pipeline.loadTranscript(from: folder)
         try withPrimaryEvidenceChange(for: [updated], .removal) {
             try MeetingAttributionArtifacts.invalidate(in: folder)
-            try pipeline.saveTranscript(range.applying(to: existing), for: updated)
+            if let existing {
+                try pipeline.saveTranscript(effectiveRange?.applying(to: existing) ?? existing, for: updated)
+            }
             try storage.saveMeta(updated)
         }
         if let index = meetings.firstIndex(where: { $0.id == updated.id }) { meetings[index] = updated }
@@ -2151,6 +2166,32 @@ final class AppState: ObservableObject {
         embeddingIndexTasks.removeValue(forKey: updated.id)?.task.cancel()
         embeddingIndex.clearVectors(for: updated.id)
         reprocess(updated, transcribe: true, summarize: true)
+    }
+
+    @discardableResult
+    func extractMeeting(
+        from sourceMeeting: Meeting,
+        range: Meeting.ContentRange
+    ) async throws -> Meeting {
+        if let stage = pipeline.stages[sourceMeeting.id], !stage.isFailure {
+            throw TextEngineError.badResponse("Wait for meeting processing to finish before creating a meeting from a selection.")
+        }
+        let created = try await MeetingSelectionExtractService.extract(
+            from: sourceMeeting,
+            range: range,
+            storage: storage)
+        meetings.append(created)
+        meetings.sort { $0.startedAt > $1.startedAt }
+        outcomeIndex.refresh(meetings: meetings)
+        primaryEvidenceDidChange(for: [created])
+        reindexSearchInBackground(created)
+        if settings.semanticSearchEnabled {
+            reindexEmbeddingInBackground(created)
+        }
+        selectedMeetingIDs = [created.id]
+        navSection = .meetings
+        reprocess(created, transcribe: true, summarize: true)
+        return created
     }
 
     func reprocess(_ meeting: Meeting, transcribe: Bool, summarize: Bool) {

@@ -238,9 +238,11 @@ comes from reading Omarchy's repository; it has not been tried on Omarchy. See
 
 Wayland lets no ordinary app take a key from another app, show text at its caret or type into it, so LokalBot
 takes part as an input method there, the way language input tools do. It sees the text around the caret, and
-shows a suggestion inline in the field on Sway, Hyprland and GNOME, or in a click-through overlay pill under the
-caret on KDE Plasma (so browsers and mail apps that commit active IME preedit on blur never insert an unaccepted
-suggestion). What it sees and keeps is in [PRIVACY.md](../PRIVACY.md).
+shows a suggestion in a click-through pill under the caret on KDE Plasma and on compositors that place input method
+popups (Sway 1.10 and later, Hyprland), so browsers and mail apps that commit an input method's pending text on
+blur never insert an unaccepted suggestion. On GNOME, and on Sway 1.9 and other compositors that do not place the
+pill, the suggestion is shown inline in the field instead. What it sees and keeps is in
+[PRIVACY.md](../PRIVACY.md).
 
 | Desktop | How | Tried on |
 | --- | --- | --- |

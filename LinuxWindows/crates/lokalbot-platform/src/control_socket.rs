@@ -130,10 +130,13 @@ fn caller(stream: &Stream) -> Option<String> {
             return None;
         }
     }
-    let described = credentials
+    #[cfg(unix)]
+    let pid = credentials
         .and_then(|c| c.pid())
-        .and_then(|pid| u32::try_from(pid).ok())
-        .and_then(describe_process);
+        .and_then(|pid| u32::try_from(pid).ok());
+    #[cfg(windows)]
+    let pid = credentials.and_then(|c| c.pid());
+    let described = pid.and_then(describe_process);
     Some(described.unwrap_or_else(|| "lokalbot-cli".to_string()))
 }
 

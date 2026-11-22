@@ -419,6 +419,18 @@ pub fn mac_count(count: usize, one: &str, many: &str) -> String {
 mod tests {
     use super::*;
 
+    static LANGUAGE: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn in_language<T>(code: &str, check: impl FnOnce() -> T) -> T {
+        let _guard = LANGUAGE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        set_language(code);
+        let result = check();
+        set_language("en");
+        result
+    }
+
     #[test]
     fn right_to_left_phrases_keep_a_leading_number() {
         assert_eq!(directional("39م"), "\u{200f}39م");
@@ -465,25 +477,29 @@ mod tests {
 
     #[test]
     fn mac_looks_up_the_key_then_fills_it() {
-        assert_eq!(mac("Only %@", &["Atlas"]), "Only Atlas");
-        assert_eq!(mac_count(1, "%lld meeting", "%lld meetings"), "1 meeting");
-        assert_eq!(
-            mac_count(1_200, "%lld meeting", "%lld meetings"),
-            "1,200 meetings"
-        );
+        in_language("en", || {
+            assert_eq!(mac("Only %@", &["Atlas"]), "Only Atlas");
+            assert_eq!(mac_count(1, "%lld meeting", "%lld meetings"), "1 meeting");
+            assert_eq!(
+                mac_count(1_200, "%lld meeting", "%lld meetings"),
+                "1,200 meetings"
+            );
+        });
     }
 
     #[test]
     fn days_read_today_yesterday_weekday_then_date() {
-        let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d).unwrap();
-        let today = day(2026, 10, 30);
-        assert_eq!(day_label(today, today), "Today");
-        assert_eq!(day_label(day(2026, 10, 29), today), "Yesterday");
-        assert_eq!(day_label(day(2026, 10, 26), today), "Mon, Oct 26");
-        assert_eq!(day_label(day(2026, 10, 23), today), "Oct 23");
-        assert_eq!(day_label(day(2025, 12, 1), today), "Dec 1, 2025");
-        assert_eq!(short_date(day(2026, 11, 12), today), "Nov 12");
-        assert_eq!(short_date(day(2025, 11, 12), today), "Nov 12, 2025");
+        in_language("en", || {
+            let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d).unwrap();
+            let today = day(2026, 10, 30);
+            assert_eq!(day_label(today, today), "Today");
+            assert_eq!(day_label(day(2026, 10, 29), today), "Yesterday");
+            assert_eq!(day_label(day(2026, 10, 26), today), "Mon, Oct 26");
+            assert_eq!(day_label(day(2026, 10, 23), today), "Oct 23");
+            assert_eq!(day_label(day(2025, 12, 1), today), "Dec 1, 2025");
+            assert_eq!(short_date(day(2026, 11, 12), today), "Nov 12");
+            assert_eq!(short_date(day(2025, 11, 12), today), "Nov 12, 2025");
+        });
     }
 
     #[test]
@@ -598,10 +614,43 @@ mod tests {
 
     #[test]
     fn counted_files_and_retained_moments_are_whole_phrases() {
-        assert_eq!(count(1, "file"), "1 file");
-        assert_eq!(count(3, "file"), "3 files");
-        assert_eq!(count(1, "retained moment"), "1 retained moment");
-        assert_eq!(count(12, "retained moment"), "12 retained moments");
+        in_language("en", || {
+            assert_eq!(count(1, "file"), "1 file");
+            assert_eq!(count(3, "file"), "3 files");
+            assert_eq!(count(1, "retained moment"), "1 retained moment");
+            assert_eq!(count(12, "retained moment"), "12 retained moments");
+        });
+    }
+
+    #[test]
+    fn russian_counts_dates_and_numbers_read_naturally_for_any_number() {
+        in_language("ru", || {
+            let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d).unwrap();
+            let today = day(2026, 10, 30);
+            assert_eq!(day_label(today, today), "Сегодня");
+            assert_eq!(day_label(day(2026, 10, 29), today), "Вчера");
+            assert_eq!(number(1_200), "1\u{202f}200");
+            assert_eq!(count(1, "meeting"), "1 встреча");
+            for n in [2, 5, 21] {
+                for (noun, label) in [
+                    ("meeting", "Встречи"),
+                    ("conversation", "Разговоры"),
+                    ("decision", "Решения"),
+                    ("message", "Сообщения"),
+                    ("moment", "Моменты"),
+                    ("result", "Результаты"),
+                    ("person", "Люди"),
+                    ("app", "Приложения"),
+                    ("file", "Файлы"),
+                ] {
+                    assert_eq!(count(n, noun), format!("{label}: {n}"));
+                }
+            }
+            assert_eq!(
+                mac_count(1_200, "%lld meeting", "%lld meetings"),
+                "Встречи: 1\u{202f}200"
+            );
+        });
     }
 
     #[test]

@@ -635,6 +635,12 @@ KWin passes `zwp_input_method_context_v1.preedit_string` on to apps over `zwp_te
 
 Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/overlay_pill.rs`, `kwin_helper.rs` (`Helper::show`, `Helper::nudge`), `input_method.rs` (`Core::with_overlay_ghost`), `tests/live_input_method.rs` (`commit_on_blur`).
 
+### On Sway and Hyprland the pill is an input method popup, with preedit only where the compositor places none
+
+Sway and Hyprland pass `zwp_input_method_v2` preedit on over `zwp_text_input_v3` as KWin does, so the same browsers commit it on blur. The route draws the KDE pill on a `zwp_input_popup_surface_v2`, which the compositor places at the field's cursor rectangle. Sway before 1.10 accepts the popup but never shows it, which would leave suggestions invisible, so the popup counts as placed only once the compositor sends `text_input_rectangle`; if none arrives within `POPUP_PLACED_WITHIN` of the first suggestion, the route falls back to preedit for the session. On KDE the helper takes no keys when KWin offers no input panel, since a suggestion it cannot draw must not take Tab. The pill loads the system font database on a thread of its own when the route starts, so the first suggestion does not wait for it.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/wlroots.rs` (`POPUP_PLACED_WITHIN`, `State::tick`), `overlay_pill.rs` (`OverlayPill::attach_popup`, `Fonts`), `input_method.rs` (`Core::fall_back_to_preedit`), `kwin_helper.rs` (`Helper::set_grab`).
+
 ## Consequences
 
 - Every privacy check (grants, app and site exclusions, secure, code and private-window fields, the field's owner on Wayland) runs before any text is read and fails closed; typed text and server errors are never logged, and a withdrawn grant, edited source or changed privacy setting ends whatever it shaped, up to the accept key.

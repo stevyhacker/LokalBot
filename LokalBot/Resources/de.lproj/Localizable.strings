@@ -2641,3 +2641,6 @@
 "Runs your own Gemini CLI with its tools turned off. Sign in to gemini in Terminal first; LokalBot never sees your Google sign-in." = "Führt deine eigene Gemini CLI mit deaktivierten Werkzeugen aus. Melde dich zuerst im Terminal bei gemini an; LokalBot sieht deine Google-Anmeldung nie.";
 "Signed in" = "Angemeldet";
 "LokalBot stops reading coding agent sessions and deletes what it saved. Claude Code, Codex, Antigravity, and T3 Code keep their own session files." = "LokalBot hört auf, Sitzungen von Coding-Agenten zu lesen, und löscht, was es gespeichert hat. Claude Code, Codex, Antigravity und T3 Code behalten ihre eigenen Sitzungsdateien.";
+"Clear Selection" = "Auswahl aufheben";
+"Trim to Selection" = "Auf Auswahl zuschneiden";
+"New Meeting from Selection" = "Neues Meeting aus Auswahl";
