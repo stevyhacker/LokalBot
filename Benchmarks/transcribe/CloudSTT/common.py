@@ -24,6 +24,7 @@ SYSTEMS = {
     'qwen-audio-3.1-asr-flash': ('qwen', 'api', 'Alibaba Qwen-Audio 3.1 ASR Flash'),
     'qwen3-asr-flash': ('qwen', 'api', 'Alibaba Qwen3-ASR Flash'),
     'local-qwen3-asr-1.7b': ('qwen', 'local', 'Qwen3-ASR 1.7B 8-bit, local (LokalBot default)'),
+    'local-oruk-fourier-2b': ('qwen', 'local', 'Oruk Fourier 2B BF16, local'),
     'local-parakeet-v3': ('nvidia', 'local', 'Parakeet TDT 0.6B v3, local'),
     # Scored on meetings only; never a consensus voter.
     'lokalbot-app': ('qwen', 'production', 'LokalBot app transcript (Qwen3-ASR 1.7B, full pipeline)'),

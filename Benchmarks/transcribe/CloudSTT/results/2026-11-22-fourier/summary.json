@@ -1,0 +1,270 @@
+{
+  "harness_revision": "d92e1401dea0d3e0b93c909181526a5684ba013c",
+  "model": "oruk/oruk-fourier-2b",
+  "weights": "8c2a8871f1304aa2f634da4fb95e24438c4945b9",
+  "environment": {
+    "model": "oruk/oruk-fourier-2b",
+    "revision": "8c2a8871f1304aa2f634da4fb95e24438c4945b9",
+    "gpu": "NVIDIA A10G",
+    "cuda": "13.0",
+    "vllm": "0.34.0",
+    "transformers": "5.22.2",
+    "torch": "2.14.0"
+  },
+  "cold_and_warmup": {
+    "load_s": 63.912,
+    "warmup_s": 2.474
+  },
+  "warm_serial_seconds": 83.976,
+  "score": {
+    "label": "Oruk Fourier 2B BF16, local",
+    "family": "qwen",
+    "kind": "local",
+    "ref_words": 4201,
+    "sub": 123,
+    "del": 600,
+    "ins": 12,
+    "ins_run_words": 0,
+    "del_run_words": 328,
+    "wer": 0.17495834325160675,
+    "sub_rate": 0.029278743156391337,
+    "del_rate": 0.14282313734825042,
+    "ins_rate": 0.0028564627469650082,
+    "ins_run_words_rate": 0.0,
+    "del_run_words_rate": 0.07807664841704356,
+    "ci95": [
+      0.14015843997562463,
+      0.203136858082469
+    ],
+    "chunks_ok": 16,
+    "chunks_failed": 0,
+    "chunks_missing": 0,
+    "audio_minutes": 27.4,
+    "median_latency_s": 5.31,
+    "speed_x_realtime": 19.6,
+    "by_source": {
+      "ES2004a": 0.1572,
+      "IS1009a": 0.1665,
+      "TS3003a": 0.0976,
+      "EN2002a": 0.2314
+    },
+    "low_overlap": {
+      "chunks": 4,
+      "ref_words": 728,
+      "wer": 0.0591
+    },
+    "per_clip_api_charge_usd": 0,
+    "rental_cost_usd": null
+  },
+  "published_baseline": {
+    "model": "Qwen3-ASR 1.7B MLX 8-bit",
+    "ref_words": 4201,
+    "sub": 159,
+    "del": 534,
+    "ins": 48,
+    "wer": 0.17638657462508928,
+    "ci95": [
+      0.14577581446714521,
+      0.2053648068669528
+    ],
+    "low_overlap": {
+      "chunks": 4,
+      "ref_words": 728,
+      "wer": 0.0714
+    }
+  },
+  "per_chunk": [
+    {
+      "chunk": "ami-ES2004a-0",
+      "audio_seconds": 90.55,
+      "ref_words": 103,
+      "sub": 1,
+      "del": 6,
+      "ins": 1,
+      "ins_run_words": 0,
+      "del_run_words": 0,
+      "output_sha256": "7faa753aff07b8f74a067cfd205c315bed76840d5e706bf573e8f018dbf7ad76",
+      "latency_s": 2.452
+    },
+    {
+      "chunk": "ami-ES2004a-1",
+      "audio_seconds": 91.03,
+      "ref_words": 200,
+      "sub": 5,
+      "del": 31,
+      "ins": 1,
+      "ins_run_words": 0,
+      "del_run_words": 18,
+      "output_sha256": "2fe31472903f77f12be0f313a56ea2e991901d7b9773b7ff20768ad5f4bac7cb",
+      "latency_s": 3.997
+    },
+    {
+      "chunk": "ami-ES2004a-2",
+      "audio_seconds": 116.76,
+      "ref_words": 366,
+      "sub": 12,
+      "del": 46,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 16,
+      "output_sha256": "710926e7c6cfa6ff282de8a89f903b88bb8ecb71cf94dee5c50b0c2c6ad0f688",
+      "latency_s": 7.541
+    },
+    {
+      "chunk": "ami-ES2004a-3",
+      "audio_seconds": 100.3,
+      "ref_words": 374,
+      "sub": 11,
+      "del": 50,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 32,
+      "output_sha256": "232d718d2dfa98b4311b556488cbe6f10eb00abf5202e7c66cc20cdd2f092202",
+      "latency_s": 7.369
+    },
+    {
+      "chunk": "ami-IS1009a-0",
+      "audio_seconds": 97.16,
+      "ref_words": 160,
+      "sub": 2,
+      "del": 2,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 0,
+      "output_sha256": "b5deba9b41441e7cd1e9627b7e42f580008076effc626ff14004c6d4a9179c13",
+      "latency_s": 3.821
+    },
+    {
+      "chunk": "ami-IS1009a-1",
+      "audio_seconds": 98.29,
+      "ref_words": 167,
+      "sub": 7,
+      "del": 26,
+      "ins": 1,
+      "ins_run_words": 0,
+      "del_run_words": 13,
+      "output_sha256": "80a10e864439c632735a9777d19a21851ada83179d30443ec844a0f0df834756",
+      "latency_s": 3.174
+    },
+    {
+      "chunk": "ami-IS1009a-2",
+      "audio_seconds": 115.57,
+      "ref_words": 384,
+      "sub": 11,
+      "del": 70,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 48,
+      "output_sha256": "60cd9fa118fed9c1bd9b561a67d3c12b701661a84ccf851fa3a8c3cfbc03fea9",
+      "latency_s": 6.972
+    },
+    {
+      "chunk": "ami-IS1009a-3",
+      "audio_seconds": 106.73,
+      "ref_words": 358,
+      "sub": 8,
+      "del": 51,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 32,
+      "output_sha256": "cfc4335036959d1d715190aaf6ab5a61e8e9b5cea561093fa2cc9c92adcdac06",
+      "latency_s": 6.78
+    },
+    {
+      "chunk": "ami-TS3003a-0",
+      "audio_seconds": 109.83,
+      "ref_words": 241,
+      "sub": 8,
+      "del": 9,
+      "ins": 1,
+      "ins_run_words": 0,
+      "del_run_words": 0,
+      "output_sha256": "45bad847dfd69272ac3e30bde5a7eaf0551bff9c8c465f13bf27f80522a16989",
+      "latency_s": 5.407
+    },
+    {
+      "chunk": "ami-TS3003a-1",
+      "audio_seconds": 94.28,
+      "ref_words": 114,
+      "sub": 6,
+      "del": 16,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 0,
+      "output_sha256": "1d456bf1dfe47479188a73c5609ca85c7a95e83b65acb35857981c4e933d63cb",
+      "latency_s": 2.524
+    },
+    {
+      "chunk": "ami-TS3003a-2",
+      "audio_seconds": 91.31,
+      "ref_words": 97,
+      "sub": 1,
+      "del": 11,
+      "ins": 1,
+      "ins_run_words": 0,
+      "del_run_words": 4,
+      "output_sha256": "6122c0774dceae1c6994cc7c78dcaaab731963c68c59bca3bc8c6e4f8c512e47",
+      "latency_s": 2.183
+    },
+    {
+      "chunk": "ami-TS3003a-3",
+      "audio_seconds": 103.19,
+      "ref_words": 224,
+      "sub": 1,
+      "del": 12,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 5,
+      "output_sha256": "fc12fd2e25192d3b0f6f03aee191c1c6282b3186bc6cca7d5f007981811a97a5",
+      "latency_s": 5.217
+    },
+    {
+      "chunk": "ami-EN2002a-0",
+      "audio_seconds": 103.05,
+      "ref_words": 409,
+      "sub": 9,
+      "del": 78,
+      "ins": 3,
+      "ins_run_words": 0,
+      "del_run_words": 51,
+      "output_sha256": "8023ad47a8149ce6c36b7d2182cfd1279e494ad7fac8e6526ad38aa4da87c543",
+      "latency_s": 7.368
+    },
+    {
+      "chunk": "ami-EN2002a-1",
+      "audio_seconds": 113.23,
+      "ref_words": 394,
+      "sub": 18,
+      "del": 81,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 64,
+      "output_sha256": "a11c913ca12067a82203970fe81ea6db138614755dab256d97e635d196dd078c",
+      "latency_s": 7.413
+    },
+    {
+      "chunk": "ami-EN2002a-2",
+      "audio_seconds": 119.22,
+      "ref_words": 408,
+      "sub": 17,
+      "del": 85,
+      "ins": 4,
+      "ins_run_words": 0,
+      "del_run_words": 31,
+      "output_sha256": "fab76d802904d8ac19516a3dbdef187de14b4df104916de72806200cebc2667d",
+      "latency_s": 7.301
+    },
+    {
+      "chunk": "ami-EN2002a-3",
+      "audio_seconds": 93.29,
+      "ref_words": 202,
+      "sub": 6,
+      "del": 26,
+      "ins": 0,
+      "ins_run_words": 0,
+      "del_run_words": 14,
+      "output_sha256": "61072fba2919e0d7cc48cbfc4d2fc6a22bf8280f4921f91e920df435380c4277",
+      "latency_s": 4.457
+    }
+  ]
+}

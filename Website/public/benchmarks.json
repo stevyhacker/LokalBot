@@ -82,8 +82,8 @@
           "shortLabel": "AMI vs. Cloud APIs",
           "label": "AMI Meetings: Local ASR vs. Closed Cloud APIs",
           "runDate": "2026-09-30",
-          "hardware": "Apple M4 Max (48 GB) · MLX 0.32.3 / mlx-audio 0.5.7 · direct cloud APIs",
-          "dataset": "16 windows (90–120 s) from 4 AMI Mix-Headset test meetings · 27.4 min · 4,160 reference words",
+          "hardware": "Apple M4 Max (48 GB) · MLX 0.32.3 / mlx-audio 0.5.7 · direct cloud APIs · Fourier on Linux A10G / vLLM 0.34.0",
+          "dataset": "16 windows (90–120 s) from 4 AMI Mix-Headset test meetings · 27.4 min · 4,201 normalized reference words",
           "note": "Heavy overlapped crosstalk on a single mixed channel makes deletions dominate every system's WER. Local models run serially with zero upload; API speed includes network upload with 4 requests in flight.",
           "caveat": "Gemini 3.8 Flash edged Qwen3-ASR 1.7B by 0.9 pts on AMI (within CI), but invented 115 words across 15 spans on real quiet meeting chunks (see Real 2-Track Meetings suite).",
           "reportUrl": "https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/REPORT.md",
@@ -134,6 +134,24 @@
                 "price": { "display": "$0", "num": 0 }
               },
               "note": "LokalBot default. Beat every OpenAI and Qwen cloud API on AMI at $0/hr."
+            },
+            {
+              "id": "oruk-fourier-2b-a10g",
+              "model": "Fourier 2B",
+              "org": "Oruk",
+              "kind": "local",
+              "status": "experimental",
+              "runtime": "CUDA / vLLM 0.34.0 (NVIDIA A10G)",
+              "quant": "BF16 · 4.08 GB",
+              "sizeGb": 4.08,
+              "values": {
+                "wer": { "display": "17.5%", "num": 17.5 },
+                "ci": { "display": "14.0–20.3%" },
+                "lowOverlap": { "display": "5.9%", "num": 5.9 },
+                "speed": { "display": "19.6× (A10G)" },
+                "price": { "display": "Unmeasured" }
+              },
+              "note": "Model-author run, Nov 22. The 16 public AMI windows were timed on an A10G. Other local rows use an M4 Max. Rental cost was not measured."
             },
             {
               "id": "qwen3-asr-flash",

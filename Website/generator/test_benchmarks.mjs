@@ -92,7 +92,8 @@ test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown
 
   const ami = lb.findCategoryAndSuite(data, "#stt-ami-cloud").suite;
   const localOnly = lb.filterRows(ami.rows, "local");
-  assert.equal(localOnly.length, 2);
+  assert.deepEqual(new Set(localOnly.map(r => r.id)),
+    new Set(["qwen3-asr-1-7b-local", "parakeet-tdt-0-6b-v3", "oruk-fourier-2b-a10g"]));
   assert.ok(localOnly.every((r) => r.kind === "local"));
 
   const diar = lb.findCategoryAndSuite(data, "#diarization-ami").suite;

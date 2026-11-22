@@ -11,6 +11,8 @@ This opt-in benchmark compares closed speech-to-text APIs from OpenAI, Google an
 | `local-qwen3-asr-1.7b` | MLX 8-bit, the app's default transcription model (via mlx-audio, not the app's Swift runtime) |
 | `local-parakeet-v3` | MLX Parakeet TDT 0.6B v3 |
 
+A [community Fourier 2B run on the public AMI windows](results/2026-11-22-fourier/REPORT.md) includes the Linux CUDA environment and reproduction steps.
+
 Every system gets an English language hint. None of them receives custom vocabulary.
 
 ## Data
