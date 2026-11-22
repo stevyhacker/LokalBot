@@ -16,7 +16,7 @@ the server had not seen before:
 grant condition, to the same server, and n-gram speculation drafts from the server's own earlier answer to the same text. In
 conditions 2 to 5, `ngram-mod` looked three times faster (2,102 → 682 ms on long dictation) although it gives nothing the first
 time. Real dictations aren't repeated, so only condition 1 (`neither`) is the result here; the repeated figures are shown only
-to make the effect visible. A future speed run should start a fresh server per condition, or run only the first.
+to make the effect visible. A future speed run should pass `--fresh-server-per-condition` (added after these runs), or count only the first condition.
 
 No production setting is changed here; the main server is shared with Ask and meeting notes, which were not measured.
 

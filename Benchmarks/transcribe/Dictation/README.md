@@ -35,7 +35,7 @@ uv run --no-project python -S Benchmarks/transcribe/Dictation/context_replay.py 
   --corpus Benchmarks/transcribe/Dictation/context-routing-v2.json --output /private/tmp/dictation-routing-v2-run
 ```
 
-`--server-arg ARG` (repeatable) appends a llama-server argument, such as `--server-arg=--spec-type --server-arg=ngram-mod`; the runner refuses arguments it owns (model, host, port, context, seed, parallelism, API key, web UI). `context-speed-v1.json` holds long direct dictation for speed measurements.
+`--server-arg ARG` (repeatable) appends a llama-server argument, such as `--server-arg=--spec-type --server-arg=ngram-mod`; the runner refuses arguments it owns (model, host, port, context, seed, parallelism, API key, web UI). `--fresh-server-per-condition` starts a new server for each grant condition, so a cache such as n-gram speculation starts empty and a repeated dictation can't draft from its own earlier answer. `context-speed-v1.json` holds long direct dictation for speed measurements.
 
 `--cleanup-prompt` selects how direct speech is cleaned (`composeDecides`, or `transcriptAsData`, which sends the transcript as JSON under a cleanup-only prompt). `context-cleanup-v3.json` holds direct dictation that reads like a question or instruction to an assistant.
 

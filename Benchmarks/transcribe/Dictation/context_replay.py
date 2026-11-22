@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Evaluate the production post-ASR Compose path with synthetic context only."""
 import argparse
+import contextlib
 import hashlib
 import json
 import os
@@ -137,6 +138,34 @@ def server_command(server, model, port, extra=()):
             '-c', '32768', '-ngl', '99', '--parallel', '1', '--jinja', '--no-webui', '--seed', '12648430', *extra]
 
 
+@contextlib.contextmanager
+def serving(command, base, log, opener, ready_seconds=180):
+    process = subprocess.Popen(command, stdout=log, stderr=log)
+    try:
+        deadline = time.monotonic() + ready_seconds
+        while True:
+            if process.poll() is not None:
+                raise RuntimeError(f'Local server exited {process.returncode}')
+            try:
+                with opener.open(base + '/health', timeout=1) as response:
+                    if response.status == 200:
+                        break
+            except (OSError, urllib.error.URLError):
+                pass
+            if time.monotonic() > deadline:
+                raise TimeoutError('Local model did not become ready')
+            time.sleep(0.2)
+        yield process
+    finally:
+        if process.poll() is None:
+            process.terminate()
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--app', type=Path, required=True)
@@ -153,6 +182,8 @@ def main():
                         help='cleanup prompt for direct speech (default: the build\'s production prompt)')
     parser.add_argument('--server-arg', action='append', default=[], metavar='ARG',
                         help='extra llama-server argument, repeatable, e.g. --server-arg=--spec-type --server-arg=ngram-mod')
+    parser.add_argument('--fresh-server-per-condition', action='store_true',
+                        help='start a new server for each condition, so caches such as n-gram speculation start empty')
     args = parser.parse_args()
     variants = VARIANT_SETS[args.variant_set]
     args.output.mkdir(parents=True, exist_ok=False)
@@ -168,7 +199,8 @@ def main():
     manifest = {'appSHA256': digest(args.app), 'serverSHA256': digest(args.server), 'modelSHA256': digest(args.model),
                 'modelFile': args.model.name, 'corpusSHA256': digest(args.corpus), 'scriptSHA256': digest(__file__),
                 'split': args.split, 'caseIDs': [c['id'] for c in cases], 'serverArguments': command,
-                'variants': variants, 'windowPolicies': WINDOW_POLICIES, 'routing': args.routing or 'production',
+                'variants': variants, 'freshServerPerCondition': args.fresh_server_per_condition,
+                'windowPolicies': WINDOW_POLICIES, 'routing': args.routing or 'production',
                 'cleanupPrompt': args.cleanup_prompt or 'production',
                 'settings': 'Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed',
                 'scope': 'Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library.'}
@@ -176,43 +208,24 @@ def main():
     opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
     runs = {}
     with (args.output / 'server.log').open('w') as log:
-        process = subprocess.Popen(command, stdout=log, stderr=log)
-        try:
-            deadline = time.monotonic() + 180
-            while True:
-                if process.poll() is not None:
-                    raise RuntimeError(f'Local server exited {process.returncode}')
-                try:
-                    with opener.open(base + '/health', timeout=1) as response:
-                        if response.status == 200:
-                            break
-                except (OSError, urllib.error.URLError):
-                    pass
-                if time.monotonic() > deadline:
-                    raise TimeoutError('Local model did not become ready')
-                time.sleep(0.2)
+        shared = contextlib.nullcontext() if args.fresh_server_per_condition else serving(command, base, log, opener)
+        with shared:
             for variant in variants:
-                fixture = args.output / f'{variant}-input.json'
-                fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt), ensure_ascii=False) + '\n')
-                with tempfile.TemporaryDirectory(prefix='lokalbot-dictation-eval-') as temporary:
-                    root = Path(temporary)
-                    (root / 'home').mkdir()
-                    (root / 'storage').mkdir()
-                    env = dict(os.environ, CFFIXED_USER_HOME=str(root / 'home'), LOKALBOT_STORAGE_ROOT=str(root / 'storage'),
-                               LOKALBOT_DEFAULTS_SUITE='me.dotenv.LokalBot.dictation-replay.' + uuid.uuid4().hex)
-                    with (args.output / f'{variant}.jsonl').open('w') as out, (args.output / f'{variant}-stderr.log').open('w') as err:
-                        subprocess.run([str(args.app.resolve()), '--dictation-replay', str(fixture.resolve()), '--server-url', base + '/v1'],
-                                       env=env, stdout=out, stderr=err, timeout=900, check=True)
-                runs[variant] = [json.loads(line) for line in (args.output / f'{variant}.jsonl').read_text().splitlines()]
-                print(variant, len(runs[variant]), 'observations', flush=True)
-        finally:
-            if process.poll() is None:
-                process.terminate()
-                try:
-                    process.wait(timeout=10)
-                except subprocess.TimeoutExpired:
-                    process.kill()
-                    process.wait()
+                fresh = serving(command, base, log, opener) if args.fresh_server_per_condition else contextlib.nullcontext()
+                with fresh:
+                    fixture = args.output / f'{variant}-input.json'
+                    fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt), ensure_ascii=False) + '\n')
+                    with tempfile.TemporaryDirectory(prefix='lokalbot-dictation-eval-') as temporary:
+                        root = Path(temporary)
+                        (root / 'home').mkdir()
+                        (root / 'storage').mkdir()
+                        env = dict(os.environ, CFFIXED_USER_HOME=str(root / 'home'), LOKALBOT_STORAGE_ROOT=str(root / 'storage'),
+                                   LOKALBOT_DEFAULTS_SUITE='me.dotenv.LokalBot.dictation-replay.' + uuid.uuid4().hex)
+                        with (args.output / f'{variant}.jsonl').open('w') as out, (args.output / f'{variant}-stderr.log').open('w') as err:
+                            subprocess.run([str(args.app.resolve()), '--dictation-replay', str(fixture.resolve()), '--server-url', base + '/v1'],
+                                           env=env, stdout=out, stderr=err, timeout=900, check=True)
+                    runs[variant] = [json.loads(line) for line in (args.output / f'{variant}.jsonl').read_text().splitlines()]
+                    print(variant, len(runs[variant]), 'observations', flush=True)
     report = score(cases, runs, variants)
     report['manifest'] = manifest
     (args.output / 'report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2) + '\n')
