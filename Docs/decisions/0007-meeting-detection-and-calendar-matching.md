@@ -147,6 +147,10 @@ Where: `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`WindowPrivac
 
 Where: `LokalBot/Services/Recording/BrowserMeetingSession.swift` (`MicrophoneWindows`, `microphoneWindows`), `LokalBot/Services/Recording/MeetingDetector.swift` (`browserMicrophoneCandidates`, `browserMicrophoneRetained`), `LokalBot/Services/ScreenMemory/ScreenContextPrivacy.swift` (`isPrivateWindow`), `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`Core::microphone_browser_gate`, `canonical_executable`), `LinuxWindows/crates/lokalbot-platform/src/privacy.rs` (`is_private_window`).
 
+### A mute that releases the microphone splits a microphone-detected call
+
+eXpress, additional call apps and optional browser calls are recognised only while they hold the microphone. If an app closes its microphone stream on mute, the call reads as ended: recording stops after the stop delay (15 seconds by default), and unmuting starts a new recording, so one call becomes two meetings with a gap. Whether eXpress's native mute closes the stream has not been tested with a live call; this is accepted as a known limitation.
+
 ### Additional call apps keep their own executable key
 
 Users pick additional call apps by file, and several can share a display name, so detection, start confirmation and handoff compare the normalized executable (Windows) or bundle identifier (Mac), never the name. The desktop MTS Link client keeps its room evidence even when one of its helpers is on the list.
