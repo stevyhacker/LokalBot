@@ -33,6 +33,19 @@ def replace_test_root(value, root):
     return value
 
 
+RESERVED_SERVER_ARGUMENTS = {"-m", "--model", "--host", "--port", "-c", "--ctx-size", "--api-key", "--api-key-file",
+                             "--webui", "--no-webui", "--cache-ram", "--reasoning"}
+
+
+def server_command(runtime, model, port, token_file, extra=()):
+    reserved = [argument for argument in extra if argument.split("=", 1)[0] in RESERVED_SERVER_ARGUMENTS]
+    if reserved:
+        raise ValueError(f"The runner owns these server arguments: {reserved}")
+    return [str(runtime), "-m", str(model), "--host", "127.0.0.1", "--port", str(port), "-c", "32768", "-ngl", "99",
+            "--jinja", "--no-webui", "--api-key-file", str(token_file), "--cache-ram", "2048", "--reasoning", "on",
+            *extra]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--transcript", type=pathlib.Path, required=True)
@@ -40,6 +53,8 @@ def main():
     parser.add_argument("--runtime", type=pathlib.Path, default=REPO / "Vendor/llama-cpp/llama-server")
     parser.add_argument("--output", type=pathlib.Path)
     parser.add_argument("--skip-build", action="store_true")
+    parser.add_argument("--server-arg", action="append", default=[], metavar="ARG",
+                        help="extra llama-server argument, repeatable, e.g. --server-arg=--spec-type --server-arg=ngram-cache")
     args = parser.parse_args()
     output = (args.output or pathlib.Path(tempfile.mkdtemp(prefix="lokalbot-notes-benchmark-"))).resolve()
     if output == REPO or REPO in output.parents:
@@ -81,16 +96,12 @@ def main():
     report = {
         "durationSeconds": max((segment["end"] for segment in segments), default=0),
         "words": sum(len(segment["text"].split()) for segment in segments),
-        "segments": len(segments), "model": args.model.name, "runs": [],
+        "segments": len(segments), "model": args.model.name, "serverArguments": args.server_arg, "runs": [],
     }
     started = time.monotonic()
     with (output / "server.log").open("w") as server_log:
-        server = subprocess.Popen([
-            str(args.runtime.resolve()), "-m", str(args.model.resolve()),
-            "--host", "127.0.0.1", "--port", str(port), "-c", "32768", "-ngl", "99",
-            "--jinja", "--no-webui", "--api-key-file", str(token_file),
-            "--cache-ram", "2048", "--reasoning", "on",
-        ], stdout=server_log, stderr=subprocess.STDOUT)
+        server = subprocess.Popen(server_command(args.runtime.resolve(), args.model.resolve(), port, token_file,
+                                                 args.server_arg), stdout=server_log, stderr=subprocess.STDOUT)
         try:
             while True:
                 if server.poll() is not None or time.monotonic() - started > 60:
