@@ -173,11 +173,11 @@ Where: `LinuxWindows/scripts/sync-localizations.py` (`INVISIBLE`).
 
 ## Phone apps
 
-### One tag ships every platform, and Android's versionCode is the Mac build number
+### One tag ships every platform, and the phone apps' build number is the Mac build number
 
-`Scripts/release/bump-version.py` sets the Android version. Its versionCode is the Mac build number, which only ever goes up.
+`Scripts/release/bump-version.py` sets the Android and the iPhone and iPad versions. Android's versionCode and the iOS `CURRENT_PROJECT_VERSION` are the Mac build number, which only ever goes up: Android refuses a lower one, and App Store Connect refuses one it has seen.
 
-Where: `Companion/android/app/build.gradle.kts` (`defaultConfig.versionCode`).
+Where: `Companion/android/app/build.gradle.kts` (`defaultConfig.versionCode`), `Companion/ios/project.yml` (`CURRENT_PROJECT_VERSION`), `Scripts/release/release-preflight.py` (`validate_ios_version`).
 
 ### Android release signing stays outside Gradle and refuses a key with the wrong certificate
 
@@ -190,6 +190,24 @@ Where: `Scripts/release/sign-android-release.sh`.
 It keeps native libraries on 16 KB pages, which newer devices need.
 
 Where: `Scripts/release/sign-android-release.sh`.
+
+### The iPhone and iPad app is archived unsigned, then signed at export with an App Store Connect key
+
+The `archive` job builds with `CODE_SIGNING_ALLOWED=NO` and sees no secret; the `publish` job runs no build script and signs through `xcodebuild -exportArchive` with the API key, so nothing from the build runs beside the key. Automatic signing there uses Apple's cloud-managed distribution certificate, which keeps certificates and provisioning profiles, and their yearly renewal, out of the repository's secrets. Cloud signing needs a team key with the Admin role. An unsigned archive carries no entitlements, so this holds only while the app declares none; a test fails when `Companion/ios/project.yml` gains an entitlements file, and the archive must then be signed ad hoc or with a development identity instead.
+
+Where: `.github/workflows/app-store.yml`, `Companion/ios/ExportOptions.plist`, `Scripts/tests/test_app_store_release.py` (`test_an_unsigned_archive_carries_no_entitlements`).
+
+### App Store What's New keeps only the release-note bullets tagged for iPhone or iPad
+
+The release notes cover every platform, and App Review rejects metadata that names another mobile platform. Untagged bullets, and tagged ones that still name Android or Google Play, are left out; with none left the text is "Bug fixes and improvements."
+
+Where: `Scripts/release/publish_app_store.py` (`format_whats_new`).
+
+### A store workflow knows Release called it from an input, not the event name
+
+A called workflow's `github` context belongs to its caller, so `github.event_name` is `push` there and never `workflow_call`. Comparing against `workflow_call` would have skipped the Google Play upload job on every real release. Both store workflows declare a `from_release` input, on `workflow_call` only, that defaults to true.
+
+Where: `.github/workflows/google-play.yml`, `.github/workflows/app-store.yml`.
 
 ### The iOS app icon is flattened to opaque
 

@@ -523,7 +523,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             publish_job,
             "Check tag, switch and credentials",
             TAG="v0.13.4",
-            EVENT_NAME="workflow_call",
+            FROM_RELEASE="true",
             GITHUB_REF="refs/tags/v0.13.4",
             PLAY_PUBLISH="",
             PLAY_TRACK_VAR="",
@@ -543,7 +543,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             publish_job,
             "Check tag, switch and credentials",
             TAG="v0.13.4",
-            EVENT_NAME="workflow_call",
+            FROM_RELEASE="true",
             GITHUB_REF="refs/tags/v0.13.4",
             PLAY_PUBLISH="true",
             PLAY_TRACK_VAR="",
@@ -563,7 +563,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             publish_job,
             "Check tag, switch and credentials",
             TAG="v0.13.4-beta.1",
-            EVENT_NAME="workflow_call",
+            FROM_RELEASE="true",
             GITHUB_REF="refs/tags/v0.13.4-beta.1",
             PLAY_PUBLISH="true",
             PLAY_TRACK_VAR="",
@@ -582,7 +582,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             publish_job,
             "Check tag, switch and credentials",
             TAG="v0.13.4",
-            EVENT_NAME="workflow_call",
+            FROM_RELEASE="true",
             GITHUB_REF="refs/tags/v0.13.4",
             PLAY_PUBLISH="true",
             PLAY_TRACK_VAR="",
@@ -605,7 +605,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
             publish_job,
             "Check tag, switch and credentials",
             TAG="v0.13.4",
-            EVENT_NAME="workflow_call",
+            FROM_RELEASE="true",
             GITHUB_REF="refs/tags/v0.13.4",
             PLAY_PUBLISH="true",
             PLAY_TRACK_VAR="internal",
@@ -622,6 +622,36 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("auth_mode=github_oidc", out)
         self.assertIn("track=internal", out)
         self.assertIn("status=draft", out)
+
+    def test_release_call_is_told_apart_by_an_input_not_the_event_name(self):
+        self.assertNotIn("'workflow_call'", self.play_wf)
+        self.assertNotIn('"workflow_call"', self.play_wf)
+        call_inputs = self.play_wf.split("  workflow_call:\n", 1)[1].split("  workflow_dispatch:\n", 1)[0]
+        dispatch_inputs = self.play_wf.split("  workflow_dispatch:\n", 1)[1].split("  pull_request:\n", 1)[0]
+        self.assertIn("      from_release:\n", call_inputs)
+        self.assertNotIn("from_release", dispatch_inputs)
+        publish_job = self.play_wf.split("\n  publish:\n", 1)[1]
+        self.assertIn("(inputs.from_release == true || needs.bundle.result == 'success')", publish_job)
+
+        code, out, printed = run_step(
+            publish_job,
+            "Check tag, switch and credentials",
+            TAG="v0.13.4",
+            FROM_RELEASE="false",
+            GITHUB_REF="refs/heads/some-branch",
+            PLAY_PUBLISH="true",
+            PLAY_TRACK_VAR="",
+            PLAY_STATUS_VAR="",
+            INPUT_TRACK="",
+            INPUT_STATUS="",
+            PLAY_UPLOAD_KEYSTORE_BASE64="x",
+            PLAY_UPLOAD_KEYSTORE_PASSWORD="x",
+            PLAY_SERVICE_ACCOUNT_JSON="{}",
+            PLAY_WORKLOAD_IDENTITY_PROVIDER="",
+            PLAY_SERVICE_ACCOUNT_EMAIL="",
+        )
+        self.assertNotEqual(code, 0)
+        self.assertIn("must run from master", printed)
 
     def test_release_workflow_wires_google_play_and_keeps_downstream_linux_windows_jobs_running(self):
         play_call = self.release_wf.split("\n  android-play:\n", 1)[1].split("\n\n", 1)[0]

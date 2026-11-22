@@ -127,10 +127,15 @@ or add them under the scheme's Arguments.
 
 ## Releasing
 
-- Set the version in `project.yml` (`MARKETING_VERSION`,
-  `CURRENT_PROJECT_VERSION`).
-- TestFlight: Product → Archive (Release, team `3N8B4562P4`), then
-  Distribute App → App Store Connect, and add testers in App Store Connect.
+- The release tag sends the app to the App Store: see
+  [iPhone and iPad](../../Docs/releasing/ios.md) for the workflow, its setup and
+  the dry run.
+- `Scripts/release/bump-version.py` sets `MARKETING_VERSION` and
+  `CURRENT_PROJECT_VERSION` in `project.yml` with every other version; don't
+  edit them by hand.
+- By hand, for a TestFlight build outside a release: Product → Archive
+  (Release, team `3N8B4562P4`), then Distribute App → App Store Connect, and
+  add testers in App Store Connect.
 - App Review can't pair with a Mac. Point the review notes to **Try It
   Without a Computer** on the welcome screen, which opens the built-in sample
   library. Explain there that the app syncs with LokalBot on the person's
@@ -138,6 +143,7 @@ or add them under the scheme's Arguments.
   Mac, so the microphone and background audio are only used once paired.
 - Export compliance is **still open**. Sync traffic is encrypted (Noise:
   X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is not
-  set yet. Until it is decided, App Store Connect asks on every upload.
+  set yet. Until it is decided, App Store Connect asks on every upload, and
+  the release job stops there until it is answered.
 - The privacy label can say Data Not Collected: nothing leaves the person's
   devices, and the local copy is excluded from device backups.
