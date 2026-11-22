@@ -404,7 +404,7 @@ Bug reports, documentation improvements, and code contributions are welcome. [Re
 
 Questions, ideas, or a workflow worth sharing? Start a thread in [Discussions](https://github.com/stevyhacker/lokalbot/discussions).
 
-For larger changes, [open an issue](https://github.com/stevyhacker/lokalbot/issues) to discuss the approach first. Follow the [working agreements](AGENTS.md) and [development guide](DEVELOPMENT.md), keep pull requests focused, and record your checks in the [PR template](.github/PULL_REQUEST_TEMPLATE.md). Include screenshots for UI changes; run UI tests on hosted CI or a remote runner.
+For larger changes, [open an issue](https://github.com/stevyhacker/lokalbot/issues) to discuss the approach first. Follow the [working agreements](AGENTS.md) and [development guide](DEVELOPMENT.md), keep pull requests focused, and record your checks in the [PR template](.github/PULL_REQUEST_TEMPLATE.md). For a change people can see, attach before and after recordings of the same steps on master and on your branch, using sample data rather than your own meetings or messages ([example](https://github.com/stevyhacker/lokalbot/pull/578#issuecomment-7078094930)). Run UI tests on hosted CI or a remote runner.
 
 <a id="build-from-source"></a>
 
