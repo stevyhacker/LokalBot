@@ -207,7 +207,7 @@ def build(now):
 
 
 def write_meeting(root, mm):
-    rel = relpath(mm["started"], mm["title"].lower().replace(" ", "-"))
+    rel = relpath(mm["started"], re.sub(r'[<>:"/\\|?*]', "-", mm["title"].lower()).replace(" ", "-"))
     folder = os.path.join(root, rel)
     os.makedirs(folder, exist_ok=True)
     meta = {"appName": mm["app"], "endedAt": iso(mm["ended"]), "hasSystemTrack": mm["sys"],
