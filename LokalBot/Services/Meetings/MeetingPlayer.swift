@@ -21,9 +21,12 @@ final class MeetingPlayer: NSObject, ObservableObject {
         set { clock.update(to: newValue) }
     }
     @Published private(set) var duration: TimeInterval = 0
+    @Published private(set) var windowStart: TimeInterval = 0
+    @Published private(set) var windowEnd: TimeInterval = 0
     @Published private(set) var isLoaded = false
     @Published var speed: Float = 1.0 { didSet { applySpeed() } }
 
+    private(set) var rawDuration: TimeInterval = 0
     private var players: [AVAudioPlayer] = []
     private var ticker: Timer?
     private var excerptEnd: TimeInterval?
@@ -39,7 +42,7 @@ final class MeetingPlayer: NSObject, ObservableObject {
         players.max { $0.duration < $1.duration }
     }
 
-    func load(folder: URL, hasSystemTrack: Bool) {
+    func load(folder: URL, hasSystemTrack: Bool, contentRange: Meeting.ContentRange? = nil) {
         stop()
         players = MeetingAudioAsset.playbackSources(folder: folder, hasSystemTrack: hasSystemTrack)
             .compactMap { source -> AVAudioPlayer? in
@@ -51,14 +54,17 @@ final class MeetingPlayer: NSObject, ObservableObject {
                 return player
             }
         applySpeed()
-        duration = players.map(\.duration).max() ?? 0
-        currentTime = 0
+        rawDuration = players.map(\.duration).max() ?? 0
+        duration = rawDuration
+        setPlaybackRange(contentRange)
+        currentTime = windowStart
+        setPlayheads(to: windowStart)
         isLoaded = !players.isEmpty
     }
 
     private struct PreparedPlayers: @unchecked Sendable { let values: [AVAudioPlayer] }
 
-    func loadInBackground(folder: URL, hasSystemTrack: Bool) async {
+    func loadInBackground(folder: URL, hasSystemTrack: Bool, contentRange: Meeting.ContentRange? = nil) async {
         stop()
         let generation = loadGeneration
         let prepared = await Task.detached(priority: .userInitiated) {
@@ -75,9 +81,36 @@ final class MeetingPlayer: NSObject, ObservableObject {
         players = prepared.values
         for player in players { player.delegate = self }
         applySpeed()
-        duration = players.map(\.duration).max() ?? 0
-        currentTime = 0
+        rawDuration = players.map(\.duration).max() ?? 0
+        duration = rawDuration
+        setPlaybackRange(contentRange)
+        currentTime = windowStart
+        setPlayheads(to: windowStart)
         isLoaded = !players.isEmpty
+    }
+
+    func setPlaybackRange(_ range: Meeting.ContentRange?) {
+        if let range, range.isValid, rawDuration > 0, range.start < rawDuration {
+            windowStart = max(0, range.start)
+            windowEnd = min(rawDuration, max(windowStart + 0.05, range.end))
+        } else {
+            windowStart = 0
+            windowEnd = rawDuration
+        }
+        if currentTime < windowStart || currentTime > windowEnd {
+            if isPlaying && currentTime >= windowEnd {
+                pause()
+            }
+            let clamped = min(max(windowStart, currentTime), windowEnd)
+            setPlayheads(to: clamped)
+            currentTime = clamped
+        }
+    }
+
+    private var activeRange: (start: TimeInterval, end: TimeInterval) {
+        let upper = windowEnd > windowStart ? windowEnd : duration
+        let lower = upper > windowStart ? windowStart : 0
+        return (lower, upper)
     }
 
     func playPause() {
@@ -87,12 +120,15 @@ final class MeetingPlayer: NSObject, ObservableObject {
     func play(at time: TimeInterval? = nil) {
         excerptEnd = nil
         guard !players.isEmpty else { return }
+        let bounds = activeRange
+        let outOfBounds = currentTime >= bounds.end || currentTime < bounds.start
         if let time {
-            setPlayheads(to: time)
-            currentTime = min(max(0, time), duration)
-        } else if duration > 0, currentTime >= duration {
-            setPlayheads(to: 0)
-            currentTime = 0
+            let clamped = min(max(bounds.start, time), bounds.end)
+            setPlayheads(to: clamped)
+            currentTime = clamped
+        } else if bounds.end > bounds.start, outOfBounds {
+            setPlayheads(to: bounds.start)
+            currentTime = bounds.start
         }
         let anchor = (players.first?.deviceCurrentTime ?? 0) + 0.05
         for player in players {
@@ -124,7 +160,8 @@ final class MeetingPlayer: NSObject, ObservableObject {
     func seek(to time: TimeInterval) {
         let wasPlaying = isPlaying
         pause()
-        let clamped = max(0, min(time, duration))
+        let bounds = activeRange
+        let clamped = max(bounds.start, min(time, bounds.end))
         setPlayheads(to: clamped)
         currentTime = clamped
         if wasPlaying { play() }
@@ -139,6 +176,9 @@ final class MeetingPlayer: NSObject, ObservableObject {
         isLoaded = false
         currentTime = 0
         duration = 0
+        rawDuration = 0
+        windowStart = 0
+        windowEnd = 0
         stopTicker()
     }
 
@@ -151,11 +191,13 @@ final class MeetingPlayer: NSObject, ObservableObject {
         ticker = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self, let timelinePlayer = self.timelinePlayer else { return }
-                self.currentTime = min(timelinePlayer.currentTime, self.duration)
-                if let end = self.excerptEnd, self.currentTime >= end {
+                let bounds = self.activeRange
+                self.currentTime = min(max(bounds.start, timelinePlayer.currentTime), bounds.end)
+                let stopBoundary = self.excerptEnd.map { min($0, bounds.end) } ?? bounds.end
+                if stopBoundary > bounds.start, timelinePlayer.currentTime >= stopBoundary {
                     self.pause()
-                    self.setPlayheads(to: end)
-                    self.currentTime = end
+                    self.setPlayheads(to: stopBoundary)
+                    self.currentTime = stopBoundary
                 }
             }
         }
@@ -172,7 +214,7 @@ extension MeetingPlayer: AVAudioPlayerDelegate {
         Task { @MainActor in
             if players.allSatisfy({ !$0.isPlaying }) {
                 isPlaying = false
-                currentTime = duration
+                currentTime = activeRange.end
                 stopTicker()
             }
         }
