@@ -57,6 +57,9 @@ jobs:
     name: Pick runners
     runs-on: ubuntu-24.04
     timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
     defaults:
       run:
         working-directory: .
@@ -64,6 +67,7 @@ jobs:
       linux: ${{ steps.pick.outputs.linux }}
       windows: ${{ steps.pick.outputs.windows }}
       windows-self-hosted: ${{ steps.pick.outputs.windows-self-hosted }}
+      wayland: ${{ steps.wayland.outputs.run }}
     steps:
       - id: pick
         env:
@@ -100,6 +104,92 @@ jobs:
             echo
             echo "Why: $why"
           } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Decide whether Wayland live tests must run
+        id: wayland
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          matches_wayland() {
+            while IFS= read -r path; do
+              case "$path" in
+                LinuxWindows/crates/lokalbot-platform/*|\
+                LinuxWindows/scripts/ci/wayland-live-tests.sh|\
+                LinuxWindows/Cargo.toml|\
+                LinuxWindows/Cargo.lock|\
+                LinuxWindows/rust-toolchain.toml|\
+                .github/workflows/linux-windows.yml)
+                  return 0 ;;
+              esac
+            done
+            return 1
+          }
+          run=false
+          reason="no Wayland platform files changed"
+          if [ "$EVENT_NAME" = workflow_dispatch ]; then
+            run=true
+            reason="manual dispatch"
+          elif [ "$EVENT_NAME" = pull_request ] && [ -n "$PR_NUMBER" ]; then
+            if files=$(gh api --paginate "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/files" --jq '.[].filename' 2>&1); then
+              if matches_wayland <<<"$files"; then
+                run=true
+                reason="PR touches lokalbot-platform or Wayland CI"
+              fi
+            else
+              run=true
+              reason="couldn't list PR files; running Wayland live tests to be safe"
+              echo "::warning::$reason: $files"
+            fi
+          elif [ "$EVENT_NAME" = push ] && [ -n "$BEFORE_SHA" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]; then
+            if compare=$(gh api "repos/$GITHUB_REPOSITORY/compare/$BEFORE_SHA...$GITHUB_SHA" --jq '{count: (.files | length), files: [.files[].filename]}' 2>&1); then
+              count=$(jq -r '.count' <<<"$compare")
+              files=$(jq -r '.files[]' <<<"$compare")
+              if [ "$count" -ge 300 ]; then
+                run=true
+                reason="push touches 300+ files; running Wayland live tests to be safe"
+              elif matches_wayland <<<"$files"; then
+                run=true
+                reason="push touches lokalbot-platform or Wayland CI"
+              fi
+            else
+              run=true
+              reason="couldn't compare push; running Wayland live tests to be safe"
+              echo "::warning::$reason: $compare"
+            fi
+          else
+            run=true
+            reason="event $EVENT_NAME"
+          fi
+          echo "run=$run" >>"$GITHUB_OUTPUT"
+          echo "Wayland live tests (Ubuntu 26.04): \`$run\` ($reason)" >>"$GITHUB_STEP_SUMMARY"
+
+  linux-wayland:
+    name: Linux Wayland (Ubuntu 26.04)
+    needs: pick
+    if: needs.pick.outputs.wayland == 'true'
+    # Keep the main Linux build/release job on Ubuntu 24.04 so shipped binaries
+    # stay on glibc 2.39; run live KWin 6 and Sway 1.11 tests in an Ubuntu 26.04
+    # container on a GitHub-hosted runner (self-hosted runners have no docker).
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Cache cargo
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            LinuxWindows/target
+          key: linux-wayland-cargo-${{ hashFiles('LinuxWindows/Cargo.lock', 'LinuxWindows/rust-toolchain.toml') }}
+          restore-keys: linux-wayland-cargo-
+
+      - name: Run live KWin 6 and Sway 1.11 tests in Ubuntu 26.04
+        run: scripts/ci/wayland-live-tests.sh
 
   linux:
     name: Linux
