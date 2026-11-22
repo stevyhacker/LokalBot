@@ -1,0 +1,26 @@
+{
+ "config": "qwen-en",
+ "model": "qwen3-asr-1.7b",
+ "language": "en",
+ "passes": 3,
+ "exit": 0,
+ "wallSeconds": 415.6,
+ "command": [
+  "LokalBot Dev",
+  "--dictation-speech-replay",
+  "cases.json",
+  "--model",
+  "qwen3-asr-1.7b",
+  "--language",
+  "en",
+  "--passes",
+  "3"
+ ],
+ "commit": "eff42048993653bc511ba631d2f00e384248322b",
+ "machine": {
+  "model": "Mac16,8",
+  "chip": "Apple M4 Pro",
+  "memoryBytes": 51539607552,
+  "macOS": "26.7.3"
+ }
+}

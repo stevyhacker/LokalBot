@@ -4,7 +4,7 @@
  "language": "auto",
  "passes": 3,
  "exit": 0,
- "wallSeconds": 78.5,
+ "wallSeconds": 42.7,
  "command": [
   "LokalBot Dev",
   "--dictation-speech-replay",
@@ -16,7 +16,7 @@
   "--passes",
   "3"
  ],
- "commit": "eff42048993653bc511ba631d2f00e384248322b",
+ "commit": "f19ee48b355fb50366835de56c363c8e18a412a6",
  "machine": {
   "model": "Mac16,8",
   "chip": "Apple M4 Pro",
