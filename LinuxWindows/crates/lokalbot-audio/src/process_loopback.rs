@@ -195,7 +195,7 @@ fn activate(pid: u32) -> Result<IAudioClient> {
             },
         },
     };
-    let variant = PROPVARIANT {
+    let variant = std::mem::ManuallyDrop::new(PROPVARIANT {
         Anonymous: PROPVARIANT_0 {
             Anonymous: std::mem::ManuallyDrop::new(PROPVARIANT_0_0 {
                 vt: VT_BLOB,
@@ -210,14 +210,14 @@ fn activate(pid: u32) -> Result<IAudioClient> {
                 },
             }),
         },
-    };
+    });
     let (tx, rx) = mpsc::channel();
     let handler: IActivateAudioInterfaceCompletionHandler = Activation(tx).into();
     unsafe {
         ActivateAudioInterfaceAsync(
             VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
             &IAudioClient::IID,
-            Some(&variant),
+            Some(&*variant),
             &handler,
         )
     }
@@ -388,5 +388,14 @@ mod tests {
         assert!(in_tree(10, 10, &parents));
         assert!(!in_tree(99, 10, &parents));
         assert!(!in_tree(10, 30, &parents));
+    }
+
+    #[test]
+    fn activating_process_loopback_does_not_free_stack_params() {
+        if !supported() {
+            return;
+        }
+        let _com = ComScope::enter();
+        let _ = activate(std::process::id());
     }
 }
