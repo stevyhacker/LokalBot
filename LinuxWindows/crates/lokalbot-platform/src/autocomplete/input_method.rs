@@ -533,6 +533,14 @@ impl Core {
         self
     }
 
+    fn fall_back_to_preedit(&mut self, output: &mut impl Output) {
+        self.overlay_ghost = false;
+        self.key_nudge_at = None;
+        if self.active && !self.ghost.is_empty() && self.blanked_at.is_none() {
+            output.ghost(self.ghost_style, &self.ghost);
+        }
+    }
+
     fn set_limitation(&self, text: Option<String>) {
         *self.limitation.lock() = text;
     }
@@ -1371,5 +1379,14 @@ mod tests {
             &mut output,
         );
         assert!(output.calls.contains(&"nudge".to_string()));
+
+        core.tick(
+            Instant::now() + GHOST_BACK_AFTER + Duration::from_millis(5),
+            &mut output,
+        );
+        output.calls.clear();
+        core.fall_back_to_preedit(&mut output);
+        assert_eq!(output.calls, ["ghost(6, true): world"]);
+        assert!(core.next_ask().is_none());
     }
 }

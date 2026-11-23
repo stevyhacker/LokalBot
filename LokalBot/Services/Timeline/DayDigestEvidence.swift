@@ -1030,6 +1030,7 @@ enum DayDigestOverviewGenerator {
         evidence: DayDigestEvidence,
         engine: TextEngine,
         customPrompt: String,
+        language: DailySummaryLanguage = .english,
         calendar: Calendar = .current,
         progress: DayDigestProgressHandler? = nil,
         segmentCache: DayDigestSegmentCache? = nil,
@@ -1037,6 +1038,7 @@ enum DayDigestOverviewGenerator {
             try await Task.sleep(for: .seconds($0))
         }
     ) async throws -> DayDigestOverviewGeneration {
+        let focusSystem = language.system(PromptTemplates.dayDigestFocusSystem)
         let dateContext = [
             "Date: \(evidence.day.formatted(date: .complete, time: .omitted))",
         ]
@@ -1054,7 +1056,7 @@ enum DayDigestOverviewGenerator {
         var coveredSeconds: TimeInterval = 0
         guard !segments.isEmpty else {
             return DayDigestOverviewGeneration(
-                summary: fallback(evidence),
+                summary: fallback(evidence, language: language),
                 quality: .complete)
         }
         let ranges = segments.map {
@@ -1082,7 +1084,7 @@ enum DayDigestOverviewGenerator {
                 \(segment.evidence)
                 """
             let cacheKey = DayDigestSegmentCache.key(
-                engine: engine, system: PromptTemplates.dayDigestFocusSystem, prompt: focusPrompt)
+                engine: engine, system: focusSystem, prompt: focusPrompt)
             func accept(_ parsed: ParsedFocus) {
                 guard let block = parsed.block else { return }
                 coveredSeconds += segment.activeDuration
@@ -1108,7 +1110,7 @@ enum DayDigestOverviewGenerator {
                 do {
                     output = try await request(
                         "segment \(index + 1)",
-                        system: PromptTemplates.dayDigestFocusSystem,
+                        system: focusSystem,
                         prompt: focusPrompt,
                         schema: focusSchema,
                         options: TextGenerationOptions(
@@ -1121,7 +1123,7 @@ enum DayDigestOverviewGenerator {
                     do {
                         output = try await request(
                             "segment \(index + 1) retry",
-                            system: PromptTemplates.dayDigestFocusSystem,
+                            system: focusSystem,
                             prompt: focusRetryPrompt + "\n\n" + focusPrompt,
                             schema: focusSchema,
                             options: TextGenerationOptions(
@@ -1163,7 +1165,7 @@ enum DayDigestOverviewGenerator {
                 do {
                     output = try await request(
                         "segment \(index + 1) retry",
-                        system: PromptTemplates.dayDigestFocusSystem,
+                        system: focusSystem,
                         prompt: focusRetryPrompt + "\n\n" + focusPrompt,
                         schema: focusSchema,
                         options: TextGenerationOptions(
@@ -1201,14 +1203,14 @@ enum DayDigestOverviewGenerator {
                     + String(format: "%.2fs", Date().timeIntervalSince(startedAt)))
         }
 
-        let sessionTasks = sessionCandidates(evidence)
+        let sessionTasks = sessionCandidates(evidence, language: language)
 
         let usesBestAvailableActivity = substantiveBlocks.isEmpty
         let selectedBlocks = substantiveBlocks + fallbackBlocks
         let marksPriority = !substantiveBlocks.isEmpty && !fallbackBlocks.isEmpty
         guard !selectedBlocks.isEmpty else {
             return DayDigestOverviewGeneration(
-                summary: fallback(evidence),
+                summary: fallback(evidence, language: language),
                 quality: degraded ? .fallback : .complete,
                 coverage: DayDigestCoverage(coveredSeconds: coveredSeconds, trackedSeconds: trackedSeconds))
         }
@@ -1242,9 +1244,9 @@ enum DayDigestOverviewGenerator {
                             ? (offset < substantiveBlocks.count ? "primary" : "secondary") : nil)
                 }
                 .joined(separator: "\n")
-            let system = usesBestAvailableActivity
+            let system = language.system(usesBestAvailableActivity
                 ? PromptTemplates.dayDigestFallbackSystem(custom: customPrompt)
-                : PromptTemplates.dayDigestSystem(custom: customPrompt)
+                : PromptTemplates.dayDigestSystem(custom: customPrompt))
             let aggregationPrompt = """
                 Build the daily recap from every accepted candidate below.
                 Merge candidates for the same task and include every contributing
@@ -1304,7 +1306,7 @@ enum DayDigestOverviewGenerator {
                 + String(format: "%.2fs", Date().timeIntervalSince(digestStartedAt)))
 
         return DayDigestOverviewGeneration(
-            summary: render(blocks: selectedBlocks, draft: digest, sessionCandidates: sessionTasks),
+            summary: render(blocks: selectedBlocks, draft: digest, sessionCandidates: sessionTasks, language: language),
             quality: degraded ? .partial : .complete,
             coverage: DayDigestCoverage(coveredSeconds: coveredSeconds, trackedSeconds: trackedSeconds))
     }
@@ -1367,8 +1369,10 @@ enum DayDigestOverviewGenerator {
         Do not quote or restate candidate metadata.
         """
 
-    static func agentSessionCandidates(_ evidence: DayDigestEvidence) -> [DayDigestGeneratedFocusBlock] {
-        sessionCandidates(evidence).map(\.block)
+    static func agentSessionCandidates(
+        _ evidence: DayDigestEvidence, language: DailySummaryLanguage = .english
+    ) -> [DayDigestGeneratedFocusBlock] {
+        sessionCandidates(evidence, language: language).map(\.block)
     }
 
     private struct SessionCandidate {
@@ -1378,17 +1382,29 @@ enum DayDigestOverviewGenerator {
         var pullRequests: [CodingAgentPullRequest]
     }
 
-    private static func sessionCandidates(_ evidence: DayDigestEvidence) -> [SessionCandidate] {
+    private static func sessionCandidates(
+        _ evidence: DayDigestEvidence, language: DailySummaryLanguage
+    ) -> [SessionCandidate] {
         evidence.codingAgentSessions.compactMap { bursts -> SessionCandidate? in
             guard let session = CodingAgentBurstBuilder.merging(bursts), session.recordedOutcome,
                   !session.isScheduledRun else { return nil }
             let name = session.workTitle
             let project = session.workProject
             let title = project.map { name.localizedCaseInsensitiveContains($0) ? name : "\(name) (\($0))" } ?? name
-            var workDone = "Worked with \(session.agent.displayName)" + (project.map { " in \($0)" } ?? "") + "."
-            if !session.actions.isEmpty {
-                workDone += " Recorded actions: "
-                    + session.actions.prefix(6).map(\.summary).joined(separator: "; ") + "."
+            var workDone: String
+            if language.usesEnglishCatalog {
+                workDone = "Worked with \(session.agent.displayName)" + (project.map { " in \($0)" } ?? "") + "."
+                if !session.actions.isEmpty {
+                    workDone += " Recorded actions: "
+                        + session.actions.prefix(6).map(\.summary).joined(separator: "; ") + "."
+                }
+            } else {
+                workDone = language.text("Coding agent") + ": " + session.agent.displayName
+                if let project { workDone += ". " + language.text("Project") + ": " + project }
+                if !session.actions.isEmpty {
+                    workDone += ". " + language.text("Actions") + ": "
+                        + session.actions.prefix(6).map(\.summary).joined(separator: "; ") + "."
+                }
             }
             let pullRequests = session.pullRequests.compactMap(DayDigestEvidence.pullRequestLabel)
             let finished = session.actions.contains { action in
@@ -1410,20 +1426,24 @@ enum DayDigestOverviewGenerator {
         }
     }
 
-    static func fallback(_ evidence: DayDigestEvidence) -> String {
+    static func fallback(_ evidence: DayDigestEvidence, language: DailySummaryLanguage = .english) -> String {
         if evidence.isEmpty {
-            return "### At a glance\n_No activity was recorded._"
+            return "### At a glance\n_" + (language.usesEnglishCatalog
+                ? "No activity was recorded." : language.text("No activity recorded")) + "_"
         }
-        let blocks = bestAvailableFallbackBlocks(evidence)
+        let blocks = bestAvailableFallbackBlocks(evidence, language: language)
         if !blocks.isEmpty {
-            return render(blocks: blocks, draft: nil)
+            return render(blocks: blocks, draft: nil, language: language)
         }
-        return "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
+        return language.usesEnglishCatalog
+            ? "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
+            : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity was recorded; no more specific outcome was visible.")
     }
 
     private static func bestAvailableFallbackBlocks(
         _ evidence: DayDigestEvidence,
-        limit: Int = 6
+        limit: Int = 6,
+        language: DailySummaryLanguage = .english
     ) -> [DayDigestGeneratedFocusBlock] {
         guard limit > 0 else { return [] }
         var blocks: [DayDigestGeneratedFocusBlock] = []
@@ -1432,8 +1452,10 @@ enum DayDigestOverviewGenerator {
             let title = cleanInline(meeting.title, maxCharacters: FieldLimit.titleCharacters)
             let workDone = fallbackMeetingSummary(meeting)
             blocks.append(DayDigestGeneratedFocusBlock(
-                task: title.isEmpty ? "Recorded meeting" : title,
-                workDone: workDone.isEmpty ? "Participated in the recorded meeting." : workDone,
+                task: title.isEmpty ? (language.usesEnglishCatalog ? "Recorded meeting" : language.text("Meeting")) : title,
+                workDone: workDone.isEmpty
+                    ? (language.usesEnglishCatalog ? "Participated in the recorded meeting." : language.text("Meeting"))
+                    : workDone,
                 status: "unknown",
                 outcome: cleanSummary(meeting.outcomes, maxWords: 32),
                 nextStep: "",
@@ -1448,9 +1470,16 @@ enum DayDigestOverviewGenerator {
                 actions.append(action.summary)
             }
             let context = "Worked with \(merged.agent.displayName)" + (merged.workProject.map { " in \($0)" } ?? "")
-            let workDone = actions.isEmpty
-                ? context + "."
-                : context + ". Recorded actions: " + actions.prefix(4).joined(separator: "; ") + "."
+            let workDone: String
+            if language.usesEnglishCatalog {
+                workDone = actions.isEmpty
+                    ? context + "."
+                    : context + ". Recorded actions: " + actions.prefix(4).joined(separator: "; ") + "."
+            } else {
+                workDone = actions.isEmpty
+                    ? language.text("Activity") + ": " + merged.agent.displayName
+                    : language.text("Actions") + ": " + actions.prefix(4).joined(separator: "; ")
+            }
             blocks.append(DayDigestGeneratedFocusBlock(
                 task: cleanInline(merged.workTitle, maxCharacters: FieldLimit.titleCharacters),
                 workDone: cleanSummary(workDone, maxWords: FieldLimit.workDoneWords),
@@ -1505,7 +1534,9 @@ enum DayDigestOverviewGenerator {
             existingKeys.insert(key)
             blocks.append(DayDigestGeneratedFocusBlock(
                 task: activity.title,
-                workDone: "Activity related to this item was recorded; no more specific outcome was visible.",
+                workDone: language.usesEnglishCatalog
+                    ? "Activity related to this item was recorded; no more specific outcome was visible."
+                    : language.text("Activity was recorded; no more specific outcome was visible."),
                 status: "unknown",
                 outcome: "",
                 nextStep: "",
@@ -1699,14 +1730,17 @@ enum DayDigestOverviewGenerator {
     private static func render(
         blocks: [DayDigestGeneratedFocusBlock],
         draft: DigestDraft?,
-        sessionCandidates: [SessionCandidate] = []
+        sessionCandidates: [SessionCandidate] = [],
+        language: DailySummaryLanguage = .english
     ) -> String {
-        var normalized = normalizedDigest(draft, blocks: blocks)
+        var normalized = normalizedDigest(draft, blocks: blocks, language: language)
         for (offset, candidate) in sessionCandidates.enumerated() {
-            mergeSessionCandidate(candidate, index: blocks.count + offset, into: &normalized.tasks)
+            mergeSessionCandidate(candidate, index: blocks.count + offset, into: &normalized.tasks, language: language)
         }
         guard !normalized.tasks.isEmpty else {
-            return "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
+            return language.usesEnglishCatalog
+                ? "### Tasks\n- **Recorded activity** — Activity was captured, but the available context did not identify a more specific item."
+                : "### Tasks\n- **" + language.text("Activity") + "** — " + language.text("Activity was recorded; no more specific outcome was visible.")
         }
 
         var sections = [
@@ -1727,7 +1761,8 @@ enum DayDigestOverviewGenerator {
 
     private static func normalizedDigest(
         _ draft: DigestDraft?,
-        blocks: [DayDigestGeneratedFocusBlock]
+        blocks: [DayDigestGeneratedFocusBlock],
+        language: DailySummaryLanguage
     ) -> (tasks: [NormalizedTask], decisions: [String], blockers: [String]) {
         let validIndices = Set(blocks.indices)
         var tasks: [NormalizedTask] = []
@@ -1753,7 +1788,7 @@ enum DayDigestOverviewGenerator {
         }
 
         for index in blocks.indices where !coveredIndices.contains(index) {
-            mergeFallbackCandidate(blocks[index], index: index, into: &tasks)
+            mergeFallbackCandidate(blocks[index], index: index, into: &tasks, language: language)
         }
 
         let decisions = normalizedList(draft?.decisions ?? [], maxWords: 32)
@@ -1779,13 +1814,14 @@ enum DayDigestOverviewGenerator {
     private static func mergeFallbackCandidate(
         _ block: DayDigestGeneratedFocusBlock,
         index: Int,
-        into tasks: inout [NormalizedTask]
+        into tasks: inout [NormalizedTask],
+        language: DailySummaryLanguage
     ) {
         let key = normalizedTaskKey(block.task)
         if let taskIndex = tasks.firstIndex(where: { normalizedTaskKey($0.title) == key }) {
             if !tasks[taskIndex].summary.localizedCaseInsensitiveContains(block.workDone) {
                 tasks[taskIndex].summary = cleanSummary(
-                    tasks[taskIndex].summary + " " + candidateSummary(block),
+                    tasks[taskIndex].summary + " " + candidateSummary(block, language: language),
                     maxWords: FieldLimit.summaryWords)
             }
             if block.status != "unknown" { tasks[taskIndex].status = block.status }
@@ -1796,7 +1832,7 @@ enum DayDigestOverviewGenerator {
         tasks.append(NormalizedTask(
             title: block.task,
             status: block.status,
-            summary: candidateSummary(block),
+            summary: candidateSummary(block, language: language),
             nextStep: block.nextStep,
             blockIndices: [index]))
     }
@@ -1804,7 +1840,8 @@ enum DayDigestOverviewGenerator {
     private static func mergeSessionCandidate(
         _ candidate: SessionCandidate,
         index: Int,
-        into tasks: inout [NormalizedTask]
+        into tasks: inout [NormalizedTask],
+        language: DailySummaryLanguage
     ) {
         let block = candidate.block
         let key = normalizedTaskKey(block.task)
@@ -1815,12 +1852,12 @@ enum DayDigestOverviewGenerator {
             tasks.append(NormalizedTask(
                 title: block.task,
                 status: block.status,
-                summary: candidateSummary(block),
+                summary: candidateSummary(block, language: language),
                 nextStep: "",
                 blockIndices: [index]))
             return
         }
-        let addition = unmentionedOutcome(block.outcome, in: tasks[taskIndex].summary)
+        let addition = displayedOutcome(unmentionedOutcome(block.outcome, in: tasks[taskIndex].summary), language: language)
         if !addition.isEmpty {
             tasks[taskIndex].summary = cleanSummary(
                 tasks[taskIndex].summary + " " + addition, maxWords: FieldLimit.summaryWords)
@@ -1911,11 +1948,19 @@ enum DayDigestOverviewGenerator {
         return missing.isEmpty ? "" : prefix + missing.joined(separator: ", ")
     }
 
-    private static func candidateSummary(_ block: DayDigestGeneratedFocusBlock) -> String {
+    private static func displayedOutcome(_ outcome: String, language: DailySummaryLanguage) -> String {
+        let prefix = "Pull requests: "
+        guard !language.usesEnglishCatalog, outcome.hasPrefix(prefix) else { return outcome }
+        return "PR: " + String(outcome.dropFirst(prefix.count))
+    }
+
+    private static func candidateSummary(
+        _ block: DayDigestGeneratedFocusBlock, language: DailySummaryLanguage
+    ) -> String {
         var summary = block.workDone
         if !block.outcome.isEmpty,
            !summary.localizedCaseInsensitiveContains(block.outcome) {
-            summary += " Outcome: \(block.outcome)"
+            summary += " " + language.text("Outcome") + ": " + displayedOutcome(block.outcome, language: language)
         }
         return cleanSummary(summary, maxWords: FieldLimit.summaryWords)
     }

@@ -200,12 +200,21 @@ enum DreamCompiler {
     }
 
     static func fallbackReport(from evidence: DreamEvidence, generatedAt: Date,
-                               reason: DreamFallbackReason, note: String) -> DreamReport {
+                               reason: DreamFallbackReason, note: String,
+                               language: DailySummaryLanguage = .english) -> DreamReport {
         let meetingCount = evidence.meetings.count
         let meetingPhrase = meetingCount == 1 ? "1 recorded meeting" : "\(meetingCount) recorded meetings"
-        let narrative = note + " The day had \(meetingPhrase), "
-            + "\(duration(evidence.stats.trackedSeconds)) tracked across "
-            + "\(evidence.stats.appCount) apps."
+        let narrative: String
+        if language.usesEnglishCatalog {
+            narrative = note + " The day had \(meetingPhrase), "
+                + "\(duration(evidence.stats.trackedSeconds)) tracked across "
+                + "\(evidence.stats.appCount) apps."
+        } else {
+            narrative = language.text("Meetings") + ": \(meetingCount) · "
+                + duration(evidence.stats.trackedSeconds, locale: language.fallbackLanguage.locale)
+                + " " + language.text("tracked")
+                + " · " + String(format: language.text("%lld apps"), evidence.stats.appCount)
+        }
 
         let attention = evidence.meetings.flatMap { meeting in
             meeting.outcomes.openQuestions.map { "\(clean($0)) — `\(meeting.shortID)`" }
@@ -278,6 +287,12 @@ enum DreamCompiler {
         guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
               !trimmed.isEmpty else { return nil }
         return trimmed
+    }
+
+    private static func duration(_ seconds: TimeInterval, locale: Locale) -> String {
+        let minutes = max(0, Int(seconds.rounded()) / 60)
+        return Duration.seconds(minutes * 60)
+            .formatted(.units(allowed: [.hours, .minutes], width: .narrow).locale(locale))
     }
 
     private static func duration(_ seconds: TimeInterval) -> String {

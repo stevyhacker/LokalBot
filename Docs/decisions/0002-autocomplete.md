@@ -379,9 +379,9 @@ Where: `LokalBot/Cotyping/CotypingInputMonitor.swift` (`CotypingInputMonitor.acc
 
 ### The ghost moves on before the app shows an accept
 
-Typing the ghost's next characters, or the app showing what an accept typed, shortens it at once; anything else leaves it behind. An accept advances the ghost before the app shows the text, so a quick second Tab takes the next chunk, and reads from before the oldest unshown accept arrives are not a change (`shouldAwaitPostInsertionSync`). An accept may delete user-perceived characters before the caret first, such as an emoji's `:shortcode`.
+Typing the ghost's next characters, or the app showing what an accept typed, shortens it at once; anything else leaves it behind. An accept advances the ghost before the app shows the text, so a quick second Tab takes the next chunk, and reads from before the oldest unshown accept arrives are not a change (`shouldAwaitPostInsertionSync`). On Windows and X11, intermediate echoes while simulated keystrokes are still arriving hold back `FieldContext` updates (`PendingInsert`) and record the accepted prefix in `SentContexts`, so per-character delivery cannot mark the engine's session stale mid-accept. An accept may delete user-perceived characters before the caret first, such as an emoji's `:shortcode`.
 
-Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/session.rs` (`GhostSession::accept`, `GhostSession.awaiting`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs`.
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/session.rs` (`GhostSession::accept`, `GhostSession.awaiting`, `SentContexts`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs` (`PendingInsert`, `on_accept_key`, `on_engine`), `LokalBot/Cotyping/CotypingCoordinator+Acceptance.swift` (`shouldAwaitPostInsertionSync`).
 
 ### Accepted text is typed, never pasted
 
@@ -479,9 +479,9 @@ Where: `LokalBot/Cotyping/CotypingVisualCaret.swift` (`CotypingVisualCaret.recog
 
 ### The ghost is drawn inline only at a line's end with an exact caret, and never over text
 
-Ghost text over the characters after the caret would be unreadable. The first line of an inline suggestion continues the caret's line; what does not fit wraps at the field's text edge, but only onto lines below that hold no text and lie inside the field. When the rest of the word at the caret does not fit, the app will move the whole word to the next line, so nothing on screen shows where the text goes and nothing is drawn; a suggestion with no place on screen that covers no text is dropped.
+Ghost text over the characters after the caret would be unreadable. The first line of an inline suggestion continues the caret's line; what does not fit wraps at the field's text edge, but only onto lines below that hold no text and lie inside the field. When the rest of the word at the caret does not fit, the app will move the whole word to the next line, so nothing on screen shows where the text goes; on Windows and X11 an inline suggestion with no horizontal room falls back to a pill at the caret before being dropped, and a suggestion with no place on screen that covers no text is dropped.
 
-Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`render_mode`, `InlineLayout`, `InlineLayout::make`), `LokalBot/Cotyping/CotypingCoordinator+Acceptance.swift` (`CotypingCoordinator.present`).
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`render_mode`, `InlineLayout`, `InlineLayout::make`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/layout.rs` (`place`), `LokalBot/Cotyping/CotypingCoordinator+Acceptance.swift` (`CotypingCoordinator.present`).
 
 ### With an estimated caret the pill goes outside the field
 
@@ -493,7 +493,7 @@ Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`pi
 
 When the caret is read again, the ghost moves to any other line, and whenever the caret is further along than the ghost starts, since it would cover text just typed. A ghost ahead of the caret is held only right after an accept, because apps often show inserted text before they move the caret.
 
-Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`should_hold_reanchor`), `LokalBot/Cotyping/CotypingOverlayGeometry.swift` (`CotypingOverlayGeometry.shouldHoldInlineReanchor`).
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`should_hold_reanchor`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs` (`Autocomplete.present`), `LokalBot/Cotyping/CotypingOverlayGeometry.swift` (`CotypingOverlayGeometry.shouldHoldInlineReanchor`).
 
 ### The background behind the ghost is captured whole-point at its own pixel size
 
@@ -505,7 +505,13 @@ Where: `LokalBot/Cotyping/CotypingBackgroundSampler.swift` (`CotypingBackgroundS
 
 The reading is keyed by app, kind of field, window title and frame. Per app, a reading from a light page in Chrome drew black ghosts in a dark Reddit comment box (2026-10-21); per element, Chrome hands out a new one on every read, which would sample again for every suggestion.
 
-Where: `LokalBot/Cotyping/CotypingFieldIdentity.swift` (`CotypingFieldIdentity.background`), `LokalBotTests/Cotyping/CotypingFieldStyleTests.swift` (`testReadingFromOneFieldIsNotReusedInAnotherFieldOfTheSameApp`).
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/policy.rs` (`background_cache_key`), `LokalBot/Cotyping/CotypingFieldIdentity.swift` (`CotypingFieldIdentity.background`), `LokalBotTests/Cotyping/CotypingFieldStyleTests.swift` (`testReadingFromOneFieldIsNotReusedInAnotherFieldOfTheSameApp`).
+
+### Ghost contrast uses median linear sRGB luminance, and overlay scale comes from the caret's monitor
+
+WinUI 3, UWP XAML, Chromium Views and OneNote often report fallback `#FFFFFF` backgrounds or `#000000` text colors on dark surfaces, so `background_luminance` returns a cached reading even while the overlay is hidden and samples the screen only when both the cache has no entry for the field key and the overlay is hidden (hiding the overlay alone does not refresh an existing cached reading). Sampling takes the median across top, middle and bottom rows of the caret's glyph band in linear sRGB relative luminance (`0.18` dark-surface midpoint), staying inside the field's right scrollbar margin (`luminance_probe_xs`) so an end-of-line caret near a window border never poisons the cache with scrollbar or desktop pixels, while WCAG contrast rejects dark ink on dark gray. Before showing the overlay, `present` queries the monitor DPI scale at the caret so high-DPI displays do not flash one frame at `1×`.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`Rgb::luminance`, `ghost_paint`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/policy.rs` (`luminance_probe_xs`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`sample_luminance`, `scale_at`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/x11.rs` (`sample_luminance`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs` (`present`, `background_luminance`).
 
 ### macOS's own inline predictions are asked to be turned off
 
@@ -519,11 +525,11 @@ Drawing into a caret-width rectangle indents every continuation line beneath the
 
 Where: `LokalBot/Support/RehearsalTextEditor.swift` (`RehearsalTextEditor.draw`).
 
-### On Windows the ghost is a plain `WS_POPUP` that takes no clicks
+### On Windows the ghost is a plain `WS_POPUP` sized at the target monitor's DPI before painting
 
-GPUI creates pop-ups as overlapped windows, which Windows gives a caption and border, so the client area sat inside the ghost's frame, its text was shifted and clipped, and DWM drew a thin border. A plain `WS_POPUP` without DWM's frame, rounded corners and border is exactly the ghost's frame; it is never activated, lets clicks through, stays out of the taskbar and Alt+Tab and, when asked, out of screenshots and recordings. It is set outside a GPUI update, since the frame change reaches GPUI as a new client size.
+GPUI creates pop-ups as overlapped windows, which Windows gives a caption and border, so the client area sat inside the ghost's frame, its text was shifted and clipped, and DWM drew a thin border. A plain `WS_POPUP` without DWM's frame, rounded corners and border is exactly the ghost's frame; it is never activated, lets clicks through, stays out of the taskbar and Alt+Tab and, when asked, out of screenshots and recordings. On cross-monitor moves `place_overlay` moves the window to the target monitor before applying its new pixel size so GPUI's `WM_DPICHANGED` handler cannot overwrite the height with the old scaled rect, `Overlay::move_native` resizes before refreshing `GhostView`, and `layout::place` expands tight WinUI 3 caret boxes symmetrically to at least `1.35 × font_size` so DirectWrite's line layer never clips descenders.
 
-Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`prepare_overlay`).
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`prepare_overlay`, `place_overlay`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/overlay.rs` (`Overlay::show`, `Overlay::move_native`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/layout.rs` (`place`).
 
 ### Films use a private build whose panel is visible to screen recording
 
@@ -575,11 +581,27 @@ Matching the keysym would, on other layouts, take a letter key that types a back
 
 Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/x11.rs` (`backtick_keycode`).
 
-### On Windows a low-level hook takes keys only while ghost text shows
+### On Windows a low-level hook gates keys atomically and serializes typing with pass-through
 
-The hook is installed when a suggestion appears and removed when it goes, and its callback only forwards the key, so Windows never waits on LokalBot; LokalBot's own keystrokes carry `MARKER` and pass it untouched. Accepted text is sent in bursts of at most 20 UTF-16 units, because many apps take only the first 20 of one burst.
+An `AtomicBool` enables and disables key capture immediately when a suggestion appears or ends, holding the hook only until any already-taken key finishes its release so key-hold autorepeat never leaks into the app, while LokalBot's own keystrokes carry `MARKER` and pass untouched. Accepted text is injected in batched `SendInput` chunks (20 UTF-16 units with a 5 ms pause), and `PassThrough` keys share the `Inserter` FIFO queue so a raw `Tab` never overtakes queued characters. Session reconciliation compares trailing text only up to the end of the caret's line (`inline_after`) so live preview or status updates below the caret never discard an active session, capped `4,096`-unit sliding windows reconcile by suffix overlap (`progression_between`, `typed_since`), and `lokalbot-engine` ignores monotonic catch-up snapshots behind `Accepted` (`is_catching_up`).
 
-Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`CHUNK`).
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`Hook`, `hook_proc`, `insert`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/session.rs` (`GhostSession`, `progression_between`, `typed_since`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs` (`Inserter`, `PendingInsert`, `reconcile_session`), `LinuxWindows/crates/lokalbot-ai/src/autocomplete/session.rs` (`inline_after`, `reconcile`, `is_catching_up`, `typed_since`), `LinuxWindows/crates/lokalbot-engine/src/autocomplete.rs` (`Worker::read_field`, `Worker::schedule`).
+
+### Object-replacement and Private Use Area glyphs are stripped and never inserted
+
+Inline widgets such as embedded attachment/emoji nodes expose `U+FFFC` (`OBJECT REPLACEMENT CHARACTER`) in accessibility text, icon fonts such as VS Code's breadcrumb codicons expose Private Use Area code points (`U+E000..U+F8FF`, planes 15–16), and rich-text editors such as RoosterJS convert trailing spaces into `U+00A0` (`NO-BREAK SPACE`). Inline `@mention` and `#channel` child elements at `U+FFFC` offsets keep their accessible label (`expand_inline_mentions`), `U+00A0` normalizes to ASCII space so trailing-space reconciliation never stales on `contenteditable` editors, and remaining non-text glyphs are stripped without leaving synthetic double spaces and are rejected before insertion so the model cannot echo placeholder boxes or icon glyphs back into the draft.
+
+Where: `LinuxWindows/crates/lokalbot-ai/src/autocomplete/text.rs` (`is_non_text_glyph`), `LinuxWindows/crates/lokalbot-ai/src/autocomplete/normalize.rs` (`is_safe_to_insert`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/policy.rs` (`strip_non_text_glyphs`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/visible.rs` (`sanitize_excerpt`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/uia.rs` (`read_text`, `expand_inline_mentions`).
+
+### Windows UI Automation caret, toolkit and multi-process host quirks
+
+- **Document-range clamping in web engines:** Chromium, Electron and WebView2 share one unified `AXTextRange` tree across an entire page, so `MoveEndpointByUnit` on a `contenteditable` element walks out of the field into surrounding sidebars, toolbars and completion popups; `read_text` and `style_near` clamp endpoints to `IUIAutomationTextPattern::DocumentRange` whenever the caret lies within it.
+- **Padded RichEdit first lines, soft wraps and wide line boxes:** Windows 11 Notepad (`RichEditD2DPT`) folds top document padding and paragraph space-before into the first line's bounding rectangle, so inline ghost boxes clamp excess height to the natural font line box anchored to the rectangle's bottom (`inline_caret_box`). When a collapsed caret wraps onto a new line below `previous_character`, `choose_caret` follows the wrapped line instead of hanging past the right edge of the line above, and rejects non-collapsed line/field boxes on `empty_range`.
+- **`QScintilla` origin carets, stale Win32 carets and Qt `QLineEdit` action buttons:** `QScintilla` passes character offsets in `wParam` instead of `lParam` for `SCI_POINTXFROMPOSITION`, returning the viewport origin for every offset; `is_stuck_at_origin_caret` drops that bogus exactness on both degenerate and previous-character ranges, skips `GetGUIThreadInfo` fallback (`is_plausible_system_caret`) so stale 3 px Win32 carets cannot place an inline ghost inside the pane, and self-disarms if upstream fixes the offset. Qt `QLineEdit` omits leading action-button insets from `characterRect`; `translate_for_leading_button` restores that horizontal offset while character `0` overlaps the child button.
+- **Un-accessible Monaco placeholders and single-poll DOM blips:** Monaco editors without screen-reader mode expose a dummy `native-edit-context` element containing `"The editor is not accessible at this time"`; `is_inaccessible_editor_placeholder` marks it unsupported rather than suggesting over an inert placeholder. Chromium and CodeMirror DOM rebuilds briefly report a missing caret or non-editable container for one poll; `FlickerGate` absorbs a single same-app `NO_CARET` or `NOT_EDITABLE` read before clearing.
+- **Multi-process hosts:** UWP apps under `ApplicationFrameHost.exe`, embedded `msedgewebview2.exe` controls (New Outlook, Tauri apps), and out-of-process child UI surfaces (such as WhatsApp Desktop's child window) split the foreground window and the focused UI Automation element across processes. `window_owns_pid` accepts only a matching child HWND or a visible descendant-owned top-level window substantially overlapping the foreground window (`detached_webview_windows_for`), rejecting shells, terminals, and reused parent PIDs (`GetProcessTimes`), and UI Automation checks app exclusions against both the element's process and its foreground host (`effective_app_for_pid`, `host_app_for_pid`).
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/geometry.rs` (`inline_caret_box`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/policy.rs` (`FlickerGate`, `choose_caret`, `is_collapsed_caret`, `is_stuck_at_origin_caret`, `is_plausible_system_caret`, `translate_for_leading_button`, `is_inaccessible_editor_placeholder`), `LinuxWindows/crates/lokalbot-platform/src/autocomplete/uia.rs` (`read_text`, `style_near`, `follow_focus`), `LinuxWindows/crates/lokalbot-platform/src/activity/win32.rs` (`window_owns_pid`, `effective_app_for_pid`, `host_app_for_pid`, `detached_webview_window_for_foreground`, `child_window_overlap_area`).
 
 ### On Wayland autocomplete is the desktop's input method
 
@@ -634,6 +656,12 @@ Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/kwin
 KWin passes `zwp_input_method_context_v1.preedit_string` on to apps over `zwp_text_input_v3`, which has no commit-on-reset string, and Chromium, Electron, Firefox and Thunderbird commit active preedit into the document on mousedown or blur before telling KWin the field is gone ([#562](https://github.com/stevyhacker/LokalBot/issues/562)). Clearing preedit on deactivate arrives too late, so the KWin route draws the suggestion on a click-through `zwp_input_panel_v1` overlay surface that KWin anchors under the focused field's cursor rectangle, and sends the field only an empty preedit, to make a quiet field report its text. The pill's pixels live in an anonymous `memfd`, so the helper still writes no file but its socket. GTK and native Qt discard preedit on focus loss, so a live check needs a field that commits it on blur, as the browsers do.
 
 Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/overlay_pill.rs`, `kwin_helper.rs` (`Helper::show`, `Helper::nudge`), `input_method.rs` (`Core::with_overlay_ghost`), `tests/live_input_method.rs` (`commit_on_blur`).
+
+### On Sway and Hyprland the pill is an input method popup, with preedit only where the compositor places none
+
+Sway and Hyprland pass `zwp_input_method_v2` preedit on over `zwp_text_input_v3` as KWin does, so the same browsers commit it on blur. The route draws the KDE pill on a `zwp_input_popup_surface_v2`, which the compositor places at the field's cursor rectangle. Sway before 1.10 accepts the popup but never shows it, which would leave suggestions invisible, so the popup counts as placed only once the compositor sends `text_input_rectangle`; if none arrives within `POPUP_PLACED_WITHIN` of the first suggestion, the route falls back to preedit for the session. On KDE the helper takes no keys when KWin offers no input panel, since a suggestion it cannot draw must not take Tab. The pill loads the system font database on a thread of its own when the route starts, so the first suggestion does not wait for it.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/input_method/wlroots.rs` (`POPUP_PLACED_WITHIN`, `State::tick`), `overlay_pill.rs` (`OverlayPill::attach_popup`, `Fonts`), `input_method.rs` (`Core::fall_back_to_preedit`), `kwin_helper.rs` (`Helper::set_grab`).
 
 ## Consequences
 

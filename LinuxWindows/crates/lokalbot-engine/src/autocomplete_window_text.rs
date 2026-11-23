@@ -36,7 +36,7 @@ impl WindowReader {
         }
         let capture = self.capture.get_or_insert_with(screen::window_capture);
         let window = capture.focused().ok()??;
-        if window.pid != Some(request.pid) || window.title != request.title {
+        if !window.owns_pid(request.pid) || window.title != request.title {
             log::debug!("autocomplete window text: the focused window is another one");
             return None;
         }

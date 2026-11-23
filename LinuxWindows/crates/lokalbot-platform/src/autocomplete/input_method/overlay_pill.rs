@@ -20,6 +20,9 @@ use wayland_protocols::wp::input_method::zv1::client::{
 use wayland_protocols::wp::viewporter::client::{
     wp_viewport::WpViewport, wp_viewporter::WpViewporter,
 };
+use wayland_protocols_misc::zwp_input_method_v2::client::{
+    zwp_input_method_v2::ZwpInputMethodV2, zwp_input_popup_surface_v2::ZwpInputPopupSurfaceV2,
+};
 
 const FONT_PX: f32 = 14.0;
 const LINE_HEIGHT_PX: f32 = 19.0;
@@ -306,82 +309,196 @@ pub(super) fn render_pill_pixels(
     })
 }
 
-pub(super) struct OverlayPill {
-    shm: wl_shm::WlShm,
+pub(super) trait PillState:
+    wayland_client::Dispatch<wl_compositor::WlCompositor, ()>
+    + wayland_client::Dispatch<wl_surface::WlSurface, ()>
+    + wayland_client::Dispatch<wl_region::WlRegion, ()>
+    + wayland_client::Dispatch<wl_shm::WlShm, ()>
+    + wayland_client::Dispatch<wl_shm_pool::WlShmPool, ()>
+    + wayland_client::Dispatch<wl_buffer::WlBuffer, ()>
+    + wayland_client::Dispatch<WpViewporter, ()>
+    + wayland_client::Dispatch<WpViewport, ()>
+    + wayland_client::Dispatch<WpFractionalScaleManagerV1, ()>
+    + wayland_client::Dispatch<WpFractionalScaleV1, ()>
+    + 'static
+{
+}
+
+impl<S> PillState for S where
+    S: wayland_client::Dispatch<wl_compositor::WlCompositor, ()>
+        + wayland_client::Dispatch<wl_surface::WlSurface, ()>
+        + wayland_client::Dispatch<wl_region::WlRegion, ()>
+        + wayland_client::Dispatch<wl_shm::WlShm, ()>
+        + wayland_client::Dispatch<wl_shm_pool::WlShmPool, ()>
+        + wayland_client::Dispatch<wl_buffer::WlBuffer, ()>
+        + wayland_client::Dispatch<WpViewporter, ()>
+        + wayland_client::Dispatch<WpViewport, ()>
+        + wayland_client::Dispatch<WpFractionalScaleManagerV1, ()>
+        + wayland_client::Dispatch<WpFractionalScaleV1, ()>
+        + 'static
+{
+}
+
+enum Role {
+    Panel(ZwpInputPanelSurfaceV1),
+    Popup(ZwpInputPopupSurfaceV2),
+}
+
+struct Target {
     surface: wl_surface::WlSurface,
-    _panel: ZwpInputPanelV1,
-    _panel_surface: ZwpInputPanelSurfaceV1,
-    _viewporter: Option<WpViewporter>,
     viewport: Option<WpViewport>,
-    _fractional_mgr: Option<WpFractionalScaleManagerV1>,
-    _fractional: Option<WpFractionalScaleV1>,
+    fractional: Option<WpFractionalScaleV1>,
+    role: Role,
+}
+
+impl Target {
+    fn destroy(self) {
+        match self.role {
+            Role::Panel(panel_surface) => drop(panel_surface),
+            Role::Popup(popup) => popup.destroy(),
+        }
+        if let Some(fractional) = self.fractional {
+            fractional.destroy();
+        }
+        if let Some(viewport) = self.viewport {
+            viewport.destroy();
+        }
+        self.surface.destroy();
+    }
+}
+
+enum Fonts {
+    Loading(std::thread::JoinHandle<Painter>),
+    Ready(Box<Painter>),
+    Missing,
+}
+
+impl Fonts {
+    fn start() -> Self {
+        std::thread::Builder::new()
+            .name("lokalbot-pill-fonts".into())
+            .spawn(Painter::new)
+            .map_or(Self::Missing, Self::Loading)
+    }
+
+    fn painter(&mut self) -> &mut Painter {
+        if !matches!(self, Self::Ready(_)) {
+            let painter = match std::mem::replace(self, Self::Missing) {
+                Self::Loading(handle) => handle.join().unwrap_or_else(|_| Painter::new()),
+                _ => Painter::new(),
+            };
+            *self = Self::Ready(Box::new(painter));
+        }
+        match self {
+            Self::Ready(painter) => painter,
+            _ => unreachable!(),
+        }
+    }
+}
+
+pub(super) struct OverlayPill {
+    compositor: wl_compositor::WlCompositor,
+    shm: wl_shm::WlShm,
+    _panel: Option<ZwpInputPanelV1>,
+    viewporter: Option<WpViewporter>,
+    fractional_mgr: Option<WpFractionalScaleManagerV1>,
+    target: Option<Target>,
     fractional_120: Option<u32>,
     integer_scale: i32,
-    painter: Option<Painter>,
+    fonts: Fonts,
     shown: Option<Shown>,
     mapped: bool,
     in_flight: Vec<wl_buffer::WlBuffer>,
 }
 
 impl OverlayPill {
-    pub(super) fn bind<S>(globals: &GlobalList, qh: &QueueHandle<S>) -> Option<Self>
-    where
-        S: wayland_client::Dispatch<wl_compositor::WlCompositor, ()>
-            + wayland_client::Dispatch<wl_surface::WlSurface, ()>
-            + wayland_client::Dispatch<wl_region::WlRegion, ()>
-            + wayland_client::Dispatch<wl_shm::WlShm, ()>
-            + wayland_client::Dispatch<wl_shm_pool::WlShmPool, ()>
-            + wayland_client::Dispatch<wl_buffer::WlBuffer, ()>
-            + wayland_client::Dispatch<ZwpInputPanelV1, ()>
-            + wayland_client::Dispatch<ZwpInputPanelSurfaceV1, ()>
-            + wayland_client::Dispatch<WpViewporter, ()>
-            + wayland_client::Dispatch<WpViewport, ()>
-            + wayland_client::Dispatch<WpFractionalScaleManagerV1, ()>
-            + wayland_client::Dispatch<WpFractionalScaleV1, ()>
-            + 'static,
-    {
+    pub(super) fn bind<S: PillState>(globals: &GlobalList, qh: &QueueHandle<S>) -> Option<Self> {
         let compositor: wl_compositor::WlCompositor = globals.bind(qh, 1..=6, ()).ok()?;
         let shm: wl_shm::WlShm = globals.bind(qh, 1..=1, ()).ok()?;
-        let panel: ZwpInputPanelV1 = globals.bind(qh, 1..=1, ()).ok()?;
-
-        let surface = compositor.create_surface(qh, ());
-        let empty = compositor.create_region(qh, ());
-        surface.set_input_region(Some(&empty));
-        empty.destroy();
-
-        let panel_surface = panel.get_input_panel_surface(&surface, qh, ());
-        panel_surface.set_overlay_panel();
-
-        let viewporter: Option<WpViewporter> = globals.bind(qh, 1..=1, ()).ok();
-        let fractional_mgr: Option<WpFractionalScaleManagerV1> = globals.bind(qh, 1..=1, ()).ok();
-        let (viewport, fractional) = match (&viewporter, &fractional_mgr) {
-            (Some(vp), Some(fm)) => (
-                Some(vp.get_viewport(&surface, qh, ())),
-                Some(fm.get_fractional_scale(&surface, qh, ())),
-            ),
-            _ => (None, None),
-        };
-
         Some(Self {
+            compositor,
             shm,
-            surface,
-            _panel: panel,
-            _panel_surface: panel_surface,
-            _viewporter: viewporter,
-            viewport,
-            _fractional_mgr: fractional_mgr,
-            _fractional: fractional,
+            _panel: None,
+            viewporter: globals.bind(qh, 1..=1, ()).ok(),
+            fractional_mgr: globals.bind(qh, 1..=1, ()).ok(),
+            target: None,
             fractional_120: None,
             integer_scale: 1,
-            painter: None,
+            fonts: Fonts::start(),
             shown: None,
             mapped: false,
             in_flight: Vec::new(),
         })
     }
 
+    pub(super) fn bind_panel<S>(globals: &GlobalList, qh: &QueueHandle<S>) -> Option<Self>
+    where
+        S: PillState
+            + wayland_client::Dispatch<ZwpInputPanelV1, ()>
+            + wayland_client::Dispatch<ZwpInputPanelSurfaceV1, ()>,
+    {
+        let panel: ZwpInputPanelV1 = globals.bind(qh, 1..=1, ()).ok()?;
+        let mut pill = Self::bind(globals, qh)?;
+        let surface = pill.new_surface(qh);
+        let panel_surface = panel.get_input_panel_surface(&surface, qh, ());
+        panel_surface.set_overlay_panel();
+        pill.adopt(surface, Role::Panel(panel_surface), qh);
+        pill._panel = Some(panel);
+        Some(pill)
+    }
+
+    pub(super) fn attach_popup<S>(&mut self, input_method: &ZwpInputMethodV2, qh: &QueueHandle<S>)
+    where
+        S: PillState + wayland_client::Dispatch<ZwpInputPopupSurfaceV2, ()>,
+    {
+        self.detach();
+        let surface = self.new_surface(qh);
+        let popup = input_method.get_input_popup_surface(&surface, qh, ());
+        self.adopt(surface, Role::Popup(popup), qh);
+    }
+
+    pub(super) fn detach(&mut self) {
+        self.shown = None;
+        self.mapped = false;
+        for buffer in self.in_flight.drain(..) {
+            buffer.destroy();
+        }
+        if let Some(target) = self.target.take() {
+            target.destroy();
+        }
+    }
+
+    fn new_surface<S: PillState>(&self, qh: &QueueHandle<S>) -> wl_surface::WlSurface {
+        let surface = self.compositor.create_surface(qh, ());
+        let empty = self.compositor.create_region(qh, ());
+        surface.set_input_region(Some(&empty));
+        empty.destroy();
+        surface
+    }
+
+    fn adopt<S: PillState>(
+        &mut self,
+        surface: wl_surface::WlSurface,
+        role: Role,
+        qh: &QueueHandle<S>,
+    ) {
+        let (viewport, fractional) = match (&self.viewporter, &self.fractional_mgr) {
+            (Some(vp), Some(fm)) => (
+                Some(vp.get_viewport(&surface, qh, ())),
+                Some(fm.get_fractional_scale(&surface, qh, ())),
+            ),
+            _ => (None, None),
+        };
+        self.target = Some(Target {
+            surface,
+            viewport,
+            fractional,
+            role,
+        });
+    }
+
     fn effective_scale(&self) -> f32 {
-        if self.viewport.is_some()
+        if self.target.as_ref().is_some_and(|t| t.viewport.is_some())
             && let Some(scale_120) = self.fractional_120
         {
             return (scale_120 as f32 / 120.0).clamp(0.5, 4.0);
@@ -422,11 +539,14 @@ impl OverlayPill {
             return;
         }
         self.mapped = false;
-        if let Some(viewport) = &self.viewport {
+        let Some(target) = &self.target else {
+            return;
+        };
+        if let Some(viewport) = &target.viewport {
             viewport.set_destination(-1, -1);
         }
-        self.surface.attach(None, 0, 0);
-        self.surface.commit();
+        target.surface.attach(None, 0, 0);
+        target.surface.commit();
     }
 
     pub(super) fn on_preferred_buffer_scale<S>(&mut self, factor: i32, qh: &QueueHandle<S>)
@@ -474,8 +594,11 @@ impl OverlayPill {
         let Some(shown) = self.shown.clone() else {
             return;
         };
+        if self.target.is_none() {
+            return;
+        }
         let scale = self.effective_scale();
-        let painter = self.painter.get_or_insert_with(Painter::new);
+        let painter = self.fonts.painter();
         let Some(rendered) = render_pill_pixels(
             painter,
             &shown.text,
@@ -511,27 +634,29 @@ impl OverlayPill {
         );
         pool.destroy();
 
-        if let Some(viewport) = &self.viewport
+        let Some(target) = &self.target else {
+            buffer.destroy();
+            return;
+        };
+        let surface = &target.surface;
+        if let Some(viewport) = &target.viewport
             && self.fractional_120.is_some()
         {
-            if self.surface.version() >= 3 {
-                self.surface.set_buffer_scale(1);
+            if surface.version() >= 3 {
+                surface.set_buffer_scale(1);
             }
             viewport.set_destination(rendered.logical_width, rendered.logical_height);
-        } else if self.surface.version() >= 3 {
-            self.surface
-                .set_buffer_scale(self.integer_scale.clamp(1, 4));
+        } else if surface.version() >= 3 {
+            surface.set_buffer_scale(self.integer_scale.clamp(1, 4));
         }
 
-        self.surface.attach(Some(&buffer), 0, 0);
-        if self.surface.version() >= 4 {
-            self.surface
-                .damage_buffer(0, 0, rendered.phys_width, rendered.phys_height);
+        surface.attach(Some(&buffer), 0, 0);
+        if surface.version() >= 4 {
+            surface.damage_buffer(0, 0, rendered.phys_width, rendered.phys_height);
         } else {
-            self.surface
-                .damage(0, 0, rendered.logical_width, rendered.logical_height);
+            surface.damage(0, 0, rendered.logical_width, rendered.logical_height);
         }
-        self.surface.commit();
+        surface.commit();
         self.in_flight.push(buffer);
         self.mapped = true;
     }

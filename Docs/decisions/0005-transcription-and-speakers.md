@@ -281,6 +281,12 @@ Department and format words still relate a series' meetings ("Product standup") 
 
 Where: `LinuxWindows/crates/lokalbot-core/src/vocabulary.rs` (`COMMON_TITLE_WORDS`, `is_placeholder_name`).
 
+### Words imported from Wispr Flow join the person's own vocabulary within the automatic list's budget
+
+An import from Wispr Flow's `flow.sqlite` adds its dictionary to the person's own vocabulary. Snippets, which are text expansions that can hold addresses or signatures, and deleted entries never come in; an entry with a replacement but no snippet flag counts as a snippet; a replacement contributes its replacement only when that is a term of at most four words. One-word everyday English words stay out for the same echo reason as generic title words, words already listed are skipped, and at most 40 words and 480 characters come in, starred and most used first. The database opens like other apps' databases ([ADR 0006](0006-meetings-and-notes.md)) and only its `Dictionary` table is read. Tested with Wispr Flow 1.6.1483, whose schema runs through migration `20261106120000-add-meetings-live-captured-ms`.
+
+Where: `LokalBot/CLISupport/MeetingImport/WisprFlowLibrary.swift` (`WisprFlowLibrary.dictionary`), `LokalBot/Models/Transcription/WisprVocabularyImport.swift` (`WisprVocabularyImport.plan`), `LokalBot/Views/ModelSetup/ModelSupportingSettings.swift` (`ModelTranscriptionOptionsSheet`), `LokalBotTests/CLISupport/MeetingImport/WisprFlowLibraryTests.swift`, `LokalBotTests/Models/Transcription/WisprVocabularyImportTests.swift`.
+
 ### Rows that echo the vocabulary prompt are dropped by one definition
 
 On a near-silent span, prompt-capable recognizers (Qwen3-ASR, Whisper) return the hint itself or its tail ("Them 6 · source 2, Mila Novak, Orion Launch, Acme.") as a row of 8–12 words, which forced alignment packs into a sub-second row of its own. Such rows are not speech: they reach the notes model as evidence, fill speaker review and vote in language detection. The Qwen engine drops them so dictation never types the list and the language vote hears only speech, and the track transcriber, `TranscriptSanitizer` and the port's `PromptEcho` drop them by the same definition for engines that don't.

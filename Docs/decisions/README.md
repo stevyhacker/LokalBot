@@ -19,9 +19,9 @@ the bar a decision has to clear.
 | --- | --- | ---: |
 | [0001](0001-code-carries-no-comments.md) | Code carries no comments | — |
 | [0002](0002-autocomplete.md) | Autocomplete | 101 |
-| [0003](0003-dictation.md) | Dictation | 35 |
+| [0003](0003-dictation.md) | Dictation | 38 |
 | [0004](0004-recording.md) | Recording | 48 |
-| [0005](0005-transcription-and-speakers.md) | Transcription and speakers | 81 |
+| [0005](0005-transcription-and-speakers.md) | Transcription and speakers | 82 |
 | [0006](0006-meetings-and-notes.md) | Meetings and notes | 57 |
 | [0007](0007-meeting-detection-and-calendar-matching.md) | Meeting detection and calendar matching | 35 |
 | [0008](0008-screen-memory.md) | Screen memory | 57 |

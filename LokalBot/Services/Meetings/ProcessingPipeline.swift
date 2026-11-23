@@ -848,6 +848,7 @@ final class ProcessingPipeline: ObservableObject {
             titles = MeetingScreenContext.build(
                 meeting: meeting,
                 screenshots: store.screenshots(forMeeting: meeting.id,
+                                               additionalMeetingID: meeting.extractedFromMeetingID,
                                                from: meeting.startedAt.addingTimeInterval(-5),
                                                to: end.addingTimeInterval(5))).materialTitles
         }
@@ -1173,6 +1174,7 @@ final class ProcessingPipeline: ObservableObject {
         progress: DayDigestProgressHandler? = nil
     ) async throws -> DayDigestGenerationResult {
         let evidence = snapshot.digestEvidence()
+        let language = DailySummaryLanguage(notes: config.summaryLanguage, interface: config.appLanguage)
         let name = DreamDay.key(for: snapshot.day)
         let url = storage.rootURL.appendingPathComponent("journal/\(name).md")
         let revision = try DayDigestJournalWriter.revision(at: url)
@@ -1180,7 +1182,7 @@ final class ProcessingPipeline: ObservableObject {
         let overview: DayDigestOverviewGeneration
         if evidence.isEmpty {
             overview = DayDigestOverviewGeneration(
-                summary: DayDigestOverviewGenerator.fallback(evidence),
+                summary: DayDigestOverviewGenerator.fallback(evidence, language: language),
                 quality: .complete)
         } else {
             do {
@@ -1192,6 +1194,7 @@ final class ProcessingPipeline: ObservableObject {
                     evidence: evidence,
                     engine: engine,
                     customPrompt: config.dayDigestCustomPrompt,
+                    language: language,
                     progress: progress)
             } catch is CancellationError {
                 throw CancellationError()
@@ -1199,7 +1202,7 @@ final class ProcessingPipeline: ObservableObject {
                 lokalbotLog(
                     "day digest overview fallback error=\(error.localizedDescription)")
                 overview = DayDigestOverviewGeneration(
-                    summary: DayDigestOverviewGenerator.fallback(evidence),
+                    summary: DayDigestOverviewGenerator.fallback(evidence, language: language),
                     quality: .fallback)
             }
         }
@@ -1220,12 +1223,14 @@ final class ProcessingPipeline: ObservableObject {
         evidence: DayDigestEvidence,
         engine: TextEngine,
         customPrompt: String,
+        language: DailySummaryLanguage,
         progress: DayDigestProgressHandler?
     ) async throws -> DayDigestOverviewGeneration {
         try await DayDigestOverviewGenerator.generateResult(
             evidence: evidence,
             engine: engine,
             customPrompt: customPrompt,
+            language: language,
             progress: progress,
             segmentCache: .shared)
     }

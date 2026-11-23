@@ -8,6 +8,7 @@ struct DreamService {
 
     var storageRoot: URL
     var makeEngine: () async throws -> EngineSelection
+    var language: DailySummaryLanguage = .english
     var now: () -> Date = Date.init
     var compileEvidence: @Sendable (DreamScheduler.Target, URL) throws -> DreamEvidence = { target, root in
         try DreamCompiler.compile(day: target.day, storageRoot: root, calendar: target.calendar)
@@ -44,13 +45,13 @@ struct DreamService {
             report = DreamCompiler.fallbackReport(
                 from: evidence, generatedAt: now(),
                 reason: .emptyDay,
-                note: "Nothing substantive was recorded, so there is no retrospective.")
+                note: "Nothing substantive was recorded, so there is no retrospective.", language: language)
         } else {
             do {
                 let selection = try await makeEngine()
                 try Task.checkCancellation()
                 let output = try await Self.generateSynthesis(
-                    engine: selection.engine, evidence: evidence, memory: contextMemory)
+                    engine: selection.engine, evidence: evidence, memory: contextMemory, language: language)
                 try Task.checkCancellation()
                 if let synthesis = DreamPrompts.parse(output) {
                     provenance = contextMemory.provenance(adding: evidence.sources, revision: revision)
@@ -71,7 +72,7 @@ struct DreamService {
                     report = DreamCompiler.fallbackReport(
                         from: evidence, generatedAt: now(),
                         reason: .unparseableResponse,
-                        note: "The model's reply could not be read, so this brief lists evidence only.")
+                        note: "The model's reply could not be read, so this brief lists evidence only.", language: language)
                 }
             } catch is CancellationError {
                 throw CancellationError()
@@ -86,7 +87,7 @@ struct DreamService {
                 report = DreamCompiler.fallbackReport(
                     from: evidence, generatedAt: now(),
                     reason: .engineUnavailable,
-                    note: "No model was reachable overnight, so this brief lists evidence only.")
+                    note: "No model was reachable overnight, so this brief lists evidence only.", language: language)
             }
         }
 
@@ -109,12 +110,13 @@ struct DreamService {
     static let truncationRetryOutputTokens = 6_144
 
     static func generateSynthesis(engine: TextEngine, evidence: DreamEvidence,
-                                  memory: DreamMemory) async throws -> String {
+                                  memory: DreamMemory, language: DailySummaryLanguage = .english) async throws -> String {
+        let system = language.system(DreamPrompts.system)
         let prompt = DreamPrompts.prompt(evidence: evidence)
         let context = DreamPrompts.context(evidence: evidence, memory: memory)
         do {
             return try await engine.generate(
-                system: DreamPrompts.system, prompt: prompt, context: context,
+                system: system, prompt: prompt, context: context,
                 schema: DreamPrompts.schema,
                 options: TextGenerationOptions(maxTokens: maxOutputTokens,
                                                reasoningBudgetTokens: reasoningBudgetTokens,
@@ -122,7 +124,7 @@ struct DreamService {
         } catch TextEngineError.outputTruncated {
             lokalbotLog("dreaming: reply hit the output limit, retrying without reasoning")
             return try await engine.generate(
-                system: DreamPrompts.system, prompt: prompt, context: context,
+                system: system, prompt: prompt, context: context,
                 schema: DreamPrompts.schema,
                 options: TextGenerationOptions(maxTokens: truncationRetryOutputTokens,
                                                reasoningBudgetTokens: 0,

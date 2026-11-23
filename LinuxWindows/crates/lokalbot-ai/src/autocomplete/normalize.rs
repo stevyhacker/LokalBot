@@ -7,8 +7,8 @@ use std::sync::OnceLock;
 
 use super::prompt::{Request, WINDOW_LABEL};
 use super::text::{
-    self, char_at, char_before, is_control, is_letter, is_newline, is_url_domain_or_file,
-    is_url_like, is_word_char,
+    self, char_at, char_before, is_control, is_letter, is_newline, is_non_text_glyph,
+    is_url_domain_or_file, is_url_like, is_word_char,
 };
 use super::window;
 
@@ -787,13 +787,25 @@ pub fn duplicates_trailing_text(completion: &str, after: &str) -> bool {
     overlap >= MINIMUM.max(completion.len() / 2)
 }
 
+pub fn first_unsafe_codepoint(text: &str) -> Option<u32> {
+    for c in text.chars() {
+        if is_non_text_glyph(c) {
+            return Some(u32::from(c));
+        }
+        if c != '\n' && c != '\r' && c != '\t' && ((c as u32) < 0x20 || c == '\u{7F}') {
+            return Some(u32::from(c));
+        }
+    }
+    None
+}
+
 pub fn is_safe_to_insert(completion: &str) -> bool {
     if completion.is_empty() {
         return false;
     }
     let mut saw_visible = false;
     for c in completion.chars() {
-        if c == '\u{FFFD}' {
+        if is_non_text_glyph(c) {
             return false;
         }
         if c != '\n' && ((c as u32) < 0x20 || c == '\u{7F}') {
@@ -1204,9 +1216,24 @@ mod tests {
     fn insertion_safety() {
         assert!(is_safe_to_insert(" ok"));
         assert!(is_safe_to_insert("line\nnext"));
+        assert!(is_safe_to_insert(" 👍"));
         assert!(!is_safe_to_insert(""));
         assert!(!is_safe_to_insert("   "));
         assert!(!is_safe_to_insert("bad\u{7}"));
         assert!(!is_safe_to_insert("\u{FFFD}"));
+        assert!(!is_safe_to_insert("\u{FFFC}"));
+        assert!(!is_safe_to_insert("\u{FFFC}\u{FFFC}\u{FFFC}\u{FFFC}"));
+        assert!(!is_safe_to_insert("\u{EAB6}"));
+        assert_eq!(
+            detailed("\u{FFFC}\u{FFFC}\u{FFFC}", &request("Hello ")),
+            Normalized::suppressed(Suppression::UnsafeToInsert)
+        );
+        assert_eq!(
+            detailed("\u{EAB6}", &request("src ")),
+            Normalized::suppressed(Suppression::UnsafeToInsert)
+        );
+        assert_eq!(first_unsafe_codepoint("ok \u{FFFC}"), Some(0xFFFC));
+        assert_eq!(first_unsafe_codepoint("\u{EAB6}"), Some(0xEAB6));
+        assert_eq!(first_unsafe_codepoint("normal text 👍"), None);
     }
 }

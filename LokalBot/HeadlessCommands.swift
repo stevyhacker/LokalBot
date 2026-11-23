@@ -447,7 +447,8 @@ struct HeadlessCommandRunner {
                         let engine = try await app.thinkExecution.makeTextEngine(
                             settings, purpose: "dreaming")
                         return (engine, DreamInferenceProvenance(settings: settings))
-                    })
+                    },
+                    language: DailySummaryLanguage(notes: app.settings.summaryLanguage, interface: app.settings.appLanguage))
                 let report = try await service.dream(target: target)
                 let kind = report.isFallback
                     ? "fallback (\(report.fallbackReason?.rawValue ?? "legacy"))"

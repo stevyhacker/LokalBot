@@ -208,15 +208,18 @@ final class CotypingInserter {
 
     func insertViaPaste(
         _ text: String,
+        fitToField: (@MainActor (String) async -> String)? = nil,
         revalidateAfterWaiting: @escaping @MainActor () async -> Bool = { true }
     ) async -> PasteOutcome {
         await pasteQueue.run(stillWanted: revalidateAfterWaiting) { [weak self] in
             guard let self else { return .failed }
-            return await self.pasteAndConfirm(text)
+            let fitted = await fitToField?(text) ?? text
+            guard !Task.isCancelled else { return .skipped }
+            return await self.pasteAndConfirm(fitted, clipboardText: text)
         } ?? .skipped
     }
 
-    private func pasteAndConfirm(_ text: String) async -> PasteOutcome {
+    private func pasteAndConfirm(_ text: String, clipboardText: String? = nil) async -> PasteOutcome {
         let scrubbed = text.replacingOccurrences(of: "\r", with: "")
         guard !scrubbed.isEmpty else { return .failed }
         let pasteboard = NSPasteboard.general
@@ -250,7 +253,7 @@ final class CotypingInserter {
         guard await handoff.waitForRead(timeout: Self.pasteReadTimeout) else {
             if pasteboard.changeCount == expectedChangeCount {
                 pasteboard.clearContents()
-                pasteboard.setString(scrubbed, forType: .string)
+                pasteboard.setString((clipboardText ?? text).replacingOccurrences(of: "\r", with: ""), forType: .string)
             }
             clearPendingPasteboardRestore()
             return .unconfirmed

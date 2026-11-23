@@ -261,6 +261,37 @@ final class MeetingAudioAssetTests: XCTestCase {
         XCTAssertEqual(player.duration, 0)
     }
 
+    @MainActor
+    func testPlayerSetPlaybackRangeClampsCurrentTimeAndSeek() throws {
+        let folder = try temporaryFolder()
+        try writeTone(to: folder.appendingPathComponent("mic.m4a"), frequency: 440, duration: 2.0)
+
+        let player = MeetingPlayer()
+        player.load(folder: folder, hasSystemTrack: false, contentRange: .init(start: 0.5, end: 1.5))
+
+        XCTAssertTrue(player.isLoaded)
+        XCTAssertEqual(player.windowStart, 0.5, accuracy: 0.05)
+        XCTAssertEqual(player.windowEnd, 1.5, accuracy: 0.05)
+        XCTAssertEqual(player.currentTime, 0.5, accuracy: 0.05)
+
+        player.seek(to: 0.1)
+        XCTAssertEqual(player.currentTime, 0.5, accuracy: 0.05)
+
+        player.seek(to: 1.9)
+        XCTAssertEqual(player.currentTime, 1.5, accuracy: 0.05)
+
+        player.setPlaybackRange(nil)
+        XCTAssertEqual(player.windowStart, 0, accuracy: 0.05)
+        XCTAssertEqual(player.windowEnd, player.rawDuration, accuracy: 0.05)
+    }
+
+    func testAdditionalSavedAudioDurationIncludesLeadingAndTrailingTrims() {
+        var meeting = Meeting(id: UUID(), title: "Trim", appName: "Zoom", startedAt: Date(), relativePath: "x")
+        meeting.recordedDuration = 120
+        meeting.contentRange = .init(start: 15, end: 90)
+        XCTAssertEqual(meeting.additionalSavedAudioDuration, 45, accuracy: 0.001)
+    }
+
     private func temporaryFolder() throws -> URL {
         let folder = URL(fileURLWithPath: NSTemporaryDirectory(), isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
