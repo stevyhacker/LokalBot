@@ -148,10 +148,16 @@ gh secret set PLAY_UPLOAD_KEYSTORE_PASSWORD --repo stevyhacker/LokalBot
      ```bash
      gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo stevyhacker/LokalBot < /path/to/service-account.json
      ```
-   - **Keyless GitHub OIDC (Workload Identity Federation):** create a Workload
-     Identity Pool + GitHub OIDC provider restricted to
-     `repository == 'stevyhacker/LokalBot'`, grant the pool principal
-     `roles/iam.workloadIdentityUser` on the service account, and set:
+   - **Keyless GitHub OIDC (Workload Identity Federation), in use since
+     2026-11-23:** project `lokalbot-512410` has the service account
+     `lokalbot-play-release`, the pool `github` and its provider `lokalbot`,
+     which accepts only this repository's `master` and `v*` tags
+     (`assertion.repository == 'stevyhacker/LokalBot' && (assertion.ref ==
+     'refs/heads/master' || assertion.ref.startsWith('refs/tags/v'))`), so a
+     pull request branch cannot mint a Play token. The pool's
+     `attribute.repository/stevyhacker/LokalBot` principal set has
+     `roles/iam.workloadIdentityUser` on the service account. To recreate it,
+     do the same and set:
      ```bash
      gh secret set PLAY_WORKLOAD_IDENTITY_PROVIDER --repo stevyhacker/LokalBot
      gh secret set PLAY_SERVICE_ACCOUNT_EMAIL --repo stevyhacker/LokalBot
