@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "Este escritorio permite que LokalBot capture la ventana activa.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Este escritorio permite que LokalBot registre atajos de todo el sistema.",
   "This desktop supports every enabled feature": "Este escritorio admite todas las funciones activadas",
+  "This file starts other apps, so it can't be a call app.": "Este archivo abre otras aplicaciones, así que no puede ser una aplicación de llamadas.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Esta imagen fue capturada en otra computadora o mediante otra instalación de LokalBot, por lo que la clave que la abre no está en esta PC. Su texto todavía está aquí.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Parece una contraseña, una clave o un número de tarjeta. LokalBot no recuerda esos datos.",
   "This meeting does not contain a reversible merge.": "Esta reunión no contiene una combinación que se pueda deshacer.",

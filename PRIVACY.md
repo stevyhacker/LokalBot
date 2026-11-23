@@ -309,9 +309,9 @@ remain in your chosen folders until removed; deleting a meeting does not delete
 its exported note. Disabling these features stops future runs; it does not
 delete those existing copies.
 
-Browser meeting detection checks the Meet document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
+Browser meeting detection checks the supported document URL and call controls through Accessibility. When the controls cannot be read, it checks whether the call's window and tab are still open by their titles. These transient lifecycle checks do not retain page text, participant names, or pixels, and the call tab's title is kept in memory only. Calendar entries and browser audio alone cannot authorize automatic recording. Enabling **Detect other browser calls**, which is off by default, also lets sustained microphone activity identify calls in ordinary browser windows. Additional call app identifiers explicitly designate native processes whose microphone activity can start call detection. Both are available on macOS and Windows, not on Linux. Reviewed meeting boundaries limit derived transcripts and summaries while preserving original audio.
 
-An authorized browser recording continues when call observation is unavailable,
+An authorized recording bound to a browser room continues when call observation is unavailable,
 including a temporarily missing browser host. It stops when you press Stop, when
 LokalBot positively verifies the call ended or its bound tab closed, or when no
 one has spoken for 15 minutes. That last rule applies to every recording: its
@@ -322,6 +322,23 @@ other tabs playing audio in that process. A replacement browser host must verify
 the same call before recovery attaches; uncertainty does not authorize another
 app, a global audio tap, or a new automatic recording. Microphone-only recording
 never acquires system audio through recovery.
+
+The optional microphone mode ends after the matching process releases its microphone
+and the stop delay passes. Automatic starts require readable browser windows (on macOS, every window)
+and none of their titles to indicate a private window, including localized markers such
+as "Incognito", "InPrivate", "Инкогнито" and "Частный доступ". On macOS private-window detection relies on titles,
+so a browser that does not mark private windows in its title cannot be told apart; Chrome
+and Yandex Browser do, and Safari is not covered by this mode. On
+Windows, where Chrome does not mark an Incognito window's title, LokalBot also reads the
+names of the browser's own buttons and menus through UI Automation, never the page, its
+address or its tab titles, and only while **Detect other browser calls** is on; when that check cannot confirm a window is not private,
+LokalBot asks before recording instead of starting on its own. Any private window of the
+same browser blocks an automatic start, even if the call runs in another window. A
+window that becomes private during the call ends the recording; one that only becomes
+unreadable does not. The system-audio track then records the browser's whole process,
+including its other tabs. On Windows it stays on that process through silence, and
+falls back to the whole output, with every other sound playing, only when process
+loopback is unavailable (before Windows 10 build 20348) or fails to start.
 
 Recordings also keep local PCM recovery checkpoints, manifests, and capture-health
 reports beside the original tracks. These follow the meeting's deletion rules
@@ -1646,6 +1663,9 @@ platform differences:
   else playing is recorded too. While a browser holds the microphone, LokalBot
   reads its accessibility tree for a Google Meet room and its call controls,
   keeping only the room address; it never turns system accessibility on.
+  **Detect other browser calls** and additional call apps work on Windows only;
+  a configured app also matches the helper processes it starts, so shells,
+  terminals and system hosts such as File Explorer cannot be chosen.
 - **Permissions.** There are no macOS-style permission prompts. Windows uses
   its own microphone privacy setting (Settings → Privacy & security →
   Microphone, "Let desktop apps access your microphone"). On Linux, Wayland

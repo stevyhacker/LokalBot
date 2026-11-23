@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,9 @@ pub struct Settings {
     pub getting_started_dismissed: bool,
 
     pub auto_record_mode: AutoRecordMode,
+    pub detect_other_browser_calls: bool,
+    #[serde(deserialize_with = "deserialize_call_apps")]
+    pub additional_call_apps: Vec<AdditionalCallApp>,
     pub stop_debounce_seconds: f64,
     pub record_system_audio: bool,
     pub microphone_device: String,
@@ -232,6 +235,8 @@ impl Default for Settings {
             getting_started_dismissed: false,
 
             auto_record_mode: AutoRecordMode::Ask,
+            detect_other_browser_calls: false,
+            additional_call_apps: Vec::new(),
             stop_debounce_seconds: 15.0,
             record_system_audio: true,
             microphone_device: String::new(),
@@ -581,6 +586,115 @@ pub fn split_list(raw: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdditionalCallApp {
+    pub identifier: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl AdditionalCallApp {
+    pub fn detector_key(&self) -> Option<String> {
+        let identifier = self.identifier.trim();
+        let key = normalized_executable_name(identifier);
+        (!identifier.contains(['/', '\\'])
+            && !key.is_empty()
+            && key != "lokalbot"
+            && !starts_other_apps(&key))
+        .then_some(key)
+    }
+
+    pub fn display_name(&self) -> &str {
+        self.name.as_deref().unwrap_or(&self.identifier)
+    }
+}
+
+pub fn starts_other_apps(key: &str) -> bool {
+    matches!(
+        key,
+        "explorer"
+            | "cmd"
+            | "powershell"
+            | "powershell_ise"
+            | "pwsh"
+            | "windowsterminal"
+            | "wt"
+            | "conhost"
+            | "openconsole"
+            | "svchost"
+            | "services"
+            | "wininit"
+            | "winlogon"
+            | "userinit"
+            | "sihost"
+            | "runtimebroker"
+            | "dllhost"
+            | "rundll32"
+            | "taskhostw"
+            | "taskmgr"
+            | "applicationframehost"
+            | "startmenuexperiencehost"
+            | "shellexperiencehost"
+            | "searchhost"
+            | "wsl"
+            | "wslhost"
+            | "bash"
+            | "sh"
+            | "dash"
+            | "zsh"
+            | "fish"
+            | "mintty"
+            | "systemd"
+            | "init"
+            | "sshd"
+            | "sudo"
+            | "gnome-shell"
+            | "gnome-session-binary"
+            | "gnome-terminal-server"
+            | "plasmashell"
+            | "kwin_x11"
+            | "kwin_wayland"
+            | "krunner"
+            | "konsole"
+            | "kitty"
+            | "alacritty"
+            | "xterm"
+            | "wezterm-gui"
+            | "tmux"
+            | "screen"
+    )
+}
+
+pub fn normalized_executable_name(name: &str) -> String {
+    let lower = name.to_lowercase();
+    lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
+}
+
+fn deserialize_call_apps<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<AdditionalCallApp>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SavedApps {
+        List(Vec<AdditionalCallApp>),
+        Legacy(String),
+    }
+
+    let mut apps = match SavedApps::deserialize(deserializer)? {
+        SavedApps::List(apps) => apps,
+        SavedApps::Legacy(raw) => split_list(&raw)
+            .into_iter()
+            .map(|identifier| AdditionalCallApp {
+                identifier,
+                name: None,
+            })
+            .collect(),
+    };
+    let mut seen = HashSet::new();
+    apps.retain(|app| app.detector_key().is_some_and(|key| seen.insert(key)));
+    Ok(apps)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1098,6 +1212,46 @@ pub enum CotypingEscapeBehavior {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn migrates_legacy_call_apps_and_round_trips_selected_names() {
+        let mut settings: Settings = serde_json::from_str(
+            r#"{"additionalCallApps":"Brand Client.exe, BRAND CLIENT, Bad/Client.exe, OldClient.exe"}"#,
+        ).unwrap();
+        assert_eq!(settings.additional_call_apps.len(), 2);
+        assert_eq!(
+            settings.additional_call_apps[0].display_name(),
+            "Brand Client.exe"
+        );
+        settings
+            .additional_call_apps
+            .retain(|app| app.detector_key().as_deref() != Some("oldclient"));
+        settings.additional_call_apps.push(AdditionalCallApp {
+            identifier: "Other, Client.exe".into(),
+            name: Some("Corporate Calls".into()),
+        });
+        let restored: Settings =
+            serde_json::from_value(serde_json::to_value(&settings).unwrap()).unwrap();
+        assert_eq!(restored.additional_call_apps, settings.additional_call_apps);
+        assert_eq!(
+            restored.additional_call_apps[1].detector_key().as_deref(),
+            Some("other, client")
+        );
+    }
+
+    #[test]
+    fn shells_and_system_hosts_never_become_call_apps() {
+        let settings: Settings = serde_json::from_str(
+            r#"{"additionalCallApps":[{"identifier":"explorer.exe"},{"identifier":"CMD.EXE"},{"identifier":"pwsh.exe"},{"identifier":"WindowsTerminal.exe"},{"identifier":"bash"},{"identifier":"eXpressHelper.exe"}]}"#,
+        )
+        .unwrap();
+        let keys: Vec<_> = settings
+            .additional_call_apps
+            .iter()
+            .filter_map(AdditionalCallApp::detector_key)
+            .collect();
+        assert_eq!(keys, ["expresshelper"]);
+    }
 
     #[test]
     fn each_enabled_period_of_the_overnight_review_has_a_start() {

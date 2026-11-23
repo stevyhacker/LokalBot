@@ -223,6 +223,8 @@ final class AppState: ObservableObject {
             if settings.requireCalendarForBrowser != oldValue.requireCalendarForBrowser {
                 detector.requireCalendarForBrowser = settings.requireCalendarForBrowser
             }
+            detector.detectOtherBrowserCalls = settings.detectOtherBrowserCalls
+            detector.additionalCallBundleIDs = settings.additionalCallBundleIDs
             if oldValue.semanticSearchEnabled, !settings.semanticSearchEnabled {
                 cachedEmbeddingIndex?.stopScreenBackfill()
             }
@@ -1492,6 +1494,8 @@ final class AppState: ObservableObject {
         detector.calendar = calendar
         detector.calendarEnabled = settings.calendarDetectionEnabled
         detector.requireCalendarForBrowser = settings.requireCalendarForBrowser
+        detector.detectOtherBrowserCalls = settings.detectOtherBrowserCalls
+        detector.additionalCallBundleIDs = settings.additionalCallBundleIDs
         audioMonitor.start()
         audioMonitorObserver = audioMonitor.$detectedProcess
             .compactMap { $0 }

@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "Этот рабочий стол позволяет LokalBot захватывать активное окно.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Этот рабочий стол позволяет LokalBot регистрировать общесистемные сочетания клавиш.",
   "This desktop supports every enabled feature": "Этот рабочий стол поддерживает все включённые функции",
+  "This file starts other apps, so it can't be a call app.": "Этот файл запускает другие приложения, поэтому его нельзя добавить как приложение для звонков.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Это изображение было снято на другом компьютере или при другой установке LokalBot, поэтому ключа, который его открывает, нет на этом компьютере. Его текст все еще здесь.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Похоже на пароль, ключ или номер карты. LokalBot такое не запоминает.",
   "This meeting does not contain a reversible merge.": "Эта встреча не содержит объединения, которое можно отменить.",

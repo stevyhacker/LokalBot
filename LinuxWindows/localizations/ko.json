@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "이 데스크톱에서는 LokalBot이 활성 창을 캡처할 수 있습니다.",
   "This desktop lets LokalBot register system-wide shortcuts.": "이 데스크톱에서는 LokalBot이 시스템 전체 단축키를 등록할 수 있습니다.",
   "This desktop supports every enabled feature": "이 데스크톱은 사용 설정된 모든 기능을 지원합니다",
+  "This file starts other apps, so it can't be a call app.": "이 파일은 다른 앱을 실행하므로 통화 앱으로 지정할 수 없습니다.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "이 이미지는 다른 컴퓨터나 다른 LokalBot 설치에 의해 캡처되었으므로 이를 여는 키가 이 PC에 없습니다. 그 텍스트는 아직 여기에 있습니다.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "비밀번호, 키 또는 카드 번호처럼 보입니다. LokalBot은 이런 정보를 기억하지 않습니다.",
   "This meeting does not contain a reversible merge.": "이 회의에는 취소할 수 있는 병합이 없습니다.",

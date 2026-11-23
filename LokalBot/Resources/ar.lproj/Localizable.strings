@@ -2600,6 +2600,20 @@
 "Priorities for today" = "أولويات اليوم";
 "Priorities from %@" = "أولويات من %@";
 "Priorities from a previous workday" = "أولويات من يوم عمل سابق";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "يرصد LokalBot المكالمات في التطبيقات التي تضيفها هنا.";
+"Choose a call app" = "اختر تطبيقًا للمكالمات";
+"Choose an application file (.exe)." = "اختر ملف تطبيق (.exe).";
+"Could not open the file picker." = "تعذّر فتح نافذة اختيار الملفات.";
+"LokalBot already supports this app." = "يدعم LokalBot هذا التطبيق بالفعل.";
+"This app is already on the list." = "هذا التطبيق موجود بالفعل في القائمة.";
+"Remove from call detection" = "إزالة من رصد المكالمات";
+"Remove %@ from call detection" = "إزالة %@ من رصد المكالمات";
+
 "Import past meetings" = "استيراد الاجتماعات السابقة";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "اجلب ملاحظاتك من Granola أو Otter أو Fireflies أو Fathom أو Voice Memos أو MacWhisper أو Zoom.";
 "Claude Code (MCP command)" = "Claude Code (أمر MCP)";

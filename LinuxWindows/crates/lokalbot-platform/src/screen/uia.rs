@@ -36,6 +36,7 @@ use super::{
     AccessibleWindow, FocusedWindow, MAX_CHARACTERS, MAX_CHILDREN, MAX_NODES, TextRead, TextReader,
     WindowRect, append_text,
 };
+use crate::meeting::WindowPrivacy;
 use crate::meeting::browser::{
     self, BrowserDocument, CallControl, CallState, QuietWindows, WindowCall,
 };
@@ -693,6 +694,74 @@ fn current_string(element: &IUIAutomationElement, property: UIA_PROPERTY_ID) -> 
         let text = (inner.vt == VT_BSTR).then(|| inner.Anonymous.bstrVal.to_string());
         let _ = VariantClear(&mut value);
         text
+    }
+}
+
+const INTERFACE_NODES: usize = 1500;
+const INTERFACE_DEADLINE: Duration = Duration::from_millis(1000);
+const INTERFACE_CONTROLS: usize = 3;
+
+pub(crate) struct BrowserInterfaceReader {
+    reader: UiaReader,
+}
+
+impl BrowserInterfaceReader {
+    pub(crate) fn new() -> Self {
+        Self {
+            reader: UiaReader::new(),
+        }
+    }
+
+    pub(crate) fn privacy(&mut self, hwnd: HWND) -> WindowPrivacy {
+        let _com = ComScope::enter();
+        let Ok(automation) = self.reader.automation() else {
+            return WindowPrivacy::Unknown;
+        };
+        let Ok(cache) = cache_request_with(
+            &automation,
+            &[UIA_NamePropertyId, UIA_ControlTypePropertyId],
+        ) else {
+            return WindowPrivacy::Unknown;
+        };
+        let Ok(root) = (unsafe { automation.ElementFromHandleBuildCache(hwnd, &cache) }) else {
+            return WindowPrivacy::Unknown;
+        };
+        let Ok(walker) = (unsafe { automation.ControlViewWalker() }) else {
+            return WindowPrivacy::Unknown;
+        };
+        let until = Instant::now() + INTERFACE_DEADLINE;
+        let mut queue = VecDeque::from([root]);
+        let mut visited = 0;
+        let mut controls = 0;
+        while let Some(element) = queue.pop_front() {
+            if visited >= INTERFACE_NODES || Instant::now() >= until {
+                return WindowPrivacy::Unknown;
+            }
+            visited += 1;
+            let control = unsafe { element.CachedControlType() }.unwrap_or_default();
+            if control == UIA_DocumentControlTypeId || control == UIA_TabItemControlTypeId {
+                continue;
+            }
+            if control == UIA_ButtonControlTypeId
+                || control == UIA_SplitButtonControlTypeId
+                || control == UIA_MenuItemControlTypeId
+            {
+                controls += 1;
+            }
+            if cached_name(&element).is_some_and(|name| crate::privacy::is_private_window(&name)) {
+                return WindowPrivacy::Private;
+            }
+            let mut child = unsafe { walker.GetFirstChildElementBuildCache(&element, &cache) }.ok();
+            while let Some(next) = child {
+                child = unsafe { walker.GetNextSiblingElementBuildCache(&next, &cache) }.ok();
+                queue.push_back(next);
+            }
+        }
+        if controls >= INTERFACE_CONTROLS {
+            WindowPrivacy::Public
+        } else {
+            WindowPrivacy::Unknown
+        }
     }
 }
 

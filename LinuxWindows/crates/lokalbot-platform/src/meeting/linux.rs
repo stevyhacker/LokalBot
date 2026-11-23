@@ -91,7 +91,11 @@ impl EvidenceSource for PulseEvidence {
             self.windows
                 .list()
                 .into_iter()
-                .map(|(app, title)| WindowTitle { app, title })
+                .map(|(app, title)| WindowTitle {
+                    app,
+                    title,
+                    ..WindowTitle::default()
+                })
                 .collect()
         } else {
             Vec::new()

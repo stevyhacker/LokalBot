@@ -2600,6 +2600,20 @@
 "Priorities for today" = "Abubuwan fifiko na yau";
 "Priorities from %@" = "Abubuwan fifiko daga %@";
 "Priorities from a previous workday" = "Abubuwan fifiko daga wata ranar aiki ta baya";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "LokalBot yana gano kira a manhajojin da ka ƙara a nan.";
+"Choose a call app" = "Zaɓi manhajar kira";
+"Choose an application file (.exe)." = "Zaɓi fayil ɗin manhaja (.exe).";
+"Could not open the file picker." = "An kasa buɗe tagar zaɓen fayil.";
+"LokalBot already supports this app." = "LokalBot ya riga ya goyi bayan wannan manhaja.";
+"This app is already on the list." = "Wannan manhaja tana cikin jerin tuni.";
+"Remove from call detection" = "Cire daga gano kira";
+"Remove %@ from call detection" = "Cire %@ daga gano kira";
+
 "Import past meetings" = "Shigo da tsofaffin tarurruka";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Kawo bayanan taro daga Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, ko Zoom.";
 "Claude Code (MCP command)" = "Claude Code (umarnin MCP)";

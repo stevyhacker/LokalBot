@@ -2600,6 +2600,20 @@
 "Priorities for today" = "今日の優先事項";
 "Priorities from %@" = "%@の優先事項";
 "Priorities from a previous workday" = "以前の稼働日の優先事項";
+
+"Detect other browser calls" = "Detect other browser calls";
+"Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs." = "Uses browser microphone activity to detect calls on other sites. The browser's audio can include other tabs.";
+"Additional call apps" = "Additional call apps";
+"Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress" = "Zoom, Microsoft Teams, Slack, Webex, Google Meet, Yandex Telemost, MTS Link, and eXpress";
+"LokalBot detects calls in the apps you add here." = "ここに追加したアプリでLokalBotが通話を検出します。";
+"Choose a call app" = "通話アプリを選択";
+"Choose an application file (.exe)." = "アプリケーションファイル（.exe）を選択してください。";
+"Could not open the file picker." = "ファイル選択画面を開けませんでした。";
+"LokalBot already supports this app." = "LokalBotはこのアプリにすでに対応しています。";
+"This app is already on the list." = "このアプリはすでにリストにあります。";
+"Remove from call detection" = "通話検出の対象から外す";
+"Remove %@ from call detection" = "%@を通話検出の対象から外す";
+
 "Import past meetings" = "過去の会議をインポート";
 "Bring in notes from Granola, Otter, Fireflies, Fathom, Voice Memos, MacWhisper, or Zoom." = "Granola、Otter、Fireflies、Fathom、ボイスメモ、MacWhisper、Zoom からメモを取り込みます。";
 "Claude Code (MCP command)" = "Claude Code（MCP コマンド）";

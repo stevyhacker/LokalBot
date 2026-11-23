@@ -112,6 +112,30 @@ final class MeetingIntegrityTests: XCTestCase {
         XCTAssertNil(BrowserMeetingSession.landingState(boundWindowOnLanding: false, tabHoldsRoom: false))
     }
 
+    func testOptionalMicrophoneDetectionRequiresPublicBrowserWindows() {
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video"]), .allowed)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows([]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", nil]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", "  "]), .unreadable)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows(["Corporate video", "New Tab - Incognito"]),
+                       .privateWindow)
+        XCTAssertEqual(BrowserMeetingSession.microphoneWindows([nil, "Новая вкладка в режиме инкогнито"]),
+                       .privateWindow)
+        XCTAssertFalse(BrowserMeetingSession.MicrophoneWindows.unreadable.allowsStart)
+        XCTAssertTrue(BrowserMeetingSession.MicrophoneWindows.unreadable.allowsContinuation)
+        XCTAssertFalse(BrowserMeetingSession.MicrophoneWindows.privateWindow.allowsContinuation)
+    }
+
+    func testExpressUsesTheMicrophoneAndCustomAppsUseBundleIdentifiers() throws {
+        let bundle = "ru.unlimitedtech.express.desktop"
+        let express = try XCTUnwrap(MeetingDetector.meetingAppCandidates(bundleIDs: [(bundle, 100)]).first)
+        XCTAssertEqual(express.name, "eXpress")
+        XCTAssertTrue(express.usesMicrophoneDetection)
+        XCTAssertFalse(MeetingDetector.shouldAutoRecordNativeAudioMonitor(bundleID: bundle, calendarBacked: true))
+        let customApps = AdditionalCallApp.fromLegacyList("com.example.CallApp, COM.EXAMPLE.CALLAPP, /tmp/bad.app\ncorp.VKS")
+        XCTAssertEqual(customApps.map(\.id), ["com.example.callapp", "corp.vks"])
+    }
+
     func testJoinScreenEndsOnlyTheCallInItsOwnWindow() {
         XCTAssertEqual(BrowserMeetingSession.waitingRoomState(inBoundWindow: true), .ended)
         XCTAssertNil(BrowserMeetingSession.waitingRoomState(inBoundWindow: false))

@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "Desktop ini mengizinkan LokalBot menangkap jendela aktif.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Desktop ini mengizinkan LokalBot mendaftarkan pintasan seluruh sistem.",
   "This desktop supports every enabled feature": "Desktop ini mendukung semua fitur yang aktif",
+  "This file starts other apps, so it can't be a call app.": "File ini menjalankan aplikasi lain, jadi tidak bisa menjadi aplikasi panggilan.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Gambar ini diambil di komputer lain atau dengan instalasi LokalBot lain, jadi kunci untuk membukanya tidak ada di PC ini. Teksnya masih ada di sini.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Ini tampak seperti kata sandi, kunci, atau nomor kartu. LokalBot tidak mengingat hal seperti itu.",
   "This meeting does not contain a reversible merge.": "Rapat ini tidak berisi penggabungan yang dapat diurungkan.",

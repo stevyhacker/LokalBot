@@ -24,7 +24,7 @@ struct CaptureTraceScrubber {
                    "Messages", "Notes", "Pages", "Keynote", "Numbers", "Google Chrome Helper",
                    "Google Chrome Helper (Renderer)", "Microsoft Teams (work or school)",
                    "Tencent Meeting", "腾讯会议", "VooV Meeting", "Feishu", "飞书", "Lark", "DingTalk", "钉钉",
-                   "WeCom", "企业微信", "Yandex Telemost", "MTS Link", "МТС Линк"],
+                   "WeCom", "企业微信", "Yandex Telemost", "MTS Link", "МТС Линк", "eXpress"],
         meetingHosts: ["meet.google.com", "teams.microsoft.com", "teams.live.com", "zoom.us", "app.zoom.us",
                        "webex.com", "whereby.com", "app.slack.com", "meeting.tencent.com", "voovmeeting.com",
                        "vc.feishu.cn", "vc.larksuite.com", "meeting.dingtalk.com", "telemost.yandex.ru", "my.mts-link.ru"],
@@ -35,7 +35,9 @@ struct CaptureTraceScrubber {
                     "org.mozilla.firefox", "com.microsoft.teams2.modulehost", "me.dotenv.LokalBot",
                     "com.tencent.meeting", "com.tencent.tencentmeeting", "com.electron.lark",
                     "com.bytedance.lark.helper", "com.larksuite.larkApp", "com.alibaba.DingTalkMac",
-                    "com.alibaba.DingTalk-Helper", "com.tencent.WeWorkMac", "ru.yandex.desktop.telemost", "ru.weteams.desktop"],
+                    "com.alibaba.DingTalk-Helper", "com.tencent.WeWorkMac", "ru.yandex.desktop.telemost", "ru.weteams.desktop",
+                    "ru.unlimitedtech.express.desktop", "ru.yandex.desktop.yandex-browser", "com.operasoftware.Opera",
+                    "com.vivaldi.Vivaldi", "org.chromium.Chromium"],
         bundlePrefixes: ["com.apple."])
 
     private static let consonants = Array("bcdfghjklmnpqrstvwxz")

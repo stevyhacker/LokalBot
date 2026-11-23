@@ -21,6 +21,7 @@ fn main() -> anyhow::Result<()> {
                     pid: 0,
                     process_name: name.clone(),
                     app_name: name,
+                    keep_app_scope: false,
                 })
             }
             "--devices" => {

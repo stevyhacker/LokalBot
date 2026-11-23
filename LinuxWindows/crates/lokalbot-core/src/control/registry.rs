@@ -214,6 +214,9 @@ impl SettingSpec {
             json!(self.category.raw_value()),
         );
         object.insert("x-lokalbot-tier".into(), json!(self.tier.raw_value()));
+        if self.tier == SettingTier::ReadOnly {
+            object.insert("readOnly".into(), json!(true));
+        }
         match self.kind {
             SettingKind::Bool => {
                 object.insert("type".into(), json!("boolean"));
@@ -254,6 +257,21 @@ impl SettingSpec {
                 object.insert("type".into(), json!("array"));
                 object.insert("uniqueItems".into(), json!(true));
                 object.insert("items".into(), json!({"type": "string", "enum": values}));
+            }
+            SettingKind::Structured if self.key == "additionalCallApps" => {
+                object.insert("type".into(), json!("array"));
+                object.insert(
+                    "items".into(),
+                    json!({
+                        "type": "object",
+                        "required": ["identifier"],
+                        "properties": {
+                            "identifier": {"type": "string"},
+                            "name": {"type": "string"},
+                        },
+                        "additionalProperties": false,
+                    }),
+                );
             }
             SettingKind::Structured => {}
         }
@@ -371,6 +389,48 @@ mod tests {
     }
 
     #[test]
+    fn call_detection_settings_are_public_and_keep_their_value_types() {
+        let browser = spec("detectOtherBrowserCalls").expect("register browser call detection");
+        assert_eq!(browser.category, SettingCategory::Recording);
+        assert_eq!(browser.kind, SettingKind::Bool);
+        assert_eq!(browser.tier, SettingTier::Consent);
+        assert_eq!(browser.schema_property()["type"], "boolean");
+        assert_eq!(browser.parse("true").unwrap(), json!(true));
+        assert!(browser.stored_from_presented(&json!("true")).is_err());
+        assert_eq!(
+            browser.classify(Some(&json!(false)), &json!(true)),
+            crate::control::change::ChangeClass::Widening
+        );
+        assert_eq!(
+            browser.classify(Some(&json!(true)), &json!(false)),
+            crate::control::change::ChangeClass::Narrowing
+        );
+
+        let apps = spec("additionalCallApps").expect("register selected call apps");
+        assert_eq!(apps.category, SettingCategory::Recording);
+        assert_eq!(apps.kind, SettingKind::Structured);
+        assert_eq!(apps.tier, SettingTier::ReadOnly);
+        let saved = json!([{"identifier": "CorporateClient.exe", "name": "Corporate, Calls"}]);
+        assert_eq!(apps.presented(&saved), saved);
+        assert_eq!(apps.parse(&saved.to_string()).unwrap(), saved);
+        assert_eq!(apps.stored_from_presented(&saved).unwrap(), saved);
+        assert_eq!(
+            apps.classify(Some(&json!([])), &saved),
+            crate::control::change::ChangeClass::ReadOnly
+        );
+        let schema = apps.schema_property();
+        assert_eq!(schema["type"], "array");
+        assert_eq!(schema["readOnly"], true);
+        assert_eq!(schema["items"]["type"], "object");
+        assert_eq!(schema["items"]["required"], json!(["identifier"]));
+        assert_eq!(
+            schema["items"]["properties"]["identifier"]["type"],
+            "string"
+        );
+        assert_eq!(schema["items"]["properties"]["name"]["type"], "string");
+    }
+
+    #[test]
     fn choices_decode_into_the_real_settings() {
         let base = serde_json::to_value(Settings::default()).unwrap();
         for spec in all() {
@@ -459,6 +519,7 @@ mod tests {
     fn sensitive_settings_keep_the_macs_tier() {
         for key in [
             "autoRecordMode",
+            "detectOtherBrowserCalls",
             "trackingEnabled",
             "screenContextCaptureMode",
             "retentionDays",

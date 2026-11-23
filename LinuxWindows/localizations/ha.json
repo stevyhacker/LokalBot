@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "Wannan desktop yana barin LokalBot ya ɗauki taga mai aiki.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Wannan desktop yana barin LokalBot ya yi rajistar gajerun hanyoyi na duk tsarin.",
   "This desktop supports every enabled feature": "Wannan desktop yana goyon bayan duk fasalolin da aka kunna",
+  "This file starts other apps, so it can't be a call app.": "Wannan fayil yana buɗe wasu manhajoji, don haka ba zai iya zama manhajar kira ba.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "An dauki wannan hoton a wata kwamfuta ko kuma wani LokalBot shigar, don haka mabudin da yake budewa baya kan wannan PC. Har yanzu rubutunsa yana nan.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Wannan yana kama da kalmar sirri, maɓalli, ko lambar kati. LokalBot ba ya tuna irin waɗannan.",
   "This meeting does not contain a reversible merge.": "Wannan taron ba shi da haɗawa da za a iya mayarwa.",

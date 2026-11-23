@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "ఈ డెస్క్‌టాప్ LokalBotను యాక్టివ్ విండోను సంగ్రహించనిస్తుంది.",
   "This desktop lets LokalBot register system-wide shortcuts.": "ఈ డెస్క్‌టాప్ LokalBotను సిస్టమ్ అంతటా షార్ట్‌కట్‌లను నమోదు చేయనిస్తుంది.",
   "This desktop supports every enabled feature": "ఈ డెస్క్‌టాప్ ప్రతి ఆన్‌లో ఉన్న ఫీచర్‌కు మద్దతు ఇస్తుంది",
+  "This file starts other apps, so it can't be a call app.": "ఈ ఫైల్ ఇతర యాప్‌లను ప్రారంభిస్తుంది, కాబట్టి దీన్ని కాల్ యాప్‌గా ఉపయోగించలేరు.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "ఈ చిత్రం మరొక కంప్యూటర్‌లో లేదా మరొక LokalBot ఇన్‌స్టాల్ ద్వారా క్యాప్చర్ చేయబడింది, కాబట్టి దీన్ని తెరిచే కీ ఈ PCలో లేదు. దాని వచనం ఇప్పటికీ ఇక్కడ ఉంది.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "ఇది పాస్‌వర్డ్, కీ లేదా కార్డ్ నంబర్‌లా కనిపిస్తోంది. LokalBot అలాంటివి గుర్తుంచుకోదు.",
   "This meeting does not contain a reversible merge.": "ఈ సమావేశంలో వెనక్కి తీసుకోగల విలీనం లేదు.",

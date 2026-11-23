@@ -12,7 +12,7 @@ mod linux;
 #[cfg(windows)]
 mod uia;
 #[cfg(windows)]
-pub(crate) use uia::BrowserCallReader;
+pub(crate) use uia::{BrowserCallReader, BrowserInterfaceReader};
 #[cfg(target_os = "linux")]
 mod wayland;
 #[cfg(windows)]

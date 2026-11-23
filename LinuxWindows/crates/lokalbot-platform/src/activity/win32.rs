@@ -202,7 +202,7 @@ fn window_class(window: HWND) -> String {
     String::from_utf16_lossy(&buffer[..copied.max(0) as usize])
 }
 
-fn process_image(pid: u32) -> Option<PathBuf> {
+pub(crate) fn process_image(pid: u32) -> Option<PathBuf> {
     unsafe {
         let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
         let mut buffer = vec![0u16; 1024];
@@ -510,7 +510,7 @@ fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
 
-pub(crate) fn friendly_name(image: &Path) -> String {
+pub fn friendly_name(image: &Path) -> String {
     let stem = image
         .file_stem()
         .map(|stem| stem.to_string_lossy().into_owned())

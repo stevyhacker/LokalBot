@@ -2,6 +2,35 @@ import XCTest
 @testable import LokalBot
 
 final class AppSettingsTests: XCTestCase {
+    func testCallAppSelectionKeepsSavedRulesAndUsesTheBundleNameAndIdentifier() throws {
+        let data = Data(#"{"additionalCallApps":"com.example.OldClient, COM.EXAMPLE.OLDCLIENT"}"#.utf8)
+        let decoder = JSONDecoder()
+        var settings = try decoder.decode(AppSettings.self, from: data)
+        XCTAssertEqual(settings.additionalCallApps.map(\.identifier), ["com.example.OldClient"])
+
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let bundle = root.appendingPathComponent("CorporateClient.app")
+        let contents = bundle.appendingPathComponent("Contents")
+        try FileManager.default.createDirectory(at: contents, withIntermediateDirectories: true)
+        let info = try PropertyListEncoder().encode([
+            "CFBundleIdentifier": "com.example.CorporateClient",
+            "CFBundlePackageType": "APPL",
+            "CFBundleDisplayName": "Corporate Calls"
+        ])
+        try info.write(to: contents.appendingPathComponent("Info.plist"))
+        let app = try XCTUnwrap(AdditionalCallApp(applicationURL: bundle))
+        XCTAssertEqual(app.identifier, "com.example.CorporateClient")
+        XCTAssertEqual(app.name, "Corporate Calls")
+        XCTAssertNil(AdditionalCallApp(applicationURL: contents))
+
+        settings.additionalCallApps.append(app)
+        settings.additionalCallApps.removeAll { $0.id == "com.example.oldclient" }
+        let reloaded = try decoder.decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(reloaded.additionalCallApps, [app])
+        XCTAssertEqual(reloaded.additionalCallBundleIDs, ["com.example.corporateclient"])
+    }
+
     func testFreshInstallDefaultsToNemotronAndPersistsItWithoutEnablingIdentityFeatures() throws {
         let suiteName = "AppSettingsTests.Nemotron.\(UUID().uuidString)"
         let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))

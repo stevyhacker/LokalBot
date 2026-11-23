@@ -32,7 +32,12 @@ impl SystemCapture {
             sink,
             flags,
             last_poll: Instant::now(),
-            chooser: ScopeChooser::new(target.is_some() && platform::tap_supported()),
+            chooser: ScopeChooser::new(
+                target.is_some() && platform::tap_supported(),
+                target
+                    .as_ref()
+                    .is_some_and(|target| target.keep_app_scope && cfg!(windows)),
+            ),
             target,
             scope: Scope::WholeOutput,
             tap_problem: None,
@@ -98,7 +103,10 @@ impl SystemCapture {
     }
 
     pub fn set_target(&mut self, target: AppAudioTarget) {
-        self.chooser = ScopeChooser::new(platform::tap_supported());
+        self.chooser = ScopeChooser::new(
+            platform::tap_supported(),
+            target.keep_app_scope && cfg!(windows),
+        );
         self.target = Some(target);
         self.last_poll = Instant::now() - DEVICE_POLL;
     }
@@ -820,6 +828,7 @@ mod tests {
             pid,
             process_name: name.into(),
             app_name: name.into(),
+            keep_app_scope: false,
         }
     }
 

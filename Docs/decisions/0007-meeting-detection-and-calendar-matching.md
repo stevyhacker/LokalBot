@@ -135,6 +135,34 @@ On 2026-10-03 Meet's page after a call was not recognized as an end, so that cal
 
 Where: `LokalBotTests/Integration/CaptureReplayTests.swift` (`testCallInAnotherRoomReplacesAnUnverifiedCall`).
 
+### Optional browser microphone calls start only with readable, non-private windows
+
+A browser's microphone identifies a whole process family, not a tab, so "Detect other browser calls" starts only when no window of that browser marks a private window (on the Mac every window must also have a readable Accessibility title; Windows reads only titled top-level windows), in English or a localized form such as "Инкогнито" or Safari's "Частный доступ". During a call, a window that becomes private ends it, while a merely unreadable one (picture-in-picture, an untitled popup, a slow Accessibility reply) does not, because untitled windows used to stop legitimate recordings. Capture traces store only this decision (`allowed`, `unreadable`, `privateWindow`), never the titles. On Windows, Yandex Browser ships as a generic `browser.exe`, so it is recognised by its `Yandex\YandexBrowser` install folder rather than by that name. Safari is not covered on the Mac: its page audio, microphone included, runs in the shared `com.apple.WebKit.GPU` process, which neither carries Safari's identifier nor its `.helper` prefix, so Safari calls start only from the supported meeting hosts.
+
+### On Windows a title is not enough: the browser's own interface decides privacy
+
+A Windows test with Chrome 157 showed that an Incognito window showing a page with an ordinary title has no private marker in its window caption, so a title-only gate auto-recorded a private call; an empty Incognito tab was caught only because the page itself is called "New Incognito tab". Each titled browser window of the family holding the microphone is therefore also classified once by UI Automation of the browser's own interface (buttons and menus outside the web document and tab items, such as Chrome's "Incognito" profile button or Edge's "InPrivate" badge): `Private` when any element name carries a private marker, `Public` when the walk completes and found at least three controls, otherwise `Unknown`. A Chromium window keeps its profile for its whole life, so the answer is cached per window handle; `Unknown` is retried after 10 s. Any `Private` window blocks a start and ends a running call. An `Unknown` window never auto-records: in Automatic mode the call is offered as in Ask mode, and a running call continues. Page text, URLs and tab titles are not read, and only counts are logged. `examples/meeting_probe.rs` prints the same decision per window, with titles only on request, to check new browser versions. The scan runs only while "Detect other browser calls" is on: Meet and the other supported hosts do not use its result, so with the setting off no browser window is read beyond its title.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`WindowPrivacy`, `WindowCensus`, `Core::microphone_browser_gate`), `LinuxWindows/crates/lokalbot-platform/src/meeting/win32.rs` (`WindowPrivacyCache`), `LinuxWindows/crates/lokalbot-platform/src/screen/uia.rs` (`BrowserInterfaceReader`), `LinuxWindows/crates/lokalbot-engine/src/detector.rs` (`start_mode`).
+
+Where: `LokalBot/Services/Recording/BrowserMeetingSession.swift` (`MicrophoneWindows`, `microphoneWindows`), `LokalBot/Services/Recording/MeetingDetector.swift` (`browserMicrophoneCandidates`, `browserMicrophoneRetained`), `LokalBot/Services/ScreenMemory/ScreenContextPrivacy.swift` (`isPrivateWindow`), `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`Core::microphone_browser_gate`, `canonical_executable`), `LinuxWindows/crates/lokalbot-platform/src/privacy.rs` (`is_private_window`).
+
+### A chosen call app matches its own helpers, so launchers cannot be chosen
+
+Additional call apps on Windows match the process holding the microphone or any of its ancestors, because call clients often capture audio in a helper they start; the recording then follows the ancestor's process tree. That would let a shell or host such as File Explorer, `cmd.exe` or a terminal turn every microphone app started from it into a call, so `AdditionalCallApp::detector_key` refuses a list of shells, terminals and system hosts, the picker explains why, and such entries already in the settings are dropped. A launcher missing from the list still matches what it starts; choosing the call app itself avoids that.
+
+Where: `LinuxWindows/crates/lokalbot-core/src/settings.rs` (`starts_other_apps`, `AdditionalCallApp::detector_key`), `LinuxWindows/crates/lokalbot-app/src/pages/settings/meetings.rs` (`call_app_from_file`).
+
+### A mute that releases the microphone splits a microphone-detected call
+
+eXpress, additional call apps and optional browser calls are recognised only while they hold the microphone. If an app closes its microphone stream on mute, the call reads as ended: recording stops after the stop delay (15 seconds by default), and unmuting starts a new recording, so one call becomes two meetings with a gap. Whether eXpress's native mute closes the stream has not been tested with a live call; this is accepted as a known limitation.
+
+### Additional call apps keep their own executable key
+
+Users pick additional call apps by file, and several can share a display name, so detection, start confirmation and handoff compare the normalized executable (Windows) or bundle identifier (Mac), never the name. The desktop MTS Link client keeps its room evidence even when one of its helpers is on the list.
+
+Where: `LinuxWindows/crates/lokalbot-platform/src/meeting/mod.rs` (`Candidate::configured_executable`), `LinuxWindows/crates/lokalbot-core/src/settings.rs` (`AdditionalCallApp::detector_key`), `LokalBot/Models/Settings/AppSettings.swift` (`AdditionalCallApp`).
+
 ### Prime web accessibility with `AXManualAccessibility`, once per browser process
 
 Chromium and Firefox expose page content to accessibility clients only once asked. Chromium honours `AXManualAccessibility`, the switch for assistive tools that are not screen readers (cotyping already uses it); `AXEnhancedUserInterface` puts the whole app into VoiceOver mode, which slows Chrome and breaks window-manager animations, and it used to be set on every 2-second poll, so only Firefox still gets it. Safari exposes its pages.

@@ -941,6 +941,7 @@
   "This desktop lets LokalBot capture the active window.": "Môi trường máy tính để bàn này cho phép LokalBot ghi lại cửa sổ đang hoạt động.",
   "This desktop lets LokalBot register system-wide shortcuts.": "Môi trường máy tính để bàn này cho phép LokalBot đăng ký phím tắt toàn hệ thống.",
   "This desktop supports every enabled feature": "Môi trường máy tính để bàn này hỗ trợ mọi tính năng đã bật",
+  "This file starts other apps, so it can't be a call app.": "Tệp này khởi chạy các ứng dụng khác nên không thể là ứng dụng gọi.",
   "This image was captured on another computer or by another LokalBot install, so the key that opens it is not on this PC. Its text is still here.": "Hình ảnh này được chụp trên một máy tính khác hoặc bằng bản cài đặt LokalBot khác, vì vậy chìa khóa mở nó không có trên PC này. Văn bản của nó vẫn còn ở đây.",
   "This looks like a password, key, or card number. LokalBot doesn't remember those.": "Nội dung này trông giống mật khẩu, khóa hoặc số thẻ. LokalBot không ghi nhớ những thông tin đó.",
   "This meeting does not contain a reversible merge.": "Cuộc họp này không chứa bản hợp nhất có thể hoàn tác.",
