@@ -705,7 +705,8 @@ final class ProcessingPipeline: ObservableObject {
                     let previous = MeetingOutcomes.load(from: folder) ?? MeetingAttributionArtifacts.previous(in: folder)
                     let previousState = MeetingOutcomeStore.loadState(from: folder)
                     try requireCommitPermission(for: meeting.id)
-                    try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+                    try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(
+                        for: [meeting], folders: [folder]) {
                         try outcomes.write(to: folder)
                         if let previous {
                             let reconciled = MeetingOutcomeStore.reconcileState(previousState, from: previous, to: outcomes)
@@ -1082,7 +1083,7 @@ final class ProcessingPipeline: ObservableObject {
 
     private func write(_ transcript: Transcript, for meeting: Meeting) throws {
         let folder = meeting.folderURL(in: storage)
-        try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting]) {
+        try DreamStore(root: storage.rootURL).withMeetingEvidenceMutation(for: [meeting], folders: [folder]) {
             if let old = try? loadTranscript(from: folder), old.evidenceRevision != transcript.evidenceRevision {
                 try MeetingAttributionArtifacts.invalidate(in: folder)
             }
