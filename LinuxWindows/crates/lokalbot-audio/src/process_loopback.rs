@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::ManuallyDrop;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc;
@@ -185,6 +186,29 @@ impl IActivateAudioInterfaceCompletionHandler_Impl for Activation_Impl {
     }
 }
 
+fn with_activation_blob<T>(
+    parameters: &mut AUDIOCLIENT_ACTIVATION_PARAMS,
+    use_blob: impl FnOnce(&PROPVARIANT) -> T,
+) -> T {
+    let variant = ManuallyDrop::new(PROPVARIANT {
+        Anonymous: PROPVARIANT_0 {
+            Anonymous: std::mem::ManuallyDrop::new(PROPVARIANT_0_0 {
+                vt: VT_BLOB,
+                wReserved1: 0,
+                wReserved2: 0,
+                wReserved3: 0,
+                Anonymous: PROPVARIANT_0_0_0 {
+                    blob: BLOB {
+                        cbSize: size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32,
+                        pBlobData: (parameters as *mut AUDIOCLIENT_ACTIVATION_PARAMS).cast(),
+                    },
+                },
+            }),
+        },
+    });
+    use_blob(&variant)
+}
+
 fn activate(pid: u32) -> Result<IAudioClient> {
     let mut parameters = AUDIOCLIENT_ACTIVATION_PARAMS {
         ActivationType: AUDIOCLIENT_ACTIVATION_TYPE_PROCESS_LOOPBACK,
@@ -195,32 +219,16 @@ fn activate(pid: u32) -> Result<IAudioClient> {
             },
         },
     };
-    let variant = PROPVARIANT {
-        Anonymous: PROPVARIANT_0 {
-            Anonymous: std::mem::ManuallyDrop::new(PROPVARIANT_0_0 {
-                vt: VT_BLOB,
-                wReserved1: 0,
-                wReserved2: 0,
-                wReserved3: 0,
-                Anonymous: PROPVARIANT_0_0_0 {
-                    blob: BLOB {
-                        cbSize: size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>() as u32,
-                        pBlobData: (&raw mut parameters).cast(),
-                    },
-                },
-            }),
-        },
-    };
     let (tx, rx) = mpsc::channel();
     let handler: IActivateAudioInterfaceCompletionHandler = Activation(tx).into();
-    unsafe {
+    with_activation_blob(&mut parameters, |variant| unsafe {
         ActivateAudioInterfaceAsync(
             VIRTUAL_AUDIO_DEVICE_PROCESS_LOOPBACK,
             &IAudioClient::IID,
-            Some(&variant),
+            Some(variant),
             &handler,
         )
-    }
+    })
     .context("process loopback did not start")?;
     let interface = rx
         .recv_timeout(ACTIVATION_TIMEOUT)
@@ -380,6 +388,27 @@ impl Drop for ProcessLoopback {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn activation_blob_borrows_parameters_on_success_and_error() {
+        let mut parameters = AUDIOCLIENT_ACTIVATION_PARAMS::default();
+        let pointer = (&raw mut parameters).cast::<u8>();
+        for outcome in [Ok(42), Err(())] {
+            let result = with_activation_blob(&mut parameters, |variant| {
+                unsafe {
+                    let fields = &*variant.Anonymous.Anonymous;
+                    assert_eq!(fields.vt, VT_BLOB);
+                    assert_eq!(
+                        fields.Anonymous.blob.cbSize as usize,
+                        size_of::<AUDIOCLIENT_ACTIVATION_PARAMS>()
+                    );
+                    assert_eq!(fields.Anonymous.blob.pBlobData, pointer);
+                }
+                outcome
+            });
+            assert_eq!(result, outcome);
+        }
+    }
 
     #[test]
     fn a_process_belongs_to_a_tree_through_its_parents() {
