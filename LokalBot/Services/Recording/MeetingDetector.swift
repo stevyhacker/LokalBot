@@ -989,6 +989,19 @@ final class MeetingDetector {
             })
     }
 
+    nonisolated static func emittingCaptureAlternative(
+        for app: DetectedApp,
+        tapping tappedPID: pid_t,
+        in processes: [AudioProcess],
+        excluding excludedPIDs: Set<pid_t> = []
+    ) -> AudioProcess? {
+        if let tapped = processes.first(where: { $0.id == tappedPID }),
+           !carriesMeetingSignal(bundleID: tapped.bundleID) {
+            return nil
+        }
+        return bestOutputAudioProcess(for: app, in: processes, excluding: excludedPIDs)
+    }
+
     nonisolated static func currentOutputAudioProcess(
         for app: DetectedApp,
         excluding excludedPIDs: Set<pid_t> = []
@@ -1004,6 +1017,10 @@ final class MeetingDetector {
         let namespace = available.filter { process in
             guard let bundleID = process.bundleID else { return false }
             return audioBundleID(bundleID, belongsTo: app.bundleID)
+        }
+        if let callStream = bestAlwaysOpenAudioProcess(for: app, in: available) {
+            rememberCaptureTarget(callStream.id, for: app.bundleID)
+            return callStream
         }
         if let emitting = bestOutputAudioProcess(for: app, in: available) {
             rememberCaptureTarget(emitting.id, for: app.bundleID)

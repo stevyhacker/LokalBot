@@ -159,6 +159,12 @@ New Teams plays call audio only through `modulehost`, which is open whether or n
 
 Where: `LokalBot/Services/Recording/MeetingDetector.swift` (`MeetingDetector.alwaysOpenCaptureCandidate`), `LokalBotTests/Services/Meetings/MeetingAudioRecoveryTests.swift` (`testOnlyAnAlwaysOpenStreamCanBeHeld`).
 
+### Teams' call stream outranks an emitting helper
+
+Because Teams plays the call only through `modulehost`, capture taps it whenever it is open, even while a `.helper` is emitting, and the watchdog never leaves a `modulehost` tap for an emitting helper. A helper's output during a call is a chime or a WebView sound, and one such sound used to win: a scheduled start (issue #596, 2026-11-23) tapped `.helper` for a 701 s call and got one transcript segment (system track mean -54.6 dB), while a manual start the same morning tapped `modulehost` and got 45; on 2026-11-20 the watchdog moved a `modulehost` tap that had already carried 60 s of call audio to the helper after 9 s of silence. A `modulehost` tap that delivers no buffers is still retired, so a closed or empty call stream gives way to the helper.
+
+Where: `LokalBot/Services/Recording/MeetingDetector.swift` (`MeetingDetector.captureTargetProcess`, `MeetingDetector.emittingCaptureAlternative`), `LokalBotTests/Integration/CaptureReplayTests.swift` (`testTeamsCaptureStaysOnModuleHostWhileAHelperPlaysSound`), `LokalBotTests/Services/Audio/AudioSourceMonitorTests.swift` (`MeetingDetector.emittingCaptureAlternative`).
+
 ## Call audio on Windows and Linux
 
 ### Record the meeting app's audio when it can be separated, otherwise the whole output

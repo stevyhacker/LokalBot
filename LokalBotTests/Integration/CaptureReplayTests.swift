@@ -492,6 +492,16 @@ final class CaptureReplayTests: XCTestCase {
         XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: teams)?.id, 720, "the tap goes on modulehost")
     }
 
+    func testTeamsCaptureStaysOnModuleHostWhileAHelperPlaysSound() throws {
+        _ = try replay("teams-call-on-modulehost-while-helper-plays")
+        let scheduled = MeetingDetector.DetectedApp(name: "Teams", bundleID: "com.microsoft.teams2", pid: 1074)
+        XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: scheduled)?.id, 1274,
+                       "a scheduled start taps modulehost, not the helper playing a chime")
+        XCTAssertNil(MeetingDetector.emittingCaptureAlternative(
+            for: scheduled, tapping: 1274, in: MeetingDetector.currentAudioProcesses(), excluding: [1274]),
+            "the watchdog keeps a modulehost tap through silence while the helper plays")
+    }
+
     func testAHeldTeamsStreamGivesWayToTheMeetCall() async throws {
         let replay = try replay("teams-idle-while-meet-call-unreadable")
         let room = try XCTUnwrap(URL(string: "https://meet.google.com/bcd-fghj-klm"))

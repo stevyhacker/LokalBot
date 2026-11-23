@@ -1,0 +1,10 @@
+{
+  "header": {"schemaVersion": 1, "macOSVersion": "26.2", "origin": "reconstructed",
+             "scenario": "teams-call-on-modulehost-while-helper-plays", "scrubberVersion": 1, "recordedAt": "2026-11-23T00:00:00Z"},
+  "events": [
+    {"t": 0, "query": "runningApps", "apps": [{"processIdentifier": 1074, "bundleIdentifier": "com.microsoft.teams2", "localizedName": "Microsoft Teams"}]},
+    {"t": 0, "query": "frontmost", "app": {"processIdentifier": 1074, "bundleIdentifier": "com.microsoft.teams2", "localizedName": "Microsoft Teams"}},
+    {"t": 0, "query": "audioProcesses", "processes": [{"id": 1274, "name": "Microsoft Teams MdlHst", "bundleID": "com.microsoft.teams2.modulehost", "objectID": 127, "isRunningOutput": true}, {"id": 1318, "name": "Microsoft Teams Hlpr", "bundleID": "com.microsoft.teams2.helper", "objectID": 131, "isRunningOutput": true}]},
+    {"t": 0, "query": "inputRunning", "processID": 1074, "flag": true}
+  ]
+}
