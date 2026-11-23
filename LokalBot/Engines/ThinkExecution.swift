@@ -56,16 +56,18 @@ final class ThinkExecution {
             let entry = try builtInEntry(settings)
             let modelURL = try await prepareBuiltInModel(settings)
             let authenticationToken = includingCredentials ? await server.authenticationToken() : nil
+            let support = ReasoningSupport.known(provider: .builtIn, model: entry.id)
             let engine = OpenAICompatibleEngine(
                 baseURL: server.baseURL,
                 model: entry.id,
                 apiKey: authenticationToken,
                 extraBody: MainLLMRuntimePolicy.requestOverrides(for: entry.id),
                 chatDialect: .llamaServer,
-                defaultThinkingBudgetTokens:
-                    MainLLMRuntimePolicy.highReasoningBudgetTokens,
+                defaultThinkingBudgetTokens: support.defaultLevel == .off
+                    ? 0
+                    : MainLLMRuntimePolicy.highReasoningBudgetTokens,
                 reasoningLevel: settings.thinkReasoningLevel,
-                reasoningSupport: .known(provider: .builtIn, model: entry.id),
+                reasoningSupport: support,
                 displayNameOverride: "Built-in — \(entry.displayName)")
             guard let role = server.role.flatMap(InferenceRole.init(serverRole:)) else {
                 try await server.ensureRunning(modelAt: modelURL)

@@ -29,6 +29,7 @@ pub struct ModelEntry {
     pub license: Option<&'static str>,
     pub request_overrides: &'static [(&'static str, f64)],
     pub no_reasoning_control: bool,
+    pub default_thinking_off: bool,
     pub custom_url: Option<&'static str>,
 }
 
@@ -100,6 +101,7 @@ const fn text(
         license: None,
         request_overrides: &[],
         no_reasoning_control: false,
+        default_thinking_off: false,
         custom_url: None,
     }
 }
@@ -181,6 +183,7 @@ static CATALOG: [ModelEntry; 17] = [
     ),
     ModelEntry {
         license: Some("Apache 2.0"),
+        default_thinking_off: true,
         ..text(
             DEFAULT_THINK_ID,
             "Qwen3.5 4B (LokalBot v4)",
@@ -453,6 +456,7 @@ fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
         license: None,
         request_overrides: &[],
         no_reasoning_control: false,
+        default_thinking_off: false,
         custom_url: Some(leaked(url)),
     })
 }

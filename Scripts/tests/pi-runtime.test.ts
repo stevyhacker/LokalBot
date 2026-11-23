@@ -718,6 +718,12 @@ test("a reasoning level becomes each server's own request fields", () => {
   const off = applyReasoningLevel({ ...base, chat_template_kwargs: { keep: 1 } }, "off", "llama-server", "q");
   expect(off.thinking_budget_tokens).toBe(0);
   expect(off.chat_template_kwargs).toEqual({ keep: 1, enable_thinking: false });
+  const tunedAuto = applyReasoningLevel(base, "automatic", "llama-server", "qwen3.5-4b-lokalbot-v4");
+  expect(tunedAuto.thinking_budget_tokens).toBe(0);
+  expect(tunedAuto.chat_template_kwargs).toEqual({ enable_thinking: false });
+  const tunedLow = applyReasoningLevel(base, "low", "llama-server", "qwen3.5-4b-lokalbot-v4");
+  expect(tunedLow.thinking_budget_tokens).toBe(512);
+  expect(tunedLow.chat_template_kwargs).toBeUndefined();
 });
 
 test("the level file is read fresh and anything unreadable is Automatic", async () => {

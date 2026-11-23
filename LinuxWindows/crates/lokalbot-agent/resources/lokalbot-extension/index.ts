@@ -188,20 +188,28 @@ export function readReasoningLevel(path: string | undefined): ReasoningLevel {
   }
 }
 
+function isDefaultThinkingOffLlamaModel(model: string): boolean {
+  return /^qwen3\.5-4b-lokalbot-v\d+$/i.test(model.trim());
+}
+
 export function applyReasoningLevel(
   payload: Record<string, unknown>,
   level: ReasoningLevel,
   dialect: ReasoningDialect,
   model: string,
 ): Record<string, unknown> {
-  if (level === "automatic") return payload;
-  const effort = level === "off" ? "none" : level;
+  const effectiveLevel: ReasoningLevel =
+    level === "automatic" && dialect === "llama-server" && isDefaultThinkingOffLlamaModel(model)
+      ? "off"
+      : level;
+  if (effectiveLevel === "automatic") return payload;
+  const effort = effectiveLevel === "off" ? "none" : effectiveLevel;
   switch (dialect) {
     case "llama-server": {
       const ceiling = payload.max_tokens ?? payload.max_completion_tokens;
       const budget = typeof ceiling === "number"
-        ? Math.min(THINKING_BUDGETS[level], Math.floor(ceiling / 2))
-        : THINKING_BUDGETS[level];
+        ? Math.min(THINKING_BUDGETS[effectiveLevel], Math.floor(ceiling / 2))
+        : THINKING_BUDGETS[effectiveLevel];
       const shaped: Record<string, unknown> = { ...payload, thinking_budget_tokens: budget };
       if (budget === 0) {
         const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
@@ -214,7 +222,7 @@ export function applyReasoningLevel(
     case "openrouter":
       return { ...payload, reasoning: { effort } };
     case "ollama":
-      return level === "off" || /gpt-oss/i.test(model) ? { ...payload, reasoning_effort: effort } : payload;
+      return effectiveLevel === "off" || /gpt-oss/i.test(model) ? { ...payload, reasoning_effort: effort } : payload;
     case "generic":
       return { ...payload, reasoning_effort: effort };
   }

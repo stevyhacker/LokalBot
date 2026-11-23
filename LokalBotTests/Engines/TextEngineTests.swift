@@ -206,6 +206,52 @@ final class TextEngineTests: XCTestCase {
         XCTAssertNil(try effort(nil))
     }
 
+    func testDefaultFineTunedQwenDisablesThinkingInAutomaticModeAndAllowsExplicitOptIn() throws {
+        let modelID = "qwen3.5-4b-lokalbot-v4"
+        XCTAssertEqual(ModelCatalog.defaultSummarizationID, modelID)
+        let support = ReasoningSupport.known(provider: .builtIn, model: modelID)
+        XCTAssertEqual(support.defaultLevel, .off)
+        XCTAssertEqual(ReasoningSupport.known(provider: .builtIn, model: "qwen3.5-4b-lokalbot-v5").defaultLevel, .off)
+        XCTAssertEqual(support.automaticTitle, "Automatic (Off)")
+
+        let automatic = OpenAICompatibleEngine(
+            baseURL: URL(string: "http://127.0.0.1:17872/v1")!,
+            model: modelID,
+            chatDialect: .llamaServer,
+            defaultThinkingBudgetTokens: 0,
+            reasoningLevel: .automatic,
+            reasoningSupport: support)
+
+        for options in [nil, TextGenerationOptions(maxTokens: 900, reasoningBudgetTokens: 256),
+                        TextGenerationOptions(maxTokens: 4_000, reasoningBudgetTokens: 1_024)] {
+            let req = try automatic.makeChatRequest(system: "s", prompt: "p", context: [], schema: nil, options: options)
+            let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(req.httpBody)) as? [String: Any])
+            XCTAssertEqual(body["thinking_budget_tokens"] as? Int, 0)
+            let kwargs = try XCTUnwrap(body["chat_template_kwargs"] as? [String: Any])
+            XCTAssertEqual(kwargs["enable_thinking"] as? Bool, false)
+        }
+
+        let low = OpenAICompatibleEngine(
+            baseURL: URL(string: "http://127.0.0.1:17872/v1")!,
+            model: modelID,
+            chatDialect: .llamaServer,
+            defaultThinkingBudgetTokens: 0,
+            reasoningLevel: .low,
+            reasoningSupport: support)
+        let optInReq = try low.makeChatRequest(
+            system: "s", prompt: "p", context: [], schema: nil,
+            options: TextGenerationOptions(maxTokens: 2_000))
+        let optInBody = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(optInReq.httpBody)) as? [String: Any])
+        XCTAssertEqual(optInBody["thinking_budget_tokens"] as? Int, 512)
+        XCTAssertNil(optInBody["chat_template_kwargs"])
+
+        let zeroTaskReq = try low.makeChatRequest(
+            system: "s", prompt: "p", context: [], schema: nil,
+            options: TextGenerationOptions(maxTokens: 2_000, reasoningBudgetTokens: 0))
+        let zeroTaskBody = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(zeroTaskReq.httpBody)) as? [String: Any])
+        XCTAssertEqual(zeroTaskBody["thinking_budget_tokens"] as? Int, 0)
+    }
+
     func testPopularModelsGetNoReasoningForNotesOrTheLeastTheyAllow() throws {
         func body(_ baseURL: String, _ model: String, dialect: ChatCompletionDialect? = nil) throws -> [String: Any] {
             let url = URL(string: baseURL)!
@@ -257,6 +303,8 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(levels(.openAI, "gpt-5.4-mini"), [.off, .low, .medium, .high, .xhigh])
         XCTAssertEqual(levels(.openAI, "gpt-4.1-mini"), [])
         XCTAssertEqual(levels(.builtIn, "qwen3.5-4b"), [.off, .low, .medium, .high])
+        XCTAssertEqual(levels(.builtIn, ModelCatalog.defaultSummarizationID), [.off, .low, .medium, .high])
+        XCTAssertEqual(ReasoningSupport.known(provider: .builtIn, model: ModelCatalog.defaultSummarizationID).defaultLevel, .off)
         XCTAssertEqual(levels(.builtIn, "lfm2.5-2.6b"), [.low, .medium, .high])
         XCTAssertEqual(levels(.builtIn, "ministral-3-3b-instruct-2512"), [])
         XCTAssertEqual(levels(.openRouter, "openai/gpt-5.4-mini"), [.off, .low, .medium, .high, .xhigh])
