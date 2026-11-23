@@ -82,10 +82,22 @@ text, capped at 4,000 characters.
 3. Decide export compliance. The app encrypts sync traffic with Noise (X25519,
    ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is not set in
    `Companion/ios/project.yml`. Until it is, every uploaded build waits for that
-   answer, and the job stops after processing with "has no export compliance
-   answer": answer it for the build in App Store Connect, then use **Re-run
-   failed jobs**. Setting the key under `info.properties` to the answer you give
-   there removes the stop.
+   answer in App Store Connect. Build 1 (0.1.0) was answered "no" there.
+   - **A build that is already uploaded** can only be answered in App Store
+     Connect. In `review` and `manual` mode the job stops after processing with
+     "has no export compliance answer": answer it for that build, then use
+     **Re-run failed jobs**. Changing `project.yml` does not help here, because
+     a rerun uses the build that is already uploaded.
+   - **In `testflight` mode the job does not check this** and succeeds anyway.
+     The build can still show Missing Compliance in App Store Connect and stay
+     unavailable to testers until it is answered, so look at the build after
+     the job.
+   - **Later builds** stop asking once `ITSAppUsesNonExemptEncryption` is set
+     under `info.properties` to the answer you give in App Store Connect. `false`
+     is enough by itself. For `true` the key is not enough: App Store Connect
+     also needs the encryption declaration for the build, and when Apple asks
+     for export compliance documentation, the code it issues goes in
+     `ITSEncryptionExportComplianceCode`.
 4. Run the [dry run](#dry-run) below and fix what it reports.
 5. Switch on publishing for stable tags:
 
