@@ -40,4 +40,4 @@ the bar a decision has to clear.
 | [0021](0021-storage-sealing-and-retention.md) | Storage, sealing and retention | 63 |
 | [0022](0022-platform-integration.md) | Platform integration | 45 |
 | [0023](0023-updates-packaging-and-release.md) | Updates, packaging and release | 47 |
-| [0024](0024-testing.md) | Testing | 24 |
+| [0024](0024-testing.md) | Testing | 25 |

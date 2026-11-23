@@ -889,6 +889,29 @@ class TestArtifactTests(unittest.TestCase):
             finally:
                 os.chdir(original)
 
+    def test_linux_wayland_live_job_runs_in_ubuntu_26_04_without_bumping_build_glibc(self):
+        workflow = (ROOT / '.github/workflows/linux-windows.yml').read_text()
+        pick = workflow.split('\n  pick:\n', 1)[1].split('\n  linux-wayland:\n', 1)[0]
+        self.assertIn('linux=\'"ubuntu-24.04"\'', pick)
+        self.assertIn('wayland: ${{ steps.wayland.outputs.run }}', pick)
+        self.assertIn('LinuxWindows/crates/lokalbot-platform/*', pick)
+        wayland = workflow.split('\n  linux-wayland:\n', 1)[1].split('\n  linux:\n', 1)[0]
+        self.assertIn("if: needs.pick.outputs.wayland == 'true'", wayland)
+        self.assertIn('runs-on: ubuntu-24.04', wayland)
+        self.assertIn('key: linux-wayland-cargo-', wayland)
+        self.assertIn('scripts/ci/wayland-live-tests.sh', wayland)
+        linux = workflow.split('\n  linux:\n', 1)[1].split('\n  source:\n', 1)[0]
+        self.assertIn('key: linux-cargo-', linux)
+        script = (ROOT / 'LinuxWindows/scripts/ci/wayland-live-tests.sh').read_text()
+        self.assertIn('ubuntu:26.04', script)
+        self.assertIn('setcap -r /usr/bin/kwin_wayland', script)
+        self.assertIn('kwin-common', script)
+        self.assertIn('LANG=C.UTF-8', script)
+        self.assertIn('live-kwin.sh', script)
+        self.assertIn('live-sway.sh', script)
+        sway = (ROOT / 'LinuxWindows/crates/lokalbot-platform/scripts/live-sway.sh').read_text()
+        self.assertIn('--nocapture sway', sway)
+
 
 if __name__ == '__main__':
     unittest.main()

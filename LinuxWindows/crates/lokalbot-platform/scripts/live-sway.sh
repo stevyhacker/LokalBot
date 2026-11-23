@@ -22,4 +22,4 @@ WAYLAND_DISPLAY="$(cd "$runtime" && compgen -G 'wayland-*' | grep -v lock | head
 [ -n "$SWAYSOCK" ] && [ -n "$WAYLAND_DISPLAY" ] || { cat "$runtime/sway.log" >&2; exit 1; }
 export SWAYSOCK WAYLAND_DISPLAY XDG_SESSION_TYPE=wayland XDG_CURRENT_DESKTOP=sway
 
-cargo test -p lokalbot-platform --test live_wayland --test live_input_method -- --ignored --test-threads=1 --nocapture
+cargo test -p lokalbot-platform --test live_wayland --test live_input_method -- --ignored --test-threads=1 --nocapture sway

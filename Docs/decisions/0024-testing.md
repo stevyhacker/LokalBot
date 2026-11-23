@@ -113,6 +113,12 @@ KWin offers no virtual keyboard protocol. Keys go in through its EIS endpoint, a
 
 Where: `LinuxWindows/crates/lokalbot-platform/tests/live_input_method.rs` (`EisKeyboard`).
 
+### Live KWin 6 and Sway 1.11 tests run in a separate Ubuntu 26.04 container
+
+The Linux build and release jobs stay on Ubuntu 24.04 so shipped binaries keep their glibc 2.39 baseline ([ADR 0023](0023-updates-packaging-and-release.md)), but Ubuntu 24.04 has neither KWin 6 nor Sway 1.10+. CI therefore runs `live-kwin.sh` and `live-sway.sh` in a separate `ubuntu:26.04` Docker container on GitHub's `ubuntu-24.04` runner (self-hosted Linux runners have no Docker) with an isolated Cargo cache so Ubuntu 26.04 target artifacts never mix with Ubuntu 24.04 builds. Inside the container, `kwin-wayland`'s postinst sets `cap_sys_nice` on `/usr/bin/kwin_wayland`, which fails with `EPERM` when Docker drops that capability, so `setcap -r` clears it; `kwin-common` provides the EIS plugin; and `LANG=C.UTF-8` lets `wtype` type non-ASCII characters.
+
+Where: `.github/workflows/linux-windows.yml` (`linux-wayland`), `LinuxWindows/scripts/ci/wayland-live-tests.sh` (file), `LinuxWindows/crates/lokalbot-platform/scripts/live-sway.sh` (file).
+
 ### The autocomplete probe never touches a Notepad the user has open
 
 Where: `LinuxWindows/crates/lokalbot-app/examples/autocomplete_probe.rs` (`win::open`).
