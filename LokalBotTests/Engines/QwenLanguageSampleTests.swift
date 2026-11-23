@@ -174,14 +174,36 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertTrue(decision.decodedTwice)
     }
 
-    func testShortTrackVotesOnEverySpanAndDecodesAgainPinned() async throws {
+    func testShortTrackInOneLanguageKeepsItsFirstDecode() async throws {
         let decoder = Decoder { self.english[$0 % self.english.count] }
         let decision = try await decide(spans(3), decoder: decoder)
 
-        XCTAssertEqual(decoder.calls.map(\.spans), [[0, 1, 2], [0, 1, 2]])
+        XCTAssertEqual(decoder.calls.map(\.spans), [[0, 1, 2]], "Every span already read as English")
+        XCTAssertEqual(decoder.calls.map(\.language), [nil])
+        XCTAssertEqual(decision.pinned, "en")
+        XCTAssertFalse(decision.decodedTwice)
+        XCTAssertFalse(decision.needsSpeakerRegions)
+        XCTAssertEqual(decision.segments.map(\.text), Array(english.prefix(3)))
+    }
+
+    func testShortTrackWithOneSpanInAnotherLanguageDecodesAgainPinned() async throws {
+        let decoder = Decoder { $0 == 4 ? self.german[0] : self.english[$0 % self.english.count] }
+        let decision = try await decide(spans(7), decoder: decoder)
+
+        XCTAssertEqual(decoder.calls.map(\.spans), [Array(0..<7), Array(0..<7)])
         XCTAssertEqual(decoder.calls.map(\.language), [nil, "en"])
         XCTAssertEqual(decision.pinned, "en")
         XCTAssertTrue(decision.decodedTwice)
+        XCTAssertEqual(decision.segments[4].text, "pinned en 4")
+    }
+
+    func testShortSpansTooBriefToJudgeDoNotForceASecondDecode() async throws {
+        let decoder = Decoder { $0 == 1 ? "Okay." : self.english[$0 % self.english.count] }
+        let decision = try await decide(spans(4), decoder: decoder)
+
+        XCTAssertEqual(decoder.calls.map(\.language), [nil])
+        XCTAssertEqual(decision.pinned, "en")
+        XCTAssertEqual(decision.segments[1].text, "Okay.")
     }
 
     func testSingleWindowIsNeverPinned() async throws {

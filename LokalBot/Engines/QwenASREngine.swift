@@ -544,6 +544,13 @@ actor QwenASREngine: TranscriptionEngine {
             return AutoLanguageDecision(segments: all, pinned: nil, sampled: sample.count,
                                         decodedTwice: false, needsSpeakerRegions: false)
         }
+        // Every span already came back in the voted language, so pinning it would decode the
+        // same audio again for the same text.
+        if TranscriptLanguageVote.unanimous(all.map(\.text), code: vote,
+                                            aliases: TranscriptLanguageVote.serbianCroatianAliases) {
+            return AutoLanguageDecision(segments: all, pinned: vote, sampled: sample.count, decodedTwice: false,
+                                        needsSpeakerRegions: wordAttribution && !QwenWordAligner.supports(vote))
+        }
         return try await pinned(vote, segments: all, twice: true)
     }
 
