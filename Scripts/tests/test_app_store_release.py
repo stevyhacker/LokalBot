@@ -512,6 +512,12 @@ class AppStoreWorkflowTests(unittest.TestCase):
         self.assertIn(f'MARKETING_VERSION: "{info["CFBundleShortVersionString"]}"', project)
         self.assertIn(f'CURRENT_PROJECT_VERSION: "{info["CFBundleVersion"]}"', project)
 
+    def test_the_app_answers_export_compliance_itself(self):
+        project = (ROOT / "Companion/ios/project.yml").read_text(encoding="utf-8")
+        self.assertIn("        ITSAppUsesNonExemptEncryption: false\n", project)
+        generated = plistlib.loads((ROOT / "Companion/ios/App/Info.plist").read_bytes())
+        self.assertIs(generated["ITSAppUsesNonExemptEncryption"], False)
+
 
 if __name__ == "__main__":
     unittest.main()
