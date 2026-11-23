@@ -79,24 +79,21 @@ text, capped at 4,000 characters.
    anything in the developer account, so it must never reach the Windows PC, a
    shared machine or a self-hosted runner. Revoke it in App Store Connect if it
    leaks; a new key needs only the three secrets replaced.
-3. Decide export compliance. The app encrypts sync traffic with Noise (X25519,
-   ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is not set in
-   `Companion/ios/project.yml`. Until it is, every uploaded build waits for that
-   answer in App Store Connect. Build 1 (0.1.0) was answered "no" there.
-   - **A build that is already uploaded** can only be answered in App Store
-     Connect. In `review` and `manual` mode the job stops after processing with
-     "has no export compliance answer": answer it for that build, then use
-     **Re-run failed jobs**. Changing `project.yml` does not help here, because
-     a rerun uses the build that is already uploaded.
+3. Export compliance is answered in the app. It encrypts sync traffic with
+   Noise (X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is
+   `false` under `info.properties` in `Companion/ios/project.yml`, the answer
+   given for build 1 (0.1.0) in App Store Connect. Builds from v0.13.4 on carry
+   it, so App Store Connect does not ask.
+   - **A build uploaded without the key** (a tag before v0.13.4) can only be
+     answered in App Store Connect. In `review` and `manual` mode the job stops
+     after processing with "has no export compliance answer": answer it for
+     that build, then use **Re-run failed jobs**.
    - **In `testflight` mode the job does not check this** and succeeds anyway.
-     The build can still show Missing Compliance in App Store Connect and stay
-     unavailable to testers until it is answered, so look at the build after
-     the job.
-   - **Later builds** stop asking once `ITSAppUsesNonExemptEncryption` is set
-     under `info.properties` to the answer you give in App Store Connect. `false`
-     is enough by itself. For `true` the key is not enough: App Store Connect
-     also needs the encryption declaration for the build, and when Apple asks
-     for export compliance documentation, the code it issues goes in
+     Such a build can still show Missing Compliance in App Store Connect and
+     stay unavailable to testers until it is answered.
+   - **If the answer changes to `true`**, the key is not enough: App Store
+     Connect also needs the encryption declaration for the build, and when
+     Apple asks for export compliance documentation, the code it issues goes in
      `ITSEncryptionExportComplianceCode`.
 4. Run the [dry run](#dry-run) below and fix what it reports.
 5. Switch on publishing for stable tags:

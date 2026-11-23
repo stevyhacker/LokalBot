@@ -141,9 +141,8 @@ or add them under the scheme's Arguments.
   library. Explain there that the app syncs with LokalBot on the person's
   Mac over the local network or Tailscale, and that recording needs a paired
   Mac, so the microphone and background audio are only used once paired.
-- Export compliance is **still open**. Sync traffic is encrypted (Noise:
-  X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is not
-  set yet. Until it is decided, App Store Connect asks on every upload, and
-  the release job stops there until it is answered.
+- Export compliance is answered in the app. Sync traffic is encrypted (Noise:
+  X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is
+  `false` in `project.yml`, so App Store Connect does not ask on upload.
 - The privacy label can say Data Not Collected: nothing leaves the person's
   devices, and the local copy is excluded from device backups.
