@@ -507,6 +507,8 @@ actor QwenASREngine: TranscriptionEngine {
 
     static let sampleShare = 0.9
 
+    static let sampleKeptShare = 0.5
+
     nonisolated static func languageSample(_ spans: [SpeechSpan], count: Int = languageSampleSize) -> [Int] {
         guard count > 0, spans.count > count else { return Array(spans.indices) }
         func length(_ index: Int) -> TimeInterval { spans[index].end - spans[index].start }
@@ -533,22 +535,29 @@ actor QwenASREngine: TranscriptionEngine {
             return AutoLanguageDecision(segments: try await decode(spans, vote), pinned: vote, sampled: sample.count,
                                         decodedTwice: twice, needsSpeakerRegions: false)
         }
-        if sample.count < spans.count, let vote = pinnedLanguage(for: sampled.map(\.text), minimumShare: sampleShare) {
-            return try await pinned(vote, segments: [], twice: false)
-        }
         let chosen = Set(sample)
         let unsampled = spans.indices.filter { !chosen.contains($0) }.map { spans[$0] }
+        func agrees(_ segments: [Transcript.Segment], on vote: String) -> Bool {
+            !TranscriptLanguageVote.serbianCroatianAliases.values.contains(vote)
+                && TranscriptLanguageVote.unanimous(segments.map(\.text), code: vote)
+        }
+        if sample.count < spans.count, let vote = pinnedLanguage(for: sampled.map(\.text), minimumShare: sampleShare) {
+            let aligns = !wordAttribution || QwenWordAligner.supports(vote)
+            guard aligns, Double(sample.count) >= sampleKeptShare * Double(spans.count),
+                  agrees(sampled, on: vote) else {
+                return try await pinned(vote, segments: [], twice: false)
+            }
+            let rest = try await decode(unsampled, vote)
+            return AutoLanguageDecision(segments: (sampled + rest).sorted { $0.start < $1.start }, pinned: vote,
+                                        sampled: sample.count, decodedTwice: false, needsSpeakerRegions: false)
+        }
         let rest = unsampled.isEmpty ? [] : try await decode(unsampled, nil)
         let all = (sampled + rest).sorted { $0.start < $1.start }
         guard let vote = pinnedLanguage(for: all.map(\.text)) else {
             return AutoLanguageDecision(segments: all, pinned: nil, sampled: sample.count,
                                         decodedTwice: false, needsSpeakerRegions: false)
         }
-        // Every span already came back in the voted language, so pinning it would decode the
-        // same audio again for the same text. Serbian, Croatian, Bosnian and Montenegrin still
-        // decode again: they vote as one language, and the pinned decode is the better one there.
-        if !TranscriptLanguageVote.serbianCroatianAliases.values.contains(vote),
-           TranscriptLanguageVote.unanimous(all.map(\.text), code: vote) {
+        if agrees(all, on: vote) {
             return AutoLanguageDecision(segments: all, pinned: vote, sampled: sample.count, decodedTwice: false,
                                         needsSpeakerRegions: wordAttribution && !QwenWordAligner.supports(vote))
         }
