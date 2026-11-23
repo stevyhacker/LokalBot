@@ -137,6 +137,39 @@ final class DreamLoopTests: XCTestCase {
         XCTAssertEqual(try store.loadMemory()?.activeProjects, [])
     }
 
+    func testRewritingAMeetingWithIdenticalContentKeepsItsDreams() throws {
+        let store = try temporaryStore()
+        let meetingID = UUID()
+        let recent = provenance(reportDay: dayKey(2), meetingID: meetingID, meetingDay: dayKey(15))
+        try store.save(report: DreamReport(day: dayKey(2), generatedAt: Date(), engineName: "test",
+                                           evidenceProvenance: recent, narrative: "Recent day"),
+                       memory: DreamMemory(updatedAt: Date(), lastDreamDay: dayKey(2)))
+        let meeting = Meeting(id: meetingID, title: "Sync", appName: "Meet", startedAt: noon(15),
+                              endedAt: noon(15).addingTimeInterval(1_800), relativePath: "meetings/sync")
+        let folder = store.root.appendingPathComponent("meetings/sync", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let transcript = folder.appendingPathComponent("transcript.json")
+        try Data("same".utf8).write(to: transcript)
+
+        try store.withMeetingEvidenceMutation(for: [meeting], folders: [folder]) {
+            try Data("same".utf8).write(to: transcript, options: .atomic)
+        }
+        XCTAssertTrue(store.hasReport(forDayKey: dayKey(2)))
+
+        try store.withMeetingEvidenceMutation(for: [meeting], folders: [folder]) {
+            try Data("changed".utf8).write(to: transcript, options: .atomic)
+        }
+        XCTAssertFalse(store.hasReport(forDayKey: dayKey(2)))
+    }
+
+    func testMeetingInvalidationCoversOnlyTheDaysAroundTheMeeting() throws {
+        let start = try XCTUnwrap(ISO8601DateFormatter().date(from: "2026-09-24T22:30:00Z"))
+        let meeting = Meeting(id: UUID(), title: "Late", appName: "Meet", startedAt: start,
+                              endedAt: start.addingTimeInterval(7_200), relativePath: "meetings/late")
+        XCTAssertEqual(DreamEvidenceInvalidation.meetingDayKeys(for: [meeting]),
+                       ["2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26"])
+    }
+
     func testUnrelatedChangeWhileTheModelRunsDoesNotDiscardTheDream() throws {
         let store = try temporaryStore()
         let revision = try store.evidenceRevision()

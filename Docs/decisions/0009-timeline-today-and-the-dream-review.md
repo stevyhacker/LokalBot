@@ -322,3 +322,9 @@ Where: `LinuxWindows/crates/lokalbot-core/src/routines.rs` (`Library::routine_re
 - An edited journal or daily note belongs to the person. Generated output never replaces it, and any write that awaited a model checks ownership and revision again just before committing.
 - Source changes keep derived content and mark it out of date; only deletion withdraws a digest or review, and staleness is decided by the sources an artifact actually read. A new kind of evidence goes through `primaryEvidenceDidChange` (`Shared::evidence_changed`), with a decision on whether it feeds later days.
 - Completion markers (the journal's mtime, the report JSON, a routine's token) are written last, and the overnight review stays bounded: an opt-in start, seven days back, mains power, quiet, and no model downloads.
+
+### A meeting rewrite reopens past days only when its saved content changed
+
+Re-summarizing or re-transcribing a meeting hashes the meeting folder's JSON, Markdown and text files before and after the write. Identical content discards the prepared invalidation, so digests and overnight reviews are kept; changed content invalidates as before. The intent is written before the write, so a crash mid-write still invalidates. A meeting is an exact instant, so its source days are its UTC days from start to end plus one day either side, which covers every time zone; screen evidence keeps two days either side.
+
+Where: `LokalBot/Services/Dreaming/DreamEvidenceMutation.swift` (`MeetingEvidenceFingerprint`, `DreamEvidenceInvalidation.meetingDayKeys`), `LokalBot/Services/Dreaming/DreamStore.swift` (`withEvidenceMutation(…unlessUnchanged:)`).
