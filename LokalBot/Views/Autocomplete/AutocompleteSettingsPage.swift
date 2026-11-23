@@ -66,10 +66,19 @@ struct AutocompleteSettingsSections: View {
                 ForEach(CotypingAcceptKey.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
             }
             .settingTarget("settings.cotypingAcceptKey", selected: app.focusedSettingID)
+            Picker("Accept the rest", selection: $app.settings.cotypingFullAcceptKey) {
+                ForEach(CotypingFullAcceptKey.allCases) { Text(LocalizedStringKey($0.pickerLabel)).tag($0) }
+            }
+            .settingTarget("settings.cotypingFullAcceptKey", selected: app.focusedSettingID)
             Picker("Each press accepts", selection: $app.settings.cotypingAcceptGranularity) {
                 ForEach(CotypingAcceptGranularity.allCases) { Text(LocalizedStringKey($0.label)).tag($0) }
             }
             .settingTarget("settings.cotypingAcceptGranularity", selected: app.focusedSettingID)
+            SettingsSwitchRow("Tab moves to next field",
+                              info: "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting.",
+                              isOn: $app.settings.cotypingTabMovesToNextField)
+                .disabled(app.settings.cotypingAcceptKey != .tab)
+                .settingTarget("settings.cotypingTabMovesToNextField", selected: app.focusedSettingID)
             SettingsSwitchRow("Take punctuation with the word",
                               info: "When off, a full stop or comma after a word takes its own press, so you can still end the sentence differently.",
                               isOn: $app.settings.cotypingAutoAcceptTrailingPunctuation)
@@ -245,6 +254,10 @@ struct AutocompleteSettingsSections: View {
 
     private var advancedSection: some View {
         Section {
+            SettingsSwitchRow("Pause in Low Power Mode",
+                              info: "Pause suggestions while Low Power Mode is on to save battery.",
+                              isOn: $app.settings.cotypingPauseInLowPowerMode)
+                .settingTarget("settings.cotypingPauseInLowPowerMode", selected: app.focusedSettingID)
             SettingsSwitchRow("Use fast in-process runtime", isOn: $app.settings.cotypingInProcessRuntime)
                 .disabled(app.settings.cotypingBackend != .onDevice)
                 .settingTarget("settings.cotypingInProcessRuntime", selected: app.focusedSettingID)

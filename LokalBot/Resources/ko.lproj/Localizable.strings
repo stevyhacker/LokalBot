@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow의 flow.sqlite를 선택하세요. LokalBot은 사전만 읽습니다.";
 "Wispr Flow's dictionary has no new words to add." = "Wispr Flow 사전에 추가할 새 단어가 없습니다.";
 "Couldn't read Wispr Flow's dictionary." = "Wispr Flow 사전을 읽을 수 없습니다.";
+"Accept the rest" = "나머지 수락";
+"` (Backtick)" = "` (백틱)";
+"Double-tap accept key" = "적용 키 두 번 누르기";
+"Tab moves to next field" = "Tab 키로 다음 필드로 이동";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "채팅 앱과 코드 편집기 밖의 한 줄 입력란에서는 Tab 키를 누르면 제안을 적용하지 않고 닫은 뒤 다음 필드로 이동합니다.";
+"Pause in Low Power Mode" = "저전력 모드에서 일시 정지";
+"Pause suggestions while Low Power Mode is on to save battery." = "배터리를 절약하기 위해 저전력 모드가 켜져 있는 동안 제안을 일시 정지합니다.";

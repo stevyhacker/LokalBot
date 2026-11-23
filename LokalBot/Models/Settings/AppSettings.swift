@@ -515,9 +515,11 @@ struct AppSettings: Codable, Equatable {
     var cotypingAcceptGranularity: CotypingAcceptGranularity = .word
     var cotypingAcceptKey: CotypingAcceptKey = .tab
     var cotypingFullAcceptKey: CotypingFullAcceptKey = .backtick
+    var cotypingTabMovesToNextField: Bool = false
     var cotypingAutoAcceptTrailingPunctuation: Bool = false
     var cotypingEscapeBehavior: CotypingEscapeBehavior = .pause
     var cotypingAddSpaceAfterAccept: Bool = false
+    var cotypingPauseInLowPowerMode: Bool = true
     var cotypingExcludedApps: String = "1Password, Keychain Access, Bitwarden, KeePassXC, Terminal, iTerm"
     var cotypingExcludedDomains: String = ""
     var cotypingSuggestInIntegratedTerminals: Bool = false
@@ -833,9 +835,11 @@ struct AppSettings: Codable, Equatable {
         case cotypingAcceptGranularity
         case cotypingAcceptKey
         case cotypingFullAcceptKey
+        case cotypingTabMovesToNextField
         case cotypingAutoAcceptTrailingPunctuation
         case cotypingEscapeBehavior
         case cotypingAddSpaceAfterAccept
+        case cotypingPauseInLowPowerMode
         case cotypingExcludedApps
         case cotypingExcludedDomains
         case cotypingSuggestInIntegratedTerminals
@@ -1065,9 +1069,11 @@ struct AppSettings: Codable, Equatable {
         try c.encode(cotypingAcceptGranularity, forKey: .cotypingAcceptGranularity)
         try c.encode(cotypingAcceptKey, forKey: .cotypingAcceptKey)
         try c.encode(cotypingFullAcceptKey, forKey: .cotypingFullAcceptKey)
+        try c.encode(cotypingTabMovesToNextField, forKey: .cotypingTabMovesToNextField)
         try c.encode(cotypingAutoAcceptTrailingPunctuation, forKey: .cotypingAutoAcceptTrailingPunctuation)
         try c.encode(cotypingEscapeBehavior, forKey: .cotypingEscapeBehavior)
         try c.encode(cotypingAddSpaceAfterAccept, forKey: .cotypingAddSpaceAfterAccept)
+        try c.encode(cotypingPauseInLowPowerMode, forKey: .cotypingPauseInLowPowerMode)
         try c.encode(cotypingExcludedApps, forKey: .cotypingExcludedApps)
         try c.encode(cotypingExcludedDomains, forKey: .cotypingExcludedDomains)
         try c.encode(cotypingSuggestInIntegratedTerminals, forKey: .cotypingSuggestInIntegratedTerminals)
@@ -1311,11 +1317,15 @@ struct AppSettings: Codable, Equatable {
             .cotypingAcceptGranularity, defaults.cotypingAcceptGranularity)
         cotypingAcceptKey = decode(.cotypingAcceptKey, defaults.cotypingAcceptKey)
         cotypingFullAcceptKey = decode(.cotypingFullAcceptKey, defaults.cotypingFullAcceptKey)
+        cotypingTabMovesToNextField = decode(
+            .cotypingTabMovesToNextField, defaults.cotypingTabMovesToNextField)
         cotypingAutoAcceptTrailingPunctuation = Self.migratedCotypingAutoAcceptTrailingPunctuation(
             decode(.cotypingAutoAcceptTrailingPunctuation, defaults.cotypingAutoAcceptTrailingPunctuation),
             decodedSettingsVersion: cotypingSettingsVersion)
         cotypingAddSpaceAfterAccept = decode(
             .cotypingAddSpaceAfterAccept, defaults.cotypingAddSpaceAfterAccept)
+        cotypingPauseInLowPowerMode = decode(
+            .cotypingPauseInLowPowerMode, defaults.cotypingPauseInLowPowerMode)
         cotypingEscapeBehavior = decode(.cotypingEscapeBehavior, defaults.cotypingEscapeBehavior)
         cotypingExcludedApps = decode(.cotypingExcludedApps, defaults.cotypingExcludedApps)
         cotypingExcludedDomains = decode(.cotypingExcludedDomains, defaults.cotypingExcludedDomains)

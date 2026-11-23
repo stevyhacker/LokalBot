@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Chagua faili ya flow.sqlite ya Wispr Flow. LokalBot husoma kamusi yake tu.";
 "Wispr Flow's dictionary has no new words to add." = "Kamusi ya Wispr Flow haina maneno mapya ya kuongeza.";
 "Couldn't read Wispr Flow's dictionary." = "Imeshindwa kusoma kamusi ya Wispr Flow.";
+"Accept the rest" = "Kubali iliyobaki";
+"` (Backtick)" = "` (Backtick)";
+"Double-tap accept key" = "Bonyeza mara mbili kitufe cha kukubali";
+"Tab moves to next field" = "Tab huhamia sehemu inayofuata";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Katika sehemu za mstari mmoja nje ya programu za gumzo na vihariri vya msimbo, Tab hufunga pendekezo na kuhamia sehemu inayofuata badala ya kukubali.";
+"Pause in Low Power Mode" = "Sitisha kwenye Hali ya Nishati Chini";
+"Pause suggestions while Low Power Mode is on to save battery." = "Sitisha mapendekezo wakati Hali ya Nishati Chini imewashwa ili kuokoa betri.";

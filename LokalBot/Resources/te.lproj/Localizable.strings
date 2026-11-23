@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow యొక్క flow.sqlite ను ఎంచుకోండి. LokalBot దాని నిఘంటువును మాత్రమే చదువుతుంది.";
 "Wispr Flow's dictionary has no new words to add." = "Wispr Flow నిఘంటువులో జోడించడానికి కొత్త పదాలు లేవు.";
 "Couldn't read Wispr Flow's dictionary." = "Wispr Flow నిఘంటువును చదవలేకపోయింది.";
+"Accept the rest" = "మిగిలినది ఆమోదించండి";
+"` (Backtick)" = "` (బ్యాక్‌టిక్)";
+"Double-tap accept key" = "ఆమోదించే కీని రెండుసార్లు నొక్కండి";
+"Tab moves to next field" = "Tab తదుపరి ఫీల్డ్‌కు వెళుతుంది";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "చాట్ యాప్‌లు మరియు కోడ్ ఎడిటర్‌ల వెలుపల ఉన్న ఒకే వరుస ఫీల్డ్‌లలో, Tab సూచనను ఆమోదించకుండా మూసివేసి తదుపరి ఫీల్డ్‌కు వెళుతుంది.";
+"Pause in Low Power Mode" = "లో పవర్ మోడ్‌లో నిలిపివేయండి";
+"Pause suggestions while Low Power Mode is on to save battery." = "బ్యాటరీని ఆదా చేయడానికి లో పవర్ మోడ్ ఆన్‌లో ఉన్నప్పుడు సూచనలను నిలిపివేయండి.";

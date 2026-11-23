@@ -394,3 +394,51 @@ final class CotypingTrailingDuplicationFilterTests: XCTestCase {
         XCTAssertFalse(CotypingTrailingDuplicationFilter.duplicatesTrailingText("brand new idea", trailingText: "old plan"))
     }
 }
+
+final class CotypingInsertionSafetyTests: XCTestCase {
+    func testRejectsControlBidiInvisibleAndTagInjectionScalars() {
+        let unsafeSamples = [
+            "",
+            "   \n\t ",
+            "\u{200C}\u{200D}\u{FE0F}",
+            "hello\u{0000}world",
+            "hello\u{001B}[31mworld",
+            "hello\u{007F}world",
+            "hello\u{0085}world",
+            "hello\u{00AD}world",
+            "hello\u{180E}world",
+            "hello\u{200B}world",
+            "hello\u{2028}world",
+            "hello\u{2029}world",
+            "hello\u{202E}world",
+            "hello\u{2066}world",
+            "hello\u{2060}world",
+            "hello\u{FEFF}world",
+            "hello\u{FFFC}world",
+            "hello\u{FFFD}world",
+            "hello\u{E000}world",
+            "hello\u{E0061}world",
+            "\u{1F3F4}\u{E0067}\u{E0062}\u{E007F}",
+            "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}",
+        ]
+        for sample in unsafeSamples {
+            XCTAssertFalse(CotypingInsertionSafety.isSafeToInsert(sample), "Expected refusal for \(sample.debugDescription)")
+        }
+    }
+
+    func testAllowsNormalTextJoinersVariationSelectorsAndSubdivisionFlags() {
+        let englandFlag = "\u{1F3F4}\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"
+        let safeSamples = [
+            " up on that",
+            "line one\nline two",
+            "می\u{200C}خواهم",
+            "👨\u{200D}👩\u{200D}👧\u{200D}👦",
+            "❤️\u{FE0F}",
+            "hello \u{200F}مرحبا",
+            "Flag: \(englandFlag)",
+        ]
+        for sample in safeSamples {
+            XCTAssertTrue(CotypingInsertionSafety.isSafeToInsert(sample), "Expected safe for \(sample.debugDescription)")
+        }
+    }
+}

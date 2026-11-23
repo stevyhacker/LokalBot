@@ -58,6 +58,48 @@ final class CotypingPromptRendererTests: XCTestCase {
             XCTAssertTrue(prompt.contains("Previously accepted completion: \(example)"))
         }
     }
+
+    func testStaticProfileLinesPrecedeVolatileSavedFactsAndClipboard() throws {
+        let rendered = CotypingPromptRenderer.render(
+            prefixText: "Sure, ",
+            surfaceLines: ["Topic: Q3 planning"],
+            userName: "Ada",
+            styleNote: "concise",
+            languageHint: "The text is usually written in English.",
+            extendedContext: "Atlas = billing service",
+            clipboardContext: "release plan",
+            memoryContext: "Atlas owner is Priya.")
+        let preface = try XCTUnwrap(rendered.conditioningPreface)
+        let lines = preface.components(separatedBy: "\n")
+        XCTAssertEqual(lines, [
+            "Topic: Q3 planning",
+            "Written by Ada.",
+            "Writing style: concise.",
+            "The text is usually written in English.",
+            "Notes the writer keeps in mind: Atlas = billing service",
+            "Relevant saved facts: Atlas owner is Priya.",
+            "On the clipboard: release plan",
+        ])
+    }
+
+    func testOverflowingStaticProfilePrefixStaysStableWhenMemoryChanges() throws {
+        let oversizedStyle = String(repeating: "concise clear prose ", count: 60)
+        let noMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle).conditioningPreface)
+        let shortMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle,
+            memoryContext: "A").conditioningPreface)
+        let fullMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle,
+            memoryContext: String(repeating: "m", count: 360)).conditioningPreface)
+
+        XCTAssertTrue(shortMemory.hasPrefix(noMemory + "\nRelevant saved facts: A"))
+        XCTAssertTrue(fullMemory.hasPrefix(noMemory + "\nRelevant saved facts: "))
+        XCTAssertLessThanOrEqual(fullMemory.count, CotypingPromptRenderer.maxPrefaceCharacters)
+    }
 }
 
 final class CotypingContextPromptTests: XCTestCase {

@@ -498,6 +498,7 @@ struct Reader {
     current: Option<Obj>,
     fixed: Option<(Obj, Fixed)>,
     visible: Option<(Obj, Option<String>)>,
+    latched_secure: std::collections::HashSet<String>,
     last: FocusSnapshot,
     gate: FlickerGate,
     backoff: PollBackoff,
@@ -518,6 +519,7 @@ impl Reader {
             current: None,
             fixed: None,
             visible: None,
+            latched_secure: std::collections::HashSet::new(),
             last: FocusSnapshot::none(),
             gate: FlickerGate::default(),
             backoff: PollBackoff::default(),
@@ -814,12 +816,13 @@ impl Reader {
             return Some(fixed);
         }
         let role = self.bus.role(obj)?;
+        let key = obj.key();
         let states = self.bus.states(obj).unwrap_or(0);
         let role_name = self.bus.role_name(obj).unwrap_or_default();
         let name = self.bus.name(obj);
         let description = self.bus.description(obj);
         let attributes = self.bus.attributes(obj);
-        if role == role::PASSWORD_TEXT
+        let detected_secure = role == role::PASSWORD_TEXT
             || policy::is_secure_field([
                 role_name.as_str(),
                 name.as_str(),
@@ -827,8 +830,14 @@ impl Reader {
                 attributes
                     .get("placeholder-text")
                     .map_or("", String::as_str),
-            ])
-        {
+            ]);
+        if detected_secure {
+            if self.latched_secure.len() >= 64 && !self.latched_secure.contains(&key) {
+                self.latched_secure.clear();
+            }
+            self.latched_secure.insert(key.clone());
+        }
+        if detected_secure || self.latched_secure.contains(&key) {
             fixed.refusal = Some(Refusal::Blocked(reasons::SECURE));
             return Some(fixed);
         }
@@ -892,6 +901,29 @@ impl Reader {
             cursor = self.bus.parent(&node);
         }
         fixed.window_relative = frame.and_then(|_| self.window_origin(obj, pid));
+        let placeholder = attributes
+            .get("placeholder-text")
+            .map_or("", String::as_str);
+        let dom_id = attributes.get("id").map(String::as_str);
+        if fixed.url.is_some()
+            && policy::is_search_label_or_id(
+                fixed.single_line,
+                [name.as_str(), description.as_str(), placeholder],
+                dom_id,
+            )
+        {
+            fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
+            return Some(fixed);
+        }
+        if policy::is_credential_field(
+            fixed.single_line,
+            [name.as_str(), description.as_str(), placeholder],
+            dom_id,
+            None,
+        ) {
+            fixed.refusal = Some(Refusal::Unsupported(reasons::CREDENTIAL));
+            return Some(fixed);
+        }
         if self.policy.match_host_style {
             fixed.style = self.style(obj);
         }
@@ -997,6 +1029,9 @@ impl Reader {
         let raw_after = raw_after.replace('\u{fffc}', "");
         let (before, before_truncated) = policy::bounded_before(&raw_before, start > 0);
         let after = policy::bounded_after(&raw_after, end < count);
+        if fixed.single_line && policy::looks_like_address_entry(&format!("{before}{after}")) {
+            return Err(Refusal::Unsupported(reasons::CREDENTIAL));
+        }
 
         let (coords, offset) = placement(fixed.window_relative);
         let field_frame = self.bus.extents(obj, coords).map(offset);

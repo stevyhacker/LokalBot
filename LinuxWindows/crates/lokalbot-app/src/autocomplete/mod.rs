@@ -12,9 +12,10 @@ use std::time::{Duration, Instant};
 use gpui_kit::{App, AppContext as _, Context, Entity, Global, Task};
 use lokalbot_ai::autocomplete::memory::{MemoryGuard, Policy};
 use lokalbot_ai::autocomplete::server::ServerProblem;
+use lokalbot_ai::autocomplete::surface::SurfaceClass;
 use lokalbot_ai::autocomplete::{AcceptOptions, AcceptScope, SuggestionKind};
 use lokalbot_core::Settings;
-use lokalbot_core::settings::CotypingEscapeBehavior;
+use lokalbot_core::settings::{CotypingAcceptKey, CotypingEscapeBehavior, CotypingFullAcceptKey};
 use lokalbot_engine::{
     AutocompleteCommand, AutocompleteLearning, AutocompleteMeasures, AutocompleteUpdate, Command,
     FieldContext,
@@ -36,6 +37,51 @@ pub const PRACTICE_FIELD_ID: u64 = u64::MAX;
 
 const KEY_FOCUS_GRACE: Duration = Duration::from_millis(500);
 const AWAITING_INSERT_TIMEOUT: Duration = Duration::from_millis(500);
+const DOUBLE_TAP_WINDOW: Duration = Duration::from_millis(300);
+
+#[derive(Clone, Debug, Default)]
+struct DoubleTapAcceptance {
+    last: Option<(String, Instant)>,
+}
+
+impl DoubleTapAcceptance {
+    fn reset(&mut self) {
+        self.last = None;
+    }
+
+    fn resolve(
+        &mut self,
+        whole: bool,
+        full_accept_key: CotypingFullAcceptKey,
+        suggestion_key: &str,
+        now: Instant,
+    ) -> bool {
+        if whole || full_accept_key != CotypingFullAcceptKey::DoubleTap {
+            self.reset();
+            return whole;
+        }
+        if let Some((previous_key, previous_at)) = &self.last
+            && previous_key == suggestion_key
+            && now.saturating_duration_since(*previous_at) <= DOUBLE_TAP_WINDOW
+        {
+            self.reset();
+            return true;
+        }
+        self.last = Some((suggestion_key.to_string(), now));
+        false
+    }
+}
+
+fn should_pass_tab_to_host(settings: &Settings, whole: bool, field: &FieldSnapshot) -> bool {
+    settings.cotyping_tab_moves_to_next_field
+        && settings.cotyping_accept_key == CotypingAcceptKey::Tab
+        && !whole
+        && field.single_line
+        && !matches!(
+            SurfaceClass::of(&field.app_id, &field.app_name),
+            SurfaceClass::Chat | SurfaceClass::CodeEditor
+        )
+}
 
 struct PendingInsert {
     field_id: u64,
@@ -304,6 +350,8 @@ pub struct Autocomplete {
     predicted_caret: Option<Rect>,
     held_inline_caret: Option<(u64, Rect)>,
     last_accept_at: Option<Instant>,
+    double_tap: DoubleTapAcceptance,
+    practice_double_tap: DoubleTapAcceptance,
     sent: SentContexts,
     last_context: Option<FieldContext>,
     escape: EscapePause,
@@ -316,6 +364,8 @@ pub struct Autocomplete {
     luminance: std::collections::HashMap<String, f32>,
     fake: Option<String>,
     fake_task: Option<Task<()>>,
+    power_task: Option<Task<()>>,
+    low_power_paused: bool,
     pub practice: Practice,
     pub measures: AutocompleteMeasures,
     pub learning: AutocompleteLearning,
@@ -358,6 +408,8 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             predicted_caret: None,
             held_inline_caret: None,
             last_accept_at: None,
+            double_tap: DoubleTapAcceptance::default(),
+            practice_double_tap: DoubleTapAcceptance::default(),
             sent: SentContexts::default(),
             last_context: None,
             escape: EscapePause::default(),
@@ -370,6 +422,8 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             luminance: Default::default(),
             fake,
             fake_task: None,
+            power_task: None,
+            low_power_paused: false,
             practice: Practice::default(),
             measures: AutocompleteMeasures::default(),
             learning: AutocompleteLearning::default(),
@@ -415,14 +469,25 @@ impl Autocomplete {
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        let (enabled, paused, policy, accept_keys) = {
+        let (enabled, pause_in_low_power, low_power, paused, policy, accept_keys) = {
             let data = self.data.read(cx);
             let settings = &data.settings;
             let enabled = settings.cotyping_enabled;
-            let paused = data.dictation != DictationHud::Idle || data.recording.is_active();
+            let pause_in_low_power = settings.cotyping_pause_in_low_power_mode;
+            let low_power = pause_in_low_power && lokalbot_platform::power::current().saving_power;
+            let paused =
+                data.dictation != DictationHud::Idle || data.recording.is_active() || low_power;
             let policy = ReadPolicy::from_settings(settings, enabled && !paused);
-            (enabled, paused, policy, AcceptKeys::from_settings(settings))
+            (
+                enabled,
+                pause_in_low_power,
+                low_power,
+                paused,
+                policy,
+                AcceptKeys::from_settings(settings),
+            )
         };
+        self.low_power_paused = low_power;
         if accept_keys != self.accept_keys {
             self.accept_keys = accept_keys;
             if let Some(keys) = &self.keys {
@@ -440,6 +505,11 @@ impl Autocomplete {
             self.start_watching(policy.clone(), cx);
         } else if !wants && self.running {
             self.stop_watching(cx);
+        }
+        if wants && pause_in_low_power {
+            self.ensure_power_polling(cx);
+        } else {
+            self.power_task = None;
         }
         if !enabled && (self.practice.session.is_some() || self.last_context.is_some()) {
             self.dismiss_everything(cx);
@@ -462,6 +532,27 @@ impl Autocomplete {
                 self.leave_field(cx);
             }
         }
+    }
+
+    fn ensure_power_polling(&mut self, cx: &mut Context<Self>) {
+        if self.power_task.is_some() {
+            return;
+        }
+        self.power_task = Some(cx.spawn(async move |this, cx| {
+            loop {
+                smol::Timer::after(Duration::from_secs(5)).await;
+                let saving = lokalbot_platform::power::current().saving_power;
+                let ok = this.update(cx, |this, cx| {
+                    let wants_pause = this.settings(cx).cotyping_pause_in_low_power_mode && saving;
+                    if wants_pause != this.low_power_paused {
+                        this.sync(cx);
+                    }
+                });
+                if ok.is_err() {
+                    break;
+                }
+            }
+        }));
     }
 
     fn start_watching(&mut self, policy: ReadPolicy, cx: &mut Context<Self>) {
@@ -502,6 +593,7 @@ impl Autocomplete {
 
     fn stop_watching(&mut self, cx: &mut Context<Self>) {
         self.dismiss_everything(cx);
+        self.power_task = None;
         self.watcher = None;
         if let Some(keys) = self.keys.take() {
             keys.set_active(false);
@@ -557,7 +649,19 @@ impl Autocomplete {
     }
 
     fn on_focus(&mut self, focus: FocusSnapshot, cx: &mut Context<Self>) {
-        if !self.running || self.paused {
+        if !self.running {
+            return;
+        }
+        let low_power = self.settings(cx).cotyping_pause_in_low_power_mode
+            && lokalbot_platform::power::current().saving_power;
+        let paused = {
+            let data = self.data.read(cx);
+            data.dictation != DictationHud::Idle || data.recording.is_active() || low_power
+        };
+        if paused != self.paused {
+            self.sync(cx);
+        }
+        if self.paused {
             return;
         }
         self.focus_generation += 1;
@@ -685,6 +789,7 @@ impl Autocomplete {
             }
             Reconcile::Exhausted => self.clear_session(cx),
             Reconcile::Advanced { .. } => {
+                self.double_tap.reset();
                 self.predicted_caret = None;
                 self.session_after = field.after.clone();
                 self.present(cx);
@@ -1130,6 +1235,7 @@ impl Autocomplete {
             .session_guard
             .as_ref()
             .is_some_and(|guard| !guard.is_current(Policy::from_settings(&settings)));
+        let now = Instant::now();
         let plan = (|| {
             let whole = self.accept_keys.is_full(key)?;
             if revoked {
@@ -1140,6 +1246,9 @@ impl Autocomplete {
             if session.field_id != current.id || !self.ghost_visible() {
                 return None;
             }
+            if should_pass_tab_to_host(&settings, whole, &current.field) {
+                return None;
+            }
             let synced = current.field.before == session.anchor
                 || session.awaiting.is_some()
                 || ((current.field.before_truncated || session.anchor_truncated)
@@ -1147,13 +1256,23 @@ impl Autocomplete {
             if !synced {
                 return None;
             }
+            let suggestion_key = format!(
+                "{}\u{1f}{}{}",
+                session.field_id, session.anchor, session.remaining
+            );
+            let effective_whole = self.double_tap.resolve(
+                whole,
+                settings.cotyping_full_accept_key,
+                &suggestion_key,
+                now,
+            );
             plan_acceptance(
                 &session.remaining,
                 &self.session_kind,
                 &session.anchor,
                 &self.session_after,
                 &settings,
-                whole,
+                effective_whole,
             )
         })();
         let Some(plan) = plan else {
@@ -1328,6 +1447,7 @@ impl Autocomplete {
         self.predicted_caret = None;
         self.held_inline_caret = None;
         self.last_accept_at = None;
+        self.double_tap.reset();
         self.overlay.hide(cx);
         if self.inline_shown {
             self.inline_shown = false;
@@ -1441,19 +1561,28 @@ impl Autocomplete {
             .unwrap_or(SuggestionKind::Continuation);
         let session = self.practice.session.as_mut()?;
         if session.anchor != self.practice.before {
+            self.practice_double_tap.reset();
             return None;
         }
+        let suggestion_key = format!("{}{}", session.anchor, session.remaining);
+        let effective_whole = self.practice_double_tap.resolve(
+            whole,
+            settings.cotyping_full_accept_key,
+            &suggestion_key,
+            Instant::now(),
+        );
         let plan = plan_acceptance(
             &session.remaining,
             &kind,
             &self.practice.before,
             &self.practice.after,
             &settings,
-            whole,
+            effective_whole,
         )?;
         session.accept(&plan.chunk, &plan.edit.text, plan.edit.backward);
         if session.is_exhausted() {
             self.practice.session = None;
+            self.practice_double_tap.reset();
         }
         crate::bridge::send(
             Command::Autocomplete(AutocompleteCommand::Accepted {
@@ -1468,6 +1597,7 @@ impl Autocomplete {
     }
 
     pub fn practice_drop(&mut self, cx: &mut Context<Self>) {
+        self.practice_double_tap.reset();
         if self.practice.session.take().is_some() {
             crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
             cx.notify();
@@ -1475,6 +1605,7 @@ impl Autocomplete {
     }
 
     pub fn practice_dismiss(&mut self, cx: &mut Context<Self>) -> bool {
+        self.practice_double_tap.reset();
         if self.practice.session.take().is_none() {
             return false;
         }
@@ -1528,6 +1659,61 @@ mod tests {
         let fixed = plan_acceptance("world", &fix, "a wrld ", "", &settings, false).unwrap();
         assert_eq!(fixed.edit.text, "world ");
         assert_eq!(fixed.edit.backward, 5);
+    }
+
+    #[test]
+    fn double_tap_promotes_second_accept_within_window() {
+        let mut state = DoubleTapAcceptance::default();
+        let start = Instant::now();
+        assert!(!state.resolve(false, CotypingFullAcceptKey::DoubleTap, "s1", start));
+        assert!(state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(200),
+        ));
+        assert!(!state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(250),
+        ));
+        assert!(!state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(600),
+        ));
+    }
+
+    #[test]
+    fn tab_form_navigation_applies_only_to_single_line_non_chat_non_editor_fields() {
+        let mut settings = Settings {
+            cotyping_tab_moves_to_next_field: true,
+            cotyping_accept_key: CotypingAcceptKey::Tab,
+            ..Default::default()
+        };
+        let mut field = FieldSnapshot {
+            app_name: "Firefox".into(),
+            app_id: "firefox".into(),
+            single_line: true,
+            ..Default::default()
+        };
+        assert!(should_pass_tab_to_host(&settings, false, &field));
+        assert!(!should_pass_tab_to_host(&settings, true, &field));
+        field.single_line = false;
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.single_line = true;
+        field.app_id = "slack".into();
+        field.app_name = "Slack".into();
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.app_id = "code".into();
+        field.app_name = "Visual Studio Code".into();
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.app_id = "firefox".into();
+        field.app_name = "Firefox".into();
+        settings.cotyping_accept_key = CotypingAcceptKey::RightArrow;
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
     }
 
     #[test]

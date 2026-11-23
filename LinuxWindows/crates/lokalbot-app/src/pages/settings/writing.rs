@@ -52,6 +52,7 @@ pub fn full_accept_key_label(key: CotypingFullAcceptKey) -> &'static str {
     match key {
         CotypingFullAcceptKey::Backtick => "`",
         CotypingFullAcceptKey::RightArrow => lokalbot_i18n::tr("Right Arrow"),
+        CotypingFullAcceptKey::DoubleTap => lokalbot_i18n::tr("Double-tap accept key"),
         CotypingFullAcceptKey::Off => lokalbot_i18n::tr("Off"),
     }
 }
@@ -68,20 +69,27 @@ pub fn escape_label(behavior: CotypingEscapeBehavior) -> &'static str {
 pub fn accept_hint(settings: &Settings) -> String {
     let key = accept_key_label(settings.cotyping_accept_key).to_string();
     let first = if settings.cotyping_accept_granularity == AcceptGranularity::Word {
-        lokalbot_i18n::format("{0} accepts the next word", &[("0", key)])
+        lokalbot_i18n::format("{0} accepts the next word", &[("0", key.clone())])
     } else {
-        lokalbot_i18n::format("{0} accepts the next phrase", &[("0", key)])
+        lokalbot_i18n::format("{0} accepts the next phrase", &[("0", key.clone())])
     };
     let mut parts = vec![first];
-    let keys = AcceptKeys::from_settings(settings);
-    if keys.full.is_some() {
+    if settings.cotyping_full_accept_key == CotypingFullAcceptKey::DoubleTap {
         parts.push(lokalbot_i18n::format(
-            "{0} accepts the rest",
-            &[(
-                "0",
-                full_accept_key_label(settings.cotyping_full_accept_key).to_string(),
-            )],
+            "Double-tap {0} accepts the rest",
+            &[("0", key)],
         ));
+    } else {
+        let keys = AcceptKeys::from_settings(settings);
+        if keys.full.is_some() {
+            parts.push(lokalbot_i18n::format(
+                "{0} accepts the rest",
+                &[(
+                    "0",
+                    full_accept_key_label(settings.cotyping_full_accept_key).to_string(),
+                )],
+            ));
+        }
     }
     parts.push(lokalbot_i18n::tr("Esc dismisses").to_string());
     parts.join(" · ")
@@ -648,12 +656,24 @@ impl SettingsPage {
                     [
                         CotypingFullAcceptKey::Backtick,
                         CotypingFullAcceptKey::RightArrow,
+                        CotypingFullAcceptKey::DoubleTap,
                         CotypingFullAcceptKey::Off,
                     ]
                     .map(|key| (key, full_accept_key_label(key).into()))
                     .to_vec(),
                     settings.cotyping_full_accept_key,
                     |s, v| s.cotyping_full_accept_key = v,
+                    cx,
+                ),
+            )
+            .row(
+                "settings.cotypingTabMovesToNextField",
+                self.toggle(
+                    "settings.cotypingTabMovesToNextField",
+                    lokalbot_i18n::tr("Tab moves to next field"),
+                    Some(lokalbot_i18n::tr("In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting.")),
+                    settings.cotyping_tab_moves_to_next_field,
+                    |s, v| s.cotyping_tab_moves_to_next_field = v,
                     cx,
                 ),
             )
@@ -903,6 +923,19 @@ impl SettingsPage {
                         None,
                         settings.cotyping_match_host_style,
                         |s, v| s.cotyping_match_host_style = v,
+                        cx,
+                    ),
+                )
+                .row(
+                    "settings.cotypingPauseInLowPowerMode",
+                    self.toggle(
+                        "settings.cotypingPauseInLowPowerMode",
+                        lokalbot_i18n::tr("Pause in Low Power Mode"),
+                        Some(lokalbot_i18n::tr(
+                            "Pause suggestions while Low Power Mode is on to save battery.",
+                        )),
+                        settings.cotyping_pause_in_low_power_mode,
+                        |s, v| s.cotyping_pause_in_low_power_mode = v,
                         cx,
                     ),
                 ),
@@ -1706,6 +1739,12 @@ mod tests {
         assert_eq!(
             accept_hint(&settings),
             "Right Arrow accepts the next phrase · Esc dismisses"
+        );
+        settings.cotyping_accept_key = CotypingAcceptKey::Tab;
+        settings.cotyping_full_accept_key = CotypingFullAcceptKey::DoubleTap;
+        assert_eq!(
+            accept_hint(&settings),
+            "Tab accepts the next phrase · Double-tap Tab accepts the rest · Esc dismisses"
         );
     }
 

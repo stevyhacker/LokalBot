@@ -818,4 +818,41 @@ final class CotypingCoordinatorTests: XCTestCase {
         XCTAssertFalse(coordinator.dismissFromTap())
         XCTAssertNil(coordinator.escapePause)
     }
+
+    func testHostPublishPollIntervalUsesFastThenSlowPhase() {
+        XCTAssertEqual(CotypingCoordinator.hostPublishFirstPollIntervalMs, 6)
+        XCTAssertEqual(CotypingCoordinator.hostPublishPollIntervalMs(elapsedMilliseconds: 0), 8)
+        XCTAssertEqual(CotypingCoordinator.hostPublishPollIntervalMs(elapsedMilliseconds: 59), 8)
+        XCTAssertEqual(CotypingCoordinator.hostPublishPollIntervalMs(elapsedMilliseconds: 60), 25)
+        XCTAssertEqual(CotypingCoordinator.hostPublishPollIntervalMs(elapsedMilliseconds: 250), 25)
+    }
+
+    func testLowPowerModePausesSkipsWarmthAndResumesWhenCleared() async {
+        settings.cotypingEnabled = true
+        settings.cotypingPauseInLowPowerMode = true
+        var lowPower = true
+        let coordinator = CotypingCoordinator(
+            engine: engine,
+            settingsProvider: { [settings] in settings },
+            learningStore: CotypingLearningStore(storageRoot: tempDir, initialSnapshot: .init()),
+            isLowPowerModeProvider: { lowPower },
+            selfBundleID: "me.dotenv.LokalBot.tests",
+            stats: stats)
+        coordinator.isRunning = true
+        coordinator.lowPowerModeChanged()
+        XCTAssertEqual(coordinator.state, .disabled(CotypingLowPowerPause.reason))
+
+        coordinator.warmModelAfterPause()
+        try? await Task.sleep(for: .milliseconds(80))
+        XCTAssertEqual(engine.warmRequests, 0)
+
+        coordinator.handleFocusChange(CotypingFocus(
+            appName: "Notes", bundleID: "com.apple.Notes", capability: .supported, field: liveField("Dear Ana,")))
+        XCTAssertEqual(coordinator.state, .disabled(CotypingLowPowerPause.reason))
+        XCTAssertNil(coordinator.focusPrewarmFieldIdentity)
+
+        lowPower = false
+        coordinator.lowPowerModeChanged()
+        XCTAssertEqual(coordinator.state, .idle)
+    }
 }

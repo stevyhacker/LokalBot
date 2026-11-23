@@ -24,8 +24,8 @@ enum CotypingSurfaceClassifier {
 
     static let terminalPrefixes = [
         "com.apple.terminal", "com.googlecode.iterm2", "dev.warp.",
-        "io.alacritty", "net.kovidgoyal.kitty", "co.zeit.hyper", "com.github.wez.wezterm",
-        "com.mitchellh.ghostty", "io.rio.terminal",
+        "io.alacritty", "org.alacritty", "net.kovidgoyal.kitty", "co.zeit.hyper",
+        "com.github.wez.wezterm", "com.mitchellh.ghostty", "com.raphaelamorim.rio",
     ]
     static let codeEditorPrefixes = [
         "com.apple.dt.xcode", "com.microsoft.vscode", "com.jetbrains.",
@@ -38,6 +38,7 @@ enum CotypingSurfaceClassifier {
     static let chatPrefixes = [
         "com.tinyspeck.slackmacgap", "com.microsoft.teams", "com.hnc.discord",
         "com.apple.mobilesms", "ru.keepcoder.telegram", "net.whatsapp.whatsapp",
+        "org.whispersystems.signal-desktop",
     ]
     static let browserPrefixes = [
         "com.apple.safari", "com.google.chrome", "org.mozilla.firefox",

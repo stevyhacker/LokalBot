@@ -756,12 +756,64 @@ enum CotypingTrailingDuplicationFilter {
 enum CotypingInsertionSafety {
     static func isSafeToInsert(_ completion: String) -> Bool {
         guard !completion.isEmpty else { return false }
-        var sawNonWhitespace = false
-        for scalar in completion.unicodeScalars {
-            if scalar == "\u{FFFD}" { return false }
-            if scalar.value != 0x0A, scalar.value < 0x20 || scalar.value == 0x7F { return false }
-            if !CharacterSet.whitespacesAndNewlines.contains(scalar) { sawNonWhitespace = true }
+        let scalars = Array(completion.unicodeScalars)
+        var index = 0
+        var sawVisibleContent = false
+        while index < scalars.count {
+            let scalar = scalars[index]
+            if scalar.value == 0x1F3F4, let flagEnd = subdivisionFlagEnd(in: scalars, startingAt: index) {
+                sawVisibleContent = true
+                index = flagEnd
+                continue
+            }
+            if isRefusedScalar(scalar) { return false }
+            if !CharacterSet.whitespacesAndNewlines.contains(scalar), !isAllowedInvisibleScalar(scalar) {
+                sawVisibleContent = true
+            }
+            index += 1
         }
-        return sawNonWhitespace
+        return sawVisibleContent
+    }
+
+    private static func isRefusedScalar(_ scalar: UnicodeScalar) -> Bool {
+        let value = scalar.value
+        if value == 0x0A { return false }
+        if value < 0x20 || value == 0x7F || (0x80...0x9F).contains(value) { return true }
+        if value == 0x00AD || value == 0x180E || value == 0x200B || value == 0xFEFF { return true }
+        if value == 0x2028 || value == 0x2029 { return true }
+        if (0x202A...0x202E).contains(value) || (0x2060...0x206F).contains(value) { return true }
+        if value == 0xFFFC || value == 0xFFFD { return true }
+        if (0xE000...0xF8FF).contains(value)
+            || (0xF0000...0xFFFFD).contains(value)
+            || (0x100000...0x10FFFD).contains(value) { return true }
+        if (0xE0000...0xE007F).contains(value) { return true }
+        return false
+    }
+
+    private static func isAllowedInvisibleScalar(_ scalar: UnicodeScalar) -> Bool {
+        let value = scalar.value
+        return value == 0x061C
+            || (0x200C...0x200F).contains(value)
+            || (0xFE00...0xFE0F).contains(value)
+            || (0xE0100...0xE01EF).contains(value)
+    }
+
+    private static func subdivisionFlagEnd(in scalars: [UnicodeScalar], startingAt start: Int) -> Int? {
+        var cursor = start + 1
+        var tagCount = 0
+        while cursor < scalars.count {
+            let value = scalars[cursor].value
+            if (0xE0030...0xE0039).contains(value) || (0xE0061...0xE007A).contains(value) {
+                tagCount += 1
+                if tagCount > 7 { return nil }
+                cursor += 1
+                continue
+            }
+            if value == 0xE007F, tagCount >= 3 {
+                return cursor + 1
+            }
+            return nil
+        }
+        return nil
     }
 }

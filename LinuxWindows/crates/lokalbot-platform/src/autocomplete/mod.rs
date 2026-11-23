@@ -391,7 +391,7 @@ impl AcceptKeys {
         let full = match settings.cotyping_full_accept_key {
             CotypingFullAcceptKey::Backtick => Some(InterceptedKey::Backtick),
             CotypingFullAcceptKey::RightArrow => Some(InterceptedKey::RightArrow),
-            CotypingFullAcceptKey::Off => None,
+            CotypingFullAcceptKey::DoubleTap | CotypingFullAcceptKey::Off => None,
         };
         Self {
             accept,

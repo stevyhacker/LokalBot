@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "請選擇 Wispr Flow 的 flow.sqlite。LokalBot 只讀取其中的詞典。";
 "Wispr Flow's dictionary has no new words to add." = "Wispr Flow 的詞典中沒有可新增的新詞。";
 "Couldn't read Wispr Flow's dictionary." = "無法讀取 Wispr Flow 的詞典。";
+"Accept the rest" = "接受其餘部分";
+"` (Backtick)" = "`（反引號）";
+"Double-tap accept key" = "連按兩次接受鍵";
+"Tab moves to next field" = "Tab 移至下一個欄位";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "在聊天 App 與程式碼編輯器以外的單行欄位中，按 Tab 會關閉建議並移至下一個欄位，而非接受建議。";
+"Pause in Low Power Mode" = "低耗電模式時暫停";
+"Pause suggestions while Low Power Mode is on to save battery." = "開啟低耗電模式時暫停建議以節省電量。";

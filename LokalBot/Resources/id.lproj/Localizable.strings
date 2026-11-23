@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Pilih flow.sqlite milik Wispr Flow. LokalBot hanya membaca kamusnya.";
 "Wispr Flow's dictionary has no new words to add." = "Kamus Wispr Flow tidak punya kata baru untuk ditambahkan.";
 "Couldn't read Wispr Flow's dictionary." = "Tidak dapat membaca kamus Wispr Flow.";
+"Accept the rest" = "Terima sisanya";
+"` (Backtick)" = "` (Backtick)";
+"Double-tap accept key" = "Ketuk dua kali tombol terima";
+"Tab moves to next field" = "Tab berpindah ke kolom berikutnya";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Di kolom satu baris di luar aplikasi obrolan dan editor kode, Tab menutup saran dan berpindah ke kolom berikutnya alih-alih menerimanya.";
+"Pause in Low Power Mode" = "Jeda saat Mode Daya Rendah";
+"Pause suggestions while Low Power Mode is on to save battery." = "Jeda saran saat Mode Daya Rendah aktif untuk menghemat baterai.";

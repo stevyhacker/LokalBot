@@ -1,7 +1,7 @@
 import Foundation
 
 extension CotypingCoordinator {
-    func acceptFromTap(_ scope: CotypingAcceptScope) -> Bool {
+    func acceptFromTap(_ scope: CotypingAcceptScope, isRepeat: Bool = false) -> Bool {
         guard isRunning, !discardRevokedMemoryContext() else { return false }
         if let activeVisibleContext,
            !CotypingVisibleContext.Policy(settings: settingsProvider()).permits(activeVisibleContext) {
@@ -14,6 +14,17 @@ extension CotypingCoordinator {
                   hasSession: session != nil),
               var current = session else { return false }
         guard overlay.acceptanceText == current.remainingText else {
+            clearSuggestion()
+            state = .idle
+            return false
+        }
+        let settings = settingsProvider()
+        if CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: settings.cotypingTabMovesToNextField,
+            acceptKey: settings.cotypingAcceptKey,
+            scope: scope,
+            fieldRole: current.field.role,
+            bundleID: current.field.bundleID) {
             clearSuggestion()
             state = .idle
             return false
@@ -66,11 +77,17 @@ extension CotypingCoordinator {
             return false
         }
 
-        let settings = settingsProvider()
         let liveField = live.field ?? current.field
+        let suggestionKey = "\(current.field.focusIdentityKey ?? "")\u{1f}\(current.field.precedingText)"
+        let effectiveScope = doubleTapAcceptance.resolveScope(
+            requested: scope,
+            fullAcceptKey: settings.cotypingFullAcceptKey,
+            suggestionKey: suggestionKey,
+            now: ProcessInfo.processInfo.systemUptime,
+            isRepeat: isRepeat)
         guard let acceptance = CotypingContinuationAcceptance.plan(
             session: current,
-            scope: scope,
+            scope: effectiveScope,
             precedingText: liveField.precedingText,
             trailingText: liveField.trailingText,
             options: .init(settings: settings)) else { return false }
@@ -272,6 +289,7 @@ extension CotypingCoordinator {
         caretRefreshTask = nil
         cancelSuggestionExtension()
         pendingInsertionConsumedCount = nil
+        doubleTapAcceptance.reset()
         overlay.hide()
         syncAcceptInterception()
     }

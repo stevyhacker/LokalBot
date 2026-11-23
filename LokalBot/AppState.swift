@@ -319,6 +319,7 @@ final class AppState: ObservableObject {
             || old.excludedScreenDomains != new.excludedScreenDomains
             || old.cotypingUseMeetingMemory != new.cotypingUseMeetingMemory
             || old.cotypingUseScreenMemory != new.cotypingUseScreenMemory
+            || old.cotypingPauseInLowPowerMode != new.cotypingPauseInLowPowerMode
     }
 
     private static func cotypingRuntimeChanged(from old: AppSettings, to new: AppSettings) -> Bool {

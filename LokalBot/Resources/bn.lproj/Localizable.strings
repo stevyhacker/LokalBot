@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Wispr Flow-এর flow.sqlite বেছে নিন। LokalBot শুধু এর অভিধান পড়ে।";
 "Wispr Flow's dictionary has no new words to add." = "Wispr Flow-এর অভিধানে যোগ করার মতো নতুন কোনো শব্দ নেই।";
 "Couldn't read Wispr Flow's dictionary." = "Wispr Flow-এর অভিধান পড়া যায়নি।";
+"Accept the rest" = "বাকিটা গ্রহণ করুন";
+"` (Backtick)" = "` (ব্যাকটিক)";
+"Double-tap accept key" = "গ্রহণ করার কী দুইবার চাপুন";
+"Tab moves to next field" = "Tab পরবর্তী ফিল্ডে নিয়ে যায়";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "চ্যাট অ্যাপ ও কোড এডিটরের বাইরে এক লাইনের ফিল্ডে Tab পরামর্শটি বাদ দিয়ে গ্রহণ না করে পরবর্তী ফিল্ডে নিয়ে যায়।";
+"Pause in Low Power Mode" = "লো পাওয়ার মোডে বিরতি দিন";
+"Pause suggestions while Low Power Mode is on to save battery." = "ব্যাটারি বাঁচাতে লো পাওয়ার মোড চালু থাকলে পরামর্শগুলো বিরতি দিন।";

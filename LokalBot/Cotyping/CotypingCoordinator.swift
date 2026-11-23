@@ -36,6 +36,7 @@ final class CotypingCoordinator: ObservableObject {
     var memoryLookup = CotypingMemoryLookup()
     var activeVisibleContext: CotypingVisibleContext.Snapshot?
     let isMeetingRecordingActive: () -> Bool
+    let isLowPowerModeProvider: () -> Bool
     let selfBundleID: String?
 
     var config = CotypingConfiguration.standard
@@ -50,6 +51,7 @@ final class CotypingCoordinator: ObservableObject {
     var focusPrewarmFieldIdentity: String?
     var focusRefreshTask: Task<Void, Never>?
     var workspaceObserver: NSObjectProtocol?
+    var lowPowerObserver: NSObjectProtocol?
     var returnObservers: [(center: NotificationCenter, token: NSObjectProtocol)] = []
     var lastModelWarmRequest: ContinuousClock.Instant?
     var hostPublishPollGeneration: UInt64 = 0
@@ -76,14 +78,27 @@ final class CotypingCoordinator: ObservableObject {
     var suggestionAnchorCache = CotypingSuggestionAnchorCache()
     var activeSuggestionRequestFingerprint: String?
     var clipboardPrefaceMemo: CotypingClipboardPrefaceMemo?
+    var doubleTapAcceptance = CotypingDoubleTapAcceptanceState()
     let spellChecker = CotypingSpellChecker()
     let clipboardProvider = CotypingClipboardProvider()
     let clipboardRelevanceFilter = CotypingClipboardRelevanceFilter()
     nonisolated static let hostPublishWaitCeilingMs = 400
-    nonisolated static let hostPublishFirstPollIntervalMs = 10
-    nonisolated static let hostPublishPollIntervalMs = 15
+    nonisolated static let hostPublishFirstPollIntervalMs = 6
+    nonisolated static let hostPublishFastPollIntervalMs = 8
+    nonisolated static let hostPublishSlowPollIntervalMs = 25
+    nonisolated static let hostPublishFastPhaseCeilingMs = 60
     nonisolated static let freshSnapshotReuseWindowMilliseconds = 30
     nonisolated static let visualCaretWaitMilliseconds = 150
+
+    nonisolated static func hostPublishPollIntervalMs(elapsedMilliseconds: Int) -> Int {
+        elapsedMilliseconds < hostPublishFastPhaseCeilingMs
+            ? hostPublishFastPollIntervalMs
+            : hostPublishSlowPollIntervalMs
+    }
+
+    var isPausedForLowPowerMode: Bool {
+        settingsProvider().cotypingPauseInLowPowerMode && isLowPowerModeProvider()
+    }
 
     init(
         engine: CotypingCompleting,
@@ -91,6 +106,7 @@ final class CotypingCoordinator: ObservableObject {
         learningStore: CotypingLearningStore,
         memoryContextProvider: @escaping (CotypingField, AppSettings) async -> CotypingMemoryContextProvider.Snapshot = { _, _ in .empty },
         isMeetingRecordingActive: @escaping () -> Bool = { false },
+        isLowPowerModeProvider: @escaping () -> Bool = { ProcessInfo.processInfo.isLowPowerModeEnabled },
         selfBundleID: String? = Bundle.main.bundleIdentifier,
         stats: CotypingStatsStore? = nil
     ) {
@@ -100,6 +116,7 @@ final class CotypingCoordinator: ObservableObject {
         self.settingsProvider = settingsProvider
         self.memoryContextProvider = memoryContextProvider
         self.isMeetingRecordingActive = isMeetingRecordingActive
+        self.isLowPowerModeProvider = isLowPowerModeProvider
         self.selfBundleID = selfBundleID
         self.focusTracker = CotypingFocusTracker()
         let suppressionController = CotypingInputSuppressionController()

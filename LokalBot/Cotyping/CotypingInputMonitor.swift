@@ -31,7 +31,7 @@ struct CotypingInputEvent: Equatable, Sendable {
 final class CotypingInputMonitor {
     var onKey: ((CotypingInputEvent) -> Void)?
     var onPointerDown: (() -> Void)?
-    var onAcceptKey: ((CotypingAcceptScope) -> Bool)?
+    var onAcceptKey: ((CotypingAcceptScope, Bool) -> Bool)?
     var onDismissKey: (() -> Bool)?
     var acceptGate: () -> Bool = { false }
     var acceptKeyCodeProvider: () -> CGKeyCode = { 48 }
@@ -41,13 +41,18 @@ final class CotypingInputMonitor {
     private var observerSource: CFRunLoopSource?
     private var acceptTap: CFMachPort?
     private var acceptSource: CFRunLoopSource?
-    private var acceptTeardownWorkItem: DispatchWorkItem?
+    private var acceptTapEnabled = false
+    private var acceptTapStateGeneration: UInt64 = 0
+    private var lastObservedKeyDownUptime: TimeInterval?
+    private var acceptDisableWorkItem: DispatchWorkItem?
+    private var acceptReleaseWorkItem: DispatchWorkItem?
     private let suppressionController: CotypingInputSuppressionController
 
     private(set) var isRunning = false
     private(set) var isAcceptActive = false
 
-    nonisolated static let acceptTapTeardownDelaySeconds: TimeInterval = 0.05
+    nonisolated static let acceptTapIdleDisableSeconds: TimeInterval = 2.0
+    nonisolated static let acceptTapReleaseDelaySeconds: TimeInterval = 10.0
 
     init(suppressionController: CotypingInputSuppressionController = CotypingInputSuppressionController()) {
         self.suppressionController = suppressionController
@@ -74,9 +79,14 @@ final class CotypingInputMonitor {
     }
 
     func stop() {
-        acceptTeardownWorkItem?.cancel()
-        acceptTeardownWorkItem = nil
+        acceptTapStateGeneration &+= 1
+        acceptDisableWorkItem?.cancel()
+        acceptDisableWorkItem = nil
+        acceptReleaseWorkItem?.cancel()
+        acceptReleaseWorkItem = nil
         isAcceptActive = false
+        acceptTapEnabled = false
+        lastObservedKeyDownUptime = nil
         teardown(tap: &acceptTap, source: &acceptSource)
         teardown(tap: &observerTap, source: &observerSource)
         isRunning = false
@@ -85,9 +95,16 @@ final class CotypingInputMonitor {
     func setAcceptActive(_ active: Bool) {
         guard active != isAcceptActive else { return }
         if active {
-            acceptTeardownWorkItem?.cancel()
-            acceptTeardownWorkItem = nil
-            if acceptTap != nil {
+            acceptTapStateGeneration &+= 1
+            acceptDisableWorkItem?.cancel()
+            acceptDisableWorkItem = nil
+            acceptReleaseWorkItem?.cancel()
+            acceptReleaseWorkItem = nil
+            if let tap = acceptTap {
+                if !acceptTapEnabled {
+                    CGEvent.tapEnable(tap: tap, enable: true)
+                    acceptTapEnabled = true
+                }
                 isAcceptActive = true
                 return
             }
@@ -103,20 +120,65 @@ final class CotypingInputMonitor {
             CGEvent.tapEnable(tap: tap, enable: true)
             acceptTap = tap
             acceptSource = source
+            acceptTapEnabled = true
             isAcceptActive = true
         } else {
             isAcceptActive = false
-            acceptTeardownWorkItem?.cancel()
-            let work = DispatchWorkItem { [weak self] in
-                guard let self, !self.isAcceptActive else { return }
-                self.teardown(tap: &self.acceptTap, source: &self.acceptSource)
-                self.acceptTeardownWorkItem = nil
-            }
-            acceptTeardownWorkItem = work
-            DispatchQueue.main.asyncAfter(
-                deadline: .now() + Self.acceptTapTeardownDelaySeconds,
-                execute: work)
+            scheduleAcceptTapIdleDisable()
         }
+    }
+
+    private func scheduleAcceptTapIdleDisable() {
+        guard acceptTap != nil, acceptTapEnabled else { return }
+        acceptTapStateGeneration &+= 1
+        let stateGeneration = acceptTapStateGeneration
+        acceptDisableWorkItem?.cancel()
+        acceptReleaseWorkItem?.cancel()
+        acceptReleaseWorkItem = nil
+        let delay = Self.idleDisableDelay(
+            lastObservedKeyDownUptime: lastObservedKeyDownUptime,
+            nowUptime: ProcessInfo.processInfo.systemUptime)
+        let work = DispatchWorkItem { [weak self] in
+            guard let self, !self.isAcceptActive, self.acceptTapStateGeneration == stateGeneration else { return }
+            let remaining = Self.idleDisableDelay(
+                lastObservedKeyDownUptime: self.lastObservedKeyDownUptime,
+                nowUptime: ProcessInfo.processInfo.systemUptime)
+            if remaining > 0.01 {
+                self.scheduleAcceptTapIdleDisable()
+                return
+            }
+            if let tap = self.acceptTap, self.acceptTapEnabled {
+                CGEvent.tapEnable(tap: tap, enable: false)
+                self.acceptTapEnabled = false
+            }
+            self.acceptDisableWorkItem = nil
+            self.scheduleAcceptTapRelease(for: stateGeneration)
+        }
+        acceptDisableWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+    }
+
+    private func scheduleAcceptTapRelease(for stateGeneration: UInt64) {
+        acceptReleaseWorkItem?.cancel()
+        let work = DispatchWorkItem { [weak self] in
+            guard let self,
+                  !self.isAcceptActive,
+                  !self.acceptTapEnabled,
+                  self.acceptTapStateGeneration == stateGeneration else { return }
+            self.teardown(tap: &self.acceptTap, source: &self.acceptSource)
+            self.acceptReleaseWorkItem = nil
+        }
+        acceptReleaseWorkItem = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.acceptTapReleaseDelaySeconds, execute: work)
+    }
+
+    nonisolated static func idleDisableDelay(
+        lastObservedKeyDownUptime: TimeInterval?,
+        nowUptime: TimeInterval
+    ) -> TimeInterval {
+        guard let lastObservedKeyDownUptime else { return acceptTapIdleDisableSeconds }
+        let elapsed = max(0, nowUptime - lastObservedKeyDownUptime)
+        return max(0, acceptTapIdleDisableSeconds - elapsed)
     }
 
     private func teardown(tap: inout CFMachPort?, source: inout CFRunLoopSource?) {
@@ -139,6 +201,7 @@ final class CotypingInputMonitor {
             return
         }
         guard type == .keyDown else { return }
+        lastObservedKeyDownUptime = ProcessInfo.processInfo.systemUptime
         if suppressionController.isSynthetic(event) {
             _ = suppressionController.consumeIfNeeded()
             return
@@ -151,14 +214,15 @@ final class CotypingInputMonitor {
 
     fileprivate func handleAccept(type: CGEventType, event: CGEvent) -> Bool {
         if type == .tapDisabledByTimeout || type == .tapDisabledByUserInput {
-            if let acceptTap { CGEvent.tapEnable(tap: acceptTap, enable: true) }
+            if let acceptTap, acceptTapEnabled { CGEvent.tapEnable(tap: acceptTap, enable: true) }
             return false
         }
         guard type == .keyDown, !suppressionController.isSynthetic(event) else { return false }
         guard acceptGate() else { return false }
         if Self.isPlainEscape(event) { return onDismissKey?() ?? false }
         guard let scope = acceptScope(for: event) else { return false }
-        return onAcceptKey?(scope) ?? false
+        let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        return onAcceptKey?(scope, isRepeat) ?? false
     }
 
     private func classify(_ event: CGEvent) -> CotypingInputEvent {

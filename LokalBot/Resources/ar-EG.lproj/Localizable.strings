@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "اختار ملف flow.sqlite بتاع Wispr Flow. LokalBot بيقرا القاموس بس.";
 "Wispr Flow's dictionary has no new words to add." = "قاموس Wispr Flow مافيهوش كلمات جديدة تتضاف.";
 "Couldn't read Wispr Flow's dictionary." = "ماقدرناش نقرا قاموس Wispr Flow.";
+"Accept the rest" = "اقبل الباقي";
+"` (Backtick)" = "` (علامة نبرة مائلة)";
+"Double-tap accept key" = "اضغط مرتين على مفتاح القبول";
+"Tab moves to next field" = "مفتاح Tab ينقلك للحقل اللي بعده";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "في حقول السطر الواحد برّه تطبيقات الشات ومحررات الكود، مفتاح Tab بيلغي الاقتراح وينقلك للحقل اللي بعده بدل ما يقبله.";
+"Pause in Low Power Mode" = "وقف مؤقتًا في وضع توفير الطاقة";
+"Pause suggestions while Low Power Mode is on to save battery." = "وقّف الاقتراحات مؤقتًا طول ما وضع توفير الطاقة شغّال عشان توفّر البطارية.";

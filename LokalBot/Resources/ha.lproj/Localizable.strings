@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Zaɓi fayil ɗin flow.sqlite na Wispr Flow. LokalBot yana karanta ƙamus ɗinsa kawai.";
 "Wispr Flow's dictionary has no new words to add." = "Babu sababbin kalmomi da za a ƙara a ƙamus ɗin Wispr Flow.";
 "Couldn't read Wispr Flow's dictionary." = "Ba a iya karanta ƙamus ɗin Wispr Flow ba.";
+"Accept the rest" = "Karɓi sauran";
+"` (Backtick)" = "` (Backtick)";
+"Double-tap accept key" = "Danna maɓallin karɓa sau biyu";
+"Tab moves to next field" = "Tab yana matsawa zuwa filin gaba";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "A cikin filayen layi ɗaya ban da manhajojin hira da masu gyaran lambar shiri, Tab yana watsar da shawarar ya matsa zuwa filin gaba maimakon karɓa.";
+"Pause in Low Power Mode" = "Dakatar a yanayin ƙarancin wuta";
+"Pause suggestions while Low Power Mode is on to save battery." = "Dakatar da shawarwari lokacin da yanayin ƙarancin wuta ke kunne don adana baturi.";

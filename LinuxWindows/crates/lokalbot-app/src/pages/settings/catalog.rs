@@ -737,8 +737,15 @@ pub const ENTRIES: &[Entry] = &[
         id: "settings.cotypingFullAcceptKey",
         title: "Accept the rest",
         category: Writing,
-        aliases: "autocomplete backtick right arrow whole suggestion key shortcut",
+        aliases: "autocomplete backtick right arrow double tap whole suggestion key shortcut",
         value: |s| super::writing::full_accept_key_label(s.cotyping_full_accept_key).into(),
+    },
+    Entry {
+        id: "settings.cotypingTabMovesToNextField",
+        title: "Tab moves to next field",
+        category: Writing,
+        aliases: "autocomplete tab form focus next field single line",
+        value: |s| on_off(s.cotyping_tab_moves_to_next_field),
     },
     Entry {
         id: "settings.cotypingAutoAcceptTrailingPunctuation",
@@ -774,6 +781,13 @@ pub const ENTRIES: &[Entry] = &[
         category: Writing,
         aliases: "autocomplete ghost style color font",
         value: |s| on_off(s.cotyping_match_host_style),
+    },
+    Entry {
+        id: "settings.cotypingPauseInLowPowerMode",
+        title: "Pause in Low Power Mode",
+        category: Writing,
+        aliases: "battery power saver low power mode autocomplete",
+        value: |s| on_off(s.cotyping_pause_in_low_power_mode),
     },
     Entry {
         id: "settings.cotypingAutocorrect",

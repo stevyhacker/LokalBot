@@ -21,6 +21,7 @@ pub mod reasons {
     pub const NOT_EDITABLE: &str = "Not an editable text field.";
     pub const SEARCH: &str = "Search field.";
     pub const CODE_FIELD: &str = "Verification code field.";
+    pub const CREDENTIAL: &str = "Sign-in or verification field.";
     pub const NO_CARET: &str = "No caret in this field.";
     pub const TERMINAL: &str = "Not available in terminal apps.";
     pub const INTEGRATED_TERMINAL: &str = "Not available in the integrated terminal.";
@@ -178,9 +179,346 @@ pub fn is_secure_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
         "credit card",
     ];
     labels.into_iter().any(|label| {
-        let label = label.to_lowercase();
-        MARKERS.iter().any(|marker| label.contains(marker))
+        let lower = label.to_lowercase();
+        MARKERS.iter().any(|marker| lower.contains(marker)) || label_names_secret(label)
     })
+}
+
+fn fold_diacritics(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ą' => 'a',
+            'ć' | 'č' | 'ç' => 'c',
+            'ď' | 'đ' => 'd',
+            'é' | 'è' | 'ê' | 'ë' | 'ę' => 'e',
+            'í' | 'ì' | 'î' | 'ï' | 'ı' => 'i',
+            'ł' => 'l',
+            'ñ' | 'ń' => 'n',
+            'ó' | 'ò' | 'ô' | 'ö' | 'õ' | 'ø' => 'o',
+            'ś' | 'š' | 'ş' => 's',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ý' | 'ÿ' => 'y',
+            'ź' | 'ż' | 'ž' => 'z',
+            other => other,
+        })
+        .collect()
+}
+
+fn starts_word(term: &str, folded_label: &str) -> bool {
+    let mut rest = folded_label;
+    let mut offset = 0;
+    while let Some(pos) = rest.find(term) {
+        let abs = offset + pos;
+        let boundary = abs == 0
+            || folded_label[..abs]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_alphanumeric());
+        if boundary {
+            return true;
+        }
+        let advance = pos + term.len();
+        offset += advance;
+        rest = &folded_label[offset..];
+    }
+    false
+}
+
+pub fn label_names_secret(label: &str) -> bool {
+    const SUBSTRINGS: [&str; 17] = [
+        "passwort",
+        "kennwort",
+        "mot de passe",
+        "contrasena",
+        "wachtwoord",
+        "losenord",
+        "adgangskode",
+        "passord",
+        "lozinka",
+        "лозинка",
+        "パスワード",
+        "密码",
+        "密碼",
+        "비밀번호",
+        "암호",
+        "كلمة المرور",
+        "كلمة السر",
+    ];
+    const WORD_STARTS: [&str; 15] = [
+        "senha",
+        "sifre",
+        "parola",
+        "haslo",
+        "hasla",
+        "парол",
+        "api key",
+        "secret key",
+        "secret access key",
+        "access token",
+        "private key",
+        "recovery phrase",
+        "seed phrase",
+        "ssn",
+        "social security",
+    ];
+    let folded = fold_diacritics(label);
+    folded.contains("סיסמה")
+        || SUBSTRINGS.iter().any(|s| folded.contains(s))
+        || WORD_STARTS.iter().any(|w| starts_word(w, &folded))
+}
+
+fn contains_word(keyword: &str, label: &str) -> bool {
+    let mut rest = label;
+    let mut offset = 0;
+    while let Some(pos) = rest.find(keyword) {
+        let start = offset + pos;
+        let end = start + keyword.len();
+        let before_ok = start == 0
+            || label[..start]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_alphanumeric());
+        let after_ok = end == label.len()
+            || label[end..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric());
+        if before_ok && after_ok {
+            return true;
+        }
+        offset = end;
+        rest = &label[offset..];
+    }
+    false
+}
+
+fn starts_with_word(keyword: &str, label: &str) -> bool {
+    let Some(start) = label.find(|c: char| c.is_alphanumeric()) else {
+        return false;
+    };
+    let rest = &label[start..];
+    let Some(tail) = rest.strip_prefix(keyword) else {
+        return false;
+    };
+    tail.chars().next().is_none_or(|c| !c.is_alphanumeric())
+}
+
+pub fn label_names_credential(label: &str) -> bool {
+    const KEYWORDS: [&str; 27] = [
+        "email",
+        "e-mail",
+        "username",
+        "user name",
+        "user id",
+        "userid",
+        "login",
+        "log in",
+        "sign in",
+        "phone",
+        "mobile number",
+        "password",
+        "passcode",
+        "pin",
+        "one-time",
+        "one time code",
+        "verification code",
+        "security code",
+        "otp",
+        "2fa",
+        "two-factor",
+        "authentication code",
+        "card number",
+        "cvc",
+        "cvv",
+        "expiry",
+        "expiration",
+    ];
+    const PROSE_WORDS: [&str; 12] = [
+        "subject",
+        "message",
+        "body",
+        "preview",
+        "title",
+        "signature",
+        "template",
+        "comment",
+        "note",
+        "notes",
+        "reply",
+        "search",
+    ];
+    let lowered = label.to_lowercase();
+    let matched = KEYWORDS.iter().any(|k| contains_word(k, &lowered)) || label_names_secret(label);
+    matched && !PROSE_WORDS.iter().any(|p| contains_word(p, &lowered))
+}
+
+pub fn identifier_names_credential(identifier: &str) -> bool {
+    const CREDENTIAL_WORDS: [&str; 38] = [
+        "email",
+        "mail",
+        "username",
+        "userid",
+        "login",
+        "logon",
+        "signin",
+        "passwd",
+        "password",
+        "pwd",
+        "passcode",
+        "otp",
+        "totp",
+        "mfa",
+        "2fa",
+        "phone",
+        "telephone",
+        "tel",
+        "mobile",
+        "msisdn",
+        "pin",
+        "cvc",
+        "cvv",
+        "cardnumber",
+        "identifierid",
+        "onetimecode",
+        "verificationcode",
+        "securitycode",
+        "authcode",
+        "apikey",
+        "secretkey",
+        "secretaccesskey",
+        "accesstoken",
+        "privatekey",
+        "seedphrase",
+        "recoveryphrase",
+        "ssn",
+        "passphrase",
+    ];
+    const QUALIFIER_WORDS: [&str; 25] = [
+        "user",
+        "account",
+        "address",
+        "addr",
+        "id",
+        "identifier",
+        "name",
+        "number",
+        "num",
+        "no",
+        "code",
+        "field",
+        "input",
+        "txt",
+        "tb",
+        "verification",
+        "verify",
+        "security",
+        "auth",
+        "onetime",
+        "confirm",
+        "current",
+        "new",
+        "primary",
+        "your",
+    ];
+    let chars: Vec<char> = identifier
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+    if chars.is_empty() || chars.len() > 64 {
+        return false;
+    }
+    let mut reach: Vec<Option<bool>> = vec![None; chars.len() + 1];
+    reach[0] = Some(false);
+    for start in 0..chars.len() {
+        let Some(has_cred) = reach[start] else {
+            continue;
+        };
+        if chars[start].is_numeric() {
+            reach[start + 1] = Some(reach[start + 1].unwrap_or(false) || has_cred);
+        }
+        for (words, is_cred) in [
+            (CREDENTIAL_WORDS.as_slice(), true),
+            (QUALIFIER_WORDS.as_slice(), false),
+        ] {
+            for word in words {
+                let word_chars: Vec<char> = word.chars().collect();
+                if chars[start..].starts_with(&word_chars) {
+                    let end = start + word_chars.len();
+                    reach[end] = Some(reach[end].unwrap_or(false) || has_cred || is_cred);
+                }
+            }
+        }
+    }
+    reach[chars.len()] == Some(true)
+}
+
+pub fn looks_like_address_entry(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let Some((local, domain)) = trimmed.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !local
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '@' | '/' | ':'))
+        && !domain
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '@' | '/' | ':'))
+}
+
+pub fn is_credential_field<'a>(
+    single_line: bool,
+    labels: impl IntoIterator<Item = &'a str>,
+    identifier: Option<&str>,
+    text: Option<&str>,
+) -> bool {
+    if !single_line {
+        return false;
+    }
+    if labels.into_iter().any(label_names_credential) {
+        return true;
+    }
+    if identifier.is_some_and(identifier_names_credential) {
+        return true;
+    }
+    text.is_some_and(looks_like_address_entry)
+}
+
+pub fn is_search_label_or_id<'a>(
+    single_line: bool,
+    labels: impl IntoIterator<Item = &'a str>,
+    identifier: Option<&str>,
+) -> bool {
+    const ADDRESS_KEYWORDS: [&str; 4] = ["address", "url", "website", "adres"];
+    const LABEL_KEYWORDS: [&str; 3] = ["search", "arama", "ara"];
+    const LEADING_KEYWORDS: [&str; 4] = ["look for", "find", "filter", "jump to"];
+    if !single_line {
+        return false;
+    }
+    let lowered: Vec<String> = labels
+        .into_iter()
+        .map(str::to_lowercase)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if lowered
+        .iter()
+        .any(|label| ADDRESS_KEYWORDS.iter().any(|k| contains_word(k, label)))
+    {
+        return false;
+    }
+    if lowered.iter().any(|label| {
+        LABEL_KEYWORDS.iter().any(|k| contains_word(k, label))
+            || LEADING_KEYWORDS.iter().any(|k| starts_with_word(k, label))
+    }) {
+        return true;
+    }
+    identifier
+        .is_some_and(|id| !id.is_empty() && label_words(id).iter().any(|w| w.starts_with("search")))
 }
 
 pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
@@ -921,6 +1259,49 @@ mod tests {
         assert!(is_search_field(["entry", "searchbox"]));
         assert!(is_search_field(["search box"]));
         assert!(!is_search_field(["entry", "textbox"]));
+
+        for secret in [
+            "Passwort",
+            "Mot de passe",
+            "Contraseña",
+            "Senha",
+            "Lozinka",
+            "Лозинка",
+            "Пароль",
+            "パスワード",
+            "密码",
+            "API key",
+            "Secret Access Key",
+            "Recovery phrase",
+            "SSN",
+        ] {
+            assert!(is_secure_field([secret]), "{secret}");
+        }
+        assert!(!is_secure_field(["resenha de livro"]));
+
+        assert!(is_credential_field(true, ["Email"], None, None));
+        assert!(is_credential_field(true, ["Username"], None, None));
+        assert!(is_credential_field(true, [], Some("login_email"), None));
+        assert!(is_credential_field(true, [], Some("identifierId"), None));
+        assert!(is_credential_field(true, [], None, Some("ada@")));
+        assert!(!is_credential_field(true, ["Email subject"], None, None));
+        assert!(!is_credential_field(false, ["Email"], None, Some("ada@")));
+        assert!(!is_credential_field(
+            true,
+            [],
+            None,
+            Some("reach me at ada@example.com")
+        ));
+
+        assert!(is_search_label_or_id(true, ["Search GitHub"], None));
+        assert!(is_search_label_or_id(true, ["Jump to..."], None));
+        assert!(is_search_label_or_id(true, [], Some("headerSearchInput")));
+        assert!(!is_search_label_or_id(
+            true,
+            ["Search or enter website name"],
+            None
+        ));
+        assert!(!is_search_label_or_id(false, ["Search notes"], None));
     }
 
     #[test]

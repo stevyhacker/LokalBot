@@ -5,6 +5,7 @@ extension CotypingCoordinator {
     func scheduleFocusPrewarm(for focus: CotypingFocus, withSuggestionShown: Bool = false) {
         guard isRunning,
               !isMeetingRecordingActive(),
+              !isPausedForLowPowerMode,
               case .supported = focus.capability,
               let field = focus.field else {
             focusPrewarmTask?.cancel()
@@ -117,6 +118,11 @@ extension CotypingCoordinator {
         if isMeetingRecordingActive() {
             clearSuggestion()
             state = .disabled(CotypingMeetingPause.reason)
+            return
+        }
+        if isPausedForLowPowerMode {
+            clearSuggestion()
+            state = .disabled(CotypingLowPowerPause.reason)
             return
         }
         let focus = await refreshFocusForPrediction(settings: settings)
