@@ -57,6 +57,64 @@ pub fn prompt_language(setting: &str, transcript: &Transcript) -> Option<String>
         .or_else(|| Some(setting.to_string()))
 }
 
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DailySummaryLanguage {
+    pub name: String,
+    pub fallback_locale: &'static str,
+}
+
+impl Default for DailySummaryLanguage {
+    fn default() -> Self {
+        Self::resolve("en", "en", &["en"])
+    }
+}
+
+impl DailySummaryLanguage {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        Self::resolve(
+            &settings.summary_language,
+            &settings.app_language,
+            &lokalbot_i18n::system_preferences(),
+        )
+    }
+
+    pub fn resolve(notes: &str, interface: &str, preferred: &[impl AsRef<str>]) -> Self {
+        let app = lokalbot_i18n::resolve(interface, preferred);
+        let notes = notes.trim();
+        let name = notes
+            .strip_prefix("custom:")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| display_name(notes))
+            .unwrap_or(app.english_name)
+            .to_string();
+        let catalog = if notes == "zh" { "zh-Hans" } else { notes };
+        let fallback_locale = lokalbot_i18n::LANGUAGES
+            .iter()
+            .find(|language| language.code == catalog)
+            .map_or(app.code, |language| language.code);
+        Self {
+            name,
+            fallback_locale,
+        }
+    }
+
+    pub fn system(&self, base: &str) -> String {
+        format!(
+            "{base}\n\nWrite all human-readable titles, notes, summaries, recommendations, and memory text in {}. Keep JSON keys, status enum values, identifiers, source markers, proper names, and quoted source text unchanged. This output-language rule also applies when the evidence is in another language.",
+            self.name
+        )
+    }
+
+    pub fn text<'a>(&self, key: &'a str) -> &'a str {
+        lokalbot_i18n::translate(self.fallback_locale, key)
+    }
+
+    pub fn uses_english_catalog(&self) -> bool {
+        self.fallback_locale == "en"
+    }
+}
+
 fn letters(text: &str) -> usize {
     text.chars().filter(|c| c.is_alphabetic()).count()
 }
@@ -283,5 +341,21 @@ mod tests {
             prompt_language("match", &transcript(&texts)).as_deref(),
             Some("English")
         );
+    }
+    #[test]
+    fn daily_language_prefers_notes_and_resolves_system_without_translating_sources() {
+        let french = DailySummaryLanguage::from_settings(&lokalbot_core::Settings {
+            summary_language: "fr".into(),
+            app_language: "ru".into(),
+            ..lokalbot_core::Settings::default()
+        });
+        assert_eq!(french.name, "French");
+        assert_eq!(french.fallback_locale, "fr");
+        let russian = DailySummaryLanguage::resolve("match", "system", &["ru-RU", "en"]);
+        assert_eq!(russian.name, "Russian");
+        assert_eq!(russian.fallback_locale, "ru");
+        let custom = DailySummaryLanguage::resolve("custom:Klingon", "ru", &["en"]);
+        assert_eq!(custom.name, "Klingon");
+        assert_eq!(custom.fallback_locale, "ru");
     }
 }

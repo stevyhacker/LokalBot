@@ -5,18 +5,22 @@ use std::path::{Path, PathBuf};
 
 use chrono::Utc;
 use lokalbot_core::ActivitySample;
-use windows::Win32::Foundation::{CloseHandle, HWND, LPARAM};
+use windows::Win32::Foundation::{CloseHandle, FILETIME, HWND, LPARAM, RECT};
 use windows::Win32::Storage::FileSystem::{
     GetFileVersionInfoSizeW, GetFileVersionInfoW, VerQueryValueW,
 };
+use windows::Win32::System::Diagnostics::ToolHelp::{
+    CreateToolhelp32Snapshot, PROCESSENTRY32W, Process32FirstW, Process32NextW, TH32CS_SNAPPROCESS,
+};
 use windows::Win32::System::SystemInformation::GetTickCount;
 use windows::Win32::System::Threading::{
-    OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION, QueryFullProcessImageNameW,
+    GetProcessTimes, OpenProcess, PROCESS_NAME_WIN32, PROCESS_QUERY_LIMITED_INFORMATION,
+    QueryFullProcessImageNameW,
 };
 use windows::Win32::UI::Input::KeyboardAndMouse::{GetLastInputInfo, LASTINPUTINFO};
 use windows::Win32::UI::WindowsAndMessaging::{
-    EnumChildWindows, GetClassNameW, GetForegroundWindow, GetWindowTextLengthW, GetWindowTextW,
-    GetWindowThreadProcessId,
+    EnumChildWindows, EnumWindows, GetClassNameW, GetForegroundWindow, GetWindowRect,
+    GetWindowTextLengthW, GetWindowTextW, GetWindowThreadProcessId, IsWindowVisible,
 };
 use windows::core::{BOOL, PCWSTR, PWSTR};
 
@@ -111,9 +115,36 @@ impl ActivitySource for WindowsSource {
     }
 }
 
-pub(crate) fn app_for_pid(pid: u32) -> Option<(String, String)> {
+fn app_for_pid(pid: u32) -> Option<(String, String)> {
     let image = process_image(pid)?;
     Some((friendly_name(&image), file_name(&image).to_lowercase()))
+}
+
+pub(crate) fn host_app_for_pid(pid: u32) -> Option<(String, String)> {
+    let fg = unsafe { GetForegroundWindow() };
+    if fg.0.is_null() {
+        return None;
+    }
+    let host_pid = window_pid(fg);
+    if host_pid == 0
+        || host_pid == pid
+        || is_shell_or_host_wrapper(host_pid)
+        || !window_owns_pid(fg, pid)
+    {
+        return None;
+    }
+    app_for_pid(host_pid)
+}
+
+pub(crate) fn effective_app_for_pid(pid: u32) -> Option<(String, String)> {
+    let image = process_image(pid)?;
+    let exe = file_name(&image);
+    if exe.eq_ignore_ascii_case("msedgewebview2.exe")
+        && let Some(host_app) = host_app_for_pid(pid)
+    {
+        return Some(host_app);
+    }
+    Some((friendly_name(&image), exe.to_lowercase()))
 }
 
 pub(crate) fn foreground_pid() -> Option<u32> {
@@ -221,6 +252,260 @@ fn hosted_app_pid(frame: HWND, host: u32) -> Option<u32> {
     (search.found != 0).then_some(search.found)
 }
 
+struct TargetPidSearch {
+    target: u32,
+    found_thread: u32,
+}
+
+unsafe extern "system" fn visit_child_for_pid(child: HWND, lparam: LPARAM) -> BOOL {
+    let search = unsafe { &mut *(lparam.0 as *mut TargetPidSearch) };
+    let mut pid = 0u32;
+    let thread = unsafe { GetWindowThreadProcessId(child, Some(&mut pid)) };
+    if pid != 0 && pid == search.target && thread != 0 {
+        search.found_thread = thread;
+        return BOOL(0);
+    }
+    BOOL(1)
+}
+
+pub(crate) fn window_thread_for_pid(window: HWND, target_pid: u32) -> Option<u32> {
+    if window.0.is_null() || target_pid == 0 {
+        return None;
+    }
+    let mut owner = 0u32;
+    let thread = unsafe { GetWindowThreadProcessId(window, Some(&mut owner)) };
+    if owner == target_pid && thread != 0 {
+        return Some(thread);
+    }
+    let mut search = TargetPidSearch {
+        target: target_pid,
+        found_thread: 0,
+    };
+    unsafe {
+        let _ = EnumChildWindows(
+            Some(window),
+            Some(visit_child_for_pid),
+            LPARAM(&mut search as *mut TargetPidSearch as isize),
+        );
+    }
+    (search.found_thread != 0).then_some(search.found_thread)
+}
+
+pub(crate) fn window_owns_pid(window: HWND, target_pid: u32) -> bool {
+    if window_thread_for_pid(window, target_pid).is_some() {
+        return true;
+    }
+    if window.0.is_null() || target_pid == 0 {
+        return false;
+    }
+    let detached = detached_webview_windows_for(window);
+    if detached.is_empty() {
+        return false;
+    }
+    if detached.iter().any(|(_, pid, _)| *pid == target_pid) {
+        return true;
+    }
+    let parents = process_parents();
+    detached
+        .iter()
+        .any(|(_, pid, _)| has_ancestor_in(&parents, target_pid, *pid))
+}
+
+fn is_shell_or_host_wrapper_name(name: &str) -> bool {
+    let lower = name.to_lowercase();
+    matches!(
+        lower.as_str(),
+        "explorer.exe"
+            | "applicationframehost.exe"
+            | "svchost.exe"
+            | "services.exe"
+            | "wininit.exe"
+            | "wt.exe"
+            | "wsl.exe"
+            | "bash.exe"
+            | "sh.exe"
+            | "git-bash.exe"
+    ) || crate::insert::TERMINALS.contains(&lower.as_str())
+}
+
+fn is_shell_or_host_wrapper(pid: u32) -> bool {
+    let Some(image) = process_image(pid) else {
+        return true;
+    };
+    is_shell_or_host_wrapper_name(&file_name(&image))
+}
+
+fn process_creation_time(pid: u32) -> Option<u64> {
+    unsafe {
+        let process = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, false, pid).ok()?;
+        let mut creation = FILETIME::default();
+        let mut exit = FILETIME::default();
+        let mut kernel = FILETIME::default();
+        let mut user = FILETIME::default();
+        let result = GetProcessTimes(process, &mut creation, &mut exit, &mut kernel, &mut user);
+        let _ = CloseHandle(process);
+        result.ok()?;
+        Some((u64::from(creation.dwHighDateTime) << 32) | u64::from(creation.dwLowDateTime))
+    }
+}
+
+fn process_parents() -> HashMap<u32, u32> {
+    let mut parents = HashMap::new();
+    unsafe {
+        let Ok(snapshot) = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0) else {
+            return parents;
+        };
+        let mut entry = PROCESSENTRY32W {
+            dwSize: size_of::<PROCESSENTRY32W>() as u32,
+            ..Default::default()
+        };
+        if Process32FirstW(snapshot, &mut entry).is_ok() {
+            loop {
+                parents.insert(entry.th32ProcessID, entry.th32ParentProcessID);
+                if Process32NextW(snapshot, &mut entry).is_err() {
+                    break;
+                }
+            }
+        }
+        let _ = CloseHandle(snapshot);
+    }
+    parents
+}
+
+fn has_ancestor_with(
+    parents: &HashMap<u32, u32>,
+    mut pid: u32,
+    ancestor: u32,
+    is_wrapper: impl Fn(u32) -> bool,
+    creation_time: impl Fn(u32) -> Option<u64>,
+) -> bool {
+    if pid == 0 || ancestor == 0 || pid == ancestor {
+        return false;
+    }
+    for _ in 0..4 {
+        let Some(&parent) = parents.get(&pid) else {
+            return false;
+        };
+        if parent == 0 || parent == pid {
+            return false;
+        }
+        let (Some(child_created), Some(parent_created)) =
+            (creation_time(pid), creation_time(parent))
+        else {
+            return false;
+        };
+        if parent_created > child_created {
+            return false;
+        }
+        if parent == ancestor {
+            return true;
+        }
+        if is_wrapper(parent) {
+            return false;
+        }
+        pid = parent;
+    }
+    false
+}
+
+fn has_ancestor_in(parents: &HashMap<u32, u32>, pid: u32, ancestor: u32) -> bool {
+    has_ancestor_with(
+        parents,
+        pid,
+        ancestor,
+        is_shell_or_host_wrapper,
+        process_creation_time,
+    )
+}
+
+fn child_window_overlap_area(
+    child: (i32, i32, i32, i32),
+    host: (i32, i32, i32, i32),
+) -> Option<i64> {
+    let child_w = i64::from(child.2) - i64::from(child.0);
+    let child_h = i64::from(child.3) - i64::from(child.1);
+    let host_w = i64::from(host.2) - i64::from(host.0);
+    let host_h = i64::from(host.3) - i64::from(host.1);
+    if child_w < 32 || child_h < 24 || host_w <= 0 || host_h <= 0 {
+        return None;
+    }
+    let overlap_w = i64::from(child.2.min(host.2)) - i64::from(child.0.max(host.0));
+    let overlap_h = i64::from(child.3.min(host.3)) - i64::from(child.1.max(host.1));
+    if overlap_w <= 0 || overlap_h <= 0 {
+        return None;
+    }
+    let overlap = overlap_w * overlap_h;
+    let child_area = child_w * child_h;
+    (overlap * 4 >= child_area).then_some(overlap)
+}
+
+struct WebViewCandidates {
+    exclude_pid: u32,
+    host_bounds: (i32, i32, i32, i32),
+    items: Vec<(HWND, u32, i64)>,
+}
+
+unsafe extern "system" fn collect_webview_windows(hwnd: HWND, lparam: LPARAM) -> BOOL {
+    let state = unsafe { &mut *(lparam.0 as *mut WebViewCandidates) };
+    if unsafe { IsWindowVisible(hwnd) }.as_bool() {
+        let pid = window_pid(hwnd);
+        if pid != 0 && pid != state.exclude_pid {
+            let mut rect = RECT::default();
+            if unsafe { GetWindowRect(hwnd, &mut rect) }.is_ok()
+                && let Some(overlap) = child_window_overlap_area(
+                    (rect.left, rect.top, rect.right, rect.bottom),
+                    state.host_bounds,
+                )
+            {
+                state.items.push((hwnd, pid, overlap));
+            }
+        }
+    }
+    BOOL(1)
+}
+
+fn detached_webview_windows_for(window: HWND) -> Vec<(HWND, u32, i64)> {
+    if window.0.is_null() {
+        return Vec::new();
+    }
+    let owner = window_pid(window);
+    if owner == 0 || is_shell_or_host_wrapper(owner) {
+        return Vec::new();
+    }
+    let mut bounds = RECT::default();
+    if unsafe { GetWindowRect(window, &mut bounds) }.is_err() {
+        return Vec::new();
+    }
+    let mut candidates = WebViewCandidates {
+        exclude_pid: owner,
+        host_bounds: (bounds.left, bounds.top, bounds.right, bounds.bottom),
+        items: Vec::new(),
+    };
+    unsafe {
+        let _ = EnumWindows(
+            Some(collect_webview_windows),
+            LPARAM(&mut candidates as *mut WebViewCandidates as isize),
+        );
+    }
+    if candidates.items.is_empty() {
+        return Vec::new();
+    }
+    let parents = process_parents();
+    candidates
+        .items
+        .into_iter()
+        .filter(|(_, pid, _)| has_ancestor_in(&parents, *pid, owner))
+        .collect()
+}
+
+pub(crate) fn detached_webview_window_for_foreground() -> Option<HWND> {
+    let fg = unsafe { GetForegroundWindow() };
+    detached_webview_windows_for(fg)
+        .into_iter()
+        .max_by_key(|(_, _, overlap)| *overlap)
+        .map(|(hwnd, _, _)| hwnd)
+}
+
 fn wide(text: &str) -> Vec<u16> {
     text.encode_utf16().chain(std::iter::once(0)).collect()
 }
@@ -323,5 +608,78 @@ mod tests {
         let image = process_image(std::process::id()).unwrap();
         assert!(image.is_absolute());
         assert!(file_name(&image).to_lowercase().ends_with(".exe"));
+    }
+
+    #[test]
+    fn detached_child_window_overlap_requires_substantial_bounds() {
+        let host = (100, 100, 1100, 800);
+        assert_eq!(
+            child_window_overlap_area((100, 140, 1100, 800), host),
+            Some(1000 * 660)
+        );
+        assert_eq!(
+            child_window_overlap_area((2000, 100, 2500, 600), host),
+            None
+        );
+        assert_eq!(
+            child_window_overlap_area((1080, 100, 1400, 600), host),
+            None
+        );
+        assert_eq!(child_window_overlap_area((100, 100, 110, 110), host), None);
+    }
+
+    #[test]
+    fn host_wrapper_filter_excludes_shells_and_terminals() {
+        for blocked in [
+            "explorer.exe",
+            "ApplicationFrameHost.exe",
+            "WindowsTerminal.exe",
+            "cmd.exe",
+            "powershell.exe",
+            "pwsh.exe",
+            "conhost.exe",
+            "wsl.exe",
+            "bash.exe",
+        ] {
+            assert!(is_shell_or_host_wrapper_name(blocked), "{blocked}");
+        }
+        for allowed in ["olk.exe", "WhatsApp.exe", "ms-teams.exe", "steam.exe"] {
+            assert!(!is_shell_or_host_wrapper_name(allowed), "{allowed}");
+        }
+    }
+
+    #[test]
+    fn ancestor_walk_rejects_reused_pids_missing_times_and_terminal_hops() {
+        let parents = HashMap::from([(300, 200), (200, 100)]);
+        let ordered_times = HashMap::from([(100, 10), (200, 20), (300, 30)]);
+        assert!(has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| ordered_times.get(&pid).copied(),
+        ));
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |pid| pid == 200,
+            |pid| ordered_times.get(&pid).copied(),
+        ));
+        let reused_parent_times = HashMap::from([(100, 40), (200, 20), (300, 30)]);
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| reused_parent_times.get(&pid).copied(),
+        ));
+        assert!(!has_ancestor_with(
+            &parents,
+            300,
+            100,
+            |_| false,
+            |pid| (pid != 200).then_some(10),
+        ));
     }
 }

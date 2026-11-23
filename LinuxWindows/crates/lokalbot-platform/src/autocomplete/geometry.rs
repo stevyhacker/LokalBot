@@ -151,7 +151,18 @@ impl Rgb {
     }
 
     pub fn luminance(&self) -> f32 {
-        (0.299 * f32::from(self.r) + 0.587 * f32::from(self.g) + 0.114 * f32::from(self.b)) / 255.0
+        0.2126 * srgb_to_linear(self.r)
+            + 0.7152 * srgb_to_linear(self.g)
+            + 0.0722 * srgb_to_linear(self.b)
+    }
+}
+
+fn srgb_to_linear(channel: u8) -> f32 {
+    let c = f32::from(channel) / 255.0;
+    if c <= 0.04045 {
+        c / 12.92
+    } else {
+        ((c + 0.055) / 1.055).powf(2.4)
     }
 }
 
@@ -173,6 +184,7 @@ pub const GHOST_OPACITY: f32 = 0.4;
 pub const EMPHASIS_OPACITY: f32 = 0.62;
 const UNRELIABLE_CONTRAST: f32 = 2.0;
 const MIN_LEGIBLE_CONTRAST: f32 = 3.0;
+const DARK_LUMINANCE_LIMIT: f32 = 0.18;
 
 fn contrast(a: f32, b: f32) -> f32 {
     (a.max(b) + 0.05) / (a.min(b) + 0.05)
@@ -204,20 +216,30 @@ pub fn ghost_paint(
                 alpha: GHOST_OPACITY,
             };
         }
-        return dim_hint(luminance < 0.5);
+        return dim_hint(luminance < DARK_LUMINANCE_LIMIT);
     }
     let background = style.and_then(|s| s.background);
     match (host, background) {
         (Some(host), Some(background))
             if contrast(host.luminance(), background.luminance()) < UNRELIABLE_CONTRAST =>
         {
-            dim_hint(background.luminance() < 0.5)
+            if background == Rgb::WHITE
+                && dark_environment
+                && host.luminance() > DARK_LUMINANCE_LIMIT
+            {
+                Paint {
+                    rgb: host,
+                    alpha: GHOST_OPACITY,
+                }
+            } else {
+                dim_hint(background.luminance() < DARK_LUMINANCE_LIMIT)
+            }
         }
         (Some(host), _) => Paint {
             rgb: host,
             alpha: GHOST_OPACITY,
         },
-        (None, Some(background)) => dim_hint(background.luminance() < 0.5),
+        (None, Some(background)) => dim_hint(background.luminance() < DARK_LUMINANCE_LIMIT),
         (None, None) => dim_hint(dark_environment),
     }
 }
@@ -226,6 +248,19 @@ pub const MIN_FONT_PX: f32 = 10.0;
 pub const MAX_FONT_PX: f32 = 64.0;
 pub const MAX_ESTIMATED_FONT_PX: f32 = 21.0;
 const GLYPH_BOX_PER_SIZE: f32 = 1.2;
+
+pub fn inline_caret_box(caret: Rect, font_px: f32) -> Rect {
+    if !caret.is_finite() || !font_px.is_finite() || font_px <= 0.0 {
+        return caret;
+    }
+    let max_box = (font_px * 1.45).max(16.0);
+    if caret.height > max_box {
+        let natural = (font_px * 1.28).clamp(14.0, caret.height);
+        Rect::new(caret.x, caret.bottom() - natural, caret.width, natural)
+    } else {
+        caret
+    }
+}
 
 pub fn points_to_px(points: f32) -> f32 {
     points * 96.0 / 72.0
@@ -964,6 +999,71 @@ mod tests {
         );
         assert_eq!(ghost_paint(None, true, None).rgb, Rgb::WHITE);
         assert_eq!(ghost_paint(None, false, None).rgb, Rgb::BLACK);
+
+        let xaml_dark = FieldStyle {
+            color: Some(Rgb {
+                r: 238,
+                g: 238,
+                b: 238,
+            }),
+            background: Some(Rgb::WHITE),
+            ..Default::default()
+        };
+        assert_eq!(
+            ghost_paint(Some(&xaml_dark), true, Some(0.09)).rgb,
+            Rgb {
+                r: 238,
+                g: 238,
+                b: 238,
+            }
+        );
+        assert_eq!(
+            ghost_paint(Some(&xaml_dark), true, None).rgb,
+            Rgb {
+                r: 238,
+                g: 238,
+                b: 238,
+            }
+        );
+        let omnibox_dark = Rgb {
+            r: 62,
+            g: 63,
+            b: 66,
+        };
+        assert_eq!(
+            ghost_paint(Some(&dark_text), true, Some(omnibox_dark.luminance())).rgb,
+            Rgb::WHITE
+        );
+        let onenote_dark = Rgb {
+            r: 31,
+            g: 31,
+            b: 31,
+        };
+        assert_eq!(
+            ghost_paint(Some(&dark_text), true, Some(onenote_dark.luminance())).rgb,
+            Rgb::WHITE
+        );
+        let light_surface = Rgb {
+            r: 235,
+            g: 235,
+            b: 235,
+        };
+        assert_eq!(
+            ghost_paint(Some(&dark_text), true, Some(light_surface.luminance())).rgb,
+            Rgb::BLACK
+        );
+    }
+
+    #[test]
+    fn inline_caret_anchors_padded_first_line_to_bottom() {
+        let padded = Rect::new(200.0, 87.3, 1.3, 34.0);
+        let boxed = inline_caret_box(padded, 14.67);
+        assert!((boxed.bottom() - padded.bottom()).abs() < 0.01);
+        assert!(boxed.height < 20.0 && boxed.height > 18.0);
+        let normal = Rect::new(200.0, 121.3, 1.3, 18.0);
+        assert_eq!(inline_caret_box(normal, 14.67), normal);
+        let zoomed = Rect::new(200.0, 100.0, 2.0, 45.0);
+        assert_eq!(inline_caret_box(zoomed, 36.0), zoomed);
     }
 
     #[test]

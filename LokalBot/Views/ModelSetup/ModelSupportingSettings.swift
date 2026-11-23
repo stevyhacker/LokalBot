@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 import AVFoundation
 
@@ -114,6 +115,8 @@ struct ModelTranscriptionOptionsSheet: View {
     @ObservedObject var app: AppState
     @ObservedObject var setup: ModelSetupController
     @Environment(\.dismiss) private var dismiss
+    @State private var wisprPlan: WisprVocabularyImport.Plan?
+    @State private var wisprStatus: LocalizedStringKey?
 
     init(app: AppState) {
         self.app = app
@@ -158,6 +161,24 @@ struct ModelTranscriptionOptionsSheet: View {
                     TextField("Names, acronyms, and domain vocabulary", text: $app.settings.transcriptionPrompt, axis: .vertical)
                         .lineLimit(3...6).textFieldStyle(.roundedBorder)
                         .settingTarget("settings.transcriptionPrompt", selected: app.focusedSettingID)
+                    Button("Import from Wispr Flow…") { chooseWisprDictionary() }
+                        .confirmationDialog(
+                            Text("Add \(wisprPlan?.terms.count ?? 0) words from Wispr Flow?"),
+                            isPresented: Binding(get: { wisprPlan != nil }, set: { if !$0 { wisprPlan = nil } })
+                        ) {
+                            Button("Add Words") {
+                                if let plan = wisprPlan {
+                                    app.settings.transcriptionPrompt = WisprVocabularyImport.vocabulary(
+                                        app.settings.transcriptionPrompt, adding: plan.terms)
+                                }
+                                wisprPlan = nil
+                            }
+                        } message: {
+                            Text("Snippets, deleted entries, everyday words, and words already listed are left out, and at most 40 words are added, most used first.")
+                        }
+                    if let wisprStatus {
+                        Text(wisprStatus).font(.scaled(.callout)).foregroundStyle(.secondary)
+                    }
                     Toggle("Add names LokalBot already knows", isOn: $app.settings.autoTranscriptionVocabulary)
                         .settingTarget("settings.autoTranscriptionVocabulary", selected: app.focusedSettingID)
                     Text("Calendar attendee names, names you applied in related meetings, and active project names are added on this Mac. Email addresses are never used.")
@@ -177,6 +198,40 @@ struct ModelTranscriptionOptionsSheet: View {
             HStack { Spacer(); Button("Done") { dismiss() }.keyboardShortcut(.defaultAction) }.padding(20)
         }
         .frame(width: 600)
+    }
+
+    private func chooseWisprDictionary() {
+        let panel = NSOpenPanel()
+        panel.message = app.settings.appLanguage.localized("Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary.")
+        panel.prompt = app.settings.appLanguage.localized("Import")
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = WisprFlowLibrary.defaultFolder
+        guard panel.runModal() == .OK, let picked = panel.url else { return }
+        wisprStatus = nil
+        Task {
+            let entries = await Task.detached(priority: .userInitiated) {
+                Result { try WisprFlowLibrary.dictionary(at: picked) }
+            }.value
+            switch entries {
+            case .success(let entries):
+                let plan = WisprVocabularyImport.plan(
+                    entries, existing: app.settings.transcriptionPrompt,
+                    isEverydayWord: WisprVocabularyImport.isEverydayEnglishWord)
+                lokalbotLog("wispr vocabulary import planned words=\(plan.terms.count) snippets=\(plan.snippets) "
+                    + "deleted=\(plan.deleted) listed=\(plan.alreadyListed) everyday=\(plan.everydayWords) "
+                    + "unusable=\(plan.unusable) overLimit=\(plan.overLimit)")
+                if plan.terms.isEmpty {
+                    wisprStatus = "Wispr Flow's dictionary has no new words to add."
+                } else {
+                    wisprPlan = plan
+                }
+            case .failure:
+                lokalbotLog("wispr vocabulary import couldn't read the database")
+                wisprStatus = "Couldn't read Wispr Flow's dictionary."
+            }
+        }
     }
 }
 

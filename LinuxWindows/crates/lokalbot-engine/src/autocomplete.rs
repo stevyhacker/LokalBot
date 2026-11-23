@@ -704,12 +704,15 @@ impl Drop for Autocomplete {
     }
 }
 
+const ACCEPT_CATCHUP_WINDOW: Duration = Duration::from_millis(750);
+
 struct Shown {
     field_id: u64,
     session: Session,
     fingerprint: String,
     used_context: bool,
     guard: Option<Arc<MemoryGuard>>,
+    last_accepted_at: Option<Instant>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -767,7 +770,7 @@ impl Running {
             return false;
         }
         match (&self.before, before) {
-            (Some(asked), Some(now)) => !now.starts_with(asked.as_str()),
+            (Some(asked), Some(now)) => session::typed_since(asked.as_str(), now).is_none(),
             _ => true,
         }
     }
@@ -1171,8 +1174,11 @@ impl Worker {
             self.prefill(&settings);
             return;
         };
-        if previous.before == context.before && previous.after == context.after {
-            if self.shown.is_some() {
+        if previous.before == context.before
+            && session::inline_after(&previous.after) == session::inline_after(&context.after)
+        {
+            if let Some(shown) = self.shown.as_mut() {
+                shown.session.after = context.after.clone();
                 self.emit_suggestion();
             } else if (previous.visible_text != context.visible_text
                 || previous.window_title != context.window_title)
@@ -1186,6 +1192,7 @@ impl Worker {
         if let Some(shown) = self.shown.as_mut() {
             match session::reconcile(&shown.session, &context.before, &context.after) {
                 Reconciled::Unchanged => {
+                    shown.session.after = context.after.clone();
                     self.emit_suggestion();
                     return;
                 }
@@ -1195,6 +1202,20 @@ impl Worker {
                     self.emit_suggestion();
                     self.note_activity();
                     self.maybe_extend(&settings);
+                    return;
+                }
+                Reconciled::Stale
+                    if shown
+                        .last_accepted_at
+                        .is_some_and(|at| at.elapsed() < ACCEPT_CATCHUP_WINDOW)
+                        && session::is_catching_up(
+                            &shown.session,
+                            &previous.before,
+                            &context.before,
+                            &context.after,
+                        ) =>
+                {
+                    shown.session.after = context.after.clone();
                     return;
                 }
                 Reconciled::Advanced(_) | Reconciled::Stale => self.clear_suggestion(),
@@ -1284,6 +1305,7 @@ impl Worker {
             Some(next) => {
                 if let Some(shown) = self.shown.as_mut() {
                     shown.session = next;
+                    shown.last_accepted_at = Some(Instant::now());
                 }
                 self.emit_suggestion();
                 self.note_activity();
@@ -1399,11 +1421,17 @@ impl Worker {
         if self.field.as_ref().is_some_and(Self::measured) {
             self.measures.note_asked(Instant::now());
         }
-        let delay = debounce::milliseconds(
-            self.last_latency_ms,
-            u64::from(settings.cotyping_debounce_ms),
-            0,
-        );
+        let local_match = (settings.cotyping_emoji && emoji::match_trailing(before).is_some())
+            || (settings.cotyping_macros && macros::match_trailing(before).is_some());
+        let delay = if local_match {
+            20
+        } else {
+            debounce::milliseconds(
+                self.last_latency_ms,
+                u64::from(settings.cotyping_debounce_ms),
+                0,
+            )
+        };
         self.due = Some((self.work, Instant::now() + Duration::from_millis(delay)));
     }
 
@@ -1858,7 +1886,17 @@ impl Worker {
                         completion
                             .result
                             .suppression
-                            .map(|r| format!(", no suggestion: {r:?}"))
+                            .map(|r| match r {
+                                ac::Suppression::UnsafeToInsert => {
+                                    match ac::normalize::first_unsafe_codepoint(&completion.raw) {
+                                        Some(code) => {
+                                            format!(", no suggestion: {r:?} (U+{code:04X})")
+                                        }
+                                        None => format!(", no suggestion: {r:?}"),
+                                    }
+                                }
+                                _ => format!(", no suggestion: {r:?}"),
+                            })
                             .unwrap_or_default()
                     );
                     if !Self::measured(&field) {
@@ -2094,6 +2132,7 @@ impl Worker {
             fingerprint,
             used_context,
             guard,
+            last_accepted_at: None,
         });
         self.emit_suggestion();
         self.note_activity();
@@ -3508,5 +3547,24 @@ mod tests {
         assert!(!is_excluded("1Password", "LokalBot", "lokalbot"));
         assert!(!is_excluded(" , ", "Anything", "x"));
         let _ = Normalized::shown("");
+    }
+
+    #[test]
+    fn below_line_after_updates_stay_quiet() {
+        let h = harness(&[" check the logs", " unexpected"], 0);
+        let mut edited = context(7, "Hey");
+        edited.after = "\nFormatting toolbar".into();
+        h.autocomplete
+            .handle(AutocompleteCommand::Context(edited.clone()));
+        edited.before = "Hey please ".into();
+        h.autocomplete
+            .handle(AutocompleteCommand::Context(edited.clone()));
+        assert_eq!(h.suggestion(), "check the logs");
+        assert_eq!(h.kinds(), ["prefill", "fresh"]);
+
+        edited.after = "\nUpdated live preview below".into();
+        h.autocomplete.handle(AutocompleteCommand::Context(edited));
+        assert_eq!(h.suggestion(), "check the logs");
+        assert_eq!(h.kinds(), ["prefill", "fresh"]);
     }
 }

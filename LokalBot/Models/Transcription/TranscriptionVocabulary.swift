@@ -171,7 +171,7 @@ enum TranscriptionVocabulary {
             .trimmingCharacters(in: .whitespacesAndNewlines.union(.punctuationCharacters))
     }
 
-    private static func normalizedKey(_ value: String) -> String {
+    static func normalizedKey(_ value: String) -> String {
         value.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }

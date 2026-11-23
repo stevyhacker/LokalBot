@@ -37,6 +37,7 @@ pub struct Placement {
 pub fn place(
     text: &str,
     emphasis: &str,
+    allow_partial: bool,
     field: &FieldSnapshot,
     caret: Rect,
     screen: Option<Rect>,
@@ -63,72 +64,88 @@ pub fn place(
         policy::caret_at_end_of_line(&field.after),
     );
     let emphasis_chars = geometry::display_text(emphasis).chars().count();
-    let placement = match mode {
-        RenderMode::Inline => {
-            let size = geometry::ghost_font_px(
-                style
-                    .and_then(|s| s.font_points)
-                    .map(geometry::points_to_px),
-                caret_l.height,
-                field.caret_exact,
-            );
-            let measure = measurer(cx, &family, size);
-            let preceding_line = field.before.rsplit('\n').next().unwrap_or("");
-            let input = InlineInput {
-                caret: caret_l,
-                field: field_l,
-                preceding_line,
-                screen: screen_l,
-                right_to_left: lokalbot_ai::autocomplete::is_right_to_left(&field.before),
-                lines_below_free: field.after.trim().is_empty(),
-                metrics: FontMetrics {
-                    line_height: size * 1.25,
-                },
-            };
-            let make = |candidate: &str| InlineLayout::make(candidate, &input, None, &measure);
-            let (shown, layout) = InlineLayout::longest_drawable(text, true, &make)?;
-            let drawn = layout
-                .bounds()?
-                .inset(-INLINE_PADDING, -INLINE_PADDING)
-                .integral();
-            let slack = (size * 0.5).ceil().max(2.0);
-            let bounds = Rect::new(drawn.x, drawn.y, drawn.width + slack, drawn.height);
-            let paint = geometry::ghost_paint(style, appearance.dark, sampled_luminance);
-            let lines = layout
-                .lines
-                .iter()
-                .map(|line| GhostLine {
-                    text: line.text.clone(),
-                    offset: line.offset,
-                    x: line.x - bounds.x,
-                    y: line.y - bounds.y,
-                })
-                .collect();
-            Placement {
-                frame: bounds,
-                content: GhostContent {
-                    lines,
-                    font_family: family,
-                    font_size: size,
-                    line_height: caret_l.height.max(1.0),
-                    color: hsla_of(paint),
-                    emphasis_color: hsla_of(Paint {
-                        alpha: EMPHASIS_OPACITY,
-                        ..paint
-                    }),
-                    emphasis_chars,
-                    chrome: None,
-                },
-                shown,
-                mode,
+    let inline = (mode == RenderMode::Inline).then(|| {
+        let size = geometry::ghost_font_px(
+            style
+                .and_then(|s| s.font_points)
+                .map(geometry::points_to_px),
+            caret_l.height,
+            field.caret_exact,
+        );
+        let inline_caret = geometry::inline_caret_box(caret_l, size);
+        let measure = measurer(cx, &family, size);
+        let preceding_line = field.before.rsplit('\n').next().unwrap_or("");
+        let input = InlineInput {
+            caret: inline_caret,
+            field: field_l,
+            preceding_line,
+            screen: screen_l,
+            right_to_left: lokalbot_ai::autocomplete::is_right_to_left(&field.before),
+            lines_below_free: field.after.trim().is_empty(),
+            metrics: FontMetrics {
+                line_height: size * 1.25,
+            },
+        };
+        let make = |candidate: &str| InlineLayout::make(candidate, &input, None, &measure);
+        let (shown, layout) = InlineLayout::longest_drawable(text, allow_partial, &make)?;
+        let render_line_height = inline_caret.height.max((size * 1.35).ceil());
+        let extra_y = (render_line_height - inline_caret.height).max(0.0) * 0.5;
+        let raw_bounds = layout.bounds()?;
+        let expanded = Rect::new(
+            raw_bounds.x,
+            raw_bounds.y - extra_y,
+            raw_bounds.width,
+            raw_bounds.height + extra_y * 2.0,
+        );
+        let drawn = expanded.inset(-INLINE_PADDING, -INLINE_PADDING).integral();
+        let slack = (size * 0.5).ceil().max(2.0);
+        let bounds = Rect::new(drawn.x, drawn.y, drawn.width + slack, drawn.height);
+        let paint = geometry::ghost_paint(style, appearance.dark, sampled_luminance);
+        let lines = layout
+            .lines
+            .iter()
+            .map(|line| GhostLine {
+                text: line.text.clone(),
+                offset: line.offset,
+                x: line.x - bounds.x,
+                y: (line.y - extra_y) - bounds.y,
+            })
+            .collect();
+        Some(Placement {
+            frame: bounds,
+            content: GhostContent {
+                lines,
+                font_family: family,
+                font_size: size,
+                line_height: render_line_height.max(1.0),
+                color: hsla_of(paint),
+                emphasis_color: hsla_of(Paint {
+                    alpha: EMPHASIS_OPACITY,
+                    ..paint
+                }),
+                emphasis_chars,
+                chrome: None,
+            },
+            shown,
+            mode: RenderMode::Inline,
+        })
+    });
+    let placement = match inline.flatten() {
+        Some(placed) => placed,
+        None => {
+            if mode == RenderMode::Inline {
+                log::debug!("autocomplete: inline did not fit, falling back to pill at caret");
             }
-        }
-        RenderMode::Pill => {
             let reported = style
                 .and_then(|s| s.font_points)
                 .map(geometry::points_to_px);
             let size = geometry::ghost_font_px(reported, caret_l.height, field.caret_exact)
                 .clamp(PILL_FONT_PX.0, PILL_FONT_PX.1);
+            let pill_caret = if field.caret_exact {
+                geometry::inline_caret_box(caret_l, size)
+            } else {
+                caret_l
+            };
             let family = appearance.ui_font.clone();
             let measure = measurer(cx, &family, size);
             let lines = geometry::pill_lines(
@@ -144,9 +161,15 @@ pub fn place(
             let widest = lines.iter().map(|l| measure(l)).fold(0.0, f32::max);
             let width = widest.ceil() + PILL_PADDING.0 * 2.0;
             let height = line_height * lines.len() as f32 + PILL_PADDING.1 * 2.0;
-            let frame =
-                geometry::pill_frame(caret_l, field.caret_exact, field_l, width, height, screen_l)?
-                    .integral();
+            let frame = geometry::pill_frame(
+                pill_caret,
+                field.caret_exact,
+                field_l,
+                width,
+                height,
+                screen_l,
+            )?
+            .integral();
             let mut offset = 0;
             let ghost_lines = lines
                 .iter()
@@ -179,7 +202,7 @@ pub fn place(
                     }),
                 },
                 shown: text.to_string(),
-                mode,
+                mode: RenderMode::Pill,
             }
         }
     };

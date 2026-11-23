@@ -100,6 +100,19 @@ attached to imported meetings. The log records only
 how many meetings were imported, never their titles or contents. Deleting your
 account or data at the other app is up to you.
 
+**Words imported from Wispr Flow.** **Settings → Models → Transcribe → Advanced
+→ Language & vocabulary → Import from Wispr Flow** reads the dictionary in the
+Wispr Flow database you choose (`flow.sqlite`) and, after you confirm, adds its
+words to **Names and vocabulary**. LokalBot opens that database read-only, never
+changes it, reads only its dictionary table (not your dictation history, audio,
+screenshots, notes, or meetings), and contacts no account or server. Snippets,
+which can hold addresses or signatures, and deleted entries are never read into
+the list. If the database has changes Wispr Flow hasn't written into it yet, it
+is copied to a private temporary folder, read there, and deleted. Nothing else
+from Wispr Flow is kept, and the log records only counts. The added words are
+ordinary vocabulary: you can edit or delete them in the field, and, as for any
+vocabulary, a transcription server you have chosen receives them with the audio.
+
 **Sample meeting.** LokalBot includes a short made-up recording with synthetic
 voices. **Try a sample meeting** imports that bundled file the same way, so it
 needs no network access beyond the models you choose to download first. The
@@ -1415,9 +1428,11 @@ request and any enabled screen context or saved facts included in the prompt.
 Dictation displays that disclosure. Text already inserted into another app is
 not removed by later source deletion.
 
-After pasting, dictation reads up to the bounded text before the caret in the
-same focused field once or a few times within about a second, to confirm the text
-arrived. It reads only the exact field the text was pasted into, identified when
+Just before pasting, dictation reads up to the bounded text before the caret in
+the same focused field once, to decide whether the text needs a leading space or
+a lower-case first word. After pasting, it reads that text again once or a few
+times within about a second, to confirm the text arrived. It reads only the
+exact field the text was pasted into, identified when
 dictation started, and never a secure field; when that field could not be
 identified, nothing is read back. The read is compared in memory and discarded; nothing from it is saved,
 logged or sent anywhere. With **Learn from my dictation** on, it also reads

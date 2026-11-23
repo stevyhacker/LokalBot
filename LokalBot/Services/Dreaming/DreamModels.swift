@@ -124,31 +124,39 @@ struct DreamReport: Codable, Equatable, Sendable {
 
     var isFallback: Bool { engineName == nil }
 
-    var provenanceDescription: String {
+    var provenanceDescription: String { provenanceDescription(localized: { $0 }) }
+
+    func provenanceDescription(localized: (String) -> String) -> String {
         if let engineName {
             switch inferenceProvenance?.location {
             case .local:
-                return "Dreamed by \(engineName) on this Mac."
+                return String(format: localized("Dreamed by %@ on this Mac."), engineName)
             case .remote:
-                let destination = inferenceProvenance?.origin.map { " at \($0)" } ?? ""
-                return "Dreamed by \(engineName) using approved remote inference\(destination). "
-                    + "The report was saved in your local library."
+                if let origin = inferenceProvenance?.origin {
+                    return String(format: localized(
+                        "Dreamed by %1$@ using approved remote inference at %2$@. "
+                            + "The report was saved in your local library."), engineName, origin)
+                }
+                return String(format: localized(
+                    "Dreamed by %@ using approved remote inference. The report was saved in your local library."),
+                    engineName)
             case nil:
-                return "Dreamed by \(engineName) using your configured Think model. "
-                    + "The report was saved in your local library."
+                return String(format: localized(
+                    "Dreamed by %@ using your configured Think model. The report was saved in your local library."),
+                    engineName)
             }
         }
         switch fallbackReason {
         case .engineUnavailable:
-            return "No model was reachable overnight; this evidence-only brief was saved locally."
+            return localized("No model was reachable overnight; this evidence-only brief was saved locally.")
         case .unparseableResponse:
-            return "The model replied, but its response could not be read; "
-                + "this evidence-only brief was saved locally."
+            return localized("The model replied, but its response could not be read; "
+                + "this evidence-only brief was saved locally.")
         case .emptyDay:
-            return "Nothing substantive was recorded that day, so no model ran; "
-                + "this placeholder just keeps the record complete."
+            return localized("Nothing substantive was recorded that day, so no model ran; "
+                + "this placeholder just keeps the record complete.")
         case nil:
-            return "Written as an evidence-only fallback and saved locally."
+            return localized("Written as an evidence-only fallback and saved locally.")
         }
     }
 

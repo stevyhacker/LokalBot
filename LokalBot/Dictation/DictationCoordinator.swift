@@ -726,6 +726,7 @@ final class DictationCoordinator: ObservableObject {
             let delivery = await deliver(
                 text,
                 mode: config.dictationOutputMode,
+                settings: config,
                 generation: session,
                 contextIsCurrent: prepared.contextIsCurrent)
             guard generation == session else { return }
@@ -834,6 +835,7 @@ final class DictationCoordinator: ObservableObject {
     private func deliver(
         _ text: String,
         mode: DictationOutputMode,
+        settings: AppSettings,
         generation session: Int,
         contextIsCurrent: () -> Bool = { true }
     ) async -> DeliveryResult {
@@ -851,7 +853,12 @@ final class DictationCoordinator: ObservableObject {
             }
             guard !Task.isCancelled, generation == session else { return .cancelled }
             var queuedCheck: DictationDeliveryCheck?
-            let outcome = await inserter.insertViaPaste(text) { [weak self] in
+            var pastedText = text
+            let outcome = await inserter.insertViaPaste(text, fitToField: { [weak self] text in
+                guard let self, self.generation == session else { return text }
+                pastedText = await self.fittedToField(text, settings: settings)
+                return pastedText
+            }) { [weak self] in
                 guard let self, self.generation == session else { return false }
                 let check = await self.deliveryTargetCheck()
                 queuedCheck = check
@@ -866,7 +873,7 @@ final class DictationCoordinator: ObservableObject {
             return Self.pasteDeliveryResult(
                 outcome,
                 sessionIsCurrent: sessionIsCurrent,
-                typeFallback: { inserter.typeInChunks(text) })
+                typeFallback: { inserter.typeInChunks(pastedText) })
         case .copyToClipboard:
             guard !Task.isCancelled, generation == session else { return .cancelled }
             NSPasteboard.general.clearContents()
@@ -939,6 +946,20 @@ final class DictationCoordinator: ObservableObject {
                     processID: target.processID, focusIdentityKey: target.focusIdentityKey))
             }
         }
+    }
+
+    private func fittedToField(_ text: String, settings: AppSettings) async -> String {
+        guard let target = deliveryTarget, target.focusIdentityKey?.isEmpty == false else { return text }
+        let appName = NSRunningApplication(processIdentifier: target.processID)?.localizedName ?? ""
+        guard !DictationScreenPrivacy.isExcluded(
+            target: DictationScreenTarget(processID: target.processID, appName: appName, bundleID: target.bundleID),
+            excludedApps: settings.excludedAppList) else { return text }
+        let before = await Self.readTextBeforeCaret(in: target)
+        let sample = String((before ?? "").suffix(200)) + " " + text
+        let lowers = DictationPasteSeam.lowersSentenceCapital(language: settings.transcriptionLanguage, text: sample)
+        return DictationPasteSeam.fit(
+            text, textBeforeCaret: before, lowersSentenceCapital: lowers,
+            isEverydayWord: DictationPasteSeam.isEverydayEnglishWord).text
     }
 
     nonisolated private static func readTextBeforeCaret(in target: DictationDeliveryTarget) async -> String? {

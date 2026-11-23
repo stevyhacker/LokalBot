@@ -62,7 +62,7 @@ struct YesterdayBriefPanel: View {
             .padding(.horizontal, SectionPanelMetric.inset)
             .padding(.vertical, 14)
         } footer: {
-            Text(report.provenanceDescription)
+            Text(verbatim: report.provenanceDescription(localized: { app.settings.appLanguage.localized($0) }))
                 .sectionPanelFooterText()
         }
     }

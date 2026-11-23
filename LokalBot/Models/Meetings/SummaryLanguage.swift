@@ -292,3 +292,33 @@ extension SummaryLanguage: Codable {
         try container.encode(rawValue)
     }
 }
+
+
+struct DailySummaryLanguage: Equatable, Sendable {
+    let name: String
+    let fallbackLanguage: AppLanguage
+
+    static let english = Self(notes: .en, interface: .english)
+
+    init(notes: SummaryLanguage, interface: AppLanguage,
+         preferredLanguages: [String] = Locale.preferredLanguages) {
+        let app = AppLanguage(rawValue: interface.localizationIdentifier(preferredLanguages: preferredLanguages))
+            ?? .english
+        name = notes.promptLanguageName ?? app.englishName
+        if case .language(let code) = notes {
+            let catalog = code.rawValue == "zh" ? "zh-Hans" : code.rawValue
+            fallbackLanguage = AppLanguage(rawValue: catalog) ?? app
+        } else {
+            fallbackLanguage = app
+        }
+    }
+
+    func system(_ base: String) -> String {
+        base + "\n\nWrite all human-readable titles, notes, summaries, recommendations, and memory text in "
+            + name + ". Keep JSON keys, status enum values, identifiers, source markers, proper names, "
+            + "and quoted source text unchanged. This output-language rule also applies when the evidence is in another language."
+    }
+
+    func text(_ key: String) -> String { fallbackLanguage.localized(key) }
+    var usesEnglishCatalog: Bool { fallbackLanguage == .english }
+}
