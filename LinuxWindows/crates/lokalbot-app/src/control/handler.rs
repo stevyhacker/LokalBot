@@ -14,6 +14,7 @@ use lokalbot_core::control::protocol::{
     SETTINGS_DESTINATIONS, SecretValue, VERSION, validated_secret_value,
 };
 use lokalbot_core::control::registry::{self, SettingCategory, SettingTier};
+use lokalbot_core::control::reprocess;
 use lokalbot_core::control::setup::SetupPlan;
 use lokalbot_core::settings::SummarizerBackend;
 use lokalbot_platform::control_socket::Reply;
@@ -23,7 +24,56 @@ use uuid::Uuid;
 use super::{ControlHost, permissions, save_secret, secret_is_set};
 use crate::pages::settings::catalog;
 use crate::pages::settings::models::{Preset, model_bytes};
-use crate::state::{AppData, AppEvent, DictationHud, SettingsCategory};
+use crate::state::{AppData, AppEvent, DictationHud, ProcessingStage, SettingsCategory};
+
+fn find_meeting(
+    data: &AppData,
+    params: &Map<String, Value>,
+) -> Result<lokalbot_core::Meeting, ControlError> {
+    if data.meetings_loaded {
+        return reprocess::meeting(&data.meetings, params);
+    }
+    let meetings = data.library.list_meetings().map_err(|err| {
+        ControlError::invalid_request(format!("LokalBot could not read the library: {err:#}"))
+    })?;
+    reprocess::meeting(&meetings, params)
+}
+
+fn processing_status(
+    meeting: &lokalbot_core::Meeting,
+    stage: Option<&ProcessingStage>,
+    folder: &std::path::Path,
+) -> Value {
+    let state = stage.map_or("idle", stage_state);
+    let message = stage.map(stage_message);
+    reprocess::status(meeting, state, message.as_deref(), folder)
+}
+
+fn stage_state(stage: &ProcessingStage) -> &'static str {
+    match stage {
+        ProcessingStage::Queued => "queued",
+        ProcessingStage::WaitingForModels => "waitingForModels",
+        ProcessingStage::PreparingModel(_) => "preparing",
+        ProcessingStage::Transcribing => "transcribing",
+        ProcessingStage::IdentifyingSpeakers => "identifyingSpeakers",
+        ProcessingStage::Summarizing => "summarizing",
+        ProcessingStage::Failed(_) => "failed",
+    }
+}
+
+fn stage_message(stage: &ProcessingStage) -> String {
+    match stage {
+        ProcessingStage::Queued => "Queued…".into(),
+        ProcessingStage::WaitingForModels => {
+            "Waiting for models — the recording is saved. Download the selected models in Settings → Models.".into()
+        }
+        ProcessingStage::PreparingModel(model) => format!("Preparing {model}…"),
+        ProcessingStage::Transcribing => "Transcribing…".into(),
+        ProcessingStage::IdentifyingSpeakers => "Identifying speakers…".into(),
+        ProcessingStage::Summarizing => "Summarizing…".into(),
+        ProcessingStage::Failed(message) => format!("Failed: {message}"),
+    }
+}
 
 fn preset_token(preset: Preset) -> &'static str {
     match preset {
@@ -222,6 +272,8 @@ impl ControlHost {
                     .and_then(|uuid| self.approvals.request(uuid, Utc::now()).map(|r| r.json()));
                 found.ok_or_else(|| ControlError::unknown_request(id))
             }
+            protocol::METHOD_MEETINGS_REPROCESS => self.reprocess_meeting(params, caller, cx),
+            protocol::METHOD_MEETINGS_PROCESSING => self.processing_state(params, cx),
             protocol::METHOD_SETUP_PLAN => self.setup_plan(params, cx),
             protocol::METHOD_SETUP_FINISH => {
                 self.data.update(cx, |data, cx| {
@@ -287,6 +339,54 @@ impl ControlHost {
             protocol::METHOD_OPEN => self.open_settings(params, cx),
             other => Err(ControlError::unknown_method(other)),
         }
+    }
+
+    fn reprocess_meeting(
+        &mut self,
+        params: &Map<String, Value>,
+        caller: &str,
+        cx: &mut Context<Self>,
+    ) -> Result<Value, ControlError> {
+        let (transcribe, summarize) = reprocess::work(params)?;
+        let (meeting, folder) = {
+            let data = self.data.read(cx);
+            let meeting = find_meeting(data, params)?;
+            let folder = data.library.meeting_dir(&meeting);
+            (meeting, folder)
+        };
+        reprocess::require_transcript(&meeting, &folder, transcribe)?;
+        let meeting_id = meeting.id;
+        self.data.update(cx, |data, cx| {
+            data.request(
+                AppEvent::ProcessMeeting {
+                    meeting_id,
+                    transcribe,
+                    summarize,
+                },
+                cx,
+            );
+            if !data.is_processing(meeting_id) {
+                data.processing.insert(meeting_id, ProcessingStage::Queued);
+                cx.notify();
+            }
+        });
+        log::info!(
+            "app-control reprocess meeting={meeting_id} transcribe={transcribe} summarize={summarize} caller={caller}"
+        );
+        let stage = self.data.read(cx).processing.get(&meeting_id).cloned();
+        Ok(processing_status(&meeting, stage.as_ref(), &folder))
+    }
+
+    fn processing_state(
+        &mut self,
+        params: &Map<String, Value>,
+        cx: &mut Context<Self>,
+    ) -> Result<Value, ControlError> {
+        let data = self.data.read(cx);
+        let meeting = find_meeting(data, params)?;
+        let folder = data.library.meeting_dir(&meeting);
+        let stage = data.processing.get(&meeting.id);
+        Ok(processing_status(&meeting, stage, &folder))
     }
 
     fn set_settings(
@@ -779,6 +879,55 @@ mod tests {
         assert!(reason.contains("64 GB"));
         let (preset, reason) = suggested_preset(4 * GIB, &settings);
         assert!(preset == Preset::Lightweight, "{reason}");
+    }
+
+    #[test]
+    fn processing_stages_report_the_mac_states() {
+        let cases = [
+            (ProcessingStage::Queued, "queued", "Queued…"),
+            (
+                ProcessingStage::PreparingModel("speech model".into()),
+                "preparing",
+                "Preparing speech model…",
+            ),
+            (
+                ProcessingStage::Transcribing,
+                "transcribing",
+                "Transcribing…",
+            ),
+            (
+                ProcessingStage::IdentifyingSpeakers,
+                "identifyingSpeakers",
+                "Identifying speakers…",
+            ),
+            (ProcessingStage::Summarizing, "summarizing", "Summarizing…"),
+            (
+                ProcessingStage::Failed("no model".into()),
+                "failed",
+                "Failed: no model",
+            ),
+        ];
+        for (stage, state, message) in cases {
+            assert_eq!(stage_state(&stage), state);
+            assert_eq!(stage_message(&stage), message);
+        }
+        assert_eq!(
+            stage_state(&ProcessingStage::WaitingForModels),
+            "waitingForModels"
+        );
+        let meeting = lokalbot_core::Meeting::new("Pricing review", "Zoom", Utc::now(), "m");
+        let dir = tempfile::tempdir().unwrap();
+        let idle = processing_status(&meeting, None, dir.path());
+        assert_eq!(idle["state"], "idle");
+        assert!(idle.get("message").is_none());
+        let failed = processing_status(
+            &meeting,
+            Some(&ProcessingStage::Failed("no model".into())),
+            dir.path(),
+        );
+        assert_eq!(failed["state"], "failed");
+        assert_eq!(failed["message"], "Failed: no model");
+        assert!(reprocess::is_settled(failed["state"].as_str()));
     }
 
     #[test]

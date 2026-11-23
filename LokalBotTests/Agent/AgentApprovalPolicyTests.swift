@@ -207,7 +207,8 @@ final class AgentApprovalPolicyTests: XCTestCase {
                         "lokalbot-cli search-notes release", "lokalbot-cli path eb749eed",
                         "lokalbot-cli ask \"what changed\"", "lokalbot-cli open eb749eed",
                         "lokalbot-cli setup start", "lokalbot-cli mcp", "lokalbot-cli restart",
-                        "lokalbot-cli models download whisper", "lokalbot-cli install-skill"] {
+                        "lokalbot-cli models download whisper", "lokalbot-cli install-skill",
+                        "lokalbot-cli reprocess eb749eed --wait 600"] {
             XCTAssertFalse(AgentApprovalPolicy.isLibraryLookup(command), command)
         }
     }

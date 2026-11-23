@@ -28,6 +28,8 @@ enum AppControlProtocol {
         case secretSet = "secret.set"
         case secretClear = "secret.clear"
         case meetingsImport = "meetings.import"
+        case meetingsReprocess = "meetings.reprocess"
+        case meetingsProcessing = "meetings.processing"
         case setupPlan = "setup.plan"
         case setupFinish = "setup.finish"
         case modelsStatus = "models.status"
@@ -132,6 +134,16 @@ struct AppControlError: Codable, Equatable, LocalizedError {
             message: "No API key is named \(name). Choose one of: "
                 + AppSecret.allCases.map(\.rawValue).joined(separator: ", ") + ".")
     }
+
+    static func unknownMeeting(_ id: String) -> AppControlError {
+        AppControlError(
+            code: "unknown_meeting",
+            message: "No meeting matches \(id). Run `lokalbot-cli list` for meeting IDs; a short ID must match only one meeting.")
+    }
+
+    static let alreadyProcessing = AppControlError(
+        code: "already_processing",
+        message: "LokalBot has already started summarizing this meeting. Wait for it to finish, then run this again.")
 
     static func invalidRequest(_ message: String) -> AppControlError {
         AppControlError(code: "invalid_request", message: message)

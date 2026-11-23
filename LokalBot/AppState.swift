@@ -2194,12 +2194,14 @@ final class AppState: ObservableObject {
         return created
     }
 
-    func reprocess(_ meeting: Meeting, transcribe: Bool, summarize: Bool) {
+    @discardableResult
+    func reprocess(_ meeting: Meeting, transcribe: Bool, summarize: Bool) -> ProcessingPipeline.EnqueueOutcome {
         lastError = nil
-        switch pipeline.enqueue(
+        let outcome = pipeline.enqueue(
             meeting,
             transcribe: transcribe,
-            summarize: summarize) {
+            summarize: summarize)
+        switch outcome {
         case .alreadyProcessing:
             lastError = "Summary processing has already started for this meeting. Wait for it to finish before choosing a different processing action."
         case .persistenceFailed:
@@ -2209,6 +2211,7 @@ final class AppState: ObservableObject {
         case .enqueued, .coalesced, .updatedActive:
             break
         }
+        return outcome
     }
 
     func retryProcessing(_ meeting: Meeting) {

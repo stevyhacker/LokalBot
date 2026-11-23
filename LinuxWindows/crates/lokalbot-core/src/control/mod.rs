@@ -4,6 +4,7 @@ pub mod change;
 pub mod protocol;
 pub mod registry;
 mod registry_table;
+pub mod reprocess;
 pub mod setup;
 pub mod socket;
 

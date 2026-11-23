@@ -1129,6 +1129,10 @@ changes and asks again. Requests expire after five minutes. A shorter retention 
 and approving deletes only what it lists. `lokalbot-cli import` can ask LokalBot to import
 another app's meetings from files it names; LokalBot reads the files itself, and
 the card shows the paths and how many new meetings they hold before you approve.
+`lokalbot-cli reprocess` can ask LokalBot to summarize a meeting again, or to
+transcribe it again first, without a card: it does what Reprocess in the meeting's
+menu does, with the notes model and language you chose in Settings, and keeps the
+previous notes.
 `lokalbot-cli secret set` can save an
 API key, also only after you approve it; the card shows the key's last four
 characters, and keys are never read back. Each change is recorded, with the

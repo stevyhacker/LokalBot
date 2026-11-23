@@ -189,6 +189,20 @@ lokalbot-cli import screenpipe --wait 120                # no path: the app's ow
 - The user exports from the other app themselves; `import sources` says where. Don't sign in to their accounts or use their API tokens for them.
 - Approval starts the import in LokalBot; check the result with `lokalbot-cli list --limit 20` once it finishes.
 
+## Summarizing a meeting again
+
+When the user wants a meeting's notes redone, for example after changing the notes model, template, or language, or when the notes came out wrong:
+
+```bash
+lokalbot-cli reprocess fb709013 --wait 600              # new notes from the saved transcript; exit 0 done, 1 failed, 3 still running
+lokalbot-cli reprocess latest                           # queue it and return right away
+lokalbot-cli reprocess fb709013 --transcribe --wait 1800   # transcribe the recording again first
+```
+
+- It does what Reprocess does in the meeting's toolbar menu, right away, with the "Allow external agents to change LokalBot settings" toggle on. LokalBot uses the notes model, template, and language in Settings; that can be a cloud model the user approved. The previous notes stay in `summary.previous.md`.
+- `--transcribe` reruns speech recognition on the user's computer and can take as long as the meeting. Use it only when the transcript itself is wrong.
+- `[already_processing]` means LokalBot is already summarizing that meeting; wait for it to finish. Read the new notes with `lokalbot-cli get <id> --include summary`.
+
 ## Setting up LokalBot
 
 When the user wants LokalBot set up, run these steps in order; `lokalbot-cli <command> --help` describes each command. If LokalBot isn't installed yet, install it first: on a Mac with `brew install --cask stevyhacker/tap/lokalbot`, and on Windows and Linux from the [latest release](https://github.com/stevyhacker/lokalbot/releases/latest), after which the user picks what LokalBot remembers in the app. On Windows and Linux the same commands work once the app is running; those systems have no permission prompts, so `permissions` says what the desktop allows.
