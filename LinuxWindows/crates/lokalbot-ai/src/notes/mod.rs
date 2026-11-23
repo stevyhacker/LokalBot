@@ -144,7 +144,8 @@ pub fn generate_meeting_notes_with(
     let cancel = options.cancel.as_deref();
     let _hold = think.hold()?;
     let template = settings.note_template;
-    let language = language::prompt_language(&settings.summary_language, transcript);
+    let notes_language = language::notes_language(&settings.summary_language, transcript);
+    let language = notes_language.as_ref().map(|l| l.prompt.clone());
     let marked = transcript.marking_suspected_echo();
     let evidence = Evidence::new(
         View::new(&marked, settings.microphone_is_user),
@@ -264,7 +265,13 @@ pub fn generate_meeting_notes_with(
         .into());
     }
     let (claims, outcomes, body) = merged(&checkpoint, &evidence, template, &revision);
-    let header = header(meeting, transcript, settings, language.as_deref(), think);
+    let header = header(
+        meeting,
+        transcript,
+        settings,
+        notes_language.as_ref().map(|l| l.name.as_str()),
+        think,
+    );
     let claims_value = json!({"version": 1, "transcriptRevision": revision, "claims": claims});
     progress("Notes ready");
     Ok(MeetingNotes {

@@ -22,13 +22,14 @@ final class TranscriptionLanguageTests: XCTestCase {
         XCTAssertEqual(TranscriptionLanguage.fromLegacyHint(" DE "), .de)
     }
 
-    func testSerbianCanBeChosenExplicitlyWithoutBecomingASummaryPreset() {
+    func testSerbianCanBeChosenForTranscriptionAndNotes() {
         let serbian = try? XCTUnwrap(TranscriptionLanguage(rawValue: "sr"))
         XCTAssertEqual(serbian, .language(.sr))
         XCTAssertEqual(serbian?.code, "sr")
         XCTAssertEqual(serbian?.displayName, "Serbian")
         XCTAssertTrue(TranscriptionLanguage.allCases.contains(.language(.sr)))
-        XCTAssertNil(SummaryLanguage(rawValue: "sr"), "summary script choice (Cyrillic or Latin) is a separate decision")
+        XCTAssertEqual(SummaryLanguage(rawValue: "sr"), .sr)
+        XCTAssertNil(TranscriptionLanguage(rawValue: "hr"))
     }
 
     func testLegacyHintMigrationFallsBackToAutoForUnknownCodes() {
@@ -38,6 +39,75 @@ final class TranscriptionLanguageTests: XCTestCase {
 }
 
 final class SummaryLanguageTests: XCTestCase {
+    private func transcript(_ texts: [String]) -> Transcript {
+        Transcript(
+            segments: texts.enumerated().map { index, text in
+                .init(start: Double(index) * 4, end: Double(index + 1) * 4, speaker: "them",
+                      text: text, confidence: nil)
+            },
+            engine: "test")
+    }
+
+    func testSerbianCroatianMeetingIsNotRelabeledByAWeakRunnerUp() {
+        let meeting = transcript([
+            "Dobro jutro, drago mi je da smo se čuli danas prije podne.",
+            "Ja radim kao softverski inženjer već desetak godina, uglavnom za strane firme.",
+            "Projekat je trenutno u fazi testiranja i imamo prve korisnike na Linuxu i Windowsu.",
+            "Mislim da bi trebalo prvo da završimo dokumentaciju, pa onda da pričamo o investiciji.",
+            "neka alternativa.",
+            "Ne znam da li si stigao da pogledaš tekst koji sam ti poslao prošle sedmice.",
+            "Proces kod nas obično traje tri ili četiri sastanka prije konačne odluke.",
+            "Ajde, čujemo se sljedeće nedjelje, pa ćemo vidjeti šta dalje.",
+        ])
+
+        let language = SummaryLanguage.resolvedForTranscript(.matchTranscript, transcript: meeting)
+
+        XCTAssertEqual(language, .bcms)
+        XCTAssertEqual(language.displayName, "Bosnian, Croatian, Montenegrin, Serbian")
+        let prompt = PromptTemplates.meetingNotesSystem(template: .meeting, language: language)
+        XCTAssertTrue(prompt.contains("Write note and action text in the transcript's own language "
+            + "(Bosnian, Croatian, Montenegrin or Serbian), keeping its ijekavian or ekavian forms and its script."))
+    }
+
+    func testSerbianCyrillicMeetingIsNotReadAsUkrainianOrKazakh() {
+        let meeting = transcript([
+            "Видјећемо се сутра, па ћемо причати о пројекту и документацији.",
+            "Мислим да ће тестирање бити готово до краја мјесеца.",
+            "Ја ћу ти послати документацију чим је завршим.",
+            "Шта ћемо са инвестицијом, то ћемо одлучити касније.",
+        ])
+
+        XCTAssertEqual(SummaryLanguage.resolvedForTranscript(.matchTranscript, transcript: meeting), .bcms)
+    }
+
+    func testLanguagesOutsideTheMenuKeepTheirOwnName() {
+        let czech = transcript([
+            "Myslím, že musíme dokončit projekt do pátku a poslat zprávu klientovi.",
+            "Zítra se sejdeme znovu a probereme rozpočet na příští rok.",
+        ])
+        let ukrainian = transcript([
+            "Думаю, нам потрібно завершити проєкт до п'ятниці та надіслати звіт клієнту.",
+            "Завтра ми зустрінемося знову й обговоримо бюджет на наступний рік.",
+        ])
+
+        XCTAssertEqual(SummaryLanguage.resolvedForTranscript(.matchTranscript, transcript: czech), .custom("Czech"))
+        XCTAssertEqual(SummaryLanguage.resolvedForTranscript(.matchTranscript, transcript: ukrainian), .uk)
+    }
+
+    func testNotesMenuOffersEachSerbianCroatianLanguageButNotTheSharedGroup() {
+        for language in [SummaryLanguage.bs, .hr, .cnr, .sr, .uk] {
+            XCTAssertTrue(SummaryLanguage.presets.contains(language), language.displayName)
+            XCTAssertEqual(SummaryLanguage(rawValue: language.rawValue), language)
+        }
+        XCTAssertFalse(SummaryLanguage.presets.contains(.bcms))
+        XCTAssertEqual(SummaryLanguage.hr.promptLanguageName, "Croatian")
+        XCTAssertEqual(SummaryLanguage.sr.promptLanguageName,
+                       "Serbian, in the script the source text uses (Latin or Cyrillic)")
+        XCTAssertEqual(SummaryLanguage.cnr.displayName, "Montenegrin")
+        XCTAssertEqual(DailySummaryLanguage(notes: .sr, interface: .english).fallbackLanguage, .serbianLatin)
+        XCTAssertEqual(DailySummaryLanguage(notes: .hr, interface: .german).fallbackLanguage, .german)
+    }
+
     func testMatchTranscriptDetectsMajorityLanguageFromRawSegmentText() {
         let transcript = Transcript(
             segments: [

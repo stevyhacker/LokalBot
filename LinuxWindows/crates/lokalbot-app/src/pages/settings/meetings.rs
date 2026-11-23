@@ -25,7 +25,7 @@ use super::{Section, SettingsPage};
 use crate::state::SettingsCategory;
 use crate::ui::settings_row;
 
-pub const SUMMARY_LANGUAGES: [(&str, &str); 24] = [
+pub const SUMMARY_LANGUAGES: [(&str, &str); 29] = [
     ("en", "English"),
     ("zh", "Simplified Chinese (Mandarin)"),
     ("zh-Hant", "Traditional Chinese (Mandarin)"),
@@ -38,6 +38,7 @@ pub const SUMMARY_LANGUAGES: [(&str, &str); 24] = [
     ("pt", "Portuguese (Brazil)"),
     ("pt-PT", "Portuguese (Portugal)"),
     ("ru", "Russian"),
+    ("uk", "Ukrainian"),
     ("ar", "Arabic"),
     ("hi", "Hindi"),
     ("it", "Italian"),
@@ -48,6 +49,10 @@ pub const SUMMARY_LANGUAGES: [(&str, &str); 24] = [
     ("da", "Danish"),
     ("no", "Norwegian (Bokmål)"),
     ("nn", "Norwegian (Nynorsk)"),
+    ("bs", "Bosnian"),
+    ("hr", "Croatian"),
+    ("cnr", "Montenegrin"),
+    ("sr", "Serbian"),
     ("th", "Thai"),
     ("vi", "Vietnamese"),
 ];
