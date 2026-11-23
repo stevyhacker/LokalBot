@@ -21,15 +21,21 @@ enum TranscriptLanguageVote {
         return Result(code: best.key, share: best.value / total)
     }
 
-    /// Whether every text long enough to judge reads as `code`. A text too short to judge is no
-    /// evidence either way; one that reads as another language, or as none with confidence, is.
+    /// Whether every text long enough to judge reads as `code`, and those texts are most of the
+    /// track. A text too short to judge is no evidence either way, so a track made mostly of them
+    /// (Japanese and Chinese, written without spaces) is never unanimous. One that reads as
+    /// another language, or as none with confidence, is evidence against.
     static func unanimous(_ texts: [String], code: String, minimumWords: Int = 3,
-                          minimumConfidence: Double = 0.5, aliases: [String: String] = [:]) -> Bool {
-        texts.allSatisfy { text in
-            guard text.split(whereSeparator: \.isWhitespace).count >= minimumWords else { return true }
-            guard let heard = language(of: text, minimumConfidence: minimumConfidence) else { return false }
-            return (aliases[heard] ?? heard) == code
+                          minimumConfidence: Double = 0.5, minimumJudgedShare: Double = 0.8,
+                          aliases: [String: String] = [:]) -> Bool {
+        var judged = 0
+        for text in texts where text.split(whereSeparator: \.isWhitespace).count >= minimumWords {
+            guard let heard = language(of: text, minimumConfidence: minimumConfidence),
+                  (aliases[heard] ?? heard) == code else { return false }
+            judged += text.count
         }
+        let total = texts.reduce(0) { $0 + $1.count }
+        return total > 0 && Double(judged) >= minimumJudgedShare * Double(total)
     }
 
     private static func language(of text: String, minimumConfidence: Double) -> String? {

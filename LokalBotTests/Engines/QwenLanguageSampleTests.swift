@@ -197,6 +197,15 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(decision.segments[4].text, "pinned en 4")
     }
 
+    func testTrackMostlyTooBriefToJudgeStillDecodesAgainPinned() async throws {
+        let decoder = Decoder { $0 < 2 ? self.english[$0] : "会議は来週に延期されました。担当者が二人とも病気のためです。" }
+        let decision = try await decide(spans(6), decoder: decoder)
+
+        XCTAssertEqual(decoder.calls.map(\.language), [nil, "en"],
+                       "Text without spaces never votes, so it cannot agree either")
+        XCTAssertTrue(decision.decodedTwice)
+    }
+
     func testShortCroatianTrackStillDecodesAgainPinned() async throws {
         let decoder = Decoder { self.croatian[$0 % self.croatian.count] }
         let decision = try await decide(spans(4), decoder: decoder)
