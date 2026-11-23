@@ -268,7 +268,13 @@ pub fn render(context: &Context) -> Rendered {
             conditioning_preface: None,
         };
     }
-    let mut preface_text = bounded_preface(&leading, &profile, memory_line.as_deref(), &trailing);
+    let mut preface_text = bounded_preface(
+        &leading,
+        &profile,
+        memory_line.as_deref(),
+        memory_budget,
+        &trailing,
+    );
     if let Some(window) = window {
         preface_text = if preface_text.is_empty() {
             window
@@ -282,54 +288,44 @@ pub fn render(context: &Context) -> Rendered {
     }
 }
 
+const MEMORY_LABEL_PREFIX_CHARS: usize = "Relevant saved facts: ".len();
+
 fn bounded_preface(
     leading: &[String],
     profile: &[String],
     memory: Option<&str>,
+    memory_budget: usize,
     trailing: &[String],
 ) -> String {
-    let mut all = Vec::with_capacity(
-        leading.len() + profile.len() + usize::from(memory.is_some()) + trailing.len(),
-    );
-    all.extend(leading.iter().map(String::as_str));
-    all.extend(profile.iter().map(String::as_str));
-    if let Some(memory) = memory {
-        all.push(memory);
-    }
-    all.extend(trailing.iter().map(String::as_str));
-    let joined = all.join("\n");
-    let Some(memory) = memory else {
-        return sanitize::prefix(&joined, MAX_PREFACE_CHARACTERS);
-    };
-    if joined.chars().count() <= MAX_PREFACE_CHARACTERS {
-        return joined;
-    }
     let leading_text = leading.join("\n");
     let profile_text = profile.join("\n");
     let leading_len = leading_text.chars().count();
-    let memory_len = memory.chars().count();
-    let reserved = if leading_len == 0 {
-        memory_len
+    let max_memory_len = MEMORY_LABEL_PREFIX_CHARS + memory_budget;
+    let fixed_reserved = if leading_len == 0 {
+        max_memory_len
     } else {
-        leading_len + 1 + memory_len
+        leading_len + 1 + max_memory_len
     };
+    let profile_budget = MAX_PREFACE_CHARACTERS.saturating_sub(fixed_reserved + 1);
     let mut parts: Vec<String> = Vec::new();
     if !leading_text.is_empty() {
         parts.push(leading_text);
     }
-    if !profile_text.is_empty() && reserved < MAX_PREFACE_CHARACTERS {
-        let profile_budget = MAX_PREFACE_CHARACTERS.saturating_sub(reserved + 1);
-        if profile_budget > 0 {
-            parts.push(sanitize::prefix(&profile_text, profile_budget));
-        }
+    if !profile_text.is_empty() && profile_budget > 0 {
+        parts.push(sanitize::prefix(&profile_text, profile_budget));
     }
-    parts.push(memory.to_string());
+    if let Some(memory) = memory {
+        parts.push(memory.to_string());
+    }
     let core = parts.join("\n");
     let core_len = core.chars().count();
     if core_len >= MAX_PREFACE_CHARACTERS || trailing.is_empty() {
         return sanitize::prefix(&core, MAX_PREFACE_CHARACTERS);
     }
     let trailing_text = trailing.join("\n");
+    if core.is_empty() {
+        return sanitize::prefix(&trailing_text, MAX_PREFACE_CHARACTERS);
+    }
     let remaining = MAX_PREFACE_CHARACTERS.saturating_sub(core_len + 1);
     if remaining == 0 {
         return core;
@@ -563,6 +559,30 @@ mod tests {
                 .count()
                 <= MAX_PREFACE_CHARACTERS
         );
+
+        let no_memory = render(&Context {
+            style_note: Some(&long_style),
+            ..bare("Hi ")
+        })
+        .conditioning_preface
+        .unwrap();
+        let short_memory = render(&Context {
+            style_note: Some(&long_style),
+            memory: Some("A"),
+            ..bare("Hi ")
+        })
+        .conditioning_preface
+        .unwrap();
+        let full_memory = render(&Context {
+            style_note: Some(&long_style),
+            memory: Some(&"m".repeat(360)),
+            ..bare("Hi ")
+        })
+        .conditioning_preface
+        .unwrap();
+        assert!(short_memory.starts_with(&format!("{no_memory}\nRelevant saved facts: A")));
+        assert!(full_memory.starts_with(&format!("{no_memory}\nRelevant saved facts: ")));
+        assert!(full_memory.chars().count() <= MAX_PREFACE_CHARACTERS);
     }
 
     fn field(before: &str) -> Field {

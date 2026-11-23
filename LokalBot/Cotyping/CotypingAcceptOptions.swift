@@ -74,11 +74,16 @@ struct CotypingDoubleTapAcceptanceState: Equatable, Sendable {
         requested: CotypingAcceptScope,
         fullAcceptKey: CotypingFullAcceptKey,
         suggestionKey: String,
-        now: TimeInterval
+        now: TimeInterval,
+        isRepeat: Bool = false
     ) -> CotypingAcceptScope {
         guard requested == .chunk, fullAcceptKey == .doubleTap else {
             reset()
             return requested
+        }
+        if isRepeat {
+            reset()
+            return .chunk
         }
         if let previousKey = lastAcceptedKey,
            let previousAt = lastAcceptedAt,
@@ -104,7 +109,8 @@ enum CotypingTabFormNavigationPolicy {
     ) -> Bool {
         guard enabled, acceptKey == .tab, scope == .chunk else { return false }
         guard fieldRole == "AXTextField" || fieldRole == "AXComboBox" else { return false }
-        guard CotypingSurfaceClassifier.classify(bundleID: bundleID) != .chat else { return false }
+        let surface = CotypingSurfaceClassifier.classify(bundleID: bundleID)
+        guard surface != .chat, surface != .codeEditor else { return false }
         return !CotypingAXHelper.isElectronEditor(bundleID: bundleID)
     }
 }

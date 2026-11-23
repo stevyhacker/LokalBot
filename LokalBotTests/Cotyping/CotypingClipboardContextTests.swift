@@ -33,6 +33,17 @@ final class CotypingClipboardContextTests: XCTestCase {
         """
         XCTAssertEqual(CotypingClipboardContext.sanitize(mixed), "deploy schedule is Thursday")
         XCTAssertNil(CotypingClipboardContext.sanitize("sk-1234567890abcdefghijklmnopqrstuv"))
+
+        let pem = """
+        deploy schedule is Thursday
+        -----BEGIN RSA PRIVATE KEY-----
+        MIIEowIBAAKCAQEA7V1234567890abcdef
+        ABCDEF0123456789supersecretkeybody
+        -----END RSA PRIVATE KEY-----
+        follow up with Daniel
+        """
+        let cleaned = CotypingClipboardContext.sanitize(pem)
+        XCTAssertEqual(cleaned, "deploy schedule is Thursday\nfollow up with Daniel")
     }
 
     func testSanitizeCapsLength() {

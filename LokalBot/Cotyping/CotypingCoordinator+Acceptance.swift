@@ -1,7 +1,7 @@
 import Foundation
 
 extension CotypingCoordinator {
-    func acceptFromTap(_ scope: CotypingAcceptScope) -> Bool {
+    func acceptFromTap(_ scope: CotypingAcceptScope, isRepeat: Bool = false) -> Bool {
         guard isRunning, !discardRevokedMemoryContext() else { return false }
         if let activeVisibleContext,
            !CotypingVisibleContext.Policy(settings: settingsProvider()).permits(activeVisibleContext) {
@@ -83,7 +83,8 @@ extension CotypingCoordinator {
             requested: scope,
             fullAcceptKey: settings.cotypingFullAcceptKey,
             suggestionKey: suggestionKey,
-            now: ProcessInfo.processInfo.systemUptime)
+            now: ProcessInfo.processInfo.systemUptime,
+            isRepeat: isRepeat)
         guard let acceptance = CotypingContinuationAcceptance.plan(
             session: current,
             scope: effectiveScope,

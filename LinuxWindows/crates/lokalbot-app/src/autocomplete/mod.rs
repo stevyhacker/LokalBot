@@ -364,6 +364,8 @@ pub struct Autocomplete {
     luminance: std::collections::HashMap<String, f32>,
     fake: Option<String>,
     fake_task: Option<Task<()>>,
+    power_task: Option<Task<()>>,
+    low_power_paused: bool,
     pub practice: Practice,
     pub measures: AutocompleteMeasures,
     pub learning: AutocompleteLearning,
@@ -420,6 +422,8 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             luminance: Default::default(),
             fake,
             fake_task: None,
+            power_task: None,
+            low_power_paused: false,
             practice: Practice::default(),
             measures: AutocompleteMeasures::default(),
             learning: AutocompleteLearning::default(),
@@ -465,17 +469,25 @@ impl Autocomplete {
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        let (enabled, paused, policy, accept_keys) = {
+        let (enabled, pause_in_low_power, low_power, paused, policy, accept_keys) = {
             let data = self.data.read(cx);
             let settings = &data.settings;
             let enabled = settings.cotyping_enabled;
-            let low_power = settings.cotyping_pause_in_low_power_mode
-                && lokalbot_platform::power::current().saving_power;
+            let pause_in_low_power = settings.cotyping_pause_in_low_power_mode;
+            let low_power = pause_in_low_power && lokalbot_platform::power::current().saving_power;
             let paused =
                 data.dictation != DictationHud::Idle || data.recording.is_active() || low_power;
             let policy = ReadPolicy::from_settings(settings, enabled && !paused);
-            (enabled, paused, policy, AcceptKeys::from_settings(settings))
+            (
+                enabled,
+                pause_in_low_power,
+                low_power,
+                paused,
+                policy,
+                AcceptKeys::from_settings(settings),
+            )
         };
+        self.low_power_paused = low_power;
         if accept_keys != self.accept_keys {
             self.accept_keys = accept_keys;
             if let Some(keys) = &self.keys {
@@ -493,6 +505,11 @@ impl Autocomplete {
             self.start_watching(policy.clone(), cx);
         } else if !wants && self.running {
             self.stop_watching(cx);
+        }
+        if wants && pause_in_low_power {
+            self.ensure_power_polling(cx);
+        } else {
+            self.power_task = None;
         }
         if !enabled && (self.practice.session.is_some() || self.last_context.is_some()) {
             self.dismiss_everything(cx);
@@ -515,6 +532,27 @@ impl Autocomplete {
                 self.leave_field(cx);
             }
         }
+    }
+
+    fn ensure_power_polling(&mut self, cx: &mut Context<Self>) {
+        if self.power_task.is_some() {
+            return;
+        }
+        self.power_task = Some(cx.spawn(async move |this, cx| {
+            loop {
+                smol::Timer::after(Duration::from_secs(5)).await;
+                let saving = lokalbot_platform::power::current().saving_power;
+                let ok = this.update(cx, |this, cx| {
+                    let wants_pause = this.settings(cx).cotyping_pause_in_low_power_mode && saving;
+                    if wants_pause != this.low_power_paused {
+                        this.sync(cx);
+                    }
+                });
+                if ok.is_err() {
+                    break;
+                }
+            }
+        }));
     }
 
     fn start_watching(&mut self, policy: ReadPolicy, cx: &mut Context<Self>) {
@@ -555,6 +593,7 @@ impl Autocomplete {
 
     fn stop_watching(&mut self, cx: &mut Context<Self>) {
         self.dismiss_everything(cx);
+        self.power_task = None;
         self.watcher = None;
         if let Some(keys) = self.keys.take() {
             keys.set_active(false);
@@ -620,10 +659,7 @@ impl Autocomplete {
             data.dictation != DictationHud::Idle || data.recording.is_active() || low_power
         };
         if paused != self.paused {
-            self.paused = paused;
-            if paused {
-                self.dismiss_everything(cx);
-            }
+            self.sync(cx);
         }
         if self.paused {
             return;

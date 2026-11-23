@@ -148,6 +148,16 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
         }
         XCTAssertFalse(CotypingSecureFieldDetector.hasSecureLabel(
             roleDescription: nil, title: "Escreva uma resenha", descriptionLabel: nil))
+        XCTAssertTrue(CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: "text area",
+            title: nil,
+            descriptionLabel: nil,
+            extraLabels: ["Recovery phrase"]))
+        XCTAssertTrue(CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: "text area",
+            title: nil,
+            descriptionLabel: nil,
+            extraLabels: [nil, "Enter your 12-word seed phrase"]))
     }
 
     func testSearchFieldIsNotOvermatched() {

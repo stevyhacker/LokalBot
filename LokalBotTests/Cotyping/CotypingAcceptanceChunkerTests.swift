@@ -252,10 +252,17 @@ final class CotypingAcceptOptionsTests: XCTestCase {
             state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.0),
             .chunk)
         XCTAssertEqual(
-            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.2),
-            .whole)
+            state.resolveScope(
+                requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.1, isRepeat: true),
+            .chunk, "held-key auto-repeats must not promote to accept-all")
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.15),
+            .chunk, "a repeat resets double-tap state")
         XCTAssertEqual(
             state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.25),
+            .whole)
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.3),
             .chunk, "promotion is single-use and resets after accepting all")
         XCTAssertEqual(
             state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.7),
@@ -283,6 +290,8 @@ final class CotypingAcceptOptionsTests: XCTestCase {
             enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextArea", bundleID: "com.google.Chrome"))
         XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
             enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.tinyspeck.slackmacgap"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.apple.dt.Xcode"))
         XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
             enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.microsoft.VSCode"))
     }

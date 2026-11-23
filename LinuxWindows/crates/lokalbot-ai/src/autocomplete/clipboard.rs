@@ -16,12 +16,22 @@ pub const STALE_AFTER: Duration = Duration::from_secs(300);
 
 static ANSI_ESCAPE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("\u{1B}\\[[0-?]*[ -/]*[@-~]").expect("the ANSI pattern is valid"));
+static PEM_PRIVATE_KEY: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----")
+        .expect("the PEM pattern is valid")
+});
 
 fn drop_credential_lines(raw: &str) -> String {
-    raw.split(super::text::is_newline)
+    let without_blocks = PEM_PRIVATE_KEY.replace_all(raw, "\n");
+    let joined = without_blocks
+        .split(super::text::is_newline)
         .filter(|line| crate::sanitize::redaction(line).1 == 0)
         .collect::<Vec<_>>()
-        .join("\n")
+        .join("\n");
+    if crate::sanitize::redaction(&joined).1 != 0 {
+        return String::new();
+    }
+    joined
 }
 
 pub fn sanitize_text(raw: &str, max_characters: Option<usize>) -> String {
@@ -298,5 +308,22 @@ mod tests {
         assert_eq!(preface.resolve(Some(&after), "cutover", "f", now), None);
         preface.clear();
         assert_eq!(preface.resolve(Some(&after), "cutover", "f", now), None);
+    }
+
+    #[test]
+    fn multiline_pem_private_key_is_dropped_while_safe_lines_stay() {
+        let raw = "\
+deploy schedule is Thursday
+-----BEGIN RSA PRIVATE KEY-----
+MIIEowIBAAKCAQEA7V1234567890abcdef
+ABCDEF0123456789supersecretkeybody
+-----END RSA PRIVATE KEY-----
+follow up with Daniel";
+        let sanitized = sanitize_text(raw, None);
+        assert!(sanitized.contains("deploy schedule is Thursday"));
+        assert!(sanitized.contains("follow up with Daniel"));
+        assert!(!sanitized.contains("PRIVATE KEY"));
+        assert!(!sanitized.contains("MIIEowIBAAKCAQEA7V1234567890abcdef"));
+        assert!(!sanitized.contains("supersecretkeybody"));
     }
 }

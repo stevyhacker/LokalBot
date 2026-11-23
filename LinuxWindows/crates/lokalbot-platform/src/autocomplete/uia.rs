@@ -503,19 +503,20 @@ impl Reader {
             }
             let control = element.CurrentControlType().unwrap_or_default();
             let password = element.CurrentIsPassword().is_ok_and(|b| b.as_bool());
-            if password && !fixed.key.is_empty() {
-                if self.latched_secure.len() >= 64 {
-                    self.latched_secure.clear();
-                }
-                self.latched_secure.insert(fixed.key.clone());
-            }
             let name = bstr(element.CurrentName());
             let help = bstr(element.CurrentHelpText());
             let kind = bstr(element.CurrentLocalizedControlType());
             let aria = bstr(element.CurrentAriaRole());
-            if password
+            let detected_secure =
+                password || policy::is_secure_field([name.as_str(), help.as_str(), kind.as_str()]);
+            if detected_secure && !fixed.key.is_empty() {
+                if self.latched_secure.len() >= 64 && !self.latched_secure.contains(&fixed.key) {
+                    self.latched_secure.clear();
+                }
+                self.latched_secure.insert(fixed.key.clone());
+            }
+            if detected_secure
                 || (!fixed.key.is_empty() && self.latched_secure.contains(&fixed.key))
-                || policy::is_secure_field([name.as_str(), help.as_str(), kind.as_str()])
             {
                 fixed.refusal = Some(Refusal::Blocked(reasons::SECURE));
                 return Some(fixed);

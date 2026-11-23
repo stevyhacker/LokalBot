@@ -817,19 +817,12 @@ impl Reader {
         }
         let role = self.bus.role(obj)?;
         let key = obj.key();
-        if role == role::PASSWORD_TEXT {
-            if self.latched_secure.len() >= 64 {
-                self.latched_secure.clear();
-            }
-            self.latched_secure.insert(key.clone());
-        }
         let states = self.bus.states(obj).unwrap_or(0);
         let role_name = self.bus.role_name(obj).unwrap_or_default();
         let name = self.bus.name(obj);
         let description = self.bus.description(obj);
         let attributes = self.bus.attributes(obj);
-        if role == role::PASSWORD_TEXT
-            || self.latched_secure.contains(&key)
+        let detected_secure = role == role::PASSWORD_TEXT
             || policy::is_secure_field([
                 role_name.as_str(),
                 name.as_str(),
@@ -837,8 +830,14 @@ impl Reader {
                 attributes
                     .get("placeholder-text")
                     .map_or("", String::as_str),
-            ])
-        {
+            ]);
+        if detected_secure {
+            if self.latched_secure.len() >= 64 && !self.latched_secure.contains(&key) {
+                self.latched_secure.clear();
+            }
+            self.latched_secure.insert(key.clone());
+        }
+        if detected_secure || self.latched_secure.contains(&key) {
             fixed.refusal = Some(Refusal::Blocked(reasons::SECURE));
             return Some(fixed);
         }

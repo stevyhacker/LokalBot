@@ -109,7 +109,8 @@ private final class RehearsalNativeTextView: NSTextView {
                     requested: .chunk,
                     fullAcceptKey: fullAcceptKey,
                     suggestionKey: string + suggestion,
-                    now: event.timestamp)
+                    now: event.timestamp,
+                    isRepeat: event.isARepeat)
                 onAccept?(scope)
                 return
             }

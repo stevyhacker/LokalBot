@@ -73,9 +73,15 @@ enum CotypingSecureFieldDetector {
         containsSensitiveMarker([role, subrole])
     }
 
-    static func hasSecureLabel(roleDescription: String?, title: String?, descriptionLabel: String?) -> Bool {
-        containsSensitiveMarker([roleDescription, title, descriptionLabel])
-            || [title, descriptionLabel].contains { $0.map(labelNamesSecret) ?? false }
+    static func hasSecureLabel(
+        roleDescription: String?,
+        title: String?,
+        descriptionLabel: String?,
+        extraLabels: [String?] = []
+    ) -> Bool {
+        let labels = [title, descriptionLabel] + extraLabels
+        return containsSensitiveMarker([roleDescription] + labels)
+            || labels.contains { $0.map(labelNamesSecret) ?? false }
     }
 
     private static func containsSensitiveMarker(_ markers: [String?]) -> Bool {

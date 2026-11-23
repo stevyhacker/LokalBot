@@ -67,9 +67,16 @@ enum CotypingClipboardContext {
         return sanitized
     }
 
+    private static let pemPrivateKeyPattern =
+        #"-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----"#
+
     private static func droppingCredentialLines(from raw: String) -> String? {
         guard !raw.isEmpty else { return nil }
-        let keptLines = raw
+        let withoutBlocks = raw.replacingOccurrences(
+            of: pemPrivateKeyPattern,
+            with: "\n",
+            options: .regularExpression)
+        let keptLines = withoutBlocks
             .components(separatedBy: .newlines)
             .filter { ScreenContextPrivacy.redact($0).count == 0 }
         guard !keptLines.isEmpty else { return nil }

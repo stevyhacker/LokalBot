@@ -81,6 +81,25 @@ final class CotypingPromptRendererTests: XCTestCase {
             "On the clipboard: release plan",
         ])
     }
+
+    func testOverflowingStaticProfilePrefixStaysStableWhenMemoryChanges() throws {
+        let oversizedStyle = String(repeating: "concise clear prose ", count: 60)
+        let noMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle).conditioningPreface)
+        let shortMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle,
+            memoryContext: "A").conditioningPreface)
+        let fullMemory = try XCTUnwrap(CotypingPromptRenderer.render(
+            prefixText: "Hi ",
+            styleNote: oversizedStyle,
+            memoryContext: String(repeating: "m", count: 360)).conditioningPreface)
+
+        XCTAssertTrue(shortMemory.hasPrefix(noMemory + "\nRelevant saved facts: A"))
+        XCTAssertTrue(fullMemory.hasPrefix(noMemory + "\nRelevant saved facts: "))
+        XCTAssertLessThanOrEqual(fullMemory.count, CotypingPromptRenderer.maxPrefaceCharacters)
+    }
 }
 
 final class CotypingContextPromptTests: XCTestCase {

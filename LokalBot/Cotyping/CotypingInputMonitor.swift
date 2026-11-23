@@ -31,7 +31,7 @@ struct CotypingInputEvent: Equatable, Sendable {
 final class CotypingInputMonitor {
     var onKey: ((CotypingInputEvent) -> Void)?
     var onPointerDown: (() -> Void)?
-    var onAcceptKey: ((CotypingAcceptScope) -> Bool)?
+    var onAcceptKey: ((CotypingAcceptScope, Bool) -> Bool)?
     var onDismissKey: (() -> Bool)?
     var acceptGate: () -> Bool = { false }
     var acceptKeyCodeProvider: () -> CGKeyCode = { 48 }
@@ -221,7 +221,8 @@ final class CotypingInputMonitor {
         guard acceptGate() else { return false }
         if Self.isPlainEscape(event) { return onDismissKey?() ?? false }
         guard let scope = acceptScope(for: event) else { return false }
-        return onAcceptKey?(scope) ?? false
+        let isRepeat = event.getIntegerValueField(.keyboardEventAutorepeat) != 0
+        return onAcceptKey?(scope, isRepeat) ?? false
     }
 
     private func classify(_ event: CGEvent) -> CotypingInputEvent {

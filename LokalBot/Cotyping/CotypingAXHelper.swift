@@ -374,22 +374,17 @@ enum CotypingAXHelper {
         let roleDescription = stringAttribute(element, kAXRoleDescriptionAttribute as String)
         let title = stringAttribute(element, kAXTitleAttribute as String)
         let descriptionLabel = stringAttribute(element, kAXDescriptionAttribute as String)
-        let hasSecureRole = CotypingSecureFieldDetector.isSecureRole(role: role, subrole: subrole)
-        let latchedSecure = cacheState.withLock {
-            if hasSecureRole {
-                if cacheState.latchedSecureFieldKeys.count >= 64,
-                   let oldest = cacheState.latchedSecureFieldKeys.min(by: { $0.value < $1.value })?.key {
-                    cacheState.latchedSecureFieldKeys.removeValue(forKey: oldest)
-                }
-                cacheState.latchedSecureFieldKeys[latchKey] = ProcessInfo.processInfo.systemUptime
-                return true
-            }
-            return cacheState.latchedSecureFieldKeys[latchKey] != nil
+        let detectedSecure = CotypingSecureFieldDetector.isSecureRole(role: role, subrole: subrole)
+            || CotypingSecureFieldDetector.hasSecureLabel(
+                roleDescription: roleDescription,
+                title: title,
+                descriptionLabel: descriptionLabel)
+        if detectedSecure {
+            latchSecureField(latchKey)
+            return CotypingFocus(appName: appName, bundleID: bundleID,
+                                 capability: .blocked("Secure field — never read."), field: nil)
         }
-        if latchedSecure || CotypingSecureFieldDetector.hasSecureLabel(
-            roleDescription: roleDescription,
-            title: title,
-            descriptionLabel: descriptionLabel) {
+        if isSecureFieldLatched(latchKey) {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .blocked("Secure field — never read."), field: nil)
         }
@@ -399,11 +394,21 @@ enum CotypingAXHelper {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Not an editable text field."), field: nil)
         }
+        let extraLabels = extraFieldLabels(of: element)
+        if CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: nil,
+            title: nil,
+            descriptionLabel: nil,
+            extraLabels: extraLabels) {
+            latchSecureField(latchKey)
+            return CotypingFocus(appName: appName, bundleID: bundleID,
+                                 capability: .blocked("Secure field — never read."), field: nil)
+        }
         let inspectSingleLineField = CotypingSearchFieldDetector.mightBeSearchField(role: role)
             || CotypingCredentialFieldDetector.mightBeCredentialField(role: role)
         let singleLineDOMIdentifier = inspectSingleLineField ? stringAttribute(element, "AXDOMIdentifier") : nil
         let singleLineLabels = inspectSingleLineField
-            ? [title, descriptionLabel] + extraFieldLabels(of: element)
+            ? [title, descriptionLabel] + extraLabels
             : []
         let searchSignal = CotypingSearchFieldDetector.signal(
             role: role,
@@ -425,7 +430,8 @@ enum CotypingAXHelper {
         }
         guard !CotypingCodeFieldDetector.isCodeField(labels: [title, descriptionLabel]),
               !cacheState.codeFields.value(forKey: focusIdentityKey, read: {
-                  CotypingCodeFieldDetector.isCodeField(labels: codeFieldLabels(of: element))
+                  CotypingCodeFieldDetector.isCodeField(
+                      labels: extraLabels + [singleLineDOMIdentifier ?? stringAttribute(element, "AXDOMIdentifier")])
               }) else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Verification code field."), field: nil)
@@ -569,6 +575,21 @@ enum CotypingAXHelper {
             subrole: nil,
             axIdentifier: axIdentifier,
             elementHash: elementHash)
+    }
+
+    private static func latchSecureField(_ latchKey: String) {
+        cacheState.withLock {
+            if cacheState.latchedSecureFieldKeys[latchKey] == nil,
+               cacheState.latchedSecureFieldKeys.count >= 64,
+               let oldest = cacheState.latchedSecureFieldKeys.min(by: { $0.value < $1.value })?.key {
+                cacheState.latchedSecureFieldKeys.removeValue(forKey: oldest)
+            }
+            cacheState.latchedSecureFieldKeys[latchKey] = ProcessInfo.processInfo.systemUptime
+        }
+    }
+
+    private static func isSecureFieldLatched(_ latchKey: String) -> Bool {
+        cacheState.withLock { cacheState.latchedSecureFieldKeys[latchKey] != nil }
     }
 
     private static func focusIdentityKey(
@@ -918,10 +939,6 @@ enum CotypingAXHelper {
         guard let raw = copyAttribute(element, kAXWindowAttribute as String),
               CFGetTypeID(raw) == AXUIElementGetTypeID() else { return nil }
         return stringAttribute(raw as! AXUIElement, kAXTitleAttribute as String)
-    }
-
-    private static func codeFieldLabels(of element: AXUIElement) -> [String?] {
-        extraFieldLabels(of: element) + [stringAttribute(element, "AXDOMIdentifier")]
     }
 
     private static func extraFieldLabels(of element: AXUIElement) -> [String?] {

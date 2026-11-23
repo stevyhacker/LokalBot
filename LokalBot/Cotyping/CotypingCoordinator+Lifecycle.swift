@@ -189,7 +189,9 @@ extension CotypingCoordinator {
             self?.warmModelAfterPause()
             self?.refreshFocusSoon()
         }
-        inputMonitor.onAcceptKey = { [weak self] scope in self?.acceptFromTap(scope) ?? false }
+        inputMonitor.onAcceptKey = { [weak self] scope, isRepeat in
+            self?.acceptFromTap(scope, isRepeat: isRepeat) ?? false
+        }
         inputMonitor.onDismissKey = { [weak self] in self?.dismissFromTap() ?? false }
         inputMonitor.acceptGate = { [weak self] in
             guard let self else { return false }

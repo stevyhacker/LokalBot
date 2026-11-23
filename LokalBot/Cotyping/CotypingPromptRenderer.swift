@@ -99,7 +99,12 @@ enum CotypingPromptRenderer {
             return RenderedPrompt(prompt: prefix, conditioningPreface: nil)
         }
 
-        var prefaceText = boundedPreface(leading: leading, profile: profile, memory: memoryLine, trailing: trailing)
+        var prefaceText = boundedPreface(
+            leading: leading,
+            profile: profile,
+            memory: memoryLine,
+            memoryLimit: memoryLimit,
+            trailing: trailing)
         if let window {
             prefaceText = prefaceText.isEmpty ? window : window + "\n\n" + prefaceText
         }
@@ -108,34 +113,34 @@ enum CotypingPromptRenderer {
             conditioningPreface: prefaceText)
     }
 
+    private static let memoryLabelPrefixCount = "Relevant saved facts: ".count
+
     private static func boundedPreface(
         leading: [String],
         profile: [String],
         memory: String?,
+        memoryLimit: Int,
         trailing: [String]
     ) -> String {
-        let all = leading + profile + (memory.map { [$0] } ?? []) + trailing
-        let joined = all.joined(separator: "\n")
-        guard joined.count > maxPrefaceCharacters, let memory else {
-            return String(joined.prefix(maxPrefaceCharacters))
-        }
         let leadingText = leading.joined(separator: "\n")
         let profileText = profile.joined(separator: "\n")
-        let reserved = (leadingText.isEmpty ? 0 : leadingText.count + 1) + memory.count
+        let maxMemoryLength = memoryLabelPrefixCount + memoryLimit
+        let fixedReserved = (leadingText.isEmpty ? 0 : leadingText.count + 1) + maxMemoryLength
+        let profileBudget = max(0, maxPrefaceCharacters - fixedReserved - 1)
         var parts: [String] = []
         if !leadingText.isEmpty { parts.append(leadingText) }
-        if !profileText.isEmpty, reserved < maxPrefaceCharacters {
-            let profileBudget = maxPrefaceCharacters - reserved - 1
-            if profileBudget > 0 {
-                parts.append(String(profileText.prefix(profileBudget)))
-            }
+        if !profileText.isEmpty, profileBudget > 0 {
+            parts.append(String(profileText.prefix(profileBudget)))
         }
-        parts.append(memory)
+        if let memory { parts.append(memory) }
         let core = parts.joined(separator: "\n")
         if core.count >= maxPrefaceCharacters || trailing.isEmpty {
             return String(core.prefix(maxPrefaceCharacters))
         }
         let trailingText = trailing.joined(separator: "\n")
+        if core.isEmpty {
+            return String(trailingText.prefix(maxPrefaceCharacters))
+        }
         let remaining = maxPrefaceCharacters - core.count - 1
         guard remaining > 0 else { return core }
         return core + "\n" + String(trailingText.prefix(remaining))
