@@ -209,6 +209,8 @@ extension ReasoningSupport {
         case "qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
              "lfm2.5-1.2b-instruct", "granite-4.1-3b":
             return .init(levels: adjustable, defaultLevel: .off)
+        case let id where id.hasPrefix("qwen3.5-4b-lokalbot-v"):
+            return .init(levels: adjustable, defaultLevel: .off)
         default:
             return .init(levels: adjustable)
         }

@@ -1232,6 +1232,7 @@ impl ReasoningSupport {
             | "gemma4-12b"
             | "lfm2.5-1.2b-instruct"
             | "granite-4.1-3b" => Self::new(&adjustable, Some(Off)),
+            id if id.starts_with("qwen3.5-4b-lokalbot-v") => Self::new(&adjustable, Some(Off)),
             _ => Self::new(&adjustable, None),
         }
     }
@@ -2970,6 +2971,10 @@ mod tests {
         ] {
             assert_eq!(default(id), Some(Off), "{id}");
         }
+        assert_eq!(
+            ReasoningSupport::built_in_id("qwen3.5-4b-lokalbot-v4").default_level,
+            Some(Off)
+        );
         assert_eq!(default("lfm2.5-8b-a1b"), None);
         let ministral =
             ReasoningSupport::built_in(catalog::entry("ministral-3-3b-instruct-2512").unwrap());

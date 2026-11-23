@@ -399,7 +399,7 @@ final class TextEngineTests: XCTestCase {
         for model in ["qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b", "lfm2.5-2.6b", "inkling-2-mini"] {
             XCTAssertEqual(builtInDefault(model), .high, model)
         }
-        for model in ["qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
+        for model in ["qwen3.5-0.8b", "qwen3.5-2b", "qwen3.5-4b-lokalbot-v4", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
                       "lfm2.5-1.2b-instruct", "granite-4.1-3b", "ministral-3-3b-instruct-2512"] {
             XCTAssertEqual(builtInDefault(model), .off, model)
         }
