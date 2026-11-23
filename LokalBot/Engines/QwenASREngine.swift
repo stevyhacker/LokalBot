@@ -545,9 +545,10 @@ actor QwenASREngine: TranscriptionEngine {
                                         decodedTwice: false, needsSpeakerRegions: false)
         }
         // Every span already came back in the voted language, so pinning it would decode the
-        // same audio again for the same text.
-        if TranscriptLanguageVote.unanimous(all.map(\.text), code: vote,
-                                            aliases: TranscriptLanguageVote.serbianCroatianAliases) {
+        // same audio again for the same text. Serbian, Croatian, Bosnian and Montenegrin still
+        // decode again: they vote as one language, and the pinned decode is the better one there.
+        if !TranscriptLanguageVote.serbianCroatianAliases.values.contains(vote),
+           TranscriptLanguageVote.unanimous(all.map(\.text), code: vote) {
             return AutoLanguageDecision(segments: all, pinned: vote, sampled: sample.count, decodedTwice: false,
                                         needsSpeakerRegions: wordAttribution && !QwenWordAligner.supports(vote))
         }
