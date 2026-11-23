@@ -25,6 +25,10 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
     case no
     case nn
     case sr
+    case hr
+    case bs
+    case cnr
+    case bcms
     case th
     case vi
 
@@ -37,7 +41,8 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
 
     static let summaryPresets: [LanguageCode] = [
         .en, .zh, .zhHant, .yue, .ja, .ko, .es, .fr, .de, .pt, .ptPT,
-        .ru, .ar, .hi, .it, .nl, .tr, .pl, .sv, .da, .no, .nn, .th, .vi,
+        .ru, .uk, .ar, .hi, .it, .nl, .tr, .pl, .sv, .da, .no, .nn,
+        .bs, .hr, .cnr, .sr, .th, .vi,
     ]
 
     var summaryDisplayName: String {
@@ -66,8 +71,24 @@ enum LanguageCode: String, Codable, CaseIterable, Identifiable, Hashable, Sendab
         case .no: return "Norwegian (Bokmål)"
         case .nn: return "Norwegian (Nynorsk)"
         case .sr: return "Serbian"
+        case .hr: return "Croatian"
+        case .bs: return "Bosnian"
+        case .cnr: return "Montenegrin"
+        case .bcms: return "Bosnian, Croatian, Montenegrin, Serbian"
         case .th: return "Thai"
         case .vi: return "Vietnamese"
+        }
+    }
+
+    var summaryPromptName: String {
+        switch self {
+        case .sr, .cnr:
+            return summaryDisplayName + ", in the script the source text uses (Latin or Cyrillic)"
+        case .bcms:
+            return "the transcript's own language (Bosnian, Croatian, Montenegrin or Serbian), "
+                + "keeping its ijekavian or ekavian forms and its script"
+        default:
+            return summaryDisplayName
         }
     }
 

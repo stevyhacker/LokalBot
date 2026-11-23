@@ -1155,8 +1155,8 @@ final class ProcessingPipeline: ObservableObject {
         header += "**Duration:** \(meeting.durationLabel) · **App:** \(meeting.appName)"
         header += " · **Words:** \(WordCountFormatter.format(words: wordCount))"
         header += " · **Template:** \(config.noteTemplate.displayName)"
-        if let promptLanguage = language.promptLanguageName {
-            header += " · **Language:** \(promptLanguage)"
+        if language.promptLanguageName != nil {
+            header += " · **Language:** \(language.displayName)"
         }
         header += " · **Model:** \(engine.displayName)\n\n"
         GenerationMetricsStore.shared.record(

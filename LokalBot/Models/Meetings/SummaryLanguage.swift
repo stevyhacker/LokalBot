@@ -18,6 +18,7 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
     static let pt: SummaryLanguage = .language(.pt)
     static let ptPT: SummaryLanguage = .language(.ptPT)
     static let ru: SummaryLanguage = .language(.ru)
+    static let uk: SummaryLanguage = .language(.uk)
     static let ar: SummaryLanguage = .language(.ar)
     static let hi: SummaryLanguage = .language(.hi)
     static let it: SummaryLanguage = .language(.it)
@@ -28,6 +29,11 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
     static let da: SummaryLanguage = .language(.da)
     static let no: SummaryLanguage = .language(.no)
     static let nn: SummaryLanguage = .language(.nn)
+    static let bs: SummaryLanguage = .language(.bs)
+    static let hr: SummaryLanguage = .language(.hr)
+    static let cnr: SummaryLanguage = .language(.cnr)
+    static let sr: SummaryLanguage = .language(.sr)
+    static let bcms: SummaryLanguage = .language(.bcms)
     static let th: SummaryLanguage = .language(.th)
     static let vi: SummaryLanguage = .language(.vi)
 
@@ -46,7 +52,7 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         case .matchTranscript:
             return nil
         case .language(let code):
-            return code.summaryDisplayName
+            return code.summaryPromptName
         case .custom(let name):
             let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
             return trimmed.isEmpty ? nil : trimmed
@@ -123,21 +129,30 @@ enum SummaryLanguage: Equatable, Hashable, Sendable {
         if let chinese = chineseScriptLanguage(in: sample) {
             return (chinese, 1)
         }
+        if SerbianLatinScript.isSerbianCyrillic(sample) {
+            return (.bcms, 1)
+        }
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(sample)
-
-        for (language, confidence) in recognizer.languageHypotheses(withMaximum: 5)
-            .sorted(by: { $0.value > $1.value }) where confidence >= 0.15 {
-            if let mapped = fromLanguageCode(language.rawValue, sample: sample) {
-                return (mapped, confidence)
-            }
-        }
-        if let dominant = recognizer.dominantLanguage,
-           let mapped = fromLanguageCode(dominant.rawValue, sample: sample) {
-            return (mapped, 0.1)
-        }
-        return nil
+        guard let top = recognizer.languageHypotheses(withMaximum: 1).max(by: { $0.value < $1.value }),
+              let detected = detectedLanguage(top.key.rawValue, sample: sample) else { return nil }
+        return (detected, top.value >= 0.15 ? top.value : 0.1)
     }
+
+    static func detectedLanguage(_ code: String, sample: String = "") -> SummaryLanguage? {
+        if SerbianLatinScript.languageCodes.contains(TranscriptLanguageVote.baseCode(code)) {
+            return .bcms
+        }
+        if let preset = fromLanguageCode(code, sample: sample) {
+            return preset
+        }
+        guard code != NLLanguage.undetermined.rawValue,
+              let name = englishLocale.localizedString(forLanguageCode: code),
+              !name.isEmpty else { return nil }
+        return .custom(name)
+    }
+
+    private static let englishLocale = Locale(identifier: "en_US_POSIX")
 
     private static func detectionWindows(in text: String) -> [String] {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -306,7 +321,11 @@ struct DailySummaryLanguage: Equatable, Sendable {
             ?? .english
         name = notes.promptLanguageName ?? app.englishName
         if case .language(let code) = notes {
-            let catalog = code.rawValue == "zh" ? "zh-Hans" : code.rawValue
+            let catalog = switch code {
+            case .zh: "zh-Hans"
+            case .sr, .cnr: AppLanguage.serbianLatin.rawValue
+            default: code.rawValue
+            }
             fallbackLanguage = AppLanguage(rawValue: catalog) ?? app
         } else {
             fallbackLanguage = app
