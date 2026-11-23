@@ -533,9 +533,9 @@ Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/win32.rs` (`prepa
 
 ### Films use a private build whose panel is visible to screen recording
 
-The shipping autocomplete panel sets `sharingType = .none`, so screen recording never sees a suggestion. The filming copy changes that one line to `.readOnly`, is built from `git archive` (default revision v0.11.2) so the checkout and `/Applications/LokalBot.app` are untouched, and is re-signed to the installed app's designated requirement so its Accessibility and Input Monitoring grants apply. It is never shipped or committed.
+The shipping autocomplete panel sets `sharingType = .none`, so screen recording never sees a suggestion. The filming copy changes that one line to `.readOnly`, is built from `git archive` (default revision v0.11.2) so the checkout and `/Applications/LokalBot.app` are untouched, and is re-signed to the installed app's designated requirement so its Accessibility and Input Monitoring grants apply. It is never shipped or committed. Debug builds on macOS (`LOKALBOT_TEST_HOOKS`) and Windows (`debug_assertions`) also accept `--lokalbot-film-ghost` or `LOKALBOT_TEST_FILM_GHOST=1` to leave the overlay visible to screen recording (omitting `WDA_EXCLUDEFROMCAPTURE` on Windows); release builds always keep the exclusion on.
 
-Where: `Scripts/media/readme-gif/build_filming_app.sh`.
+Where: `Scripts/media/readme-gif/build_filming_app.sh`, `LokalBot/Support/TestHooks.swift` (`filmsAutocomplete`), `LinuxWindows/crates/lokalbot-app/src/autocomplete/mod.rs` (`film_ghost_enabled`).
 
 ## Linux and Windows desktop integration
 
