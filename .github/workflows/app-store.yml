@@ -1,0 +1,321 @@
+# Publishes the iPhone and iPad companion app (me.dotenv.LokalBot.companion) to
+# App Store Connect and sends it to App Review.
+#
+# Release (release.yml) calls this on every stable tag, once the macOS release
+# gates have passed, while the APP_STORE_PUBLISH repository variable is `true`.
+# The `archive` job builds the app from the tag with no signing identity and no
+# secret. The `publish` job never runs a build script: it signs that archive
+# through `xcodebuild -exportArchive` with an App Store Connect API key (Apple's
+# cloud-managed distribution certificate, so no certificate or profile is stored
+# here), then Scripts/release/publish_app_store.py uploads the .ipa, waits for
+# App Store Connect to process it, and submits the version for review.
+#
+# How far a release goes is the APP_STORE_RELEASE repository variable:
+#   review      submit for review, release automatically once approved (default)
+#   manual      submit for review, wait for Release in App Store Connect
+#   testflight  upload only
+#
+# To check the credentials and the signed app without uploading anything:
+#   gh workflow run app-store.yml --ref master -f validate_only=true
+# To publish an already-tagged release by hand from master:
+#   gh workflow run app-store.yml --ref master -f tag=v0.13.4
+#   gh workflow run app-store.yml --ref master -f tag=v0.13.4 -f release=testflight
+#
+# Always GitHub-hosted: the App Store Connect key never reaches a self-hosted
+# runner. Setup and the checks afterwards: Docs/releasing/ios.md.
+
+name: App Store
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: The release tag, e.g. v0.13.4
+        required: true
+        type: string
+      release:
+        description: review, manual or testflight (defaults to the APP_STORE_RELEASE variable, then review)
+        required: false
+        type: string
+        default: ""
+      validate_only:
+        description: Check the signed app with App Store Connect without uploading it
+        required: false
+        type: boolean
+        default: false
+      from_release:
+        description: Set by callers. A called workflow sees its caller's event name, so this is what tells a release from a manual run
+        required: false
+        type: boolean
+        default: true
+    secrets:
+      APP_STORE_CONNECT_KEY_ID:
+        required: false
+      APP_STORE_CONNECT_ISSUER_ID:
+        required: false
+      APP_STORE_CONNECT_API_KEY:
+        required: false
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Stable release tag to publish, e.g. v0.13.4 (leave empty with validate_only to check master)
+        required: false
+        type: string
+        default: ""
+      release:
+        description: How far the release goes (default reads the APP_STORE_RELEASE variable, then review)
+        required: false
+        type: choice
+        options: [default, review, manual, testflight]
+        default: default
+      validate_only:
+        description: Check the signed app with App Store Connect without uploading it
+        required: false
+        type: boolean
+        default: false
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/app-store.yml"
+      - "Scripts/release/publish_app_store.py"
+      - "Scripts/tests/test_app_store_release.py"
+      - "Companion/ios/ExportOptions.plist"
+
+concurrency:
+  # Uploads for one app cannot safely overlap; PR checks replace older ones.
+  group: app-store-${{ github.event_name == 'pull_request' && github.head_ref || 'publish' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # Secret-free archive of the app. On pull requests this is the whole run: it
+  # proves the unsigned archive still builds. CI helpers runs the script's tests.
+  archive:
+    name: Archive the unsigned iPhone and iPad app
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - name: Check the request
+        if: github.event_name != 'pull_request'
+        env:
+          TAG: ${{ inputs.tag }}
+          FROM_RELEASE: ${{ inputs.from_release == true }}
+          VALIDATE_ONLY: ${{ inputs.validate_only == true }}
+        run: |
+          if [[ "$FROM_RELEASE" != "true" && "$GITHUB_REF" != "refs/heads/master" ]]; then
+            echo "::error::Manual App Store runs must be dispatched from master, not $GITHUB_REF." >&2
+            exit 1
+          fi
+          if [[ -z "$TAG" ]]; then
+            if [[ "$VALIDATE_ONLY" != "true" ]]; then
+              echo "::error::Name the stable tag to publish. Only validate_only runs build master." >&2
+              exit 1
+            fi
+          elif [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::$TAG is not a stable release tag (pre-releases stay off the App Store)." >&2
+            exit 1
+          fi
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.tag != '' && format('refs/tags/{0}', inputs.tag) || '' }}
+          persist-credentials: false
+
+      - name: Check the tag names the app's version
+        if: inputs.tag != ''
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          version=$(sed -n 's/^ *MARKETING_VERSION: "\(.*\)"/\1/p' Companion/ios/project.yml)
+          if [[ "${TAG#v}" != "$version" ]]; then
+            echo "::error::Tag $TAG does not match the iPhone and iPad app's MARKETING_VERSION $version." >&2
+            exit 1
+          fi
+
+      # The same pinned Xcode as the Mac build (build.yml); bump together.
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.4.1"
+
+      - name: Install XcodeGen
+        run: |
+          if ! command -v xcodegen >/dev/null; then
+            brew install xcodegen
+          fi
+          xcodegen --version
+
+      - name: Build lokalbot-sync
+        uses: ./.github/actions/lokalbot-sync
+
+      - name: Generate project
+        working-directory: Companion/ios
+        run: xcodegen generate
+
+      - name: Archive without a signing identity
+        run: |
+          xcodebuild archive -project Companion/ios/LokalBotCompanion.xcodeproj -scheme LokalBotCompanion \
+            -configuration Release -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/LokalBot.xcarchive" -derivedDataPath "$RUNNER_TEMP/companion-ios" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Check and pack the archive
+        run: |
+          archive="$RUNNER_TEMP/LokalBot.xcarchive"
+          test -d "$archive/Products/Applications/LokalBot.app"
+          read_key() { /usr/libexec/PlistBuddy -c "Print :ApplicationProperties:$1" "$archive/Info.plist"; }
+          expected_version=$(sed -n 's/^ *MARKETING_VERSION: "\(.*\)"/\1/p' Companion/ios/project.yml)
+          expected_build=$(sed -n 's/^ *CURRENT_PROJECT_VERSION: "\(.*\)"/\1/p' Companion/ios/project.yml)
+          if [[ "$(read_key CFBundleShortVersionString)" != "$expected_version" || "$(read_key CFBundleVersion)" != "$expected_build" ]]; then
+            echo "::error::The archive is $(read_key CFBundleShortVersionString) ($(read_key CFBundleVersion)), not $expected_version ($expected_build)." >&2
+            exit 1
+          fi
+          if [[ "$(read_key CFBundleIdentifier)" != "me.dotenv.LokalBot.companion" ]]; then
+            echo "::error::Unexpected bundle identifier $(read_key CFBundleIdentifier)." >&2
+            exit 1
+          fi
+          tar -C "$RUNNER_TEMP" -cf "$RUNNER_TEMP/release-ios.tar" LokalBot.xcarchive
+
+      # The archive holds the dSYMs that decode crash reports from this build.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        with:
+          name: release-ios
+          path: ${{ runner.temp }}/release-ios.tar
+          retention-days: ${{ github.event_name == 'pull_request' && 3 || 90 }}
+          if-no-files-found: error
+
+  publish:
+    name: Sign and upload to App Store Connect
+    needs: archive
+    if: github.event_name != 'pull_request'
+    runs-on: macos-26
+    timeout-minutes: 90
+    steps:
+      - name: Check credentials and release mode
+        id: gate
+        env:
+          INPUT_RELEASE: ${{ inputs.release }}
+          APP_STORE_RELEASE_VAR: ${{ vars.APP_STORE_RELEASE }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          missing=()
+          [[ -n "$APP_STORE_CONNECT_KEY_ID" ]] || missing+=(APP_STORE_CONNECT_KEY_ID)
+          [[ -n "$APP_STORE_CONNECT_ISSUER_ID" ]] || missing+=(APP_STORE_CONNECT_ISSUER_ID)
+          [[ -n "$APP_STORE_CONNECT_API_KEY" ]] || missing+=(APP_STORE_CONNECT_API_KEY)
+          if (( ${#missing[@]} )); then
+            printf '::error::Missing required App Store secret: %s\n' "${missing[@]}" >&2
+            exit 1
+          fi
+          if [[ ! "$APP_STORE_CONNECT_KEY_ID" =~ ^[A-Z0-9]+$ ]]; then
+            echo "::error::APP_STORE_CONNECT_KEY_ID must be the key's ID, letters and digits only." >&2
+            exit 1
+          fi
+
+          release="$INPUT_RELEASE"
+          if [[ "$release" == "default" ]]; then
+            release=""
+          fi
+          release="${release:-${APP_STORE_RELEASE_VAR:-review}}"
+          case "$release" in
+            review|manual|testflight) ;;
+            *)
+              echo "::error::Unknown release mode '$release'; use review, manual or testflight." >&2
+              exit 1
+              ;;
+          esac
+          echo "release=$release" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            Companion/ios/ExportOptions.plist
+            Scripts/release/publish_app_store.py
+          sparse-checkout-cone-mode: false
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: inputs.tag != ''
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          path: tag-source
+          persist-credentials: false
+          sparse-checkout: |
+            Scripts/release/release-notes
+          sparse-checkout-cone-mode: false
+
+      - name: Select Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1.7.0
+        with:
+          xcode-version: "26.4.1"
+
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-ios
+          path: ${{ runner.temp }}
+
+      - name: Sign the archive with the App Store Connect key
+        env:
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          umask 077
+          keys="$RUNNER_TEMP/private_keys"
+          trap 'rm -rf "$keys"' EXIT
+          mkdir -p "$keys"
+          key="$keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s\n' "$APP_STORE_CONNECT_API_KEY" > "$key"
+          tar -C "$RUNNER_TEMP" -xf "$RUNNER_TEMP/release-ios.tar"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/LokalBot.xcarchive" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -exportOptionsPlist Companion/ios/ExportOptions.plist \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$key" \
+            -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID" \
+            -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+          test -f "$RUNNER_TEMP/export/LokalBot.ipa"
+
+      - name: Upload to App Store Connect
+        env:
+          TAG: ${{ inputs.tag }}
+          RELEASE: ${{ steps.gate.outputs.release }}
+          VALIDATE_ONLY: ${{ inputs.validate_only == true }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+        run: |
+          umask 077
+          keys="$RUNNER_TEMP/private_keys"
+          trap 'rm -rf "$keys"' EXIT
+          mkdir -p "$keys"
+          key="$keys/AuthKey_${APP_STORE_CONNECT_KEY_ID}.p8"
+          printf '%s\n' "$APP_STORE_CONNECT_API_KEY" > "$key"
+
+          args=(
+            --ipa "$RUNNER_TEMP/export/LokalBot.ipa"
+            --key-file "$key"
+            --key-id "$APP_STORE_CONNECT_KEY_ID"
+            --issuer-id "$APP_STORE_CONNECT_ISSUER_ID"
+            --release "$RELEASE"
+          )
+          if [[ -n "$TAG" ]]; then
+            args+=(--version "${TAG#v}")
+            notes="tag-source/Scripts/release/release-notes/${TAG}.md"
+            if [[ -f "$notes" ]]; then
+              args+=(--notes-file "$notes")
+            fi
+          fi
+          if [[ "$VALIDATE_ONLY" == "true" || -z "$TAG" ]]; then
+            args+=(--validate-only)
+          fi
+
+          python3 Scripts/release/publish_app_store.py "${args[@]}"

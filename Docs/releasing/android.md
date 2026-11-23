@@ -44,7 +44,8 @@ pairing and library only if the new APK has the same signing key and a higher
 
 The iPhone and iPad app is not attached. iOS installs apps only through the App
 Store, TestFlight or a provisioned device list, so an `.ipa` on the release page
-would not install for anyone.
+would not install for anyone. The same tag sends it to the App Store instead
+([iPhone and iPad](ios.md)).
 
 ## One-time setup
 
@@ -105,7 +106,9 @@ Play lets the app signing key be upgraded once a year, next from 3 November 2027
 
 For stable tags, `release.yml` calls `.github/workflows/google-play.yml` once
 the macOS release gates and the `android` job succeed (pre-release tags stay off
-Google Play). While the `PLAY_PUBLISH` repository variable is `true`, that job
+Google Play). A called workflow sees its caller's event name, so the call is
+recognised by its `from_release` input, never by `github.event_name`. While the
+`PLAY_PUBLISH` repository variable is `true`, that job
 runs on GitHub's hosted runner, signs the unsigned `app-release.aab` from the
 `release-android` artifact with `Scripts/release/sign-android-bundle.sh`
 (refusing any keystore whose certificate differs from
@@ -145,10 +148,16 @@ gh secret set PLAY_UPLOAD_KEYSTORE_PASSWORD --repo stevyhacker/LokalBot
      ```bash
      gh secret set PLAY_SERVICE_ACCOUNT_JSON --repo stevyhacker/LokalBot < /path/to/service-account.json
      ```
-   - **Keyless GitHub OIDC (Workload Identity Federation):** create a Workload
-     Identity Pool + GitHub OIDC provider restricted to
-     `repository == 'stevyhacker/LokalBot'`, grant the pool principal
-     `roles/iam.workloadIdentityUser` on the service account, and set:
+   - **Keyless GitHub OIDC (Workload Identity Federation), in use since
+     2026-11-23:** project `lokalbot-512410` has the service account
+     `lokalbot-play-release`, the pool `github` and its provider `lokalbot`,
+     which accepts only this repository's `master` and `v*` tags
+     (`assertion.repository == 'stevyhacker/LokalBot' && (assertion.ref ==
+     'refs/heads/master' || assertion.ref.startsWith('refs/tags/v'))`), so a
+     pull request branch cannot mint a Play token. The pool's
+     `attribute.repository/stevyhacker/LokalBot` principal set has
+     `roles/iam.workloadIdentityUser` on the service account. To recreate it,
+     do the same and set:
      ```bash
      gh secret set PLAY_WORKLOAD_IDENTITY_PROVIDER --repo stevyhacker/LokalBot
      gh secret set PLAY_SERVICE_ACCOUNT_EMAIL --repo stevyhacker/LokalBot

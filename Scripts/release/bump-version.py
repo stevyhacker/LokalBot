@@ -3,10 +3,10 @@
 
 Usage: Scripts/release/bump-version.py 0.10.11 55
 
-Writes the marketing version and build number to LokalBot/Info.plist, project.yml
-and the Android app, and the marketing version to the Linux and Windows workspace
-(LinuxWindows/Cargo.toml and its workspace crates in Cargo.lock). Nothing is
-staged, committed or tagged.
+Writes the marketing version and build number to LokalBot/Info.plist, project.yml,
+the Android app and the iPhone and iPad app, and the marketing version to the Linux
+and Windows workspace (LinuxWindows/Cargo.toml and its workspace crates in
+Cargo.lock). Nothing is staged, committed or tagged.
 """
 import argparse
 import importlib.util
@@ -51,6 +51,9 @@ def bump(root, version, build):
     android = root / preflight.ANDROID_BUILD
     replace(android, r'^(\s+versionName\s*=\s*")[^"]*(")', version)
     replace(android, r'^(\s+versionCode\s*=\s*)\d+()', build)
+    ios = root / preflight.IOS_PROJECT
+    replace(ios, r'^(\s+MARKETING_VERSION:\s*")[^"]*(")', version)
+    replace(ios, r'^(\s+CURRENT_PROJECT_VERSION:\s*")[^"]*(")', build)
     return preflight.validate(root, version=version, metadata_only=True)
 
 
@@ -60,7 +63,8 @@ def main():
     parser.add_argument("build")
     args = parser.parse_args()
     version, build, _ = bump(ROOT, args.version, args.build)
-    print(f"Set {version} ({build}) in Info.plist, project.yml, the Android app, LinuxWindows/Cargo.toml and Cargo.lock")
+    print(f"Set {version} ({build}) in Info.plist, project.yml, the Android app, the iPhone and iPad app, "
+          "LinuxWindows/Cargo.toml and Cargo.lock")
 
 
 if __name__ == "__main__":
