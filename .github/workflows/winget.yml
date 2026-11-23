@@ -57,38 +57,18 @@ env:
   WINGETCREATE_SHA256: 24042bd37915805615e6cf969ac57c6439124c3fe85823327f5f3fb24bd9ffea
 
 jobs:
-  # Git for Windows cannot check out the macOS fixtures (names with ':'), even
-  # sparsely, so the Windows job gets the manifests from here.
-  manifests:
-    name: Manifests
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: LinuxWindows/packaging/winget
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: winget-manifests
-          path: LinuxWindows/packaging/winget/manifests
-          retention-days: 1
-          if-no-files-found: error
-
   check:
     name: Validate, install and uninstall
-    needs: manifests
+    if: github.event_name == 'pull_request'
     runs-on: windows-2025
     timeout-minutes: 30
     defaults:
       run:
         shell: pwsh
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          name: winget-manifests
-          path: manifests
+          sparse-checkout: LinuxWindows/packaging/winget
 
       - name: Install winget
         run: |
@@ -127,7 +107,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           $ErrorActionPreference = 'Stop'
-          $dirs = Get-ChildItem manifests -Recurse -Filter "$env:PACKAGE.yaml" | ForEach-Object DirectoryName
+          $dirs = Get-ChildItem LinuxWindows/packaging/winget/manifests -Recurse -Filter "$env:PACKAGE.yaml" | ForEach-Object DirectoryName
           if (-not $dirs) { throw 'no manifests found' }
           foreach ($dir in $dirs) {
             winget validate --manifest $dir --disable-interactivity

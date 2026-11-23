@@ -278,55 +278,13 @@ jobs:
           path: ${{ runner.temp }}/screenshots
           retention-days: 14
 
-  source:
-    name: Windows sources
-    runs-on: ubuntu-24.04
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - name: Archive the Rust workspace
-        working-directory: .
-        run: git archive --format=tar.gz -o "$RUNNER_TEMP/lokalbot-src.tar.gz" HEAD LinuxWindows .agents LokalBot/Resources/SampleMeeting Companion/protocol/fixtures .github/actions LICENSE LICENSES THIRD_PARTY_NOTICES.md
-
-      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
-        with:
-          name: windows-source
-          path: ${{ runner.temp }}/lokalbot-src.tar.gz
-          retention-days: 1
-
   windows:
     name: Windows
-    needs: [pick, source]
+    needs: pick
     runs-on: ${{ fromJSON(needs.pick.outputs.windows) }}
     timeout-minutes: 75
     steps:
-      # The repository's macOS fixtures use names with ':' that Git for Windows
-      # refuses to check out, so this job gets the Rust workspace as an archive.
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: windows-source
-          path: ${{ runner.temp }}
-
-      - name: Extract sources
-        if: runner.environment == 'github-hosted'
-        working-directory: ${{ github.workspace }}
-        shell: pwsh
-        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
-
-      # A self-hosted runner keeps its workspace and warm target between jobs.
-      # Only files that differ from the last job's get a new time, so cargo
-      # rebuilds just the crates that changed.
-      - name: Update sources
-        if: runner.environment == 'self-hosted'
-        working-directory: ${{ github.workspace }}
-        shell: pwsh
-        run: |
-          $src = Join-Path $env:RUNNER_TEMP "src"
-          Remove-Item -Recurse -Force -ErrorAction SilentlyContinue $src
-          New-Item -ItemType Directory $src | Out-Null
-          tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $src
-          & (Join-Path $src "LinuxWindows\scripts\ci\runners\sync-sources.ps1") -From $src -To $env:GITHUB_WORKSPACE
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Check the self-hosted runner
         if: runner.environment == 'self-hosted'
@@ -436,15 +394,7 @@ jobs:
     runs-on: windows-2025
     timeout-minutes: 30
     steps:
-      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
-        with:
-          name: windows-source
-          path: ${{ runner.temp }}
-
-      - name: Extract sources
-        working-directory: ${{ github.workspace }}
-        shell: pwsh
-        run: tar -xzf (Join-Path $env:RUNNER_TEMP "lokalbot-src.tar.gz") -C $env:GITHUB_WORKSPACE
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c
         with:
