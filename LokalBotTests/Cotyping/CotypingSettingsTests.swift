@@ -57,7 +57,9 @@ final class CotypingSettingsTests: XCTestCase {
         settings.cotypingMultiLine = true
         settings.cotypingDebounceMs = 500
         settings.cotypingAcceptGranularity = .phrase
-        settings.cotypingFullAcceptKey = .rightArrow
+        settings.cotypingFullAcceptKey = .doubleTap
+        settings.cotypingTabMovesToNextField = true
+        settings.cotypingPauseInLowPowerMode = false
         settings.cotypingAutoAcceptTrailingPunctuation = true
         settings.cotypingEscapeBehavior = .passThrough
         settings.cotypingAddSpaceAfterAccept = true
@@ -76,7 +78,9 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertTrue(decoded.cotypingMultiLine)
         XCTAssertEqual(decoded.cotypingDebounceMs, 500)
         XCTAssertEqual(decoded.cotypingAcceptGranularity, .phrase)
-        XCTAssertEqual(decoded.cotypingFullAcceptKey, .rightArrow)
+        XCTAssertEqual(decoded.cotypingFullAcceptKey, .doubleTap)
+        XCTAssertTrue(decoded.cotypingTabMovesToNextField)
+        XCTAssertFalse(decoded.cotypingPauseInLowPowerMode)
         XCTAssertTrue(decoded.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertEqual(decoded.cotypingEscapeBehavior, .passThrough)
         XCTAssertTrue(decoded.cotypingAddSpaceAfterAccept)
@@ -179,6 +183,8 @@ final class CotypingSettingsTests: XCTestCase {
         let settings = AppSettings()
         XCTAssertEqual(settings.cotypingMaxWords, 4)
         XCTAssertEqual(settings.cotypingDebounceMs, 100)
+        XCTAssertFalse(settings.cotypingTabMovesToNextField)
+        XCTAssertTrue(settings.cotypingPauseInLowPowerMode)
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)
         XCTAssertEqual(settings.cotypingMaxResponseTokens, 6)

@@ -207,67 +207,68 @@ pub fn render(context: &Context) -> Rendered {
             sanitize::sanitize(text, Some(MAX_WINDOW_CHARACTERS))
         )
     });
-    let mut preface: Vec<String> = Vec::new();
+    let mut leading: Vec<String> = Vec::new();
     let memory_budget;
     if window.is_some() {
-        preface.extend(context.surface_lines.iter().cloned());
+        leading.extend(context.surface_lines.iter().cloned());
         memory_budget = 180;
     } else if let Some(visible) = trimmed(context.visible) {
-        preface.push(format!(
+        leading.push(format!(
             "Current visible text above the field: {}",
             sanitize::sanitize(visible, Some(420))
         ));
-        preface.extend(context.surface_lines.iter().cloned());
+        leading.extend(context.surface_lines.iter().cloned());
         memory_budget = 180;
     } else {
-        preface.extend(context.surface_lines.iter().cloned());
+        leading.extend(context.surface_lines.iter().cloned());
         memory_budget = 360;
     }
-    if let Some(memory) = trimmed(context.memory) {
-        preface.push(format!(
-            "Relevant saved facts: {}",
-            sanitize::sanitize(memory, Some(memory_budget))
-        ));
-    }
+    let mut profile: Vec<String> = Vec::new();
     if let Some(name) = trimmed(context.user_name) {
-        preface.push(format!("Written by {name}."));
+        profile.push(format!("Written by {name}."));
     }
     if let Some(note) = trimmed(context.style_note) {
-        preface.push(format!("Writing style: {note}."));
+        profile.push(format!("Writing style: {note}."));
     }
     if let Some(language) = trimmed(context.language_hint) {
-        preface.push(language.to_string());
+        profile.push(language.to_string());
     }
     if let Some(notes) = trimmed(context.extended_context) {
-        preface.push(format!(
+        profile.push(format!(
             "Notes the writer keeps in mind: {}",
             sanitize::prefix(notes, 300)
         ));
     }
+    let memory_line = trimmed(context.memory).map(|memory| {
+        format!(
+            "Relevant saved facts: {}",
+            sanitize::sanitize(memory, Some(memory_budget))
+        )
+    });
+    let mut trailing: Vec<String> = Vec::new();
     for example in context.learned_examples {
         if let Some(example) = trimmed(Some(example)) {
-            preface.push(format!(
+            trailing.push(format!(
                 "Previously accepted completion: {}",
                 sanitize::prefix(example, MAX_LEARNED_EXAMPLE_CHARACTERS)
             ));
         }
     }
     if let Some(clip) = trimmed(context.clipboard) {
-        preface.push(format!(
+        trailing.push(format!(
             "On the clipboard: {}",
             sanitize::prefix(clip, MAX_CLIPBOARD_LINE_CHARACTERS)
         ));
     }
-    if window.is_none() && preface.is_empty() {
+    let has_preface =
+        !leading.is_empty() || !profile.is_empty() || memory_line.is_some() || !trailing.is_empty();
+    if window.is_none() && !has_preface {
         return Rendered {
             prompt: prefix.to_string(),
             conditioning_preface: None,
         };
     }
-    let mut preface_text = preface.join("\n");
-    if preface_text.chars().count() > MAX_PREFACE_CHARACTERS {
-        preface_text = sanitize::prefix(&preface_text, MAX_PREFACE_CHARACTERS);
-    }
+    let mut preface_text = bounded_preface(&leading, &profile, memory_line.as_deref(), &trailing);
     if let Some(window) = window {
         preface_text = if preface_text.is_empty() {
             window
@@ -279,6 +280,61 @@ pub fn render(context: &Context) -> Rendered {
         prompt: format!("{preface_text}\n\n{prefix}"),
         conditioning_preface: Some(preface_text),
     }
+}
+
+fn bounded_preface(
+    leading: &[String],
+    profile: &[String],
+    memory: Option<&str>,
+    trailing: &[String],
+) -> String {
+    let mut all = Vec::with_capacity(
+        leading.len() + profile.len() + usize::from(memory.is_some()) + trailing.len(),
+    );
+    all.extend(leading.iter().map(String::as_str));
+    all.extend(profile.iter().map(String::as_str));
+    if let Some(memory) = memory {
+        all.push(memory);
+    }
+    all.extend(trailing.iter().map(String::as_str));
+    let joined = all.join("\n");
+    let Some(memory) = memory else {
+        return sanitize::prefix(&joined, MAX_PREFACE_CHARACTERS);
+    };
+    if joined.chars().count() <= MAX_PREFACE_CHARACTERS {
+        return joined;
+    }
+    let leading_text = leading.join("\n");
+    let profile_text = profile.join("\n");
+    let leading_len = leading_text.chars().count();
+    let memory_len = memory.chars().count();
+    let reserved = if leading_len == 0 {
+        memory_len
+    } else {
+        leading_len + 1 + memory_len
+    };
+    let mut parts: Vec<String> = Vec::new();
+    if !leading_text.is_empty() {
+        parts.push(leading_text);
+    }
+    if !profile_text.is_empty() && reserved < MAX_PREFACE_CHARACTERS {
+        let profile_budget = MAX_PREFACE_CHARACTERS.saturating_sub(reserved + 1);
+        if profile_budget > 0 {
+            parts.push(sanitize::prefix(&profile_text, profile_budget));
+        }
+    }
+    parts.push(memory.to_string());
+    let core = parts.join("\n");
+    let core_len = core.chars().count();
+    if core_len >= MAX_PREFACE_CHARACTERS || trailing.is_empty() {
+        return sanitize::prefix(&core, MAX_PREFACE_CHARACTERS);
+    }
+    let trailing_text = trailing.join("\n");
+    let remaining = MAX_PREFACE_CHARACTERS.saturating_sub(core_len + 1);
+    if remaining == 0 {
+        return core;
+    }
+    format!("{core}\n{}", sanitize::prefix(&trailing_text, remaining))
 }
 
 fn trimmed(text: Option<&str>) -> Option<&str> {
@@ -470,6 +526,42 @@ mod tests {
         assert_eq!(
             window.prompt,
             "Visible in this window:\nline one\nline two\n\nWritten by Ada.\n\nx"
+        );
+        let ordered = render(&Context {
+            surface_lines: &lines,
+            user_name: Some("Ada"),
+            style_note: Some("concise"),
+            memory: Some("Deck owner: Ana"),
+            clipboard: Some("release plan"),
+            ..bare("Sure, ")
+        });
+        assert_eq!(
+            ordered.prompt,
+            "Topic: Q3 planning\nWritten by Ada.\nWriting style: concise.\nRelevant saved facts: Deck owner: Ana\nOn the clipboard: release plan\n\nSure, "
+        );
+
+        let visible = "v".repeat(420);
+        let memory = "m".repeat(180);
+        let long_subject = vec![format!("Subject: {}", "s".repeat(80))];
+        let long_style = "style ".repeat(200);
+        let bounded = render(&Context {
+            surface_lines: &long_subject,
+            style_note: Some(&long_style),
+            memory: Some(&memory),
+            visible: Some(&visible),
+            ..bare("I will send it to ")
+        });
+        assert!(bounded.prompt.contains(&visible));
+        assert!(bounded.prompt.contains(&memory));
+        assert!(bounded.prompt.ends_with("I will send it to "));
+        assert!(
+            bounded
+                .conditioning_preface
+                .as_deref()
+                .unwrap()
+                .chars()
+                .count()
+                <= MAX_PREFACE_CHARACTERS
         );
     }
 

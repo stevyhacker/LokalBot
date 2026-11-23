@@ -18,8 +18,21 @@ final class CotypingInputMonitorTests: XCTestCase {
             hasSession: true))
     }
 
-    func testAcceptTapTeardownDelayMatchesCoTabbyFinalAcceptGuard() {
-        XCTAssertEqual(CotypingInputMonitor.acceptTapTeardownDelaySeconds, 0.05, accuracy: 0.0001)
+    func testAcceptTapIdleDisableAndReleaseDelays() {
+        XCTAssertEqual(CotypingInputMonitor.acceptTapIdleDisableSeconds, 2.0, accuracy: 0.0001)
+        XCTAssertEqual(CotypingInputMonitor.acceptTapReleaseDelaySeconds, 10.0, accuracy: 0.0001)
+        XCTAssertEqual(
+            CotypingInputMonitor.idleDisableDelay(lastObservedKeyDownUptime: nil, nowUptime: 100),
+            2.0,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            CotypingInputMonitor.idleDisableDelay(lastObservedKeyDownUptime: 99.5, nowUptime: 100),
+            1.5,
+            accuracy: 0.0001)
+        XCTAssertEqual(
+            CotypingInputMonitor.idleDisableDelay(lastObservedKeyDownUptime: 97.0, nowUptime: 100),
+            0.0,
+            accuracy: 0.0001)
     }
 
     func testAcceptSnapshotRejectsMarkedTextAndSelections() {

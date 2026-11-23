@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Выберите файл flow.sqlite из Wispr Flow. LokalBot читает только его словарь.";
 "Wispr Flow's dictionary has no new words to add." = "В словаре Wispr Flow нет новых слов для добавления.";
 "Couldn't read Wispr Flow's dictionary." = "Не удалось прочитать словарь Wispr Flow.";
+"Accept the rest" = "Принять остальное";
+"` (Backtick)" = "` (Обратный апостроф)";
+"Double-tap accept key" = "Двойное нажатие клавиши принятия";
+"Tab moves to next field" = "Tab переходит к следующему полю";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "В однострочных полях вне чатов и редакторов кода Tab скрывает подсказку и переходит к следующему полю вместо принятия.";
+"Pause in Low Power Mode" = "Пауза в режиме энергосбережения";
+"Pause suggestions while Low Power Mode is on to save battery." = "Приостанавливать подсказки в режиме энергосбережения для экономии заряда.";

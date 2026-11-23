@@ -9,6 +9,7 @@ pub const MAXIMUM_CHARACTERS: usize = 2_000;
 pub const MAXIMUM_LINE_CHARACTERS: usize = 300;
 pub const FIELD_MARGIN: f64 = 4.0;
 pub const COLUMN_SLACK: f64 = 24.0;
+pub const COMPOSER_CHROME_HEIGHT: f64 = 56.0;
 pub const MAXIMUM_HELD_AGE: Duration = Duration::from_secs(60);
 pub const MINIMUM_ADDED_CHARACTERS: usize = 12;
 pub const REFRESH_INTERVAL: Duration = Duration::from_secs(4);
@@ -114,6 +115,7 @@ pub fn excerpts(lines: &[Line], field: Frame, window: Frame, maximum: usize) -> 
         if !line.frame.is_valid()
             || !line.frame.intersects(&window)
             || line.frame.intersects(&around_field)
+            || is_composer_chrome(&line.frame, &field, &column)
         {
             continue;
         }
@@ -162,6 +164,16 @@ pub fn excerpts(lines: &[Line], field: Frame, window: Frame, maximum: usize) -> 
     conversation.sort_by(reading_order);
     surroundings.append(&mut conversation);
     surroundings
+}
+
+fn is_composer_chrome(
+    frame: &Frame,
+    field: &Frame,
+    column: &std::ops::RangeInclusive<f64>,
+) -> bool {
+    column.contains(&frame.mid_x())
+        && frame.y >= field.max_y() - FIELD_MARGIN
+        && frame.max_y() <= field.max_y() + COMPOSER_CHROME_HEIGHT
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -469,7 +481,7 @@ mod tests {
             line("Older message", 100.0, 400.0),
             line("Sidebar item", 600.0, 100.0),
             line("Inbox title", 100.0, 10.0),
-            line("Below the field", 100.0, 560.0),
+            line("Press Enter to send", 100.0, 560.0),
             line("My draft", 110.0, 505.0),
             line("password: hunter2", 100.0, 300.0),
             line("---", 100.0, 200.0),
@@ -482,12 +494,25 @@ mod tests {
             kept,
             [
                 "Sidebar item",
-                "Below the field",
                 "Inbox title",
                 "Older message",
                 "Newest message"
             ]
         );
+    }
+
+    #[test]
+    fn drops_composer_chrome_under_field_while_keeping_thread_below_top_reply_box() {
+        let top_field = Frame::new(100.0, 80.0, 400.0, 40.0);
+        let lines = [
+            line("Send", 120.0, 128.0),
+            line("Quoted thread message", 100.0, 220.0),
+        ];
+        let kept: Vec<String> = excerpts(&lines, top_field, WINDOW, MAXIMUM_CHARACTERS)
+            .into_iter()
+            .map(|e| e.text)
+            .collect();
+        assert_eq!(kept, ["Quoted thread message"]);
     }
 
     #[test]

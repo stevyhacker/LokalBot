@@ -9,7 +9,21 @@ nonisolated enum CotypingGhostFontSizing {
     static func font(for style: CotypingFieldStyle?, caretHeight: CGFloat, caretIsExact: Bool) -> NSFont {
         let size = min(maximumPointSize, max(minimumPointSize, pointSize(
             for: style, caretHeight: caretHeight, caretIsExact: caretIsExact)))
-        return style?.fontName.flatMap { NSFont(name: $0, size: size) } ?? .systemFont(ofSize: size)
+        return style?.fontName.flatMap { resolvedFont(named: $0, size: size) } ?? .systemFont(ofSize: size)
+    }
+
+    static func resolvedFont(named name: String, size: CGFloat) -> NSFont? {
+        if let exact = NSFont(name: name, size: size) {
+            return exact
+        }
+        for attribute in [NSFontDescriptor.AttributeName.visibleName, .family] {
+            let descriptor = NSFontDescriptor(fontAttributes: [attribute: name])
+            if let matched = descriptor.matchingFontDescriptor(withMandatoryKeys: [attribute]),
+               let font = NSFont(descriptor: matched, size: size) {
+                return font
+            }
+        }
+        return nil
     }
 
     static func pointSize(for style: CotypingFieldStyle?, caretHeight: CGFloat, caretIsExact: Bool) -> CGFloat {
@@ -19,7 +33,7 @@ nonisolated enum CotypingGhostFontSizing {
             return caretIsExact ? estimate : min(estimate, maximumEstimatedPointSize)
         }
         guard caretIsExact, caretHeight.isFinite, caretHeight > 0 else { return reported }
-        let reference = style?.fontName.flatMap { NSFont(name: $0, size: reported) }
+        let reference = style?.fontName.flatMap { resolvedFont(named: $0, size: reported) }
             ?? .systemFont(ofSize: reported)
         let glyphBox = reference.ascender - reference.descender
         guard glyphBox > 0 else { return reported }

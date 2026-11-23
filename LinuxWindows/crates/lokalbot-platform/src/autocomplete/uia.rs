@@ -197,6 +197,7 @@ struct Reader {
     fixed: Option<Fixed>,
     visible: Option<(String, Option<String>)>,
     logged_glyph_key: Option<String>,
+    latched_secure: std::collections::HashSet<String>,
     last: FocusSnapshot,
     gate: FlickerGate,
     backoff: PollBackoff,
@@ -238,6 +239,7 @@ impl Reader {
                 fixed: None,
                 visible: None,
                 logged_glyph_key: None,
+                latched_secure: std::collections::HashSet::new(),
                 last: FocusSnapshot::none(),
                 gate: FlickerGate::default(),
                 backoff: PollBackoff::default(),
@@ -501,11 +503,20 @@ impl Reader {
             }
             let control = element.CurrentControlType().unwrap_or_default();
             let password = element.CurrentIsPassword().is_ok_and(|b| b.as_bool());
+            if password && !fixed.key.is_empty() {
+                if self.latched_secure.len() >= 64 {
+                    self.latched_secure.clear();
+                }
+                self.latched_secure.insert(fixed.key.clone());
+            }
             let name = bstr(element.CurrentName());
             let help = bstr(element.CurrentHelpText());
             let kind = bstr(element.CurrentLocalizedControlType());
             let aria = bstr(element.CurrentAriaRole());
-            if password || policy::is_secure_field([name.as_str(), help.as_str(), kind.as_str()]) {
+            if password
+                || (!fixed.key.is_empty() && self.latched_secure.contains(&fixed.key))
+                || policy::is_secure_field([name.as_str(), help.as_str(), kind.as_str()])
+            {
                 fixed.refusal = Some(Refusal::Blocked(reasons::SECURE));
                 return Some(fixed);
             }
@@ -553,6 +564,27 @@ impl Reader {
             fixed.window_title = foreground_title(pid).unwrap_or_default();
             if crate::privacy::is_browser(&fixed.app_name, &fixed.app_id) {
                 fixed.url = self.document_url(element);
+            }
+            let single_line_field =
+                fixed.single_line != Some(false) && control != UIA_DocumentControlTypeId;
+            if fixed.url.is_some()
+                && policy::is_search_label_or_id(
+                    single_line_field,
+                    [name.as_str(), help.as_str()],
+                    Some(automation_id.as_str()),
+                )
+            {
+                fixed.refusal = Some(Refusal::Unsupported(reasons::SEARCH));
+                return Some(fixed);
+            }
+            if policy::is_credential_field(
+                single_line_field,
+                [name.as_str(), help.as_str()],
+                Some(automation_id.as_str()),
+                None,
+            ) {
+                fixed.refusal = Some(Refusal::Unsupported(reasons::CREDENTIAL));
+                return Some(fixed);
             }
             if self.policy.match_host_style {
                 fixed.style = text.as_ref().and_then(|pattern| {
@@ -837,6 +869,9 @@ impl Reader {
             let single_line = fixed.single_line.unwrap_or_else(|| {
                 field_frame.is_some_and(|frame| frame.height < caret_rect.height * 2.2)
             });
+            if single_line && policy::looks_like_address_entry(&format!("{before}{after}")) {
+                return Err(Refusal::Unsupported(reasons::CREDENTIAL));
+            }
             let style = if self.policy.match_host_style {
                 style_near(&caret, doc.as_ref()).or_else(|| fixed.style.clone())
             } else {

@@ -58,6 +58,29 @@ final class CotypingPromptRendererTests: XCTestCase {
             XCTAssertTrue(prompt.contains("Previously accepted completion: \(example)"))
         }
     }
+
+    func testStaticProfileLinesPrecedeVolatileSavedFactsAndClipboard() throws {
+        let rendered = CotypingPromptRenderer.render(
+            prefixText: "Sure, ",
+            surfaceLines: ["Topic: Q3 planning"],
+            userName: "Ada",
+            styleNote: "concise",
+            languageHint: "The text is usually written in English.",
+            extendedContext: "Atlas = billing service",
+            clipboardContext: "release plan",
+            memoryContext: "Atlas owner is Priya.")
+        let preface = try XCTUnwrap(rendered.conditioningPreface)
+        let lines = preface.components(separatedBy: "\n")
+        XCTAssertEqual(lines, [
+            "Topic: Q3 planning",
+            "Written by Ada.",
+            "Writing style: concise.",
+            "The text is usually written in English.",
+            "Notes the writer keeps in mind: Atlas = billing service",
+            "Relevant saved facts: Atlas owner is Priya.",
+            "On the clipboard: release plan",
+        ])
+    }
 }
 
 final class CotypingContextPromptTests: XCTestCase {

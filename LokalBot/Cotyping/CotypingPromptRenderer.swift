@@ -61,53 +61,84 @@ enum CotypingPromptRenderer {
         let window = nonEmpty(windowContext).map {
             "\(windowLabel)\n\(PromptContextSanitizer.sanitize($0, maxCharacters: CotypingWindowText.maximumCharacters))"
         }
-        var preface: [String] = []
+        var leading: [String] = []
+        let memoryLimit: Int
         if window != nil {
-            preface = surfaceLines
-            if let memory = nonEmpty(memoryContext) {
-                preface.append("Relevant saved facts: \(PromptContextSanitizer.sanitize(memory, maxCharacters: 180))")
-            }
+            leading = surfaceLines
+            memoryLimit = 180
         } else if let visible = nonEmpty(visibleContext) {
-            preface.append("Current visible text above the field: \(PromptContextSanitizer.sanitize(visible, maxCharacters: 420))")
-            preface.append(contentsOf: surfaceLines)
-            if let memory = nonEmpty(memoryContext) {
-                preface.append("Relevant saved facts: \(PromptContextSanitizer.sanitize(memory, maxCharacters: 180))")
-            }
+            leading.append("Current visible text above the field: \(PromptContextSanitizer.sanitize(visible, maxCharacters: 420))")
+            leading.append(contentsOf: surfaceLines)
+            memoryLimit = 180
         } else {
-            preface = surfaceLines
-            if let memory = nonEmpty(memoryContext) {
-                preface.append("Relevant saved facts: \(PromptContextSanitizer.sanitize(memory, maxCharacters: 360))")
-            }
+            leading = surfaceLines
+            memoryLimit = 360
         }
-        if let persona = personaLine(userName) { preface.append(persona) }
-        if let style = styleLine(styleNote) { preface.append(style) }
-        if let language = nonEmpty(languageHint) { preface.append(language) }
+        var profile: [String] = []
+        if let persona = personaLine(userName) { profile.append(persona) }
+        if let style = styleLine(styleNote) { profile.append(style) }
+        if let language = nonEmpty(languageHint) { profile.append(language) }
         if let notes = nonEmpty(extendedContext) {
-            preface.append("Notes the writer keeps in mind: \(String(notes.prefix(300)))")
+            profile.append("Notes the writer keeps in mind: \(String(notes.prefix(300)))")
         }
+        let memoryLine = nonEmpty(memoryContext).map {
+            "Relevant saved facts: \(PromptContextSanitizer.sanitize($0, maxCharacters: memoryLimit))"
+        }
+        var trailing: [String] = []
         for example in learnedExamples {
             if let example = nonEmpty(example) {
-                preface.append("Previously accepted completion: \(String(example.prefix(maxLearnedExampleCharacters)))")
+                trailing.append("Previously accepted completion: \(String(example.prefix(maxLearnedExampleCharacters)))")
             }
         }
         if let clip = nonEmpty(clipboardContext) {
-            preface.append("On the clipboard: \(String(clip.prefix(maxClipboardLineCharacters)))")
+            trailing.append("On the clipboard: \(String(clip.prefix(maxClipboardLineCharacters)))")
         }
 
-        guard window != nil || !preface.isEmpty else {
+        let hasPreface = !leading.isEmpty || !profile.isEmpty || memoryLine != nil || !trailing.isEmpty
+        guard window != nil || hasPreface else {
             return RenderedPrompt(prompt: prefix, conditioningPreface: nil)
         }
 
-        var prefaceText = preface.joined(separator: "\n")
-        if prefaceText.count > maxPrefaceCharacters {
-            prefaceText = String(prefaceText.prefix(maxPrefaceCharacters))
-        }
+        var prefaceText = boundedPreface(leading: leading, profile: profile, memory: memoryLine, trailing: trailing)
         if let window {
             prefaceText = prefaceText.isEmpty ? window : window + "\n\n" + prefaceText
         }
         return RenderedPrompt(
             prompt: prefaceText + "\n\n" + prefix,
             conditioningPreface: prefaceText)
+    }
+
+    private static func boundedPreface(
+        leading: [String],
+        profile: [String],
+        memory: String?,
+        trailing: [String]
+    ) -> String {
+        let all = leading + profile + (memory.map { [$0] } ?? []) + trailing
+        let joined = all.joined(separator: "\n")
+        guard joined.count > maxPrefaceCharacters, let memory else {
+            return String(joined.prefix(maxPrefaceCharacters))
+        }
+        let leadingText = leading.joined(separator: "\n")
+        let profileText = profile.joined(separator: "\n")
+        let reserved = (leadingText.isEmpty ? 0 : leadingText.count + 1) + memory.count
+        var parts: [String] = []
+        if !leadingText.isEmpty { parts.append(leadingText) }
+        if !profileText.isEmpty, reserved < maxPrefaceCharacters {
+            let profileBudget = maxPrefaceCharacters - reserved - 1
+            if profileBudget > 0 {
+                parts.append(String(profileText.prefix(profileBudget)))
+            }
+        }
+        parts.append(memory)
+        let core = parts.joined(separator: "\n")
+        if core.count >= maxPrefaceCharacters || trailing.isEmpty {
+            return String(core.prefix(maxPrefaceCharacters))
+        }
+        let trailingText = trailing.joined(separator: "\n")
+        let remaining = maxPrefaceCharacters - core.count - 1
+        guard remaining > 0 else { return core }
+        return core + "\n" + String(trailingText.prefix(remaining))
     }
 
     private static func personaLine(_ userName: String?) -> String? {

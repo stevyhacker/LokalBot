@@ -186,9 +186,11 @@ pub struct Settings {
     pub cotyping_extended_context: String,
     pub cotyping_accept_key: CotypingAcceptKey,
     pub cotyping_full_accept_key: CotypingFullAcceptKey,
+    pub cotyping_tab_moves_to_next_field: bool,
     pub cotyping_auto_accept_trailing_punctuation: bool,
     pub cotyping_escape_behavior: CotypingEscapeBehavior,
     pub cotyping_add_space_after_accept: bool,
+    pub cotyping_pause_in_low_power_mode: bool,
     pub cotyping_suggest_in_integrated_terminals: bool,
     pub cotyping_use_app_context: bool,
     pub cotyping_use_clipboard: bool,
@@ -379,9 +381,11 @@ impl Default for Settings {
             cotyping_extended_context: String::new(),
             cotyping_accept_key: CotypingAcceptKey::default(),
             cotyping_full_accept_key: CotypingFullAcceptKey::default(),
+            cotyping_tab_moves_to_next_field: false,
             cotyping_auto_accept_trailing_punctuation: false,
             cotyping_escape_behavior: CotypingEscapeBehavior::default(),
             cotyping_add_space_after_accept: false,
+            cotyping_pause_in_low_power_mode: true,
             cotyping_suggest_in_integrated_terminals: false,
             cotyping_use_app_context: true,
             cotyping_use_clipboard: true,
@@ -1175,6 +1179,7 @@ pub enum CotypingFullAcceptKey {
     #[default]
     Backtick,
     RightArrow,
+    DoubleTap,
     Off,
 }
 
@@ -1183,6 +1188,7 @@ impl From<CotypingFullAcceptKey> for i32 {
         match key {
             CotypingFullAcceptKey::Backtick => 50,
             CotypingFullAcceptKey::RightArrow => 124,
+            CotypingFullAcceptKey::DoubleTap => -2,
             CotypingFullAcceptKey::Off => -1,
         }
     }
@@ -1195,6 +1201,7 @@ impl TryFrom<i32> for CotypingFullAcceptKey {
         match code {
             50 => Ok(Self::Backtick),
             124 => Ok(Self::RightArrow),
+            -2 => Ok(Self::DoubleTap),
             -1 => Ok(Self::Off),
             other => Err(format!("unknown full-accept key {other}")),
         }
@@ -1587,5 +1594,24 @@ mod tests {
             settings.remote_transcription_base_url,
             "http://127.0.0.1:9000/v1"
         );
+
+        let defaults = Settings::default();
+        assert!(!defaults.cotyping_tab_moves_to_next_field);
+        assert!(defaults.cotyping_pause_in_low_power_mode);
+
+        let custom: Settings = serde_json::from_str(
+            r#"{"cotypingFullAcceptKey":-2,"cotypingTabMovesToNextField":true,"cotypingPauseInLowPowerMode":false}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            custom.cotyping_full_accept_key,
+            CotypingFullAcceptKey::DoubleTap
+        );
+        assert!(custom.cotyping_tab_moves_to_next_field);
+        assert!(!custom.cotyping_pause_in_low_power_mode);
+        let roundtrip = serde_json::to_value(&custom).unwrap();
+        assert_eq!(roundtrip["cotypingFullAcceptKey"], -2);
+        assert_eq!(roundtrip["cotypingTabMovesToNextField"], true);
+        assert_eq!(roundtrip["cotypingPauseInLowPowerMode"], false);
     }
 }

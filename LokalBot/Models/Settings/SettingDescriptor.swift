@@ -18,6 +18,7 @@ struct SettingDescriptor: Identifiable {
         if id == "settings.appLanguage" { return settings.appLanguage.pickerLabel(in: language) }
         if id == "settings.textSize" { return language.localized(settings.textSize.displayName) }
         if id == "settings.cotypingBackend" { return language.localized(settings.cotypingBackend.title) }
+        if id == "settings.cotypingFullAcceptKey" { return language.localized(settings.cotypingFullAcceptKey.pickerLabel) }
         if id == "settings.modelDownloadSource" { return language.localized(settings.modelDownloadSource.displayName) }
         if id == "settings.companionHistory" { return language.localized(settings.companionHistory.displayName) }
         guard let data = try? JSONEncoder().encode(settings),
@@ -127,7 +128,9 @@ struct SettingDescriptor: Identifiable {
               aliases: "stats usage acceptance accepted words saved time typing speed wpm chart"),
         .init(id: "settings.cotypingMultiLine", title: "Allow multi-line suggestions", category: .writing, aliases: "cotypingMultiLine", label: "Suggestions longer than one line"),
         .init(id: "settings.cotypingAcceptKey", title: "Accept next", category: .writing, aliases: "cotypingAcceptKey", label: "Accept with"),
+        .init(id: "settings.cotypingFullAcceptKey", title: "Accept the rest", category: .writing, aliases: "cotypingFullAcceptKey double tap whole entire suggestion backtick right arrow"),
         .init(id: "settings.cotypingAcceptGranularity", title: "Each accept takes", category: .writing, aliases: "cotypingAcceptGranularity", label: "Each press accepts"),
+        .init(id: "settings.cotypingTabMovesToNextField", title: "Tab moves to next field", category: .writing, aliases: "autocomplete tab form focus next field single line"),
         .init(id: "settings.cotypingAutoAcceptTrailingPunctuation", title: "Accept punctuation with the word", category: .writing, aliases: "autocomplete tab full stop comma period", label: "Take punctuation with the word"),
         .init(id: "settings.cotypingEscapeBehavior", title: "Escape on a suggestion", category: .writing, aliases: "autocomplete esc dismiss pause suggestion"),
         .init(id: "settings.cotypingUseAppContext", title: "Use app and window context", category: .writing, aliases: "cotypingUseAppContext", label: "App and window name"),
@@ -142,6 +145,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.cotypingLanguages", title: "Languages (optional)", category: .writing, aliases: "cotypingLanguages"),
         .init(id: "settings.cotypingSuggestInIntegratedTerminals", title: "Suggest in integrated terminals", category: .writing, aliases: "cotypingSuggestInIntegratedTerminals"),
         .init(id: "settings.cotypingInProcessRuntime", title: "Use fast in-process runtime", category: .writing, aliases: "cotypingInProcessRuntime"),
+        .init(id: "settings.cotypingPauseInLowPowerMode", title: "Pause in Low Power Mode", category: .writing, aliases: "cotypingPauseInLowPowerMode battery power saver low power mode"),
         .init(id: "settings.cotypingMatchHostStyle", title: "Match the app font and text color", category: .writing, aliases: "cotypingMatchHostStyle", label: "Match the app’s font and text color"),
         .init(id: "settings.cotypingChromiumEnhancedAccessibility", title: "Use enhanced accessibility in Chrome-based browsers", category: .writing, aliases: "cotypingChromiumEnhancedAccessibility"),
         .init(id: "settings.cotypingAutocorrect", title: "Autocorrect the current word", category: .writing, aliases: "cotypingAutocorrect", label: "Fix typos in the current word"),

@@ -62,6 +62,8 @@ enum CotypingAXHelper {
         var markerStyleMisses: [pid_t: TimeInterval] = [:]
         var chromiumEnhancedAccessibility = true
         var enhancedAccessibilityPIDs: Set<pid_t> = []
+        var latchedSecureFieldKeys: [String: TimeInterval] = [:]
+        var webAreaStates: [String: Bool] = [:]
 
         func withLock<T>(_ operation: () -> T) -> T {
             lock.lock()
@@ -362,15 +364,29 @@ enum CotypingAXHelper {
 
         let role = stringAttribute(element, kAXRoleAttribute as String) ?? ""
         let subrole = stringAttribute(element, kAXSubroleAttribute as String)
-        let focusIdentityKey = focusIdentityKey(
-            for: element, processID: pid, bundleID: bundleID, role: role, subrole: subrole)
+        let axIdentifier = stringAttribute(element, kAXIdentifierAttribute as String)
+        let focusIdentityKey = CotypingAXFocusIdentityKey.make(
+            processID: pid, bundleID: bundleID, role: role, subrole: subrole,
+            axIdentifier: axIdentifier, elementHash: CFHash(element))
+        let latchKey = secureLatchKey(
+            processID: pid, bundleID: bundleID, axIdentifier: axIdentifier, elementHash: CFHash(element))
 
         let roleDescription = stringAttribute(element, kAXRoleDescriptionAttribute as String)
         let title = stringAttribute(element, kAXTitleAttribute as String)
         let descriptionLabel = stringAttribute(element, kAXDescriptionAttribute as String)
-        if CotypingSecureFieldDetector.isSecure(
-            role: role,
-            subrole: subrole,
+        let hasSecureRole = CotypingSecureFieldDetector.isSecureRole(role: role, subrole: subrole)
+        let latchedSecure = cacheState.withLock {
+            if hasSecureRole {
+                if cacheState.latchedSecureFieldKeys.count >= 64,
+                   let oldest = cacheState.latchedSecureFieldKeys.min(by: { $0.value < $1.value })?.key {
+                    cacheState.latchedSecureFieldKeys.removeValue(forKey: oldest)
+                }
+                cacheState.latchedSecureFieldKeys[latchKey] = ProcessInfo.processInfo.systemUptime
+                return true
+            }
+            return cacheState.latchedSecureFieldKeys[latchKey] != nil
+        }
+        if latchedSecure || CotypingSecureFieldDetector.hasSecureLabel(
             roleDescription: roleDescription,
             title: title,
             descriptionLabel: descriptionLabel) {
@@ -383,7 +399,21 @@ enum CotypingAXHelper {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Not an editable text field."), field: nil)
         }
-        guard !CotypingSearchFieldDetector.isSearchField(role: role, subrole: subrole) else {
+        let inspectSingleLineField = CotypingSearchFieldDetector.mightBeSearchField(role: role)
+            || CotypingCredentialFieldDetector.mightBeCredentialField(role: role)
+        let singleLineDOMIdentifier = inspectSingleLineField ? stringAttribute(element, "AXDOMIdentifier") : nil
+        let singleLineLabels = inspectSingleLineField
+            ? [title, descriptionLabel] + extraFieldLabels(of: element)
+            : []
+        let searchSignal = CotypingSearchFieldDetector.signal(
+            role: role,
+            subrole: subrole,
+            labels: singleLineLabels,
+            domIdentifier: singleLineDOMIdentifier)
+        guard !CotypingSearchFieldDetector.isSearchField(
+            signal: searchSignal,
+            isBrowser: CotypingSurfaceClassifier.classify(bundleID: bundleID) == .browser,
+            isInWebPage: { isInWebArea(element, focusIdentityKey: focusIdentityKey) }) else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Search field."), field: nil)
         }
@@ -399,6 +429,14 @@ enum CotypingAXHelper {
               }) else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Verification code field."), field: nil)
+        }
+        guard !CotypingCredentialFieldDetector.isCredentialField(
+            role: role,
+            labels: singleLineLabels,
+            domIdentifier: singleLineDOMIdentifier,
+            text: nil) else {
+            return CotypingFocus(appName: appName, bundleID: bundleID,
+                                 capability: .unsupported("Sign-in or verification field."), field: nil)
         }
 
         let content = appReadPolicy.readIfAllowed(appName: appName, bundleID: bundleID) {
@@ -419,6 +457,11 @@ enum CotypingAXHelper {
         guard let value = content.value else {
             return CotypingFocus(appName: appName, bundleID: bundleID,
                                  capability: .unsupported("Not an editable text field."), field: nil)
+        }
+        if CotypingCredentialFieldDetector.mightBeCredentialField(role: role),
+           CotypingCredentialFieldDetector.looksLikeAddressEntry(value) {
+            return CotypingFocus(appName: appName, bundleID: bundleID,
+                                 capability: .unsupported("Sign-in or verification field."), field: nil)
         }
 
         guard let selection = markerSelection?.selection ?? nativeSelection else {
@@ -511,6 +554,21 @@ enum CotypingAXHelper {
         }
         return CotypingFocus(appName: appName, bundleID: bundleID, capability: .supported,
                              field: field, focusIdentityKey: focusIdentityKey, host: host)
+    }
+
+    static func secureLatchKey(
+        processID: pid_t,
+        bundleID: String?,
+        axIdentifier: String?,
+        elementHash: UInt
+    ) -> String {
+        CotypingAXFocusIdentityKey.make(
+            processID: processID,
+            bundleID: bundleID,
+            role: "",
+            subrole: nil,
+            axIdentifier: axIdentifier,
+            elementHash: elementHash)
     }
 
     private static func focusIdentityKey(
@@ -625,10 +683,13 @@ enum CotypingAXHelper {
     nonisolated static func isElectronEditor(bundleID: String?) -> Bool {
         guard let lowered = bundleID?.lowercased() else { return false }
         return [
+            "com.anthropic.claudefordesktop",
             "com.clickup.desktop-app",
             "com.microsoft.vscode",
             "com.microsoft.vscodeinsiders",
             "com.vscodium",
+            "md.obsidian",
+            "org.whispersystems.signal-desktop",
         ].contains(lowered)
     }
 
@@ -772,7 +833,7 @@ enum CotypingAXHelper {
             fontName = font.fontName
             fontPointSize = font.pointSize
         } else if let fontInfo = attributes[NSAttributedString.Key("AXFont")] as? [String: Any] {
-            fontName = fontInfo["AXFontName"] as? String
+            fontName = faceName(fromAXFontDictionary: fontInfo)
             if let size = fontInfo["AXFontSize"] as? NSNumber { fontPointSize = CGFloat(size.doubleValue) }
         }
         let foregroundHex = colorAttribute(in: attributes, forKey: .foregroundColor)
@@ -783,6 +844,27 @@ enum CotypingAXHelper {
             fontName: fontName, fontPointSize: fontPointSize,
             colorHex: foregroundHex, backgroundColorHex: backgroundHex)
         return style.isEmpty ? nil : style
+    }
+
+    static func faceName(fromAXFontDictionary fontInfo: [String: Any]) -> String? {
+        let axName = (fontInfo["AXFontName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let family = (fontInfo["AXFontFamily"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        let visible = (fontInfo["AXVisibleName"] as? String).flatMap { $0.isEmpty ? nil : $0 }
+        if let family, let axName {
+            let normalizedName = normalizedFontToken(axName)
+            let normalizedFamily = normalizedFontToken(family)
+            if !normalizedFamily.isEmpty, !normalizedName.contains(normalizedFamily) {
+                if let visible, normalizedFontToken(visible).contains(normalizedFamily) {
+                    return visible
+                }
+                return family
+            }
+        }
+        return axName ?? visible ?? family
+    }
+
+    private static func normalizedFontToken(_ name: String) -> String {
+        String(name.lowercased().filter { $0.isLetter || $0.isNumber })
     }
 
     private static func colorAttribute(in attributes: [NSAttributedString.Key: Any],
@@ -839,10 +921,13 @@ enum CotypingAXHelper {
     }
 
     private static func codeFieldLabels(of element: AXUIElement) -> [String?] {
+        extraFieldLabels(of: element) + [stringAttribute(element, "AXDOMIdentifier")]
+    }
+
+    private static func extraFieldLabels(of element: AXUIElement) -> [String?] {
         var labels = [
             stringAttribute(element, kAXPlaceholderValueAttribute as String),
             stringAttribute(element, kAXHelpAttribute as String),
-            stringAttribute(element, "AXDOMIdentifier"),
         ]
         if let raw = copyAttribute(element, kAXTitleUIElementAttribute as String),
            CFGetTypeID(raw) == AXUIElementGetTypeID() {
@@ -854,6 +939,37 @@ enum CotypingAXHelper {
             ]
         }
         return labels
+    }
+
+    private static func isInWebArea(_ element: AXUIElement, focusIdentityKey: String) -> Bool {
+        if let cached = cacheState.withLock({ cacheState.webAreaStates[focusIdentityKey] }) {
+            return cached
+        }
+        var current = element
+        var definitive: Bool?
+        for _ in 0..<30 {
+            guard let parent = parentElement(of: current) else { break }
+            let parentRole = stringAttribute(parent, kAXRoleAttribute as String)
+            if parentRole == "AXWebArea" {
+                definitive = true
+                break
+            }
+            if parentRole == kAXWindowRole as String || parentRole == kAXApplicationRole as String {
+                definitive = false
+                break
+            }
+            current = parent
+        }
+        if let definitive {
+            cacheState.withLock {
+                if cacheState.webAreaStates.count >= 64 {
+                    cacheState.webAreaStates.removeAll()
+                }
+                cacheState.webAreaStates[focusIdentityKey] = definitive
+            }
+            return definitive
+        }
+        return false
     }
 
     private static func isInFileDialog(_ element: AXUIElement) -> Bool {
@@ -1333,7 +1449,8 @@ enum CotypingAXHelper {
         }
         cacheState.withLock { cacheState.chromiumHitTest = nil }
 
-        guard let hit = element(atCocoaPoint: NSEvent.mouseLocation) else {
+        guard let hit = element(atCocoaPoint: NSEvent.mouseLocation),
+              processID(of: hit) == pid else {
             return nil
         }
         guard let editable = nearestEditable(from: hit),
@@ -1541,12 +1658,20 @@ enum CotypingAXHelper {
         rangeAttribute(element, kAXSelectedTextRangeAttribute as String)
     }
 
+    static func validatedTextRange(_ range: CFRange) -> NSRange? {
+        guard range.location >= 0, range.length >= 0,
+              range.location <= Int.max - range.length else {
+            return nil
+        }
+        return NSRange(location: range.location, length: range.length)
+    }
+
     private static func rangeAttribute(_ element: AXUIElement, _ attribute: String) -> NSRange? {
         guard let raw = copyAttribute(element, attribute),
               CFGetTypeID(raw) == AXValueGetTypeID() else { return nil }
         var range = CFRange(location: 0, length: 0)
         guard AXValueGetValue(raw as! AXValue, .cfRange, &range) else { return nil }
-        return NSRange(location: range.location, length: range.length)
+        return validatedTextRange(range)
     }
 
 

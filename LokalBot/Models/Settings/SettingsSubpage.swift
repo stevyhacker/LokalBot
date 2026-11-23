@@ -34,7 +34,8 @@ enum SettingsSubpage: String, CaseIterable, Identifiable, Sendable {
         case .autocompleteUsage:
             ["settings.autocompleteStatistics"]
         case .autocompleteAdvanced:
-            ["settings.cotypingInProcessRuntime", "settings.cotypingChromiumEnhancedAccessibility"]
+            ["settings.cotypingInProcessRuntime", "settings.cotypingChromiumEnhancedAccessibility",
+             "settings.cotypingPauseInLowPowerMode"]
         case .dictationProfile:
             ["settings.dictationWritingProfile"]
         case .dictationRecent:

@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Chọn tệp flow.sqlite của Wispr Flow. LokalBot chỉ đọc từ điển của nó.";
 "Wispr Flow's dictionary has no new words to add." = "Từ điển Wispr Flow không có từ mới nào để thêm.";
 "Couldn't read Wispr Flow's dictionary." = "Không thể đọc từ điển Wispr Flow.";
+"Accept the rest" = "Chấp nhận phần còn lại";
+"` (Backtick)" = "` (Dấu huyền ngược)";
+"Double-tap accept key" = "Nhấn đúp phím chấp nhận";
+"Tab moves to next field" = "Tab chuyển sang ô tiếp theo";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Trong các ô một dòng ngoài ứng dụng trò chuyện và trình soạn thảo mã, Tab sẽ đóng gợi ý và chuyển sang ô tiếp theo thay vì chấp nhận.";
+"Pause in Low Power Mode" = "Tạm dừng ở Chế độ nguồn điện thấp";
+"Pause suggestions while Low Power Mode is on to save battery." = "Tạm dừng gợi ý khi bật Chế độ nguồn điện thấp để tiết kiệm pin.";

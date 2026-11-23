@@ -238,6 +238,52 @@ final class CotypingAcceptOptionsTests: XCTestCase {
         XCTAssertEqual(CotypingAcceptKey.tab.keyCode, 48)
         XCTAssertEqual(CotypingAcceptKey.rightArrow.keyCode, 124)
         XCTAssertEqual(CotypingFullAcceptKey.backtick.keyCode, 50)
+        XCTAssertNil(CotypingFullAcceptKey.doubleTap.keyCode)
         XCTAssertNil(CotypingFullAcceptKey.off.keyCode)
+        XCTAssertEqual(CotypingFullAcceptKey.doubleTap.pickerLabel, "Double-tap accept key")
+        XCTAssertEqual(
+            CotypingAcceptHint.text(acceptKey: .tab, fullAcceptKey: .doubleTap, granularity: .word),
+            "Tab accepts the next word · Double-tap Tab accepts the rest · Esc dismisses")
+    }
+
+    func testDoubleTapAcceptancePromotesWithinWindowOnce() {
+        var state = CotypingDoubleTapAcceptanceState()
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.0),
+            .chunk)
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.2),
+            .whole)
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.25),
+            .chunk, "promotion is single-use and resets after accepting all")
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "abc|def", now: 10.7),
+            .chunk, "presses past the 300 ms window stay chunk accepts")
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .doubleTap, suggestionKey: "other|def", now: 10.8),
+            .chunk, "changing suggestions never promotes")
+        XCTAssertEqual(
+            state.resolveScope(requested: .chunk, fullAcceptKey: .backtick, suggestionKey: "other|def", now: 10.85),
+            .chunk)
+    }
+
+    func testTabFormNavigationPolicyTargetsSingleLineNonChatNonEditorFields() {
+        XCTAssertTrue(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.google.Chrome"))
+        XCTAssertTrue(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXComboBox", bundleID: "com.apple.Safari"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: false, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.google.Chrome"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .rightArrow, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.google.Chrome"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .whole, fieldRole: "AXTextField", bundleID: "com.google.Chrome"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextArea", bundleID: "com.google.Chrome"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.tinyspeck.slackmacgap"))
+        XCTAssertFalse(CotypingTabFormNavigationPolicy.shouldPassTabToHost(
+            enabled: true, acceptKey: .tab, scope: .chunk, fieldRole: "AXTextField", bundleID: "com.microsoft.VSCode"))
     }
 }

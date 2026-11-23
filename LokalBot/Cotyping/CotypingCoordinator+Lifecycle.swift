@@ -42,6 +42,7 @@ extension CotypingCoordinator {
             focusTracker.start()
         }
         start()
+        lowPowerModeChanged()
     }
 
     func forgetLearnedText() async throws {
@@ -98,9 +99,15 @@ extension CotypingCoordinator {
         ) { [weak self] _ in
             MainActor.assumeIsolated { self?.refreshFocusSoon() }
         }
+        lowPowerObserver = NotificationCenter.default.addObserver(
+            forName: .NSProcessInfoPowerStateDidChange, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated { self?.lowPowerModeChanged() }
+        }
         observeReturnToTheMac()
         isRunning = true
         state = .idle
+        lowPowerModeChanged()
     }
 
     func refreshFocusSoon() {
@@ -127,11 +134,16 @@ extension CotypingCoordinator {
             NSWorkspace.shared.notificationCenter.removeObserver(workspaceObserver)
             self.workspaceObserver = nil
         }
+        if let lowPowerObserver {
+            NotificationCenter.default.removeObserver(lowPowerObserver)
+            self.lowPowerObserver = nil
+        }
         stopObservingReturnToTheMac()
         focusTracker.stop()
         inputMonitor.stop()
         isRunning = false
         escapePause = nil
+        doubleTapAcceptance.reset()
         resetMeasurementState()
         activeMemoryContext = .empty
         memoryLookup.reset()
@@ -148,6 +160,22 @@ extension CotypingCoordinator {
             clearSuggestion()
         }
         if let next = CotypingMeetingPause.transition(recordingActive: active, current: state) {
+            state = next
+        }
+        if !active {
+            lowPowerModeChanged()
+        }
+    }
+
+    func lowPowerModeChanged() {
+        guard isRunning else { return }
+        let paused = isPausedForLowPowerMode
+        if paused {
+            cancelPendingGenerationWork()
+            clearSuggestion()
+        }
+        if !isMeetingRecordingActive(),
+           let next = CotypingLowPowerPause.transition(lowPowerActive: paused, current: state) {
             state = next
         }
     }

@@ -11,3 +11,14 @@ enum CotypingMeetingPause {
         return current == .disabled(reason) ? .idle : nil
     }
 }
+
+enum CotypingLowPowerPause {
+    static let reason = "Paused in Low Power Mode."
+
+    static func transition(lowPowerActive: Bool, current: CotypingState) -> CotypingState? {
+        if lowPowerActive {
+            return current == .disabled(reason) ? nil : .disabled(reason)
+        }
+        return current == .disabled(reason) ? .idle : nil
+    }
+}

@@ -133,6 +133,64 @@ final class CotypingFieldStyleTests: XCTestCase {
             for: CGRect(x: 5000, y: 700, width: 2, height: 17), screenFrame: ultraWide, backingScale: 1))
     }
 
+    func testWordContradictoryAXFontNameFallsBackToVisibleOrFamilyName() {
+        XCTAssertEqual(
+            CotypingAXHelper.faceName(fromAXFontDictionary: [
+                "AXFontName": "TimesNewRomanPSMT",
+                "AXFontFamily": "Georgia",
+                "AXVisibleName": "Georgia Bold",
+            ]),
+            "Georgia Bold")
+        XCTAssertEqual(
+            CotypingAXHelper.faceName(fromAXFontDictionary: [
+                "AXFontName": "TimesNewRomanPSMT",
+                "AXFontFamily": "Georgia",
+            ]),
+            "Georgia")
+        XCTAssertEqual(
+            CotypingAXHelper.faceName(fromAXFontDictionary: [
+                "AXFontName": "Georgia-Bold",
+                "AXFontFamily": "Georgia",
+                "AXVisibleName": "Georgia Bold",
+            ]),
+            "Georgia-Bold")
+        XCTAssertEqual(
+            CotypingAXHelper.faceName(fromAXFontDictionary: [
+                "AXFontName": "HelveticaNeue",
+            ]),
+            "HelveticaNeue")
+    }
+
+    func testResolvedFontMatchesDisplayAndFamilyNames() {
+        XCTAssertNotNil(CotypingGhostFontSizing.resolvedFont(named: "Georgia Bold", size: 14))
+        XCTAssertNotNil(CotypingGhostFontSizing.resolvedFont(named: "Helvetica Neue", size: 14))
+        XCTAssertNil(CotypingGhostFontSizing.resolvedFont(named: "NonexistentFontFaceXYZ123", size: 14))
+    }
+
+    func testValidatedTextRangeRejectsNegativeAndOverflowingRanges() {
+        XCTAssertEqual(CotypingAXHelper.validatedTextRange(CFRange(location: 4, length: 12)), NSRange(location: 4, length: 12))
+        XCTAssertEqual(CotypingAXHelper.validatedTextRange(CFRange(location: 0, length: 0)), NSRange(location: 0, length: 0))
+        XCTAssertNil(CotypingAXHelper.validatedTextRange(CFRange(location: -1, length: 5)))
+        XCTAssertNil(CotypingAXHelper.validatedTextRange(CFRange(location: 5, length: -1)))
+        XCTAssertNil(CotypingAXHelper.validatedTextRange(CFRange(location: Int.max, length: 1)))
+    }
+
+    func testElectronEditorListAndSecureLatchKey() {
+        XCTAssertTrue(CotypingAXHelper.isElectronEditor(bundleID: "md.obsidian"))
+        XCTAssertTrue(CotypingAXHelper.isElectronEditor(bundleID: "com.anthropic.claudefordesktop"))
+        XCTAssertTrue(CotypingAXHelper.isElectronEditor(bundleID: "org.whispersystems.signal-desktop"))
+        XCTAssertFalse(CotypingAXHelper.isElectronEditor(bundleID: "com.apple.Notes"))
+
+        let keyA = CotypingAXHelper.secureLatchKey(
+            processID: 42, bundleID: "com.google.Chrome", axIdentifier: "pw-field", elementHash: 99)
+        let keyB = CotypingAXHelper.secureLatchKey(
+            processID: 42, bundleID: "com.google.Chrome", axIdentifier: "pw-field", elementHash: 99)
+        let keyOther = CotypingAXHelper.secureLatchKey(
+            processID: 42, bundleID: "com.google.Chrome", axIdentifier: "pw-field", elementHash: 100)
+        XCTAssertEqual(keyA, keyB)
+        XCTAssertNotEqual(keyA, keyOther)
+    }
+
     private func image(width: Int, height: Int, whiteFromX: Int) -> CGImage {
         let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: 0,
                             space: CGColorSpaceCreateDeviceRGB(),

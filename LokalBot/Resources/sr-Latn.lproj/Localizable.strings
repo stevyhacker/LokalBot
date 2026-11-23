@@ -2660,3 +2660,10 @@
 "Choose Wispr Flow's flow.sqlite. LokalBot reads only its dictionary." = "Izaberite flow.sqlite iz Wispr Flow-a. LokalBot čita samo njegov rečnik.";
 "Wispr Flow's dictionary has no new words to add." = "Rečnik Wispr Flow-a nema novih reči za dodavanje.";
 "Couldn't read Wispr Flow's dictionary." = "Nije moguće pročitati rečnik Wispr Flow-a.";
+"Accept the rest" = "Prihvati ostatak";
+"` (Backtick)" = "` (Obrnuti apostrof)";
+"Double-tap accept key" = "Dvostruki pritisak tastera za prihvatanje";
+"Tab moves to next field" = "Tab prelazi na sledeće polje";
+"In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "U jednorednim poljima van aplikacija za ćaskanje i editora koda, Tab odbacuje predlog i prelazi na sledeće polje umesto da ga prihvati.";
+"Pause in Low Power Mode" = "Pauziraj u režimu uštede energije";
+"Pause suggestions while Low Power Mode is on to save battery." = "Pauzira predloge dok je uključen režim uštede energije radi uštede baterije.";

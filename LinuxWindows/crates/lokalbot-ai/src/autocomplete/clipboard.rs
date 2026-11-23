@@ -17,8 +17,16 @@ pub const STALE_AFTER: Duration = Duration::from_secs(300);
 static ANSI_ESCAPE: LazyLock<Regex> =
     LazyLock::new(|| Regex::new("\u{1B}\\[[0-?]*[ -/]*[@-~]").expect("the ANSI pattern is valid"));
 
+fn drop_credential_lines(raw: &str) -> String {
+    raw.split(super::text::is_newline)
+        .filter(|line| crate::sanitize::redaction(line).1 == 0)
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 pub fn sanitize_text(raw: &str, max_characters: Option<usize>) -> String {
-    let without_ansi = ANSI_ESCAPE.replace_all(raw, " ");
+    let without_credentials = drop_credential_lines(raw);
+    let without_ansi = ANSI_ESCAPE.replace_all(&without_credentials, " ");
     let kept: String = without_ansi
         .chars()
         .map(|c| {
@@ -195,6 +203,19 @@ mod tests {
         assert_eq!(sanitize("  --- !!! ", None), None);
         assert_eq!(sanitize("x", Some(1200)).as_deref(), Some("x"));
         assert_eq!(sanitize_text("abcdef", Some(3)), "abc");
+    }
+
+    #[test]
+    fn credential_lines_are_dropped_before_sanitizing() {
+        assert_eq!(sanitize("sk-abcdefghijklmnop1234", None), None);
+        assert_eq!(sanitize("ghp_abcdefghijklmnopqrstuvwxyz", None), None);
+        assert_eq!(sanitize("AKIAABCDEFGHIJKLMNOP", None), None);
+        assert_eq!(sanitize("Authorization: Bearer abcdefgh12345", None), None);
+        assert_eq!(sanitize("DB_PASSWORD=hunter2222", None), None);
+        assert_eq!(
+            sanitize("release plan\nsk-abcdefghijklmnop1234\nship Friday", None).as_deref(),
+            Some("release plan\nship Friday")
+        );
     }
 
     #[test]

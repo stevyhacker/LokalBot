@@ -18,6 +18,7 @@ enum CotypingWindowText {
     static let maximumCharacters = 2_000
     static let maximumLineCharacters = 300
     static let fieldMargin: CGFloat = 4
+    static let composerChromeHeight: CGFloat = 56
     static let columnSlack: CGFloat = 24
     static let maximumHeldAge: TimeInterval = 60
     static let minimumAddedCharacters = 12
@@ -68,6 +69,7 @@ enum CotypingWindowText {
         var rest: [CotypingVisibleContext.Excerpt] = []
         for (index, line) in lines.enumerated() {
             guard valid(line.frame), line.frame.intersects(windowFrame), !line.frame.intersects(field),
+                  !isComposerChrome(line.frame, fieldFrame: fieldFrame, column: column),
                   let text = cleaned(line.text) else { continue }
             let excerpt = CotypingVisibleContext.Excerpt(id: "line-\(index)", frame: line.frame, text: text)
             if column.contains(line.frame.midX), line.frame.midY < fieldFrame.minY {
@@ -146,6 +148,14 @@ enum CotypingWindowText {
               let text = CotypingMemoryContext.sanitized(raw),
               text.contains(where: { $0.isLetter || $0.isNumber }) else { return nil }
         return String(text.prefix(maximumLineCharacters))
+    }
+
+    private static func isComposerChrome(
+        _ frame: CGRect, fieldFrame: CGRect, column: ClosedRange<CGFloat>
+    ) -> Bool {
+        column.contains(frame.midX)
+            && frame.minY >= fieldFrame.maxY
+            && frame.midY <= fieldFrame.maxY + composerChromeHeight
     }
 
     private static func nearestFirst(_ left: CotypingVisibleContext.Excerpt,
