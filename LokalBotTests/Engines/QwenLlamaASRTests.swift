@@ -167,4 +167,62 @@ final class QwenLlamaASRTests: XCTestCase {
         }
         await server.stop()
     }
+
+    func testServerTransitionDefersReplacementWhileTranscriptionUsesServer() {
+        XCTAssertEqual(
+            QwenASREngine.serverTransition(
+                hasServer: true,
+                loadedModelPath: "/models/legacy.gguf",
+                loadedProjectorPath: "/models/legacy-mmproj.gguf",
+                nextModelPath: "/models/v3.gguf",
+                nextProjectorPath: "/models/v3-mmproj.gguf",
+                activeServerUses: 1
+            ),
+            .deferReplacement
+        )
+        XCTAssertEqual(
+            QwenASREngine.serverTransition(
+                hasServer: true,
+                loadedModelPath: "/models/legacy.gguf",
+                loadedProjectorPath: "/models/shared-mmproj.gguf",
+                nextModelPath: "/models/v1.gguf",
+                nextProjectorPath: "/models/shared-mmproj.gguf",
+                activeServerUses: 1
+            ),
+            .deferReplacement
+        )
+        XCTAssertEqual(
+            QwenASREngine.serverTransition(
+                hasServer: true,
+                loadedModelPath: "/models/legacy.gguf",
+                loadedProjectorPath: "/models/legacy-mmproj.gguf",
+                nextModelPath: "/models/v3.gguf",
+                nextProjectorPath: "/models/v3-mmproj.gguf",
+                activeServerUses: 0
+            ),
+            .replaceNow
+        )
+        XCTAssertEqual(
+            QwenASREngine.serverTransition(
+                hasServer: true,
+                loadedModelPath: "/models/v3.gguf",
+                loadedProjectorPath: "/models/v3-mmproj.gguf",
+                nextModelPath: "/models/v3.gguf",
+                nextProjectorPath: "/models/v3-mmproj.gguf",
+                activeServerUses: 2
+            ),
+            .reuse
+        )
+        XCTAssertEqual(
+            QwenASREngine.serverTransition(
+                hasServer: false,
+                loadedModelPath: nil,
+                loadedProjectorPath: nil,
+                nextModelPath: "/models/v3.gguf",
+                nextProjectorPath: "/models/v3-mmproj.gguf",
+                activeServerUses: 1
+            ),
+            .reuse
+        )
+    }
 }

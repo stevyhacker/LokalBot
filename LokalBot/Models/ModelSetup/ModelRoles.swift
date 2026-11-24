@@ -140,7 +140,11 @@ final class ModelRoles: ObservableObject {
     private let onReadinessChanged: () -> Void
     private var downloadObserver: AnyCancellable?
     private var preparationTask: (
-        id: String, token: UUID, configuration: TranscriptionConfiguration, task: Task<String?, Never>
+        id: String,
+        token: UUID,
+        configuration: TranscriptionConfiguration,
+        upgradeLegacy: Bool,
+        task: Task<String?, Never>
     )?
     private var storageInfo: (date: Date, storedBytes: Int64, availableBytes: Int64?)?
     @Published private var diskState = ModelReadinessSnapshot.DiskState()
@@ -400,7 +404,7 @@ final class ModelRoles: ObservableObject {
             self.readinessDidChange()
             return failure
         }
-        preparationTask = (choice.id, token, key, task)
+        preparationTask = (choice.id, token, key, upgradeLegacy, task)
     }
 
     func ensureTranscriptionAvailable(
@@ -415,9 +419,17 @@ final class ModelRoles: ObservableObject {
            preparationErrors[key] == nil {
             return
         }
-        if let preparationTask, preparationTask.configuration != key {
-            throw ModelDownloadManager.PreparationError.failed(
-                "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
+        while let existing = preparationTask {
+            guard existing.configuration == key else {
+                throw ModelDownloadManager.PreparationError.failed(
+                    "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
+            }
+            if !upgradeLegacy || existing.upgradeLegacy {
+                break
+            }
+            _ = await existing.task.value
+            guard !existing.task.isCancelled else { throw CancellationError() }
+            try Task.checkCancellation()
         }
         prepareTranscriptionModel(choice, configuration: configuration, upgradeLegacy: upgradeLegacy)
         if let preparationTask {

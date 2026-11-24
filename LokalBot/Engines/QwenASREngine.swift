@@ -45,11 +45,35 @@ actor QwenASREngine: TranscriptionEngine {
         }
     }
 
+    enum ServerTransition: Equatable, Sendable {
+        case reuse
+        case replaceNow
+        case deferReplacement
+    }
+
+    nonisolated static func serverTransition(
+        hasServer: Bool,
+        loadedModelPath: String?,
+        loadedProjectorPath: String?,
+        nextModelPath: String,
+        nextProjectorPath: String,
+        activeServerUses: Int
+    ) -> ServerTransition {
+        guard hasServer,
+              loadedModelPath != nextModelPath || loadedProjectorPath != nextProjectorPath else {
+            return .reuse
+        }
+        return activeServerUses > 0 ? .deferReplacement : .replaceNow
+    }
+
     private let variant: Variant
     private var server: LlamaServer?
+    private var serverModelPath: String?
     private var serverProjectorPath: String?
+    private var pendingServerReset = false
     private let preparation = AsyncSingleFlight()
     private var activeUses = 0
+    private var activeServerUses = 0
     private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
 
     private init(variant: Variant) {
@@ -70,6 +94,12 @@ actor QwenASREngine: TranscriptionEngine {
             guard let self else { return }
             try await self.performPreparation(upgradingLegacyWeights: upgradingLegacyWeights, progress: progress)
         }
+        if upgradingLegacyWeights, !variant.weights.hasCurrentWeights(appSupport: AppDirectories.applicationSupport) {
+            try await preparation.run { [weak self] in
+                guard let self else { return }
+                try await self.performPreparation(upgradingLegacyWeights: true, progress: progress)
+            }
+        }
         await idle.bump()
         report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
     }
@@ -85,15 +115,31 @@ actor QwenASREngine: TranscriptionEngine {
             appSupport: AppDirectories.applicationSupport,
             upgradingLegacyWeights: upgradingLegacyWeights,
             progress: progress)
-        report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
-        if let existing = server, serverProjectorPath != paths.projector.path {
-            await existing.stop()
+        switch Self.serverTransition(
+            hasServer: server != nil,
+            loadedModelPath: serverModelPath,
+            loadedProjectorPath: serverProjectorPath,
+            nextModelPath: paths.model.path,
+            nextProjectorPath: paths.projector.path,
+            activeServerUses: activeServerUses
+        ) {
+        case .deferReplacement:
+            pendingServerReset = true
+            return
+        case .replaceNow:
+            await server?.stop()
             server = nil
+            serverModelPath = nil
             serverProjectorPath = nil
+        case .reuse:
+            break
         }
+        report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
         let server = self.server ?? variant.weights.makeServer(projector: paths.projector)
         self.server = server
+        self.serverModelPath = paths.model.path
         self.serverProjectorPath = paths.projector.path
+        pendingServerReset = false
         try await server.ensureRunning(modelAt: paths.model)
     }
 
@@ -123,6 +169,8 @@ actor QwenASREngine: TranscriptionEngine {
         defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
         try await prepare()
         guard let server = self.server else { throw EngineError.notLoaded }
+        activeServerUses += 1
+        defer { finishServerUse() }
 
         let started = Date()
         var spans = try await SpeechActivity.shared.spans(
@@ -228,15 +276,19 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     func shutdown() async {
+        pendingServerReset = false
         await server?.stop()
         server = nil
+        serverModelPath = nil
         serverProjectorPath = nil
     }
 
     private func unload() async {
-        guard activeUses == 0, !(await preparation.isRunning) else { return }
+        guard activeUses == 0, activeServerUses == 0, !(await preparation.isRunning) else { return }
+        pendingServerReset = false
         await server?.stop()
         server = nil
+        serverModelPath = nil
         serverProjectorPath = nil
     }
 
@@ -244,6 +296,24 @@ actor QwenASREngine: TranscriptionEngine {
         activeUses -= 1
         guard activeUses == 0 else { return }
         Task { await idle.bump() }
+    }
+
+    private func finishServerUse() {
+        activeServerUses -= 1
+        guard activeServerUses == 0, pendingServerReset else { return }
+        pendingServerReset = false
+        Task { await resetDeferredServer() }
+    }
+
+    private func resetDeferredServer() async {
+        guard activeServerUses == 0 else {
+            pendingServerReset = true
+            return
+        }
+        await server?.stop()
+        server = nil
+        serverModelPath = nil
+        serverProjectorPath = nil
     }
 
     private nonisolated func report(_ update: ModelPreparationUpdate,
