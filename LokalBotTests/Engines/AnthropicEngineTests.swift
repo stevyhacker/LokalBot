@@ -292,6 +292,29 @@ final class AnthropicEngineTests: XCTestCase {
         XCTAssertEqual((bodies[2]["output_config"] as? [String: Any])?["effort"] as? String, "low")
     }
 
+    func testAllReasoningReplyWithKeepsTruncatedReplyRetriesAtLowestEffort() async throws {
+        let recorder = Recorder()
+        let thinkingOnly = json(["content": [["type": "thinking", "thinking": "weighing", "signature": "s"]],
+                                 "stop_reason": "max_tokens",
+                                 "usage": ["input_tokens": 5, "output_tokens": 512]])
+        let reply = json(["content": [["type": "text", "text": "ok"]], "stop_reason": "end_turn",
+                          "usage": ["input_tokens": 5, "output_tokens": 2]])
+        let claude = engine(transport: { request in
+            if await recorder.record(request) == 1 {
+                return (thinkingOnly, Self.response(request, status: 200))
+            }
+            return (reply, Self.response(request, status: 200))
+        })
+
+        let text = try await claude.generate(
+            system: "S", prompt: "P", context: [],
+            options: .init(maxTokens: 512, keepsTruncatedReply: true))
+        XCTAssertEqual(text, "ok")
+        let bodies = await recorder.bodies
+        XCTAssertEqual(bodies.count, 2)
+        XCTAssertEqual((bodies[1]["output_config"] as? [String: Any])?["effort"] as? String, "low")
+    }
+
     func testOtherRejectionsAreReportedWithAnthropicsRequestID() async {
         let recorder = Recorder()
         let rejection = json(["type": "error", "error": [

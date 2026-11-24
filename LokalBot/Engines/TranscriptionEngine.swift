@@ -40,7 +40,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case parakeetUltra = "parakeet-ultra"
     case parakeetV3 = "parakeet-v3"
     case parakeetV2 = "parakeet-v2"
+    case qwenASR17BLokalBotV3 = "qwen3-asr-1.7b-lokalbot-v3"
     case qwenASR17B = "qwen3-asr-1.7b"
+    case qwenASR06BLokalBotV1 = "qwen3-asr-0.6b-lokalbot-v1"
     case qwenASR06B = "qwen3-asr-0.6b"
     case graniteSpeech = "granite-speech"
     case graniteSpeech5 = "granite-speech-5.0-2b"
@@ -52,7 +54,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case appleSpeech = "apple-speech"
     case remoteServer = "remote-server"
     var id: String { rawValue }
-    static let recommended: Self = .qwenASR17B
+    static let recommended: Self = .qwenASR17BLokalBotV3
 
     var isLegacy: Bool { self == .cohere }
 
@@ -65,7 +67,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .parakeetUltra: "Parakeet Ultra 0.6B (multilingual)"
         case .parakeetV3: "Parakeet TDT 0.6B v3 (multilingual)"
         case .parakeetV2: "Parakeet TDT 0.6B v2 (English)"
+        case .qwenASR17BLokalBotV3: "Qwen3-ASR 1.7B (LokalBot v3)"
         case .qwenASR17B: "Qwen3-ASR 1.7B"
+        case .qwenASR06BLokalBotV1: "Qwen3-ASR 0.6B (LokalBot v1)"
         case .qwenASR06B: "Qwen3-ASR 0.6B"
         case .graniteSpeech: "Granite Speech 4.1 2B"
         case .graniteSpeech5: "Granite Speech 5.0 2B"
@@ -97,7 +101,8 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
 
     var acceptsVocabularyPrompt: Bool {
         switch self {
-        case .whisperLarge, .qwenASR17B, .qwenASR06B, .graniteSpeech5, .appleSpeech, .remoteServer: true
+        case .whisperLarge, .qwenASR17BLokalBotV3, .qwenASR17B, .qwenASR06BLokalBotV1, .qwenASR06B,
+             .graniteSpeech5, .appleSpeech, .remoteServer: true
         default: false
         }
     }
@@ -113,8 +118,10 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .parakeetUltra: "0.63 GB · 25 European languages, fast multilingual transcription"
         case .parakeetV3: "0.6 GB · 25 European languages, ~190× realtime"
         case .parakeetV2: "0.46 GB · English only, slightly higher recall"
-        case .qwenASR17B: "2.52 GB · llama.cpp, 52 languages/dialects, best Qwen accuracy tier"
-        case .qwenASR06B: "1.02 GB · llama.cpp, 52 languages/dialects, compact global tier"
+        case .qwenASR17BLokalBotV3: "2.52 GB · llama.cpp, 52 languages/dialects, default LokalBot fine-tune"
+        case .qwenASR17B: "2.52 GB · llama.cpp, 52 languages/dialects, stock Qwen baseline"
+        case .qwenASR06BLokalBotV1: "1.02 GB · llama.cpp, 52 languages/dialects, compact LokalBot fine-tune"
+        case .qwenASR06B: "1.02 GB · llama.cpp, 52 languages/dialects, stock compact Qwen baseline"
         case .graniteSpeech: "2B parameters · Apache-2.0, local speech recognition"
         case .graniteSpeech5: "3.12 GB · English, French, German, Spanish, Portuguese, Japanese · vocabulary prompts and punctuation"
         case .whisperLarge: "1.6 GB · 99 languages, word timestamps, wide-language legacy fallback"
@@ -132,7 +139,9 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .parakeetUltra: ParakeetEngine.ultra
         case .parakeetV3: ParakeetEngine.v3
         case .parakeetV2: ParakeetEngine.v2
+        case .qwenASR17BLokalBotV3: QwenASREngine.accuracyLokalBotV3
         case .qwenASR17B: QwenASREngine.accuracy
+        case .qwenASR06BLokalBotV1: QwenASREngine.compactLokalBotV1
         case .qwenASR06B: QwenASREngine.compact
         case .graniteSpeech: GraniteSpeechEngine.shared
         case .graniteSpeech5: GraniteSpeechEngine.configured(.speech5)

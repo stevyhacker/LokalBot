@@ -41,7 +41,7 @@ final class GraniteSpeechModelConfigurationTests: XCTestCase {
         XCTAssertEqual(decoded.transcriptionEngine().displayName, "Granite Speech 5.0 2B · Q8_0")
         XCTAssertEqual(decoded.transcriptionEngine(for: .graniteSpeech).displayName,
                        "Granite Speech 4.1 2B · Q8_0")
-        XCTAssertEqual(TranscriptionModelChoice.recommended, .qwenASR17B)
+        XCTAssertEqual(TranscriptionModelChoice.recommended, .qwenASR17BLokalBotV3)
         XCTAssertTrue(TranscriptionModelChoice.graniteSpeech5.acceptsVocabularyPrompt)
         XCTAssertFalse(TranscriptionModelChoice.graniteSpeech.acceptsVocabularyPrompt)
     }

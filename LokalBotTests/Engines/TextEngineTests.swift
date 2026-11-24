@@ -228,6 +228,15 @@ final class TextEngineTests: XCTestCase {
         XCTAssertEqual(MeetingRadar.answerOptions.reasoning, .modelDefault)
     }
 
+    func testAllReasoningRetryAppliesWhenKeepingTruncatedReplies() {
+        let engine = OpenAICompatibleEngine(
+            baseURL: URL(string: "https://openrouter.ai/api/v1")!,
+            model: "qwen/qwen3.8-flash",
+            chatDialect: .openRouter)
+        XCTAssertTrue(engine.canRetryWithoutReasoning(.init(maxTokens: 1_024, keepsTruncatedReply: true)))
+        XCTAssertFalse(engine.canRetryWithoutReasoning(.init(maxTokens: 1_024, reasoning: .off, keepsTruncatedReply: true)))
+    }
+
     func testAnOffTaskDisablesThinkingForOneRequest() {
         var body: [String: Any] = [:]
 

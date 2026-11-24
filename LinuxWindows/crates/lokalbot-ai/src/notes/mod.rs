@@ -544,6 +544,7 @@ fn request(
     stage: &str,
     context_tokens: u32,
     truncation_retry: bool,
+    reasoning: TaskReasoning,
 ) -> Result<(String, bool)> {
     let joined = std::iter::once(system.to_string())
         .chain(context.iter().cloned())
@@ -559,7 +560,7 @@ fn request(
         .max_tokens(tokens)
         .temperature(0.0)
         .json_schema(schema.clone());
-    if truncation_retry {
+    if truncation_retry || reasoning == TaskReasoning::Off {
         request = request.reasoning(TaskReasoning::Off);
     }
     let mut thinking = think.reasoning_allowance(&request);
@@ -630,6 +631,7 @@ fn request(
             &format!("expanded-{stage}"),
             context_tokens,
             true,
+            TaskReasoning::Off,
         ) {
             Ok((text, true))
                 if record_count(&completion.text) >= record_count(&text)
@@ -1145,6 +1147,7 @@ fn generate_part(
             &stage,
             job.context_tokens,
             false,
+            TaskReasoning::ModelDefault,
         )?;
         let mut validated = job.evidence.validate(
             &raw,
@@ -1302,6 +1305,7 @@ fn generate_part(
                 &stage,
                 job.context_tokens,
                 false,
+                TaskReasoning::Off,
             )?;
             let fixed =
                 job.evidence

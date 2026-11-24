@@ -132,12 +132,19 @@ final class ModelCatalogTests: XCTestCase {
     }
 
     func testQwenASRModelsAreRunnableChoices() {
+        XCTAssertTrue(TranscriptionModelChoice.allCases.contains(.qwenASR17BLokalBotV3))
         XCTAssertTrue(TranscriptionModelChoice.allCases.contains(.qwenASR17B))
+        XCTAssertTrue(TranscriptionModelChoice.allCases.contains(.qwenASR06BLokalBotV1))
         XCTAssertTrue(TranscriptionModelChoice.allCases.contains(.qwenASR06B))
-        XCTAssertEqual(TranscriptionModelChoice.recommended, .qwenASR17B)
-        XCTAssertEqual(AppSettings().transcriptionModel, .qwenASR17B)
-        XCTAssertEqual(ModelStackPreset.recommended.transcription, .qwenASR17B)
-        XCTAssertEqual(ModelStackPreset.recommended.patch.transcription, .qwenASR17B)
+        XCTAssertEqual(TranscriptionModelChoice.recommended, .qwenASR17BLokalBotV3)
+        XCTAssertEqual(AppSettings().transcriptionModel, .qwenASR17BLokalBotV3)
+        XCTAssertEqual(ModelStackPreset.recommended.transcription, .qwenASR17BLokalBotV3)
+        XCTAssertEqual(ModelStackPreset.recommended.patch.transcription, .qwenASR17BLokalBotV3)
+        XCTAssertEqual(ModelStackPreset.lightweight.transcription, .qwenASR06BLokalBotV1)
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR17BLokalBotV3.displayName, "Qwen3-ASR 1.7B (LokalBot v3)")
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR17B.displayName, "Qwen3-ASR 1.7B")
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR06BLokalBotV1.displayName, "Qwen3-ASR 0.6B (LokalBot v1)")
+        XCTAssertEqual(TranscriptionModelChoice.qwenASR06B.displayName, "Qwen3-ASR 0.6B")
     }
 
     func testParakeetUltraIsSelectableAndPersistsWithoutReplacingExistingChoices() throws {
@@ -163,9 +170,9 @@ final class ModelCatalogTests: XCTestCase {
 
     func testPresetModelSummaryNamesEveryRoleModel() {
         XCTAssertEqual(ModelStackPreset.recommended.modelSummary,
-                       "Transcribe: Qwen3-ASR 1.7B, Think: Qwen3.5 4B (LokalBot v4), Autocomplete: Gemma 4 E2B (LokalBot v4)")
+                       "Transcribe: Qwen3-ASR 1.7B (LokalBot v3), Think: Qwen3.5 4B (LokalBot v4), Autocomplete: Gemma 4 E2B (LokalBot v4)")
         XCTAssertEqual(ModelStackPreset.lightweight.modelSummary,
-                       "Transcribe: Qwen3-ASR 0.6B, Think: Qwen3.5 0.8B, Autocomplete: LFM2.5 1.2B Instruct")
+                       "Transcribe: Qwen3-ASR 0.6B (LokalBot v1), Think: Qwen3.5 0.8B, Autocomplete: LFM2.5 1.2B Instruct")
     }
 
     func testGraniteSpeechModelIsRunnableChoice() {

@@ -61,26 +61,21 @@ struct TranscriptionModelStore {
         "TextDecoder.mlmodelc"
     ]
 
-    static func legacyQwenASRChoices(environment: Environment = .live) -> Set<TranscriptionModelChoice> {
-        var legacy: Set<TranscriptionModelChoice> = []
-        if QwenLlamaASR.accuracy.hasLegacyGGUFWeights(appSupport: environment.appSupport) {
-            legacy.insert(.qwenASR17B)
+    static func qwenWeights(for choice: TranscriptionModelChoice) -> QwenLlamaASR.Weights? {
+        switch choice {
+        case .qwenASR17BLokalBotV3: QwenLlamaASR.accuracyLokalBotV3
+        case .qwenASR17B: QwenLlamaASR.accuracy
+        case .qwenASR06BLokalBotV1: QwenLlamaASR.compactLokalBotV1
+        case .qwenASR06B: QwenLlamaASR.compact
+        default: nil
         }
-        if QwenLlamaASR.compact.hasLegacyGGUFWeights(appSupport: environment.appSupport) {
-            legacy.insert(.qwenASR06B)
-        }
-        return legacy
     }
 
-    static func legacyQwenASRMissingBytes(
+    static func qwenASRMissingBytes(
         _ choice: TranscriptionModelChoice,
         environment: Environment = .live
     ) -> Int64 {
-        switch choice {
-        case .qwenASR17B: QwenLlamaASR.accuracy.missingCurrentBytes(appSupport: environment.appSupport)
-        case .qwenASR06B: QwenLlamaASR.compact.missingCurrentBytes(appSupport: environment.appSupport)
-        default: 0
-        }
+        qwenWeights(for: choice)?.missingBytes(appSupport: environment.appSupport) ?? 0
     }
 
     static func downloadedChoices(
@@ -120,10 +115,8 @@ struct TranscriptionModelStore {
             return AsrModels.modelsExist(
                 at: parakeetDirectory(.parakeetV2, environment: environment),
                 version: .v2)
-        case .qwenASR17B:
-            return QwenLlamaASR.accuracy.isDownloaded(appSupport: environment.appSupport)
-        case .qwenASR06B:
-            return QwenLlamaASR.compact.isDownloaded(appSupport: environment.appSupport)
+        case .qwenASR17BLokalBotV3, .qwenASR17B, .qwenASR06BLokalBotV1, .qwenASR06B:
+            return qwenWeights(for: choice)?.isDownloaded(appSupport: environment.appSupport) ?? false
         case .graniteSpeech, .graniteSpeech5:
             let graniteConfiguration = choice == .graniteSpeech5
                 ? GraniteSpeechModelConfiguration.speech5 : graniteConfiguration
@@ -159,6 +152,10 @@ struct TranscriptionModelStore {
     static func delete(_ choice: TranscriptionModelChoice,
                        environment: Environment = .live,
                        graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel) throws {
+        if let weights = qwenWeights(for: choice) {
+            try weights.removeFiles(appSupport: environment.appSupport)
+            return
+        }
         let fileManager = FileManager.default
         for directory in cacheDirectories(
             for: choice,
@@ -180,12 +177,8 @@ struct TranscriptionModelStore {
             [parakeetDirectory(.parakeetV3, environment: environment)]
         case .parakeetV2:
             [parakeetDirectory(.parakeetV2, environment: environment)]
-        case .qwenASR17B:
-            [QwenLlamaASR.accuracy.modelRoot(appSupport: environment.appSupport),
-             QwenLlamaASR.accuracy.legacyMLXDirectory(appSupport: environment.appSupport)]
-        case .qwenASR06B:
-            [QwenLlamaASR.compact.modelRoot(appSupport: environment.appSupport),
-             QwenLlamaASR.compact.legacyMLXDirectory(appSupport: environment.appSupport)]
+        case .qwenASR17BLokalBotV3, .qwenASR17B, .qwenASR06BLokalBotV1, .qwenASR06B:
+            []
         case .graniteSpeech:
             [GraniteSpeechEngine.modelRoot(
                 configuration: graniteConfiguration,

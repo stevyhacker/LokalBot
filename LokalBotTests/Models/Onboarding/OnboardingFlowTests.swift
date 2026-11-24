@@ -215,7 +215,7 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(before.models.map(\.role), [.transcribe, .think, .autocomplete])
         XCTAssertEqual(before.selected, [.transcribe, .think])
         XCTAssertEqual(before.models.map(\.name),
-                       ["Qwen3-ASR 1.7B", "Qwen3.5 4B (LokalBot v4)", "Gemma 4 E2B (LokalBot v4)"])
+                       ["Qwen3-ASR 1.7B (LokalBot v3)", "Qwen3.5 4B (LokalBot v4)", "Gemma 4 E2B (LokalBot v4)"])
         XCTAssertTrue(before.models.allSatisfy { ($0.bytes ?? 0) > 0 && $0.downloads })
         XCTAssertEqual(before.remainingBytes, bytes(.transcribe, in: before) + bytes(.think, in: before))
         XCTAssertFalse(before.allReady)

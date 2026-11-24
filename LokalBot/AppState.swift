@@ -910,8 +910,7 @@ final class AppState: ObservableObject {
                 _ = try await ModelDownloadManager.shared.ensureAvailable(entry, storage: self.storage)
             }
             if let transcription = patch.transcriptionToPrepare {
-                try await self.modelRoles.ensureTranscriptionAvailable(
-                    transcription, configuration: target, upgradeLegacy: patch.upgradeTranscriptionWeights)
+                try await self.modelRoles.ensureTranscriptionAvailable(transcription, configuration: target)
             }
             if patch.backend == .appleIntelligence {
                 let availability = FoundationModelAvailability.current()

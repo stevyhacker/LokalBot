@@ -434,7 +434,7 @@ struct AnthropicEngine: TextEngine {
             if let usage = reply.usage { logCache(usage) }
             if reply.truncated {
                 let visible = OpenAICompatibleEngine.visibleText(ofTruncatedReply: strippingReasoning(reply.text))
-                if visible.isEmpty, options?.reasoning != .off, options?.keepsTruncatedReply != true,
+                if visible.isEmpty, options?.reasoning != .off,
                    reasoningAllowance(for: options) > 0 {
                     throw ReasoningExhaustedReply()
                 }
@@ -477,7 +477,7 @@ struct AnthropicEngine: TextEngine {
         do {
             return try await stream(request, onPartial: onPartial)
         } catch is ReasoningExhaustedReply {
-            guard !retriedReasoning, options.reasoning != .off, !options.keepsTruncatedReply,
+            guard !retriedReasoning, options.reasoning != .off,
                   reasoningAllowance(for: options) > 0 else { throw TextEngineError.outputTruncated }
             lokalbotLog("anthropic reasoning used the whole streamed output; retrying at the lowest effort model=\(model)")
             return try await streamMessage(system: system, prompt: prompt, context: context,
