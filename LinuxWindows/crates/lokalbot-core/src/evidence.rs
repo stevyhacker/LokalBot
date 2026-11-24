@@ -321,13 +321,25 @@ pub fn journal_is_generated(journal: &Path) -> bool {
 type Observer = Box<dyn Fn(&Path, &[DateTime<Utc>]) + Send + Sync>;
 
 static OBSERVERS: parking_lot::RwLock<Vec<Observer>> = parking_lot::RwLock::new(Vec::new());
+static WORKFLOW_OBSERVERS: parking_lot::RwLock<Vec<Observer>> =
+    parking_lot::RwLock::new(Vec::new());
 
 pub fn observe(observer: impl Fn(&Path, &[DateTime<Utc>]) + Send + Sync + 'static) {
     OBSERVERS.write().push(Box::new(observer));
 }
 
+pub fn observe_workflow(observer: impl Fn(&Path, &[DateTime<Utc>]) + Send + Sync + 'static) {
+    WORKFLOW_OBSERVERS.write().push(Box::new(observer));
+}
+
 fn notify(root: &Path, dates: &[DateTime<Utc>]) {
     for observer in OBSERVERS.read().iter() {
+        observer(root, dates);
+    }
+}
+
+pub fn notify_workflow(root: &Path, dates: &[DateTime<Utc>]) {
+    for observer in WORKFLOW_OBSERVERS.read().iter() {
         observer(root, dates);
     }
 }

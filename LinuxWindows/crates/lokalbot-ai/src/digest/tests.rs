@@ -763,3 +763,79 @@ fn russian_post_model_session_copy_remains_localized_after_presentation_parsing(
         }
     }
 }
+
+#[test]
+fn completing_an_action_keeps_digest_signature_and_watermark() {
+    let dir = tempfile::tempdir().unwrap();
+    let library = Library::open(lokalbot_core::LibraryPaths::new(dir.path())).unwrap();
+    let started = local(10, 0);
+    let mut meeting = library.create_meeting("Plan", "Zoom", started).unwrap();
+    meeting.ended_at = Some(local(10, 30));
+    library.save_meeting(&meeting).unwrap();
+    let action = lokalbot_core::model::ActionItem::new(
+        "Send the revised proposal",
+        Some("Me"),
+        None,
+        None,
+        3,
+        Vec::new(),
+        None,
+    );
+    library
+        .save_outcomes(
+            &meeting,
+            &lokalbot_core::model::MeetingOutcomes {
+                action_items: vec![action.clone()],
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let before = DayEvidence::load(&library, day()).unwrap();
+    let before_latest = library.latest_evidence_at(day()).unwrap();
+
+    library
+        .set_action_status(
+            &meeting,
+            &action.id,
+            lokalbot_core::model::ActionStatus::Done,
+        )
+        .unwrap();
+    library
+        .set_thread_excluded(&meeting, &action.id, true)
+        .unwrap();
+    let after_workflow = DayEvidence::load(&library, day()).unwrap();
+    assert_eq!(
+        after_workflow.content_signature(),
+        before.content_signature()
+    );
+    assert_eq!(
+        after_workflow.meeting_signature(),
+        before.meeting_signature()
+    );
+    assert_eq!(
+        after_workflow.meetings[0].artifact_modified_at,
+        before.meetings[0].artifact_modified_at
+    );
+    assert_eq!(library.latest_evidence_at(day()).unwrap(), before_latest);
+
+    library
+        .correct_action(
+            &meeting,
+            &action.id,
+            lokalbot_core::ActionCorrection {
+                text: Some("Send Acme the proposal".into()),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    let after_correction = DayEvidence::load(&library, day()).unwrap();
+    assert_ne!(
+        after_correction.content_signature(),
+        before.content_signature()
+    );
+    assert_ne!(
+        after_correction.meeting_signature(),
+        before.meeting_signature()
+    );
+    assert!(after_correction.meetings[0].artifact_modified_at.is_some());
+}

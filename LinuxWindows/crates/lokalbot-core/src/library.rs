@@ -556,6 +556,36 @@ impl Library {
         })
     }
 
+    pub fn save_outcome_state_workflow(
+        &self,
+        meeting: &Meeting,
+        state: &OutcomeState,
+    ) -> Result<()> {
+        write_json(&self.meeting_dir(meeting).join(OUTCOME_STATE_FILE), state)?;
+        crate::evidence::notify_workflow(self.paths().root(), &[meeting.started_at]);
+        Ok(())
+    }
+
+    pub fn latest_outcome_correction_at(&self, meeting: &Meeting) -> Option<DateTime<Utc>> {
+        let dir = self.meeting_dir(meeting);
+        if !dir.join(OUTCOMES_FILE).is_file() || !dir.join(OUTCOME_STATE_FILE).is_file() {
+            return None;
+        }
+        let state = self.outcome_state(meeting).ok()?;
+        state
+            .actions
+            .values()
+            .flat_map(|action| {
+                [
+                    action.text_corrected_at,
+                    action.owner_corrected_at,
+                    action.due_corrected_at,
+                ]
+            })
+            .flatten()
+            .max()
+    }
+
     pub fn follow_up_draft(&self, meeting: &Meeting) -> Result<Option<FollowUpDraft>> {
         read_json(&self.meeting_dir(meeting).join(FOLLOW_UP_FILE))
     }
@@ -565,7 +595,9 @@ impl Library {
         draft.updated_at = crate::time::now_millis();
         draft.seeded = false;
         draft.source_meeting_id = Some(meeting.id);
-        write_json(&self.meeting_dir(meeting).join(FOLLOW_UP_FILE), &draft)
+        write_json(&self.meeting_dir(meeting).join(FOLLOW_UP_FILE), &draft)?;
+        crate::evidence::notify_workflow(self.paths().root(), &[meeting.started_at]);
+        Ok(())
     }
 
     pub fn set_action_status(
@@ -582,7 +614,7 @@ impl Library {
         entry.status = status;
         entry.updated_at = Utc::now();
         entry.user_edited = true;
-        self.save_outcome_state(meeting, &state)
+        self.save_outcome_state_workflow(meeting, &state)
     }
 
     pub fn journal_path(&self, day: chrono::NaiveDate) -> PathBuf {
@@ -1115,17 +1147,44 @@ mod tests {
     }
 
     #[test]
-    fn transcript_and_outcome_writes_withdraw_memory() {
+    fn transcript_and_correction_writes_withdraw_memory_but_workflow_edits_do_not() {
         let dir = tempfile::tempdir().unwrap();
-        let library = Library::open(LibraryPaths::new(dir.path())).unwrap();
-        let meeting = library
-            .create_meeting("Design review", "Zoom", crate::time::now_seconds())
+        let root = dir.path().to_path_buf();
+        let library = Library::open(LibraryPaths::new(&root)).unwrap();
+        let started = crate::time::now_seconds();
+        let mut meeting = library
+            .create_meeting("Design review", "Zoom", started)
             .unwrap();
+        meeting.ended_at = Some(started + chrono::Duration::minutes(30));
+        library.save_meeting(&meeting).unwrap();
         library
             .save_transcript(&meeting, &Transcript::default())
             .unwrap();
+        let action = ActionItem::new("Ship the fix", Some("Me"), None, None, 3, Vec::new(), None);
+        let outcomes = MeetingOutcomes {
+            action_items: vec![action.clone()],
+            ..Default::default()
+        };
+        library.save_outcomes(&meeting, &outcomes).unwrap();
+        let day = crate::time::local_day(meeting.started_at);
+        let evidence_before = library.latest_evidence_at(day).unwrap();
+        let workflow_hits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let hits = workflow_hits.clone();
+        let watched = root.clone();
+        crate::evidence::observe_workflow(move |changed_root, _| {
+            if changed_root == watched {
+                hits.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            }
+        });
+
         library
-            .set_action_status(&meeting, "a1", ActionStatus::Done)
+            .set_action_status(&meeting, &action.id, ActionStatus::Done)
+            .unwrap();
+        library
+            .set_thread_excluded(&meeting, &action.id, true)
+            .unwrap();
+        library
+            .save_follow_up_draft(&meeting, &FollowUpDraft::seeded(&meeting, &outcomes))
             .unwrap();
         let state = crate::evidence::read_state(dir.path()).unwrap();
         assert_eq!(state.revision, 2);
@@ -1133,6 +1192,26 @@ mod tests {
             state.invalidated_meetings.unwrap()[&ids::uuid_upper(&meeting.id)],
             2
         );
+        assert_eq!(library.latest_evidence_at(day).unwrap(), evidence_before);
+        assert_eq!(workflow_hits.load(std::sync::atomic::Ordering::SeqCst), 3);
+
+        library
+            .correct_action(
+                &meeting,
+                &action.id,
+                crate::ActionCorrection {
+                    text: Some("Ship the verified fix".into()),
+                    ..Default::default()
+                },
+            )
+            .unwrap();
+        let state = crate::evidence::read_state(dir.path()).unwrap();
+        assert_eq!(state.revision, 3);
+        assert_eq!(
+            state.invalidated_meetings.unwrap()[&ids::uuid_upper(&meeting.id)],
+            3
+        );
+        assert!(library.latest_outcome_correction_at(&meeting).is_some());
     }
 
     #[test]

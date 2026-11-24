@@ -12,7 +12,7 @@ use uuid::Uuid;
 use lokalbot_core::coding_agents::{
     self, CodingAgentAction, CodingAgentBurst, PullRequestReference, pull_request_label,
 };
-use lokalbot_core::model::{ActionStatus, DigestCoverage, DigestMeta, DigestQuality, Meeting};
+use lokalbot_core::model::{DigestCoverage, DigestMeta, DigestQuality, Meeting};
 use lokalbot_core::{Library, Settings};
 
 use crate::error::AiError;
@@ -1197,20 +1197,12 @@ fn render_meeting_outcomes(library: &Library, meeting: &Meeting) -> String {
             if let Some(due) = action.due.as_deref().filter(|d| !d.is_empty()) {
                 details.push(format!("due: {due}"));
             }
-            if action.status == ActionStatus::Deferred {
-                details.push("status: deferred".into());
-            }
-            let marker = if action.status == ActionStatus::Done {
-                "x"
-            } else {
-                " "
-            };
             let suffix = if details.is_empty() {
                 String::new()
             } else {
                 format!(" ({})", details.join(", "))
             };
-            lines.push(format!("- [{marker}] {}{suffix}", action.text));
+            lines.push(format!("- [ ] {}{suffix}", action.text));
         }
     }
     if let Ok(Some(outcomes)) = library.outcomes(meeting) {
@@ -1233,12 +1225,11 @@ fn render_meeting_outcomes(library: &Library, meeting: &Meeting) -> String {
 
 fn artifact_modified_at(library: &Library, meeting: &Meeting) -> Option<DateTime<Utc>> {
     let dir = library.meeting_dir(meeting);
-    let has_outcomes = dir.join("outcomes.json").is_file();
-    ["summary.md", "outcomes.json", "outcome-state.json"]
+    ["summary.md", "outcomes.json"]
         .iter()
-        .filter(|name| **name != "outcome-state.json" || has_outcomes)
         .filter_map(|name| std::fs::metadata(dir.join(name)).ok()?.modified().ok())
         .map(DateTime::<Utc>::from)
+        .chain(library.latest_outcome_correction_at(meeting))
         .max()
 }
 

@@ -84,27 +84,41 @@ final class ActionThreadRevisionTests: XCTestCase {
         XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.text, "Corrected action")
     }
 
-    func testRejectedEvidenceMutationLeavesStatusAndFollowUpIntact() throws {
+    func testStatusThreadExclusionAndFollowUpBypassEvidenceMutation() throws {
         let (storage, meetings, action) = try fixture()
         let meeting = meetings[0]
-        let folder = meeting.folderURL(in: storage)
         var wrapperCalls = 0
-        let index = OutcomeIndex(storage: storage, mutateEvidence: { affected, _ in
-            XCTAssertEqual(affected.map(\.id), [meeting.id])
-            wrapperCalls += 1
-            throw CocoaError(.fileWriteNoPermission)
-        })
+        var evidenceNotifications = 0
+        var workflowNotifications: [[Meeting.ID]] = []
+        let index = OutcomeIndex(
+            storage: storage,
+            mutateEvidence: { affected, _ in
+                XCTAssertEqual(affected.map(\.id), [meeting.id])
+                wrapperCalls += 1
+                throw CocoaError(.fileWriteNoPermission)
+            },
+            onEvidenceChanged: { _ in evidenceNotifications += 1 },
+            onWorkflowStateChanged: { workflowNotifications.append($0.map(\.id)) })
         index.refresh(meetings: meetings)
         let originalFollowUp = try XCTUnwrap(index.projection(for: meeting.id)?.followUp)
 
-        XCTAssertFalse(index.setStatus(.done, actionID: action.id, meetingID: meeting.id))
-        XCTAssertFalse(index.saveFollowUp(originalFollowUp, meetingID: meeting.id))
+        XCTAssertTrue(index.setStatus(.done, actionID: action.id, meetingID: meeting.id))
+        XCTAssertTrue(index.setThreadExcluded(true, actionID: action.id, meetingID: meeting.id))
+        XCTAssertTrue(index.saveFollowUp(originalFollowUp, meetingID: meeting.id))
+        XCTAssertEqual(wrapperCalls, 0)
+        XCTAssertEqual(evidenceNotifications, 0)
+        XCTAssertEqual(workflowNotifications, [[meeting.id], [meeting.id], [meeting.id]])
+        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .done)
+        XCTAssertNil(index.lastError)
 
-        XCTAssertEqual(wrapperCalls, 2)
-        XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .open)
-        XCTAssertNil(MeetingOutcomeStore.loadState(from: folder).actions[action.id])
-        XCTAssertNil(MeetingOutcomeStore.loadFollowUp(from: folder))
-        XCTAssertEqual(index.projection(for: meeting.id)?.followUp, originalFollowUp)
+        XCTAssertFalse(index.correctAction(
+            actionID: action.id,
+            meetingID: meeting.id,
+            text: "Corrected action",
+            owner: "Alice",
+            due: nil))
+        XCTAssertEqual(wrapperCalls, 1)
+        XCTAssertEqual(evidenceNotifications, 0)
         XCTAssertNotNil(index.lastError)
     }
 
@@ -282,21 +296,25 @@ final class ActionThreadRevisionTests: XCTestCase {
         XCTAssertLessThan(Date().timeIntervalSince(start), 2, "Action edits must not scan and normalize every pair")
     }
 
-    func testThreadCompletionWritesEachSourceOverlayAndInvalidatesEvidenceOnce() throws {
+    func testThreadCompletionWritesEachSourceOverlayAndNotifiesWorkflowOnce() throws {
         let (storage, meetings, action) = try fixture()
-        var notifications: [[Meeting.ID]] = []
+        var evidenceNotifications: [[Meeting.ID]] = []
+        var workflowNotifications: [[Meeting.ID]] = []
         let index = OutcomeIndex(
             storage: storage,
-            onEvidenceChanged: { notifications.append($0.map(\.id)) })
+            onEvidenceChanged: { evidenceNotifications.append($0.map(\.id)) },
+            onWorkflowStateChanged: { workflowNotifications.append($0.map(\.id)) })
         index.refresh(meetings: meetings)
         XCTAssertTrue(index.setStatus(.deferred, actionID: action.id, meetingID: meetings[0].id))
-        notifications = []
+        evidenceNotifications = []
+        workflowNotifications = []
         let sources = try meetings.map {
             try Data(contentsOf: $0.folderURL(in: storage).appendingPathComponent(MeetingOutcomes.fileName))
         }
         XCTAssertTrue(index.setStatus(.done, thread: try XCTUnwrap(index.userActionThreads.first)))
-        XCTAssertEqual(notifications.count, 1)
-        XCTAssertEqual(Set(notifications[0]), Set(meetings.map(\.id)))
+        XCTAssertTrue(evidenceNotifications.isEmpty)
+        XCTAssertEqual(workflowNotifications.count, 1)
+        XCTAssertEqual(Set(workflowNotifications[0]), Set(meetings.map(\.id)))
         XCTAssertNil(index.lastError)
         for meeting in meetings {
             XCTAssertEqual(index.projection(for: meeting.id)?.actionReferences.first?.status, .done)

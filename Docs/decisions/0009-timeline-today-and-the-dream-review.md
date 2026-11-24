@@ -97,6 +97,12 @@ All source changes go through `primaryEvidenceDidChange`, so exports, routines a
 
 Where: `LokalBot/AppState.swift` (`AppState.primaryEvidenceDidChange`), `LinuxWindows/crates/lokalbot-engine/src/lib.rs` (`Shared::evidence_changed`).
 
+### Action workflow edits keep past digests and overnight reviews intact
+
+Marking an action item done or deferred, separating it from a thread, or editing a follow-up draft changes the user's current task workflow rather than the historical record of what happened in the meeting. Those writes bypass primary-evidence revocation and notify workflow observers (meeting-note exports, memory routines, autocomplete memory context, and companion sync) without deleting Dream reports or reopening past day digests. Day-digest freshness tracks only factual correction timestamps (`textCorrectedAt`, `ownerCorrectedAt`, `dueCorrectedAt`) in `outcome-state.json` and omits action completion status from the digest signature, so completing an old action never drops Yesterday's brief or queues historical catch-up reviews, while factual corrections to action text, owner, or due date still trigger primary-evidence invalidation.
+
+Where: `LokalBot/Services/Actions/OutcomeIndex.swift`, `LokalBot/AppState.swift` (`AppState.actionWorkflowStateDidChange`), `LokalBot/Services/Timeline/DayDigestEvidence.swift` (`DayDigestMeetingArtifacts.latestCorrectionAt`), `LokalBot/Services/Timeline/DailyDigestEvidence.swift`, `LinuxWindows/crates/lokalbot-core/src/evidence.rs` (`observe_workflow`), `LinuxWindows/crates/lokalbot-core/src/library.rs` (`Library::save_outcome_state_workflow`, `Library::latest_outcome_correction_at`), `LinuxWindows/crates/lokalbot-ai/src/digest.rs` (`render_meeting_outcomes`, `artifact_modified_at`), `LinuxWindows/crates/lokalbot-engine/src/lib.rs` (`Shared::workflow_state_changed`).
+
 ### Revising or expiring sources keeps the digest; only deleting them withdraws it
 
 On 2026-10-07 a summary rerun started 17 s after a manual digest and removed it before any new notes existed. Reprocessing revises a meeting rather than deleting it, and saved moments are evidence too, so such changes leave the digest in place, marked out of date until it is regenerated. Only deleting a day's sources withdraws its digest.

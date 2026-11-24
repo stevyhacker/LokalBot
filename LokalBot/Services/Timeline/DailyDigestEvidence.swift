@@ -24,9 +24,7 @@ extension DailyEvidenceSnapshot {
                 var details: [String] = []
                 if let owner = reference.owner, !owner.isEmpty { details.append("owner: \(owner)") }
                 if let due = reference.due, !due.isEmpty { details.append("due: \(due)") }
-                if reference.status == .deferred { details.append("status: deferred") }
-                let marker = reference.status == .done ? "x" : " "
-                lines.append("- [\(marker)] " + reference.text
+                lines.append("- [ ] " + reference.text
                     + (details.isEmpty ? "" : " (\(details.joined(separator: ", ")))"))
             }
         }
