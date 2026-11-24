@@ -127,12 +127,16 @@ final class ActionThreadsTests: XCTestCase {
                 .init(text: "Send the revised launch proposal", owner: "Me"),
             ]).write(to: meeting.folderURL(in: storage))
         }
+        var evidenceNotifications = 0
         var notifications: [Meeting.ID] = []
         var batches: [[Meeting.ID]] = []
-        let index = OutcomeIndex(storage: storage, onEvidenceChanged: { meetings in
-            notifications.append(contentsOf: meetings.map(\.id))
-            batches.append(meetings.map(\.id))
-        })
+        let index = OutcomeIndex(
+            storage: storage,
+            onEvidenceChanged: { _ in evidenceNotifications += 1 },
+            onWorkflowStateChanged: { meetings in
+                notifications.append(contentsOf: meetings.map(\.id))
+                batches.append(meetings.map(\.id))
+            })
         index.refresh(meetings: meetings)
         let thread = try XCTUnwrap(index.openUserActionThreads.first)
         XCTAssertEqual(thread.meetingCount, 2)
@@ -157,8 +161,9 @@ final class ActionThreadsTests: XCTestCase {
         }
         batches.removeAll()
         XCTAssertTrue(index.setStatus(.open, thread: index.userActionThreads[0]))
-        XCTAssertEqual(batches.count, 1, "One bulk edit must invalidate derived consumers once")
+        XCTAssertEqual(batches.count, 1, "One bulk edit must notify workflow consumers once")
         XCTAssertEqual(Set(batches[0]), Set([firstID, secondID]))
+        XCTAssertEqual(evidenceNotifications, 0)
     }
 
     func testOppositeNegatedReorderedAndNumberedCommitmentsStaySeparate() {

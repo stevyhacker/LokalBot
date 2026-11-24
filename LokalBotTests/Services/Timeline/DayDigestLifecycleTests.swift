@@ -323,7 +323,7 @@ final class DayDigestLifecycleTests: XCTestCase {
                     quality: .complete)
             })
         let snapshot = lifecycle.snapshot(for: day)
-        XCTAssertEqual(snapshot.latestEvidenceAt, stateAt)
+        XCTAssertEqual(snapshot.latestEvidenceAt, outcomesAt)
         XCTAssertTrue(snapshot.isStale)
 
         lifecycle.configureAutomaticGeneration(
@@ -472,6 +472,81 @@ final class DayDigestLifecycleTests: XCTestCase {
         await fulfillment(of: [shouldNotGenerate], timeout: 0.15)
         protected.stopAutomaticGeneration()
         XCTAssertEqual(try String(contentsOf: journal, encoding: .utf8), "My handwritten journal")
+    }
+
+    func testCompletingActionItemDoesNotInvalidatePastDayDigestOrAdvanceWatermark() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("day-digest-lifecycle-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: root) }
+        let day = try date("2026-08-23T12:00:00Z")
+        let now = try date("2026-08-24T08:00:00Z")
+        let meeting = try finishedMeeting()
+        let folder = root.appendingPathComponent(meeting.relativePath, isDirectory: true)
+        let journal = root.appendingPathComponent("journal/2026-08-23.md")
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(
+            at: journal.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+
+        let action = MeetingOutcomes.ActionItem(text: "Ship the lifecycle", owner: "Me")
+        try MeetingOutcomes(
+            actionItems: [action],
+            decisions: ["Ship the lifecycle."]).write(to: folder)
+        let outcomesAt = try date("2026-08-23T18:05:00Z")
+        try FileManager.default.setAttributes(
+            [.modificationDate: outcomesAt],
+            ofItemAtPath: folder.appendingPathComponent(MeetingOutcomes.fileName).path)
+
+        let source = FileDailyEvidenceSource(root: root, calendar: calendar)
+        let before = try source.snapshot(for: day, meetings: [meeting], includeDetailedActivity: false)
+        let beforeEvidence = before.digestEvidence(calendar: calendar)
+        try "## Day summary\n\nFinalized digest.".write(to: journal, atomically: true, encoding: .utf8)
+        let finalizedAt = try date("2026-08-24T00:05:00Z")
+        try FileManager.default.setAttributes([.modificationDate: finalizedAt], ofItemAtPath: journal.path)
+        try DayDigestGenerationMetadataStore.record(
+            quality: .complete,
+            evidenceLatestAt: before.latestEvidenceAt,
+            evidenceSignature: beforeEvidence.contentSignature,
+            meetingEvidenceSignature: beforeEvidence.meetingSignature,
+            for: journal,
+            generatedAt: finalizedAt)
+
+        var state = MeetingOutcomeState()
+        state.actions[action.id] = .init(
+            status: .done,
+            updatedAt: try date("2026-08-24T07:30:00Z"),
+            userEdited: true)
+        try MeetingOutcomeStore.writeState(state, to: folder)
+        try FileManager.default.setAttributes(
+            [.modificationDate: try date("2026-08-24T07:30:00Z")],
+            ofItemAtPath: folder.appendingPathComponent(MeetingOutcomeState.fileName).path)
+
+        let shouldNotGenerate = expectation(description: "Completing an action must not regenerate a finalized past day")
+        shouldNotGenerate.isInverted = true
+        let lifecycle = DayDigestLifecycle(
+            storageRoot: root,
+            calendar: calendar,
+            scheduler: DayDigestScheduler(calendar: calendar, now: { now }),
+            blocks: { _ in [] },
+            screenContexts: { _ in [] },
+            meetings: { [meeting] },
+            latestActivityEvidenceAt: { _ in nil },
+            settings: AppSettings.init,
+            generator: { _, _, _, _ in
+                shouldNotGenerate.fulfill()
+                return DayDigestGenerationResult(text: "Unexpected", url: journal, quality: .complete)
+            })
+        let snapshot = lifecycle.snapshot(for: day)
+        XCTAssertEqual(snapshot.latestEvidenceAt, outcomesAt)
+        XCTAssertTrue(snapshot.evidenceMatches)
+        XCTAssertFalse(snapshot.isStale)
+
+        lifecycle.configureAutomaticGeneration(
+            .init(enabled: true, hour: 18),
+            canRun: { true },
+            onError: { XCTFail($0) })
+        await fulfillment(of: [shouldNotGenerate], timeout: 0.15)
+        lifecycle.stopAutomaticGeneration()
     }
 
     private func makeLifecycle(

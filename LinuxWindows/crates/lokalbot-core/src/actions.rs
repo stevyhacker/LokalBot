@@ -528,7 +528,11 @@ impl Library {
             .state
             .actions
             .insert(action_id.to_string(), state);
-        self.save_outcome_state(meeting, &projection.state)?;
+        if changed_content {
+            self.save_outcome_state(meeting, &projection.state)?;
+        } else {
+            self.save_outcome_state_workflow(meeting, &projection.state)?;
+        }
         if changed_content && let Some(summary) = self.summary(meeting)? {
             let updated = replace_action_items(&summary, &projection.corrected_outcomes());
             if updated != summary {

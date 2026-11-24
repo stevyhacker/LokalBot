@@ -206,7 +206,7 @@ final class DailyEvidenceSnapshotTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: journal, encoding: .utf8), "Includes both meetings")
     }
 
-    func testSignatureIncludesCorrectionsAndCompletionButNotArtifactMtime() throws {
+    func testSignatureIncludesCorrectionsButNotCompletionOrArtifactMtime() throws {
         let root = try temporaryRoot()
         let day = try date("2026-07-18T12:00:00Z")
         try MeetingFixture.write([.init(title: "Plan", startedAt: day)], under: root)
@@ -221,11 +221,34 @@ final class DailyEvidenceSnapshotTests: XCTestCase {
         touched.meetings[0].artifactModifiedAt = Date().addingTimeInterval(500)
         XCTAssertEqual(before.digestEvidence(calendar: calendar).contentSignature,
                        touched.digestEvidence(calendar: calendar).contentSignature)
-        var state = MeetingOutcomeState()
-        state.actions[action.id] = .init(status: .done, textCorrection: "Send Acme the proposal", userEdited: true)
-        try MeetingOutcomeStore.writeState(state, to: meeting.folderURL(in: storage))
-        let after = try source.snapshot(for: day)
-        XCTAssertNil(DailyEvidenceArtifacts.currentDigest(for: after, root: root, calendar: calendar))
+
+        var completedState = MeetingOutcomeState()
+        completedState.actions[action.id] = .init(
+            status: .done,
+            updatedAt: Date().addingTimeInterval(600),
+            userEdited: true)
+        try MeetingOutcomeStore.writeState(completedState, to: meeting.folderURL(in: storage))
+        let afterCompletion = try source.snapshot(for: day)
+        XCTAssertEqual(afterCompletion.latestEvidenceAt, before.latestEvidenceAt)
+        XCTAssertEqual(afterCompletion.digestEvidence(calendar: calendar).contentSignature,
+                       before.digestEvidence(calendar: calendar).contentSignature)
+        XCTAssertEqual(afterCompletion.digestEvidence(calendar: calendar).meetingSignature,
+                       before.digestEvidence(calendar: calendar).meetingSignature)
+        XCTAssertEqual(
+            DailyEvidenceArtifacts.currentDigest(for: afterCompletion, root: root, calendar: calendar),
+            "Proposal is open")
+
+        var correctedState = completedState
+        correctedState.actions[action.id] = .init(
+            status: .done,
+            textCorrection: "Send Acme the proposal",
+            updatedAt: Date().addingTimeInterval(900),
+            userEdited: true)
+        try MeetingOutcomeStore.writeState(correctedState, to: meeting.folderURL(in: storage))
+        let afterCorrection = try source.snapshot(for: day)
+        XCTAssertNotEqual(afterCorrection.digestEvidence(calendar: calendar).contentSignature,
+                          before.digestEvidence(calendar: calendar).contentSignature)
+        XCTAssertNil(DailyEvidenceArtifacts.currentDigest(for: afterCorrection, root: root, calendar: calendar))
     }
 
     func testDigestRejectsUnsignedAndManuallyEditedJournal() throws {

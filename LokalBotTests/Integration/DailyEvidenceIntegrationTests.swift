@@ -123,6 +123,110 @@ final class DailyEvidenceIntegrationTests: XCTestCase {
                        "deleting the sources still withdraws their generated digest")
     }
 
+    func testCompletingActionItemPreservesYesterdayDreamReportAndPastDayDigest() throws {
+        let root = try temporaryRoot()
+        let previousRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
+        setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
+        defer {
+            if let previousRoot { setenv("LOKALBOT_STORAGE_ROOT", previousRoot, 1) } else { unsetenv("LOKALBOT_STORAGE_ROOT") }
+        }
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let meetingDay = try XCTUnwrap(calendar.date(byAdding: .day, value: -7, to: today))
+        let meetingStart = meetingDay.addingTimeInterval(10 * 3_600)
+        try MeetingFixture.write([.init(title: "Funding sync", startedAt: meetingStart)], under: root)
+        let storage = StorageManager(rootURL: root)
+        let meetings = try SessionLookup.loadAllMeetings(root: root)
+        let meeting = try XCTUnwrap(meetings.first)
+        let action = MeetingOutcomes.ActionItem(text: "Order the Mac Mini", owner: "Me")
+        let folder = meeting.folderURL(in: storage)
+        try MeetingOutcomes(actionItems: [action]).write(to: folder)
+        for name in ["summary.md", MeetingOutcomes.fileName] {
+            let url = folder.appendingPathComponent(name)
+            if FileManager.default.fileExists(atPath: url.path) {
+                try FileManager.default.setAttributes(
+                    [.modificationDate: meetingStart.addingTimeInterval(1_800)],
+                    ofItemAtPath: url.path)
+            }
+        }
+
+        let app = AppState()
+        app.outcomeIndex.refresh(meetings: meetings)
+        let lifecycle = DayDigestLifecycle(
+            storageRoot: root,
+            calendar: calendar,
+            blocks: { _ in [] },
+            screenContexts: { _ in [] },
+            meetings: { meetings },
+            latestActivityEvidenceAt: { _ in nil },
+            settings: AppSettings.init,
+            generator: { _, _, _, _ in throw IntegrationError.unavailable })
+        let snapshot = try FileDailyEvidenceSource(root: root, calendar: calendar)
+            .snapshot(for: meetingDay, meetings: meetings, includeScreenSummary: false)
+        let journal = lifecycle.journalURL(for: meetingDay)
+        try DayDigestJournalWriter.write(
+            "Finalized meeting-day digest",
+            to: journal,
+            replacing: .init(digest: nil),
+            evidence: snapshot.digestEvidence(calendar: calendar),
+            quality: .complete)
+        let finalizedAt = try XCTUnwrap(calendar.date(byAdding: .day, value: 1, to: meetingDay))
+            .addingTimeInterval(3_600)
+        try FileManager.default.setAttributes([.modificationDate: finalizedAt], ofItemAtPath: journal.path)
+
+        let revision = try app.dreamStore.evidenceRevision()
+        let meetingDayKey = DreamDay.key(for: meetingDay, calendar: calendar)
+        for offset in -7 ... -1 {
+            let day = try XCTUnwrap(calendar.date(byAdding: .day, value: offset, to: today))
+            let key = DreamDay.key(for: day, calendar: calendar)
+            let provenance = DreamEvidenceProvenance(
+                sources: [
+                    DreamEvidenceSource(kind: .meeting, id: meeting.id.uuidString, dayKey: meetingDayKey),
+                    DreamEvidenceSource(kind: .screenDay, id: key, dayKey: key),
+                    DreamEvidenceSource(kind: .digest, id: key, dayKey: key),
+                ],
+                revision: revision)
+            try app.dreamStore.save(DreamReport(
+                day: key,
+                generatedAt: day.addingTimeInterval(86_400),
+                engineName: "Test",
+                evidenceProvenance: provenance,
+                narrative: "Review for \(key)"))
+        }
+        let yesterday = try XCTUnwrap(calendar.date(byAdding: .day, value: -1, to: today))
+        let yesterdayKey = DreamDay.key(for: yesterday, calendar: calendar)
+        app.latestDreamReport = app.dreamStore.latestReport()
+        XCTAssertEqual(app.latestDreamReport?.day, yesterdayKey)
+
+        let thread = try XCTUnwrap(app.outcomeIndex.openUserActionThreads.first)
+        XCTAssertTrue(app.outcomeIndex.setStatus(.done, thread: thread))
+        XCTAssertEqual(app.outcomeIndex.projection(for: meeting.id)?.actionReferences.first?.status, .done)
+
+        XCTAssertNotNil(app.dreamStore.report(forDayKey: yesterdayKey),
+                        "Checking off an action item must not delete Yesterday's Dream report")
+        XCTAssertEqual(
+            TodayDreamSelection.report(
+                referenceDate: today,
+                latest: app.latestDreamReport,
+                store: app.dreamStore,
+                calendar: calendar)?.day,
+            yesterdayKey,
+            "Yesterday's brief must stay visible on Today")
+        XCTAssertNil(
+            DreamScheduler.oldestMissingTarget(
+                firstEligibleDayKey: meetingDayKey,
+                through: yesterday,
+                hasReport: { app.dreamStore.hasReport(forDayKey: $0) },
+                calendar: calendar),
+            "Checking off an action item must not queue prior days for overnight review")
+
+        let digestAfter = lifecycle.snapshot(for: meetingDay)
+        XCTAssertTrue(digestAfter.evidenceMatches,
+                      "Checking off an action item must not invalidate the meeting day's digest signature")
+        XCTAssertFalse(digestAfter.isStale,
+                       "Checking off an action item must not mark the meeting day's digest stale")
+    }
+
     func testCorrectionRefreshesExportAgainAfterDigestPersistence() async throws {
         let root = try temporaryRoot()
         let current = Date()

@@ -24,18 +24,30 @@ enum DayDigestMeetingArtifacts {
     static let fileNames = [
         "summary.md",
         MeetingOutcomes.fileName,
-        MeetingOutcomeState.fileName,
     ]
 
     static func latestModifiedAt(in folder: URL) -> Date? {
-        let hasCurrentOutcomes = FileManager.default.fileExists(
-            atPath: folder.appendingPathComponent(MeetingOutcomes.fileName).path)
-        return fileNames.compactMap { name -> Date? in
-            guard name != MeetingOutcomeState.fileName || hasCurrentOutcomes else { return nil }
+        var dates = fileNames.compactMap { name -> Date? in
             let url = folder.appendingPathComponent(name)
             let attributes = try? FileManager.default.attributesOfItem(atPath: url.path)
             return attributes?[.modificationDate] as? Date
-        }.max()
+        }
+        let hasCurrentOutcomes = FileManager.default.fileExists(
+            atPath: folder.appendingPathComponent(MeetingOutcomes.fileName).path)
+        if hasCurrentOutcomes, let correctedAt = latestCorrectionAt(in: folder) {
+            dates.append(correctedAt)
+        }
+        return dates.max()
+    }
+
+    static func latestCorrectionAt(in folder: URL) -> Date? {
+        let url = folder.appendingPathComponent(MeetingOutcomeState.fileName)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        let state = MeetingOutcomeStore.loadState(from: folder)
+        return state.actions.values
+            .flatMap { [$0.textCorrectedAt, $0.ownerCorrectedAt, $0.dueCorrectedAt] }
+            .compactMap { $0 }
+            .max()
     }
 }
 

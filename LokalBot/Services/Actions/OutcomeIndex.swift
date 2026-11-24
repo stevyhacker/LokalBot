@@ -17,16 +17,19 @@ final class OutcomeIndex: ObservableObject {
     private let storage: StorageManager
     private let mutateEvidence: ([Meeting], () throws -> Void) throws -> Void
     private let onEvidenceChanged: ([Meeting]) -> Void
+    private let onWorkflowStateChanged: ([Meeting]) -> Void
     @Published private(set) var lastError: String?
 
     init(
         storage: StorageManager,
         mutateEvidence: @escaping ([Meeting], () throws -> Void) throws -> Void = { _, mutation in try mutation() },
-        onEvidenceChanged: @escaping ([Meeting]) -> Void = { _ in }
+        onEvidenceChanged: @escaping ([Meeting]) -> Void = { _ in },
+        onWorkflowStateChanged: @escaping ([Meeting]) -> Void = { _ in }
     ) {
         self.storage = storage
         self.mutateEvidence = mutateEvidence
         self.onEvidenceChanged = onEvidenceChanged
+        self.onWorkflowStateChanged = onWorkflowStateChanged
     }
 
     var all: [MeetingOutcomeProjection] {
@@ -144,7 +147,7 @@ final class OutcomeIndex: ObservableObject {
                 })
             else {
                 rebuildActionThreads()
-                notifyEvidenceChanged(changedMeetings)
+                notifyWorkflowStateChanged(changedMeetings)
                 return false
             }
             if let meeting = projections[reference.meetingID]?.meeting {
@@ -152,7 +155,7 @@ final class OutcomeIndex: ObservableObject {
             }
         }
         rebuildActionThreads()
-        notifyEvidenceChanged(changedMeetings)
+        notifyWorkflowStateChanged(changedMeetings)
         lastError = nil
         return true
     }
@@ -201,14 +204,13 @@ final class OutcomeIndex: ObservableObject {
         next.seeded = false
         next.sourceMeetingID = meetingID
         do {
-            try mutateEvidence([projection.meeting]) {
-                try MeetingOutcomeStore.writeFollowUp(
-                    next, to: projection.meeting.folderURL(in: storage))
-            }
+            try MeetingOutcomeStore.writeFollowUp(
+                next, to: projection.meeting.folderURL(in: storage))
             projection.followUp = next
             projections[meetingID] = projection
             projectionRevisions[meetingID, default: 0] &+= 1
             lastError = nil
+            if !projection.isArchived { onWorkflowStateChanged([projection.meeting]) }
             return true
         } catch {
             lastError = error.localizedDescription
@@ -240,27 +242,39 @@ final class OutcomeIndex: ObservableObject {
         change(&actionState)
         actionState.updatedAt = Date().outcomePersistedTimestamp
         projection.state.actions[actionID] = actionState
+        let ownerOrTextChanged = previous.ownerOverride != actionState.ownerOverride
+            || previous.ownerWasCleared != actionState.ownerWasCleared
+            || previous.textCorrection != actionState.textCorrection
+        let dueChanged = previous.dueOverride != actionState.dueOverride
+            || previous.dueWasCleared != actionState.dueWasCleared
+        let evidenceChanged = ownerOrTextChanged || dueChanged
+        let folder = projection.meeting.folderURL(in: storage)
+        let write: () throws -> Void = {
+            try MeetingOutcomeStore.writeState(projection.state, to: folder)
+            guard !projection.isArchived, evidenceChanged else { return }
+            let kept = try MeetingSummaryOutcomeSynchronizer.applyActionCorrections(
+                in: folder, outcomes: projection.correctedOutcomes)
+            if !kept, ownerOrTextChanged {
+                try MeetingAttributionArtifacts.invalidate(in: folder, preservingOutcomes: true)
+            }
+        }
         do {
-            try mutateEvidence([projection.meeting]) {
-                let folder = projection.meeting.folderURL(in: storage)
-                try MeetingOutcomeStore.writeState(projection.state, to: folder)
-                let ownerOrTextChanged = previous.ownerOverride != actionState.ownerOverride
-                    || previous.ownerWasCleared != actionState.ownerWasCleared
-                    || previous.textCorrection != actionState.textCorrection
-                let dueChanged = previous.dueOverride != actionState.dueOverride
-                    || previous.dueWasCleared != actionState.dueWasCleared
-                guard !projection.isArchived, ownerOrTextChanged || dueChanged else { return }
-                let kept = try MeetingSummaryOutcomeSynchronizer.applyActionCorrections(
-                    in: folder, outcomes: projection.correctedOutcomes)
-                if !kept, ownerOrTextChanged {
-                    try MeetingAttributionArtifacts.invalidate(in: folder, preservingOutcomes: true)
-                }
+            if evidenceChanged && !projection.isArchived {
+                try mutateEvidence([projection.meeting], write)
+            } else {
+                try write()
             }
             if current != nil { projections[meetingID] = projection }
             projectionRevisions[meetingID, default: 0] &+= 1
             if rebuildThreads && !projection.isArchived { rebuildActionThreads() }
             lastError = nil
-            if notify && !projection.isArchived { onEvidenceChanged([projection.meeting]) }
+            if notify && !projection.isArchived {
+                if evidenceChanged {
+                    onEvidenceChanged([projection.meeting])
+                } else {
+                    onWorkflowStateChanged([projection.meeting])
+                }
+            }
             return true
         } catch {
             lastError = error.localizedDescription
@@ -277,10 +291,10 @@ final class OutcomeIndex: ObservableObject {
             for: meeting, root: storage.rootURL, includingPrevious: true)
     }
 
-    private func notifyEvidenceChanged(_ meetings: [Meeting]) {
+    private func notifyWorkflowStateChanged(_ meetings: [Meeting]) {
         var notified: Set<Meeting.ID> = []
         let changed = meetings.filter { notified.insert($0.id).inserted }
-        if !changed.isEmpty { onEvidenceChanged(changed) }
+        if !changed.isEmpty { onWorkflowStateChanged(changed) }
     }
 
     private func rebuildActionThreads() {

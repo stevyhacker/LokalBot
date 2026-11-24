@@ -639,8 +639,10 @@ final class AppState: ObservableObject {
             try self.withPrimaryEvidenceChange(for: meetings, .revision, mutation)
         },
         onEvidenceChanged: { [weak self] meetings in
-            self?.primaryEvidenceDidChange(for: meetings)
             for meeting in meetings { self?.reindexSearchInBackground(meeting) }
+        },
+        onWorkflowStateChanged: { [weak self] meetings in
+            self?.actionWorkflowStateDidChange(for: meetings)
         })
     private(set) lazy var cotypingLearning = CotypingLearningStore(storageRoot: storage.rootURL)
     let detector = MeetingDetector()
@@ -2324,6 +2326,18 @@ final class AppState: ObservableObject {
                          activityOnly: activityOnly)
         if !meetingIDs.isEmpty { personalModel.retractIfLoaded() }
         companionHost?.evidenceChanged(days: days, meetingIDs: meetingIDs)
+    }
+
+    private func actionWorkflowStateDidChange(for meetings: [Meeting]) {
+        guard !meetings.isEmpty else { return }
+        if settings.cotypingUseMeetingMemory || settings.cotypingUseScreenMemory {
+            cotyping.invalidateMemoryContext()
+        }
+        meetingNoteExport.reconsider()
+        memoryRoutines.reconsiderEvidence()
+        companionHost?.evidenceChanged(
+            days: meetings.map(\.startedAt),
+            meetingIDs: Set(meetings.map(\.id)))
     }
 
     func meetingArtifactsWillChange(_ meeting: Meeting) {

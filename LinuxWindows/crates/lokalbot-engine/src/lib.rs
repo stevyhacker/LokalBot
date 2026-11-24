@@ -232,6 +232,18 @@ impl Shared {
         self.library.personal().retract_if_loaded();
         self.dreams.reconsider(&days);
     }
+
+    fn workflow_state_changed(&self, dates: &[chrono::DateTime<Utc>]) {
+        let mut days: Vec<chrono::NaiveDate> = dates
+            .iter()
+            .map(|at| lokalbot_core::time::local_day(*at))
+            .collect();
+        days.sort_unstable();
+        days.dedup();
+        self.exports.reconsider_notes();
+        self.routines.reconsider_evidence();
+        self.companion.evidence_changed(&days);
+    }
 }
 
 static RUNNING: std::sync::RwLock<std::sync::Weak<Shared>> =
@@ -278,6 +290,14 @@ impl Engine {
                 && shared.library.paths().root() == root
             {
                 shared.evidence_changed(dates);
+            }
+        });
+        let observed_workflow = Arc::downgrade(&shared);
+        lokalbot_core::evidence::observe_workflow(move |root, dates| {
+            if let Some(shared) = observed_workflow.upgrade()
+                && shared.library.paths().root() == root
+            {
+                shared.workflow_state_changed(dates);
             }
         });
         if let Ok(mut running) = RUNNING.write() {

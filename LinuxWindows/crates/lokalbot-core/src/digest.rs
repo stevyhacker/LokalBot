@@ -706,13 +706,7 @@ pub fn title_and_tag(title: &str) -> (&str, Option<&str>) {
     (head, Some(tag))
 }
 
-const MEETING_ARTIFACTS: &[&str] = &[
-    "transcript.json",
-    "summary.md",
-    "notes.md",
-    "outcomes.json",
-    "outcome-state.json",
-];
+const MEETING_ARTIFACTS: &[&str] = &["transcript.json", "summary.md", "notes.md", "outcomes.json"];
 
 fn modified(path: &std::path::Path) -> Option<DateTime<Utc>> {
     std::fs::metadata(path)
@@ -791,6 +785,7 @@ impl Library {
             let artifact = MEETING_ARTIFACTS
                 .iter()
                 .filter_map(|f| modified(&dir.join(f)))
+                .chain(self.latest_outcome_correction_at(&meeting))
                 .max();
             latest = [latest, meeting.ended_at, artifact]
                 .into_iter()
