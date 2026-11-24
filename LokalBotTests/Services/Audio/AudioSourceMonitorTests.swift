@@ -236,7 +236,22 @@ final class AudioSourceMonitorTests: XCTestCase {
             for: app, tapping: moduleHost.id, in: processes, excluding: [moduleHost.id]))
         XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
             for: app, tapping: helper.id, in: processes, excluding: [helper.id])?.id,
-            otherHelper.id, "a silent helper still gives way to an emitting one")
+            moduleHost.id, "a silent helper gives way to an open call stream")
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: helper.id, in: processes, excluding: [helper.id, moduleHost.id])?.id,
+            otherHelper.id, "a silent helper gives way to an emitting one when the call stream is retired")
+        let closedModuleHost = AudioProcess(id: 300,
+                                            name: "Microsoft Teams ModuleHost",
+                                            bundleID: "com.microsoft.teams2.modulehost",
+                                            objectID: AudioObjectID(300),
+                                            isRunningOutput: false)
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: helper.id, in: [closedModuleHost, helper, otherHelper],
+            excluding: [helper.id])?.id,
+            otherHelper.id, "a silent helper gives way to an emitting one when the call stream is closed")
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: 299, in: processes, excluding: [299])?.id,
+            moduleHost.id, "a vanished tap prefers an open call stream over an emitting helper")
     }
 
     func testCaptureTargetIgnoresUnrelatedProcesses() {

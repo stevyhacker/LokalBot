@@ -999,7 +999,11 @@ final class MeetingDetector {
            !carriesMeetingSignal(bundleID: tapped.bundleID) {
             return nil
         }
-        return bestOutputAudioProcess(for: app, in: processes, excluding: excludedPIDs)
+        let available = processes.filter { !excludedPIDs.contains($0.id) }
+        if let callStream = bestAlwaysOpenAudioProcess(for: app, in: available) {
+            return callStream
+        }
+        return bestOutputAudioProcess(for: app, in: available)
     }
 
     nonisolated static func currentOutputAudioProcess(
@@ -1025,10 +1029,6 @@ final class MeetingDetector {
         if let emitting = bestOutputAudioProcess(for: app, in: available) {
             rememberCaptureTarget(emitting.id, for: app.bundleID)
             return emitting
-        }
-        if let openStream = namespace.filter(\.isRunningOutput).min(by: { $0.id < $1.id }) {
-            rememberCaptureTarget(openStream.id, for: app.bundleID)
-            return openStream
         }
         if let remembered = rememberedCaptureTarget(for: app.bundleID),
            let process = namespace.first(where: { $0.id == remembered }) {
