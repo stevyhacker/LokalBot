@@ -122,7 +122,7 @@ struct TodayView: View {
 
         let showsMeetings = !entries.isEmpty || calendarIsOff
         let hasLeading = layout.showsSections && (!threads.isEmpty || showsMeetings)
-        let hasTrailing = layout.showsSections && (hasDay || dream != nil)
+        let hasTrailing = layout.showsSections && hasDay
 
         TodayColumnsLayout(textScale: textScale) {
             TodayDefaultModelUpgradeCard(app: app, roles: app.modelRoles, setup: app.modelSetup)
@@ -152,7 +152,6 @@ struct TodayView: View {
                 }
                 if let dream {
                     YesterdayBriefPanel(report: dream, day: model.day)
-                        .todayColumn(.trailing)
                 }
                 if gettingStartedBelow { GettingStartedCard() }
             case .gettingStarted:

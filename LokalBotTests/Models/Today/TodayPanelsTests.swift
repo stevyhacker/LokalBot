@@ -11,10 +11,10 @@ final class TodayPanelsTests: XCTestCase {
     private var standardScale: CGFloat { AppTextSize.standard.scale }
 
     func testTwoColumnsNeedAReadableLeadingColumnBesideTheTrailingOne() {
-        XCTAssertEqual(TodayColumns.trailingWidth(textScale: standardScale), 336)
-        XCTAssertEqual(TodayColumns.twoColumnMinimumWidth(textScale: standardScale), 480 + 16 + 336)
-        XCTAssertEqual(TodayColumns.count(width: 832, textScale: standardScale), 2)
-        XCTAssertEqual(TodayColumns.count(width: 831, textScale: standardScale), 1)
+        XCTAssertEqual(TodayColumns.trailingWidth(textScale: standardScale), 352)
+        XCTAssertEqual(TodayColumns.twoColumnMinimumWidth(textScale: standardScale), 480 + 16 + 352)
+        XCTAssertEqual(TodayColumns.count(width: 848, textScale: standardScale), 2)
+        XCTAssertEqual(TodayColumns.count(width: 847, textScale: standardScale), 1)
         XCTAssertEqual(TodayColumns.count(width: 0, textScale: standardScale), 1)
         let widest = WorkspaceMetric.todayMaxWidth - 2 * LBTokens.Metric.detailPadding
         XCTAssertEqual(TodayColumns.count(width: widest, textScale: standardScale), 2)
@@ -30,39 +30,84 @@ final class TodayPanelsTests: XCTestCase {
         let largest = TodayColumns.twoColumnMinimumWidth(textScale: AppTextSize.largest.scale)
         XCTAssertLessThan(small, standard)
         XCTAssertLessThan(standard, largest)
-        XCTAssertLessThan(TodayColumns.trailingWidth(textScale: AppTextSize.small.scale), 336)
-        XCTAssertGreaterThan(TodayColumns.trailingWidth(textScale: AppTextSize.largest.scale), 336)
+        XCTAssertLessThan(TodayColumns.trailingWidth(textScale: AppTextSize.small.scale), 352)
+        XCTAssertGreaterThan(TodayColumns.trailingWidth(textScale: AppTextSize.largest.scale), 352)
         XCTAssertEqual(TodayColumns.count(width: 900, textScale: standardScale), 2)
         XCTAssertEqual(TodayColumns.count(width: 900, textScale: AppTextSize.largest.scale), 1)
     }
 
     func testASideWithoutPanelsLeavesNoGutter() {
-        XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: true, hasTrailing: false), 1)
-        XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: false, hasTrailing: true), 1)
-        XCTAssertEqual(TodayColumns.count(width: 1_008, textScale: standardScale, hasLeading: false, hasTrailing: false), 1)
+        XCTAssertEqual(TodayColumns.count(width: 1_144, textScale: standardScale, hasLeading: true, hasTrailing: false), 1)
+        XCTAssertEqual(TodayColumns.count(width: 1_144, textScale: standardScale, hasLeading: false, hasTrailing: true), 1)
+        XCTAssertEqual(TodayColumns.count(width: 1_144, textScale: standardScale, hasLeading: false, hasTrailing: false), 1)
         func maximum(_ leading: Bool, _ trailing: Bool) -> CGFloat {
-            TodayColumns.pageMaximumWidth(hasLeading: leading, hasTrailing: trailing, wide: 1_064, reading: 780)
+            TodayColumns.pageMaximumWidth(hasLeading: leading, hasTrailing: trailing, wide: 1_200, reading: 780)
         }
-        XCTAssertEqual(maximum(true, true), 1_064)
-        XCTAssertEqual(maximum(false, false), 1_064)
+        XCTAssertEqual(maximum(true, true), 1_200)
+        XCTAssertEqual(maximum(false, false), 1_200)
         XCTAssertEqual(maximum(true, false), 780)
         XCTAssertEqual(maximum(false, true), 780)
     }
 
     func testTwoColumnsPlacePanelsBetweenTheCardsThatSpanThePage() {
-        let slots: [TodayColumnsLayout.Slot] = [.full, .leading, .leading, .trailing, .trailing, .full]
-        let heights: [CGFloat] = [100, 200, 300, 150, 50, 80]
+        let slots: [TodayColumnsLayout.Slot] = [.full, .leading, .leading, .trailing, .full, .full]
+        let heights: [CGFloat] = [100, 200, 300, 240, 320, 80]
         let result = TodayColumnsLayout.frames(
-            slots: slots, width: 1_008, textScale: standardScale, spacing: 16) { index, _ in heights[index] }
+            slots: slots, width: 1_144, textScale: standardScale, spacing: 16) { index, _ in heights[index] }
         XCTAssertEqual(result.frames, [
-            CGRect(x: 0, y: 0, width: 1_008, height: 100),
-            CGRect(x: 0, y: 116, width: 656, height: 200),
-            CGRect(x: 0, y: 332, width: 656, height: 300),
-            CGRect(x: 672, y: 116, width: 336, height: 150),
-            CGRect(x: 672, y: 282, width: 336, height: 50),
-            CGRect(x: 0, y: 648, width: 1_008, height: 80),
+            CGRect(x: 0, y: 0, width: 1_144, height: 100),
+            CGRect(x: 0, y: 116, width: 776, height: 200),
+            CGRect(x: 0, y: 332, width: 776, height: 300),
+            CGRect(x: 792, y: 116, width: 352, height: 240),
+            CGRect(x: 0, y: 648, width: 1_144, height: 320),
+            CGRect(x: 0, y: 984, width: 1_144, height: 80),
         ])
-        XCTAssertEqual(result.height, 728)
+        XCTAssertEqual(result.height, 1_064)
+    }
+
+    func testYesterdayBriefSplitsIntoTwoColumnsOnlyWhenWideEnough() {
+        let standard = YesterdayBriefColumns.minimumWidth(textScale: standardScale)
+        XCTAssertEqual(standard, 840)
+        XCTAssertLessThan(YesterdayBriefColumns.minimumWidth(textScale: AppTextSize.small.scale), standard)
+        XCTAssertGreaterThan(YesterdayBriefColumns.minimumWidth(textScale: AppTextSize.largest.scale), standard)
+        XCTAssertTrue(YesterdayBriefColumns.isTwoColumn(width: 1_112, textScale: standardScale))
+        XCTAssertTrue(YesterdayBriefColumns.isTwoColumn(width: 840, textScale: standardScale))
+        XCTAssertFalse(YesterdayBriefColumns.isTwoColumn(width: 839, textScale: standardScale))
+        XCTAssertFalse(YesterdayBriefColumns.isTwoColumn(width: 840, textScale: AppTextSize.largest.scale))
+
+        var asked: [CGFloat] = []
+        let wide = YesterdayBriefColumnsLayout.frames(
+            width: 1_112, textScale: standardScale,
+            primaryHeight: { asked.append($0); return 260 },
+            secondaryHeight: { asked.append($0); return 340 })
+        XCTAssertEqual(asked, [578, 493])
+        XCTAssertEqual(wide.frames, [
+            CGRect(x: 0, y: 0, width: 578, height: 260),
+            CGRect(x: 598, y: 0, width: 1, height: 340),
+            CGRect(x: 619, y: 0, width: 493, height: 340),
+        ])
+        XCTAssertEqual(wide.height, 340)
+
+        var narrowAsked: [CGFloat] = []
+        let narrow = YesterdayBriefColumnsLayout.frames(
+            width: 692, textScale: standardScale,
+            primaryHeight: { narrowAsked.append($0); return 200 },
+            secondaryHeight: { narrowAsked.append($0); return 180 })
+        XCTAssertEqual(narrowAsked, [692, 692])
+        XCTAssertEqual(narrow.frames, [
+            CGRect(x: 0, y: 0, width: 692, height: 200),
+            CGRect(x: 0, y: 214, width: 692, height: 1),
+            CGRect(x: 0, y: 229, width: 692, height: 180),
+        ])
+        XCTAssertEqual(narrow.height, 409)
+
+        var midAsked: [CGFloat] = []
+        let mid = YesterdayBriefColumnsLayout.frames(
+            width: 816, textScale: standardScale,
+            primaryHeight: { midAsked.append($0); return 200 },
+            secondaryHeight: { midAsked.append($0); return 180 })
+        XCTAssertEqual(midAsked, [720, 720])
+        XCTAssertEqual(mid.frames[1], CGRect(x: 0, y: 214, width: 816, height: 1))
     }
 
     func testOneColumnStacksPanelsInReadingOrder() {

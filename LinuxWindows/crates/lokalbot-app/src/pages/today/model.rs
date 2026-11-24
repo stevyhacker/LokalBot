@@ -11,11 +11,12 @@ pub(super) const ATTENTION_LIMIT: usize = 3;
 pub(super) const APP_LIMIT: usize = 4;
 
 pub(super) mod columns {
-    pub const TRAILING_WIDTH: f32 = 336.;
+    pub const TRAILING_WIDTH: f32 = 352.;
     pub const LEADING_MINIMUM_WIDTH: f32 = 480.;
     pub const GAP: f32 = 16.;
-    pub const WIDE_PAGE: f32 = 1064.;
+    pub const WIDE_PAGE: f32 = 1200.;
     pub const READING_PAGE: f32 = 780.;
+    pub const YESTERDAY_TWO_COLUMN_MINIMUM_WIDTH: f32 = 840.;
 
     pub fn factor(text_scale: f32) -> f32 {
         text_scale.max(0.5)
@@ -43,6 +44,14 @@ pub(super) mod columns {
         } else {
             WIDE_PAGE
         }
+    }
+
+    pub fn yesterday_two_column_minimum_width(text_scale: f32) -> f32 {
+        (YESTERDAY_TWO_COLUMN_MINIMUM_WIDTH * factor(text_scale)).round()
+    }
+
+    pub fn yesterday_is_two_column(width: f32, text_scale: f32) -> bool {
+        width >= yesterday_two_column_minimum_width(text_scale)
     }
 }
 
@@ -688,10 +697,10 @@ mod tests {
 
     #[test]
     fn two_columns_need_a_readable_leading_column_beside_the_trailing_one() {
-        assert_eq!(columns::trailing_width(1.0), 336.);
-        assert_eq!(columns::two_column_minimum_width(1.0), 480. + 16. + 336.);
-        assert_eq!(columns::count(832., 1.0, true, true), 2);
-        assert_eq!(columns::count(831., 1.0, true, true), 1);
+        assert_eq!(columns::trailing_width(1.0), 352.);
+        assert_eq!(columns::two_column_minimum_width(1.0), 480. + 16. + 352.);
+        assert_eq!(columns::count(848., 1.0, true, true), 2);
+        assert_eq!(columns::count(847., 1.0, true, true), 1);
         assert_eq!(columns::count(0., 1.0, true, true), 1);
         assert_eq!(columns::count(columns::WIDE_PAGE - 56., 1.0, true, true), 2);
         assert_eq!(
@@ -707,7 +716,7 @@ mod tests {
         let standard = columns::two_column_minimum_width(TextSize::Standard.scale());
         let largest = columns::two_column_minimum_width(TextSize::Largest.scale());
         assert!(small < standard && standard < largest);
-        assert!(columns::trailing_width(TextSize::Largest.scale()) > 336.);
+        assert!(columns::trailing_width(TextSize::Largest.scale()) > 352.);
         assert_eq!(
             columns::count(900., TextSize::Standard.scale(), true, true),
             2
@@ -720,13 +729,30 @@ mod tests {
 
     #[test]
     fn a_side_without_panels_leaves_no_gutter_and_keeps_the_reading_width() {
-        assert_eq!(columns::count(1008., 1.0, true, false), 1);
-        assert_eq!(columns::count(1008., 1.0, false, true), 1);
-        assert_eq!(columns::count(1008., 1.0, false, false), 1);
-        assert_eq!(columns::page_maximum_width(true, true), 1064.);
-        assert_eq!(columns::page_maximum_width(false, false), 1064.);
+        assert_eq!(columns::count(1144., 1.0, true, false), 1);
+        assert_eq!(columns::count(1144., 1.0, false, true), 1);
+        assert_eq!(columns::count(1144., 1.0, false, false), 1);
+        assert_eq!(columns::page_maximum_width(true, true), 1200.);
+        assert_eq!(columns::page_maximum_width(false, false), 1200.);
         assert_eq!(columns::page_maximum_width(true, false), 780.);
         assert_eq!(columns::page_maximum_width(false, true), 780.);
+    }
+
+    #[test]
+    fn yesterday_splits_into_two_columns_only_when_wide_enough() {
+        use lokalbot_core::settings::TextSize;
+        assert_eq!(columns::yesterday_two_column_minimum_width(1.0), 840.);
+        assert!(columns::yesterday_is_two_column(1112., 1.0));
+        assert!(columns::yesterday_is_two_column(840., 1.0));
+        assert!(!columns::yesterday_is_two_column(839., 1.0));
+        assert!(!columns::yesterday_is_two_column(
+            columns::READING_PAGE - 56. - 32.,
+            1.0
+        ));
+        assert!(!columns::yesterday_is_two_column(
+            840.,
+            TextSize::Largest.scale()
+        ));
     }
 
     #[test]

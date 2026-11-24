@@ -80,3 +80,80 @@ extension View {
         layoutValue(key: TodayColumnSlotKey.self, value: slot)
     }
 }
+
+struct YesterdayBriefColumnsLayout: Layout {
+    var textScale: CGFloat
+    var readingWidth: CGFloat = WorkspaceMetric.readingMaxWidth
+
+    static func frames(
+        width: CGFloat,
+        textScale: CGFloat,
+        readingWidth: CGFloat = WorkspaceMetric.readingMaxWidth,
+        primaryHeight: (CGFloat) -> CGFloat,
+        secondaryHeight: (CGFloat) -> CGFloat
+    ) -> (frames: [CGRect], height: CGFloat) {
+        if YesterdayBriefColumns.isTwoColumn(width: width, textScale: textScale) {
+            let gap = YesterdayBriefColumns.columnGap
+            let dividerWidth = YesterdayBriefColumns.dividerWidth
+            let widths = YesterdayBriefColumns.widths(in: width)
+            let leftHeight = primaryHeight(widths.primary)
+            let rightHeight = secondaryHeight(widths.secondary)
+            let totalHeight = max(leftHeight, rightHeight)
+            let dividerX = widths.primary + gap
+            let rightX = dividerX + dividerWidth + gap
+            return ([
+                CGRect(x: 0, y: 0, width: widths.primary, height: leftHeight),
+                CGRect(x: dividerX, y: 0, width: dividerWidth, height: totalHeight),
+                CGRect(x: rightX, y: 0, width: widths.secondary, height: rightHeight),
+            ], totalHeight)
+        }
+        let scaledReading = (readingWidth * TodayColumns.factor(textScale: textScale)).rounded()
+        let lineWidth = min(width, scaledReading)
+        let leftHeight = primaryHeight(lineWidth)
+        let rightHeight = secondaryHeight(lineWidth)
+        let spacing = YesterdayBriefColumns.verticalDividerSpacing
+        let dividerWidth = YesterdayBriefColumns.dividerWidth
+        let dividerY = leftHeight + spacing
+        let rightY = dividerY + dividerWidth + spacing
+        return ([
+            CGRect(x: 0, y: 0, width: lineWidth, height: leftHeight),
+            CGRect(x: 0, y: dividerY, width: width, height: dividerWidth),
+            CGRect(x: 0, y: rightY, width: lineWidth, height: rightHeight),
+        ], rightY + rightHeight)
+    }
+
+    private func arrangement(width: CGFloat, subviews: Subviews) -> (frames: [CGRect], height: CGFloat) {
+        guard subviews.count == 3 else {
+            var y: CGFloat = 0
+            var frames: [CGRect] = []
+            for subview in subviews {
+                let height = subview.sizeThatFits(ProposedViewSize(width: width, height: nil)).height
+                frames.append(CGRect(x: 0, y: y, width: width, height: height))
+                y += height
+            }
+            return (frames, y)
+        }
+        return Self.frames(
+            width: width,
+            textScale: textScale,
+            readingWidth: readingWidth,
+            primaryHeight: { subviews[0].sizeThatFits(ProposedViewSize(width: $0, height: nil)).height },
+            secondaryHeight: { subviews[2].sizeThatFits(ProposedViewSize(width: $0, height: nil)).height }
+        )
+    }
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let width = proposal.width ?? readingWidth
+        return CGSize(width: width, height: arrangement(width: width, subviews: subviews).height)
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let frames = arrangement(width: bounds.width, subviews: subviews).frames
+        for (subview, frame) in zip(subviews, frames) {
+            subview.place(
+                at: CGPoint(x: bounds.minX + frame.minX, y: bounds.minY + frame.minY),
+                anchor: .topLeading,
+                proposal: ProposedViewSize(width: frame.width, height: frame.height))
+        }
+    }
+}
