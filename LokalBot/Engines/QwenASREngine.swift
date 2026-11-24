@@ -38,116 +38,311 @@ actor QwenASREngine: TranscriptionEngine {
         var modelID: String { "\(weights.repository):\(weights.model.name)" }
     }
 
-    private actor TierRuntime {
-        static let accuracy = TierRuntime()
-        static let compact = TierRuntime()
+    protocol ManagedServer: AnyObject, Sendable {
+        func ensureRunning(modelAt url: URL) async throws
+        func stop() async
+    }
 
-        private var server: LlamaServer?
-        private var serverModelPath: String?
-        private var serverProjectorPath: String?
-        private var pendingServerReset = false
-        private let preparation = AsyncSingleFlight()
-        private var activeUses = 0
-        private var activeServerUses = 0
-        private var idleWaiters: [CheckedContinuation<Void, Never>] = []
-        private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
+    struct ServerPaths: Equatable, Sendable {
+        let model: URL
+        let projector: URL
+    }
 
-        func prepare(weights: QwenLlamaASR.Weights, progress: ModelPreparationProgressHandler?) async throws {
-            report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
-            try await preparation.run { [weak self] in
-                guard let self else { return }
-                try await self.prepareServer(weights: weights, progress: progress)
-            }
-            if !weights.isDownloaded(appSupport: AppDirectories.applicationSupport) {
-                try await preparation.run { [weak self] in
-                    guard let self else { return }
-                    try await self.prepareServer(weights: weights, progress: progress)
-                }
-            }
-            await idle.bump()
-            report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
+    struct ServerLease<Server: ManagedServer>: Sendable {
+        let server: Server
+        fileprivate let generation: UInt64
+    }
+
+    enum PreparationOutcome: Equatable, Sendable {
+        case ready
+        case deferredUntilIdle
+    }
+
+    actor TierRuntime<Server: ManagedServer> {
+        typealias FilePreparer = @Sendable (
+            QwenLlamaASR.Weights, ModelPreparationProgressHandler?
+        ) async throws -> ServerPaths
+        typealias ServerFactory = @Sendable (QwenLlamaASR.Weights, URL) -> Server
+
+        private struct ServerReservation {
+            let server: Server
+            let generation: UInt64
         }
 
-        func acquireServer(weights: QwenLlamaASR.Weights) async throws -> LlamaServer {
+        private let prepareFiles: FilePreparer
+        private let makeServer: ServerFactory
+        private let idleSeconds: TimeInterval
+
+        private var server: Server?
+        private var serverPaths: ServerPaths?
+        private var serverGeneration: UInt64 = 0
+        private var activeUses = 0
+        private var activeLeaseUses = 0
+        private var activeStartupUses = 0
+        private var isReplacingServer = false
+        private var pendingDeferredResetGeneration: UInt64?
+        private var filePreparations: [String: AsyncSingleFlight] = [:]
+        private var preparedPaths: [String: ServerPaths] = [:]
+        private var stateWaiters: [UUID: CheckedContinuation<Void, Error>] = [:]
+        private lazy var idle = IdleTimer(seconds: idleSeconds) { [weak self] in await self?.unload() }
+
+        init(
+            idleSeconds: TimeInterval = 120,
+            prepareFiles: @escaping FilePreparer,
+            makeServer: @escaping ServerFactory
+        ) {
+            self.idleSeconds = idleSeconds
+            self.prepareFiles = prepareFiles
+            self.makeServer = makeServer
+        }
+
+        @discardableResult
+        func prepare(
+            weights: QwenLlamaASR.Weights,
+            progress: ModelPreparationProgressHandler? = nil
+        ) async throws -> PreparationOutcome {
+            try Task.checkCancellation()
+            activeUses += 1
+            defer { finishUse() }
+            report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
+            let paths = try await ensureFiles(for: weights, progress: progress)
+            try Task.checkCancellation()
+            guard let reservation = try await reserveServer(
+                weights: weights, paths: paths, waitIfBusy: false
+            ) else {
+                report(
+                    .init(
+                        fractionCompleted: 1,
+                        status: "Downloaded; will load after current transcription"),
+                    to: progress)
+                return .deferredUntilIdle
+            }
+            report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
+            do {
+                try await reservation.server.ensureRunning(modelAt: paths.model)
+                try Task.checkCancellation()
+            } catch {
+                releaseStartup(generation: reservation.generation)
+                throw error
+            }
+            let stillCurrent = reservation.generation == serverGeneration && server === reservation.server
+            releaseStartup(generation: reservation.generation)
+            guard stillCurrent else { throw EngineError.notLoaded }
+            report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
+            return .ready
+        }
+
+        func acquireServer(weights: QwenLlamaASR.Weights) async throws -> ServerLease<Server> {
+            try Task.checkCancellation()
             activeUses += 1
             do {
-                let paths = try await weights.prepareFiles(
-                    appSupport: AppDirectories.applicationSupport,
-                    progress: nil)
-                while activeServerUses > 0,
-                      serverModelPath != paths.model.path || serverProjectorPath != paths.projector.path {
-                    await withCheckedContinuation { idleWaiters.append($0) }
+                let paths = try await ensureFiles(for: weights, progress: nil)
+                try Task.checkCancellation()
+                guard let reservation = try await reserveServer(
+                    weights: weights, paths: paths, waitIfBusy: true
+                ) else {
+                    throw EngineError.notLoaded
                 }
-                try await prepareServer(weights: weights, paths: paths, progress: nil)
-                guard let server else { throw EngineError.notLoaded }
-                activeServerUses += 1
-                return server
+                do {
+                    try await reservation.server.ensureRunning(modelAt: paths.model)
+                    try Task.checkCancellation()
+                } catch {
+                    releaseStartup(generation: reservation.generation)
+                    throw error
+                }
+                guard promoteStartupToLease(
+                    generation: reservation.generation, expectedServer: reservation.server
+                ) else {
+                    throw EngineError.notLoaded
+                }
+                return ServerLease(server: reservation.server, generation: reservation.generation)
             } catch {
                 finishUse()
                 throw error
             }
         }
 
-        func releaseServer() {
-            activeServerUses -= 1
-            if activeServerUses == 0 {
-                let waiters = idleWaiters
-                idleWaiters.removeAll()
-                for waiter in waiters { waiter.resume() }
-                if pendingServerReset {
-                    pendingServerReset = false
-                    Task { await resetDeferredServer() }
-                }
+        func releaseServer(_ lease: ServerLease<Server>) {
+            if lease.generation == serverGeneration, activeLeaseUses > 0 {
+                activeLeaseUses -= 1
+                finishServerActivity(for: lease.generation)
             }
             finishUse()
         }
 
         func shutdown() async {
-            pendingServerReset = false
-            await stopServerIfCurrent(server)
+            pendingDeferredResetGeneration = nil
+            while isReplacingServer {
+                do {
+                    try await waitForStateChange()
+                } catch {
+                    return
+                }
+            }
+            await stopCurrentServer()
         }
 
-        private func prepareServer(weights: QwenLlamaASR.Weights,
-                                   paths preloadedPaths: (model: URL, projector: URL)? = nil,
-                                   progress: ModelPreparationProgressHandler?) async throws {
-            let paths: (model: URL, projector: URL)
-            if let preloadedPaths {
-                paths = preloadedPaths
+        private func ensureFiles(
+            for weights: QwenLlamaASR.Weights,
+            progress: ModelPreparationProgressHandler?
+        ) async throws -> ServerPaths {
+            let key = weightsKey(weights)
+            let flight: AsyncSingleFlight
+            if let existing = filePreparations[key] {
+                flight = existing
             } else {
-                paths = try await weights.prepareFiles(
-                    appSupport: AppDirectories.applicationSupport,
-                    progress: progress)
+                let created = AsyncSingleFlight()
+                filePreparations[key] = created
+                flight = created
             }
-            switch QwenASREngine.serverTransition(
-                hasServer: server != nil,
-                loadedModelPath: serverModelPath,
-                loadedProjectorPath: serverProjectorPath,
-                nextModelPath: paths.model.path,
-                nextProjectorPath: paths.projector.path,
-                activeServerUses: activeServerUses
-            ) {
-            case .deferReplacement:
-                pendingServerReset = true
-                return
-            case .replaceNow:
-                await stopServerIfCurrent(server)
-            case .reuse:
-                break
+            try await flight.run { [weak self, prepareFiles] in
+                let paths = try await prepareFiles(weights, progress)
+                guard let self else { throw CancellationError() }
+                await self.recordPreparedPaths(paths, for: key)
             }
-            report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
-            let server = self.server ?? weights.makeServer(projector: paths.projector)
-            self.server = server
-            self.serverModelPath = paths.model.path
-            self.serverProjectorPath = paths.projector.path
-            pendingServerReset = false
-            try await server.ensureRunning(modelAt: paths.model)
+            if let paths = preparedPaths[key] {
+                return paths
+            }
+            let paths = try await prepareFiles(weights, progress)
+            preparedPaths[key] = paths
+            return paths
+        }
+
+        private func recordPreparedPaths(_ paths: ServerPaths, for key: String) {
+            preparedPaths[key] = paths
+        }
+
+        private func weightsKey(_ weights: QwenLlamaASR.Weights) -> String {
+            "\(weights.repository):\(weights.model.name)"
+        }
+
+        private func reserveServer(
+            weights: QwenLlamaASR.Weights,
+            paths: ServerPaths,
+            waitIfBusy: Bool
+        ) async throws -> ServerReservation? {
+            while true {
+                try Task.checkCancellation()
+                if isReplacingServer {
+                    try await waitForStateChange()
+                    continue
+                }
+                let busyCount = waitIfBusy ? (activeLeaseUses + activeStartupUses) : activeLeaseUses
+                switch QwenASREngine.serverTransition(
+                    hasServer: server != nil,
+                    loadedModelPath: serverPaths?.model.path,
+                    loadedProjectorPath: serverPaths?.projector.path,
+                    nextModelPath: paths.model.path,
+                    nextProjectorPath: paths.projector.path,
+                    activeServerUses: busyCount
+                ) {
+                case .deferReplacement:
+                    if waitIfBusy {
+                        try await waitForStateChange()
+                        continue
+                    }
+                    pendingDeferredResetGeneration = serverGeneration
+                    return nil
+                case .replaceNow:
+                    if activeStartupUses > 0 {
+                        try await waitForStateChange()
+                        continue
+                    }
+                    await stopCurrentServer()
+                    continue
+                case .reuse:
+                    let reservedServer: Server
+                    let reservedGeneration: UInt64
+                    if let existing = server {
+                        reservedServer = existing
+                        reservedGeneration = serverGeneration
+                        if !waitIfBusy {
+                            pendingDeferredResetGeneration = nil
+                        }
+                    } else {
+                        reservedServer = makeServer(weights, paths.projector)
+                        serverGeneration &+= 1
+                        reservedGeneration = serverGeneration
+                        server = reservedServer
+                        serverPaths = paths
+                        pendingDeferredResetGeneration = nil
+                    }
+                    activeStartupUses += 1
+                    return ServerReservation(server: reservedServer, generation: reservedGeneration)
+                }
+            }
+        }
+
+        private func promoteStartupToLease(generation: UInt64, expectedServer: Server) -> Bool {
+            guard generation == serverGeneration, server === expectedServer, activeStartupUses > 0 else {
+                return false
+            }
+            activeStartupUses -= 1
+            activeLeaseUses += 1
+            if activeStartupUses == 0 {
+                wakeWaiters()
+            }
+            return true
+        }
+
+        private func releaseStartup(generation: UInt64) {
+            guard generation == serverGeneration, activeStartupUses > 0 else { return }
+            activeStartupUses -= 1
+            finishServerActivity(for: generation)
+        }
+
+        private func finishServerActivity(for generation: UInt64) {
+            if activeStartupUses == 0 {
+                wakeWaiters()
+            }
+            guard activeLeaseUses == 0, activeStartupUses == 0 else { return }
+            if pendingDeferredResetGeneration == serverGeneration, serverGeneration == generation {
+                pendingDeferredResetGeneration = nil
+                Task { await self.resetDeferredServer(generation: generation) }
+            }
+        }
+
+        private func waitForStateChange() async throws {
+            try Task.checkCancellation()
+            let id = UUID()
+            try await withTaskCancellationHandler {
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+                    guard !Task.isCancelled else {
+                        continuation.resume(throwing: CancellationError())
+                        return
+                    }
+                    stateWaiters[id] = continuation
+                }
+            } onCancel: {
+                Task { await self.cancelWaiter(id) }
+            }
+            try Task.checkCancellation()
+        }
+
+        private func cancelWaiter(_ id: UUID) {
+            guard let waiter = stateWaiters.removeValue(forKey: id) else { return }
+            waiter.resume(throwing: CancellationError())
+        }
+
+        private func wakeWaiters() {
+            let waiters = stateWaiters.values
+            stateWaiters.removeAll()
+            for waiter in waiters { waiter.resume() }
         }
 
         private func unload() async {
-            guard activeUses == 0, activeServerUses == 0, !(await preparation.isRunning) else { return }
-            guard activeUses == 0, activeServerUses == 0 else { return }
-            pendingServerReset = false
-            await stopServerIfCurrent(server)
+            guard activeUses == 0,
+                  activeLeaseUses == 0,
+                  activeStartupUses == 0,
+                  !isReplacingServer else { return }
+            for flight in filePreparations.values where await flight.isRunning {
+                return
+            }
+            guard activeUses == 0,
+                  activeLeaseUses == 0,
+                  activeStartupUses == 0,
+                  !isReplacingServer else { return }
+            await stopCurrentServer()
         }
 
         private func finishUse() {
@@ -156,22 +351,27 @@ actor QwenASREngine: TranscriptionEngine {
             Task { await idle.bump() }
         }
 
-        private func resetDeferredServer() async {
-            guard activeServerUses == 0 else {
-                pendingServerReset = true
+        private func resetDeferredServer(generation: UInt64) async {
+            guard serverGeneration == generation, server != nil, !isReplacingServer else { return }
+            guard activeLeaseUses == 0, activeStartupUses == 0 else {
+                pendingDeferredResetGeneration = generation
                 return
             }
-            await stopServerIfCurrent(server)
+            await stopCurrentServer()
         }
 
-        private func stopServerIfCurrent(_ existing: LlamaServer?) async {
-            guard let existing else { return }
+        private func stopCurrentServer() async {
+            guard let existing = server else { return }
+            isReplacingServer = true
+            server = nil
+            serverPaths = nil
+            pendingDeferredResetGeneration = nil
+            serverGeneration &+= 1
+            activeLeaseUses = 0
+            activeStartupUses = 0
             await existing.stop()
-            if server === existing {
-                server = nil
-                serverModelPath = nil
-                serverProjectorPath = nil
-            }
+            isReplacingServer = false
+            wakeWaiters()
         }
 
         private nonisolated func report(_ update: ModelPreparationUpdate,
@@ -181,10 +381,13 @@ actor QwenASREngine: TranscriptionEngine {
         }
     }
 
-    static let accuracyLokalBotV3 = QwenASREngine(variant: .accuracyLokalBotV3, runtime: .accuracy)
-    static let accuracy = QwenASREngine(variant: .accuracy, runtime: .accuracy)
-    static let compactLokalBotV1 = QwenASREngine(variant: .compactLokalBotV1, runtime: .compact)
-    static let compact = QwenASREngine(variant: .compact, runtime: .compact)
+    private static let accuracyRuntime = TierRuntime<LlamaServer>.live()
+    private static let compactRuntime = TierRuntime<LlamaServer>.live()
+
+    static let accuracyLokalBotV3 = QwenASREngine(variant: .accuracyLokalBotV3, runtime: accuracyRuntime)
+    static let accuracy = QwenASREngine(variant: .accuracy, runtime: accuracyRuntime)
+    static let compactLokalBotV1 = QwenASREngine(variant: .compactLokalBotV1, runtime: compactRuntime)
+    static let compact = QwenASREngine(variant: .compact, runtime: compactRuntime)
 
     nonisolated var displayName: String { variant.displayName }
     nonisolated let supportsStreaming = false
@@ -227,15 +430,15 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     private let variant: Variant
-    private let runtime: TierRuntime
+    private let runtime: TierRuntime<LlamaServer>
 
-    private init(variant: Variant, runtime: TierRuntime) {
+    private init(variant: Variant, runtime: TierRuntime<LlamaServer>) {
         self.variant = variant
         self.runtime = runtime
     }
 
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
-        try await runtime.prepare(weights: variant.weights, progress: progress)
+        _ = try await runtime.prepare(weights: variant.weights, progress: progress)
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
@@ -259,8 +462,8 @@ actor QwenASREngine: TranscriptionEngine {
         try variant.choice.validateLanguage(language)
         let pin = await ModelResidency.shared.pin(id: variant.weights.role.residencyID)
         defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
-        let server = try await runtime.acquireServer(weights: variant.weights)
-        defer { Task { await runtime.releaseServer() } }
+        let lease = try await runtime.acquireServer(weights: variant.weights)
+        defer { Task { await runtime.releaseServer(lease) } }
 
         let started = Date()
         var spans = try await SpeechActivity.shared.spans(
@@ -271,7 +474,7 @@ actor QwenASREngine: TranscriptionEngine {
         let decode: SpanDecoder = { batch, qwenLanguage in
             let segments = try await SpanTranscription.segments(in: url, spans: batch) { samples, _ in
                 try await Self.transcribeWindow(
-                    samples: samples, language: qwenLanguage, prompt: prompt, server: server)
+                    samples: samples, language: qwenLanguage, prompt: prompt, server: lease.server)
             }
             return Self.withoutPromptEchoes(segments, prompt: prompt)
         }
@@ -443,3 +646,21 @@ actor QwenASREngine: TranscriptionEngine {
         }
     }
 }
+
+extension QwenASREngine.TierRuntime where Server == LlamaServer {
+    static func live() -> QwenASREngine.TierRuntime<LlamaServer> {
+        QwenASREngine.TierRuntime<LlamaServer>(
+            prepareFiles: { weights, progress in
+                let paths = try await weights.prepareFiles(
+                    appSupport: AppDirectories.applicationSupport,
+                    progress: progress)
+                return QwenASREngine.ServerPaths(model: paths.model, projector: paths.projector)
+            },
+            makeServer: { weights, projector in
+                weights.makeServer(projector: projector)
+            }
+        )
+    }
+}
+
+extension LlamaServer: QwenASREngine.ManagedServer {}
