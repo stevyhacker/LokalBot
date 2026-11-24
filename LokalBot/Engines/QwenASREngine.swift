@@ -127,10 +127,7 @@ actor QwenASREngine: TranscriptionEngine {
             pendingServerReset = true
             return
         case .replaceNow:
-            await server?.stop()
-            server = nil
-            serverModelPath = nil
-            serverProjectorPath = nil
+            await stopServerIfCurrent(server)
         case .reuse:
             break
         }
@@ -277,19 +274,14 @@ actor QwenASREngine: TranscriptionEngine {
 
     func shutdown() async {
         pendingServerReset = false
-        await server?.stop()
-        server = nil
-        serverModelPath = nil
-        serverProjectorPath = nil
+        await stopServerIfCurrent(server)
     }
 
     private func unload() async {
         guard activeUses == 0, activeServerUses == 0, !(await preparation.isRunning) else { return }
+        guard activeUses == 0, activeServerUses == 0 else { return }
         pendingServerReset = false
-        await server?.stop()
-        server = nil
-        serverModelPath = nil
-        serverProjectorPath = nil
+        await stopServerIfCurrent(server)
     }
 
     private func finishUse() {
@@ -310,10 +302,17 @@ actor QwenASREngine: TranscriptionEngine {
             pendingServerReset = true
             return
         }
-        await server?.stop()
-        server = nil
-        serverModelPath = nil
-        serverProjectorPath = nil
+        await stopServerIfCurrent(server)
+    }
+
+    private func stopServerIfCurrent(_ existing: LlamaServer?) async {
+        guard let existing else { return }
+        await existing.stop()
+        if server === existing {
+            server = nil
+            serverModelPath = nil
+            serverProjectorPath = nil
+        }
     }
 
     private nonisolated func report(_ update: ModelPreparationUpdate,
