@@ -195,7 +195,8 @@ extension MeetingNotesGenerator {
                     schema: MeetingNotesEvidence.schema(units: repairUnits, speakers: Array(job.evidence.speakers.keys),
                         template: job.template, maximumNotes: noteLimit, maximumActions: actionLimit,
                         actionTexts: repairable.allSatisfy { $0.actionID != nil } ? repairable.compactMap(\.text) : nil),
-                    tokens: repairTokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget)
+                    tokens: repairTokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget,
+                    reasoning: .off)
                 let started = ProcessInfo.processInfo.systemUptime
                 let fixed = job.evidence.validate(raw.content, units: repairUnits, template: job.template,
                     meetingID: job.meetingID, maximumNotes: noteLimit, maximumActions: actionLimit)

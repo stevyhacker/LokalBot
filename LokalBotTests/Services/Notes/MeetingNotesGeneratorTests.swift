@@ -862,6 +862,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let result = try await generate(script, minimumOutputTokens: 2_048)
         let calls = await script.recorded()
         XCTAssertEqual(calls.map { $0.options.maxTokens }, [4_096, 2_048, 4_096])
+        XCTAssertEqual(calls.map { $0.options.reasoning }, [.modelDefault, .off, .off])
         XCTAssertEqual(result.claims.count, 2)
         XCTAssertEqual(result.outcomes.userActionItems.count, 1)
     }

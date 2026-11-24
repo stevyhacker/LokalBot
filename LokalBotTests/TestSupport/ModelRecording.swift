@@ -75,6 +75,10 @@ final class RecordingTextEngine: TextEngine, @unchecked Sendable {
     var accountsForGenerationRequests: Bool { base.accountsForGenerationRequests }
     var minimumStructuredOutputTokens: Int { base.minimumStructuredOutputTokens }
 
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+        base.reasoningAllowance(for: options)
+    }
+
     func tokenCount(_ text: String) async throws -> Int? { try await base.tokenCount(text) }
 
     func generate(system: String, prompt: String, context: [String],
@@ -107,8 +111,12 @@ final class RecordingTextEngine: TextEngine, @unchecked Sendable {
         if over { throw TextEngineError.unavailable("recording request limit reached") }
         var request = try base.makeChatRequest(system: system, prompt: prompt, context: context,
                                                schema: schema, options: options)
+        var wireMaxTokens = options.maxTokens
         if var body = try request.httpBody.flatMap({ try JSONSerialization.jsonObject(with: $0) as? [String: Any] }) {
             body["stream"] = false
+            wireMaxTokens = (body["max_tokens"] as? Int)
+                ?? (body["max_completion_tokens"] as? Int)
+                ?? options.maxTokens
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
         }
         request.timeoutInterval = 180
@@ -124,7 +132,7 @@ final class RecordingTextEngine: TextEngine, @unchecked Sendable {
         let usage = json["usage"] as? [String: Any] ?? [:]
         let call = ModelRecording.Call(
             purpose: ModelRequestPurpose.classify(system: system) ?? .ask,
-            maxTokens: options.maxTokens,
+            maxTokens: wireMaxTokens,
             reasoning: options.reasoning == .off ? "off" : "modelDefault",
             content: content,
             finishReason: finish,
@@ -134,7 +142,20 @@ final class RecordingTextEngine: TextEngine, @unchecked Sendable {
         lock.lock()
         calls.append(call)
         lock.unlock()
-        if finish == "length" { throw TextEngineError.outputTruncated }
+        if finish == "length" {
+            let reply = strippingReasoning(content)
+            if OpenAICompatibleEngine.visibleText(ofTruncatedReply: reply).isEmpty,
+               base.canRetryWithoutReasoning(options) {
+                return try await send(system: system, prompt: prompt, context: context, schema: schema,
+                                      options: OpenAICompatibleEngine.withoutReasoning(options))
+            }
+            if MeetingGenerationBudget.current != nil { throw TruncatedStructuredResponse(content: reply) }
+            let visible = OpenAICompatibleEngine.visibleText(ofTruncatedReply: reply)
+            guard options.keepsTruncatedReply, !visible.isEmpty else {
+                throw TextEngineError.outputTruncated
+            }
+            return visible
+        }
         return content
     }
 }

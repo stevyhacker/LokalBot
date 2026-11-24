@@ -409,7 +409,7 @@ struct OllamaEngine: TextEngine {
             let reply = strippingReasoning(content)
             if truncated {
                 if OpenAICompatibleEngine.visibleText(ofTruncatedReply: reply).isEmpty,
-                   options?.reasoning != .off, options?.keepsTruncatedReply != true,
+                   options?.reasoning != .off,
                    reasoningAllowance(for: options) > 0 {
                     throw ReasoningExhaustedReply()
                 }
@@ -593,7 +593,7 @@ struct OpenAICompatibleEngine: TextEngine {
     }
 
     func canRetryWithoutReasoning(_ options: TextGenerationOptions?) -> Bool {
-        options?.reasoning != .off && options?.keepsTruncatedReply != true && reasoningAllowance(for: options) > 0
+        options?.reasoning != .off && reasoningAllowance(for: options) > 0
     }
 
     static func withoutReasoning(_ options: TextGenerationOptions?) -> TextGenerationOptions {

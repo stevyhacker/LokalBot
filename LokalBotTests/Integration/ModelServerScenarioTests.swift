@@ -143,6 +143,54 @@ final class ModelServerScenarioTests: XCTestCase {
         XCTAssertEqual((requests[1].body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
     }
 
+    func testAllReasoningReplyWithKeepsTruncatedReplyStillRetriesOnceWithoutReasoning() async throws {
+        try await server.load([
+            StubRule.reasoning(#"{"notes":[],"actions":[]}"#, tokens: 1_100, nth: 1),
+            StubRule.reply(#"{"notes":[],"actions":[]}"#),
+        ])
+        let budget = MeetingGenerationBudget()
+
+        let result = try await budget.run {
+            try await MeetingNotesGenerator.request(
+                engine: self.engine,
+                system: "system",
+                prompt: "prompt",
+                context: [],
+                schema: ["type": "object", "properties": [:], "required": [], "additionalProperties": false],
+                tokens: 512,
+                stage: "repair-1",
+                contextTokens: 32_768,
+                budget: budget,
+                reasoning: .modelDefault)
+        }
+
+        XCTAssertEqual(result.content, #"{"notes":[],"actions":[]}"#)
+        XCTAssertFalse(result.truncated)
+        let requests = try await server.requests()
+        XCTAssertEqual(requests.map(\.maxTokens), [1_024, 512])
+        XCTAssertNil(requests[0].body["reasoning"])
+        XCTAssertEqual((requests[1].body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+    }
+
+    func testRecordingTextEngineLogsWireMaxTokensAndRetriesAllReasoningReplies() async throws {
+        try await server.load([
+            StubRule.reasoning("Done", tokens: 50_000, nth: 1),
+            StubRule.reply("Done"),
+        ])
+        let recorder = RecordingTextEngine(base: engine, requestLimit: 5)
+
+        let reply = try await recorder.generate(
+            system: "system",
+            prompt: "prompt",
+            context: [],
+            options: .init(maxTokens: 512, keepsTruncatedReply: true))
+
+        XCTAssertEqual(reply, "Done")
+        XCTAssertEqual(recorder.calls.map(\.maxTokens), [1_024, 512])
+        XCTAssertEqual(recorder.calls.map(\.reasoning), ["modelDefault", "off"])
+        XCTAssertEqual(recorder.calls.map(\.finishReason), ["length", "stop"])
+    }
+
     func testAnOffRequestThatRunsOutIsNotRetried() async throws {
         try await server.load([StubRule.reasoning("Done", tokens: 50_000)])
 

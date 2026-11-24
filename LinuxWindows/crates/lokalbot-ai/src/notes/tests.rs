@@ -241,6 +241,7 @@ fn notes_reserve_reasoning_room_and_charge_a_retried_request_twice() {
         "extract-1",
         32_768,
         false,
+        TaskReasoning::ModelDefault,
     )
     .unwrap();
     assert_eq!(text, "{\"notes\": [], \"actions\": []}");
@@ -278,6 +279,7 @@ fn notes_reserve_reasoning_room_and_charge_a_retried_request_twice() {
         "extract-1",
         ENVELOPE_TOKENS + 3 + 1_500,
         false,
+        TaskReasoning::ModelDefault,
     )
     .unwrap();
     let last = server
@@ -327,6 +329,7 @@ fn notes_retry_reserves_input_and_slots_before_dispatch_and_preserves_recovery()
         "extract-1",
         32_768,
         false,
+        TaskReasoning::ModelDefault,
     )
     .unwrap();
     assert_eq!(text, "{\"notes\": [], \"actions\": []}");
@@ -368,6 +371,7 @@ fn notes_retry_reserves_input_and_slots_before_dispatch_and_preserves_recovery()
         "extract-1",
         32_768,
         false,
+        TaskReasoning::ModelDefault,
     )
     .unwrap();
     assert!(empty.is_empty());
@@ -414,6 +418,7 @@ fn notes_retry_reserves_input_and_slots_before_dispatch_and_preserves_recovery()
         "extract-1",
         32_768,
         false,
+        TaskReasoning::ModelDefault,
     )
     .unwrap();
     assert_eq!(recovered, "{\"notes\": [], \"actions\": []}");
@@ -471,15 +476,27 @@ fn an_unfound_ownership_quote_is_repaired() {
             }))
         }
     });
-    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "m");
+    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "qwen3.5-4b");
     let notes = generate_meeting_notes(&think, &meeting, &transcript, "", &settings(), &mut |_| {})
         .unwrap();
-    assert!(
-        server
-            .requests()
-            .iter()
-            .any(|r| r.path == "/v1/chat/completions"
-                && user_message(r).starts_with("This is a targeted repair."))
+    let chat_requests: Vec<_> = server
+        .requests()
+        .into_iter()
+        .filter(|r| r.path == "/v1/chat/completions")
+        .collect();
+    let repair_request = chat_requests
+        .iter()
+        .find(|r| user_message(r).starts_with("This is a targeted repair."))
+        .expect("targeted repair request");
+    let primary_request = chat_requests
+        .iter()
+        .find(|r| !user_message(r).starts_with("This is a targeted repair."))
+        .expect("primary notes request");
+    assert_ne!(primary_request.json()["thinking_budget_tokens"], 0);
+    assert_eq!(repair_request.json()["thinking_budget_tokens"], 0);
+    assert_eq!(
+        repair_request.json()["chat_template_kwargs"],
+        json!({"enable_thinking": false})
     );
     assert_eq!(notes.outcomes.action_items.len(), 1);
     let action = &notes.outcomes.action_items[0];
