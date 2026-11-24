@@ -8,7 +8,7 @@ struct TodaySoFarSection: View {
     @State private var highlights = ""
 
     private static let appLimit = 4
-    private static let nameColumnWidth: CGFloat = 100
+    private static let nameColumnWidth: CGFloat = 116
     private static let durationColumnWidth: CGFloat = 52
 
     private var scheduledRun: Bool { lifecycle.isGenerating(on: model.day) && !model.generating }

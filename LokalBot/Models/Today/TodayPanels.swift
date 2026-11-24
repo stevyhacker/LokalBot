@@ -1,7 +1,7 @@
 import Foundation
 
 enum TodayColumns {
-    static let trailingWidth: CGFloat = 336
+    static let trailingWidth: CGFloat = 352
     static let leadingMinimumWidth: CGFloat = 480
     static let gap: CGFloat = 16
 
@@ -27,6 +27,28 @@ enum TodayColumns {
     static func pageMaximumWidth(hasLeading: Bool, hasTrailing: Bool,
                                  wide: CGFloat, reading: CGFloat) -> CGFloat {
         hasLeading != hasTrailing ? reading : wide
+    }
+}
+
+enum YesterdayBriefColumns {
+    static let twoColumnMinimumWidth: CGFloat = 840
+    static let columnGap: CGFloat = 20
+    static let dividerWidth: CGFloat = 1
+    static let verticalDividerSpacing: CGFloat = 14
+    static let primaryShare: CGFloat = 0.54
+
+    static func minimumWidth(textScale: CGFloat) -> CGFloat {
+        (twoColumnMinimumWidth * TodayColumns.factor(textScale: textScale)).rounded()
+    }
+
+    static func isTwoColumn(width: CGFloat, textScale: CGFloat) -> Bool {
+        width >= minimumWidth(textScale: textScale)
+    }
+
+    static func widths(in width: CGFloat) -> (primary: CGFloat, secondary: CGFloat) {
+        let usable = max(0, width - columnGap * 2 - dividerWidth)
+        let primary = (usable * primaryShare).rounded()
+        return (primary, max(0, usable - primary))
     }
 }
 

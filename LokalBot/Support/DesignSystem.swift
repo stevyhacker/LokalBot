@@ -21,7 +21,7 @@ enum WorkspaceMetric {
     static let rowVerticalPadding: CGFloat = 10
     static let contentMaxWidth: CGFloat = 1360
     static let readingMaxWidth: CGFloat = LBTokens.Metric.readingMaxWidth
-    static let todayMaxWidth: CGFloat = 1064
+    static let todayMaxWidth: CGFloat = 1200
     static let todayReadingMaxWidth: CGFloat = 780
     static let toolbarHeight: CGFloat = 52
 

@@ -17,7 +17,7 @@ use crate::ui::section_panel::{SectionPanel, footer_text, panel_label, panel_lin
 use crate::ui::{self, action_row};
 
 const TIME_COLUMN_WIDTH: f32 = 76.;
-const APP_NAME_WIDTH: f32 = 108.;
+const APP_NAME_WIDTH: f32 = 124.;
 const APP_DURATION_WIDTH: f32 = 56.;
 const TRACKED_TOTAL: gpui_kit::Pixels = px(24.);
 const NOW_LINE: gpui_kit::Pixels = px(12.);

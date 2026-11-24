@@ -563,6 +563,7 @@ impl Render for TodayPage {
         let mut leading: Vec<AnyElement> = Vec::new();
         let mut trailing: Vec<AnyElement> = Vec::new();
         let mut below: Vec<AnyElement> = Vec::new();
+        let scale = self.data.read(cx).settings.text_size.scale();
         let (has_leading, has_trailing) = match self.model.take() {
             Some(model) => {
                 let writing = self.data.read(cx).digest_running == Some(model.day);
@@ -598,7 +599,18 @@ impl Render for TodayPage {
                     if has_day {
                         trailing.push(self.render_so_far(&model, writing, cx));
                     }
-                    trailing.extend(self.render_yesterday(&model.brief, model.day, cx));
+                    let maximum =
+                        columns::page_maximum_width(!leading.is_empty(), !trailing.is_empty());
+                    let panel_inner =
+                        self.content_width(maximum) - f32::from(metric::PANEL_INSET) * 2.;
+                    let yesterday_two_columns =
+                        columns::yesterday_is_two_column(panel_inner, scale);
+                    below.extend(self.render_yesterday(
+                        &model.brief,
+                        model.day,
+                        yesterday_two_columns,
+                        cx,
+                    ));
                 }
                 match layout {
                     PageLayout::Sections {
@@ -641,7 +653,6 @@ impl Render for TodayPage {
         };
 
         let maximum = columns::page_maximum_width(has_leading, has_trailing);
-        let scale = self.data.read(cx).settings.text_size.scale();
         let two = columns::count(
             self.content_width(maximum),
             scale,

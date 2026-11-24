@@ -316,7 +316,7 @@ struct ActionThreadRow: View {
                     .font(.scaled(.body))
                     .strikethrough(thread.status == .done)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                HStack(spacing: 6) {
+                MeetingWrappingRow(spacing: 8, lineSpacing: 4) {
                     if showsOwner {
                         Text(thread.owner.map { SpeakerDisplayName.label($0) } ?? "Owner unclear")
                             .font(AppFont.scaled(.callout))
@@ -361,6 +361,7 @@ struct ActionThreadRow: View {
                         Text(ActionDuePresentation.label(due, spokenAt: spokenAt))
                             .font(AppFont.scaled(.callout))
                             .foregroundStyle(dueColor)
+                            .fixedSize(horizontal: false, vertical: true)
                             .accessibilityLabel(thread.isOverdue()
                                 ? "Overdue. " + ActionDuePresentation.label(due, spokenAt: spokenAt)
                                 : ActionDuePresentation.label(due, spokenAt: spokenAt))

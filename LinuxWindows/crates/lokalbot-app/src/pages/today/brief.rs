@@ -170,6 +170,7 @@ impl TodayPage {
         &self,
         model: &BriefModel,
         today: NaiveDate,
+        two_columns: bool,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let report = model.report.as_ref()?;
@@ -189,17 +190,17 @@ impl TodayPage {
             .px(metric::PANEL_INSET)
             .py(px(14.))
             .gap(px(14.));
-        if !report.narrative.is_empty() {
-            body = body.child(brief_text(
+        let narrative = (!report.narrative.is_empty()).then(|| {
+            brief_text(
                 "today-brief-narrative".into(),
                 &report.narrative,
                 &meetings,
                 &self.data,
                 cx,
-            ));
-        }
-        if !report.top_actions.is_empty() {
-            let mut list = v_flex().w_full().gap(px(3.));
+            )
+        });
+        let priorities = (!report.top_actions.is_empty()).then(|| {
+            let mut list = v_flex().w_full().gap(px(6.));
             for (index, action) in report.top_actions.iter().enumerate() {
                 let thread = report
                     .top_action_thread_id(index)
@@ -234,14 +235,13 @@ impl TodayPage {
                         .into_any_element(),
                 });
             }
-            body = body.child(
-                v_flex()
-                    .w_full()
-                    .gap(px(6.))
-                    .child(panel_label(priorities_label(&report.day, today), cx))
-                    .child(list),
-            );
-        }
+            v_flex()
+                .w_full()
+                .gap(px(6.))
+                .child(panel_label(priorities_label(&report.day, today), cx))
+                .child(list)
+                .into_any_element()
+        });
         let notes: Vec<&String> = report
             .attention
             .iter()
@@ -249,18 +249,91 @@ impl TodayPage {
             .chain(&report.suggested_checks)
             .chain(&report.frictions)
             .collect();
-        if !notes.is_empty() {
-            body = body.child(v_flex().w_full().gap(px(4.)).children(
-                notes.into_iter().enumerate().map(|(index, text)| {
-                    brief_text(
-                        format!("today-brief-item-{index}").into(),
-                        &format!("• {text}"),
-                        &meetings,
-                        &self.data,
-                        cx,
+        let notes_section =
+            (!notes.is_empty()).then(|| {
+                v_flex()
+                    .w_full()
+                    .gap(px(6.))
+                    .child(panel_label(lokalbot_i18n::tr("Notes"), cx))
+                    .child(v_flex().w_full().gap(px(6.)).children(
+                        notes.into_iter().enumerate().map(|(index, text)| {
+                            h_flex()
+                                .w_full()
+                                .items_start()
+                                .gap(px(6.))
+                                .child(
+                                    div()
+                                        .flex_none()
+                                        .text_size(ty::BODY)
+                                        .line_height(px(21.))
+                                        .text_color(lb.supporting)
+                                        .child("•"),
+                                )
+                                .child(div().flex_1().min_w_0().child(brief_text(
+                                    format!("today-brief-item-{index}").into(),
+                                    text,
+                                    &meetings,
+                                    &self.data,
+                                    cx,
+                                )))
+                        }),
+                    ))
+                    .into_any_element()
+            });
+        let split_pair: Option<(AnyElement, AnyElement)> =
+            match (narrative, priorities, notes_section) {
+                (Some(narrative), Some(priorities), Some(notes)) => Some((
+                    v_flex()
+                        .w_full()
+                        .gap(px(14.))
+                        .child(narrative)
+                        .child(priorities)
+                        .into_any_element(),
+                    notes,
+                )),
+                (Some(narrative), None, Some(notes)) => Some((narrative, notes)),
+                (None, Some(priorities), Some(notes)) => Some((priorities, notes)),
+                (Some(narrative), Some(priorities), None) => Some((narrative, priorities)),
+                (Some(single), None, None)
+                | (None, Some(single), None)
+                | (None, None, Some(single)) => {
+                    body = body.child(
+                        div()
+                            .w_full()
+                            .max_w(metric::READING_MAX_WIDTH)
+                            .child(single),
+                    );
+                    None
+                }
+                (None, None, None) => None,
+            };
+        if let Some((primary, secondary)) = split_pair {
+            if two_columns {
+                body = body.child(
+                    h_flex()
+                        .w_full()
+                        .items_stretch()
+                        .gap(px(20.))
+                        .child(div().flex_1().min_w_0().child(primary))
+                        .child(div().flex_none().w(px(1.)).h_full().bg(lb.separator))
+                        .child(div().flex_1().min_w_0().child(secondary)),
+                );
+            } else {
+                body = body
+                    .child(
+                        div()
+                            .w_full()
+                            .max_w(metric::READING_MAX_WIDTH)
+                            .child(primary),
                     )
-                }),
-            ));
+                    .child(ui::divider(cx))
+                    .child(
+                        div()
+                            .w_full()
+                            .max_w(metric::READING_MAX_WIDTH)
+                            .child(secondary),
+                    );
+            }
         }
         if report.is_fallback() {
             body = body.child(note(

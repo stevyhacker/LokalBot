@@ -2,6 +2,7 @@ import SwiftUI
 
 struct YesterdayBriefPanel: View {
     @EnvironmentObject private var app: AppState
+    @Environment(\.appTextScale) private var textScale
     let report: DreamReport
     let day: Date
 
@@ -15,6 +16,10 @@ struct YesterdayBriefPanel: View {
     private var notes: [String] {
         report.attention + report.repeatedWork + report.suggestedChecks + report.frictions
     }
+
+    private var hasNarrative: Bool { !report.narrative.isEmpty }
+    private var hasPriorities: Bool { !report.topActions.isEmpty }
+    private var hasNotes: Bool { !notes.isEmpty }
 
     private func linkedThread(_ id: String?) -> ActionThread? {
         guard let id else { return nil }
@@ -33,19 +38,7 @@ struct YesterdayBriefPanel: View {
             }
         } content: {
             VStack(alignment: .leading, spacing: 14) {
-                if !report.narrative.isEmpty {
-                    DreamBriefText(text: report.narrative)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                if !report.topActions.isEmpty { priorities }
-                if !notes.isEmpty {
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(Array(notes.enumerated()), id: \.offset) { _, text in
-                            DreamBriefText(text: "• " + text)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
+                briefContent
                 if report.isFallback {
                     Text("Previous-day summary uses captured evidence only.").workspaceTextRole(.supporting)
                 }
@@ -67,10 +60,68 @@ struct YesterdayBriefPanel: View {
         }
     }
 
+    @ViewBuilder private var briefContent: some View {
+        if hasNotes && (hasNarrative || hasPriorities) {
+            YesterdayBriefColumnsLayout(textScale: textScale) {
+                VStack(alignment: .leading, spacing: 14) {
+                    if hasNarrative { narrative }
+                    if hasPriorities { priorities }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                columnDivider
+                notesSection
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else if hasNarrative && hasPriorities {
+            YesterdayBriefColumnsLayout(textScale: textScale) {
+                narrative
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                columnDivider
+                priorities
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        } else if hasNarrative {
+            narrative.frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
+        } else if hasPriorities {
+            priorities.frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
+        } else if hasNotes {
+            notesSection.frame(maxWidth: WorkspaceMetric.readingMaxWidth, alignment: .leading)
+        }
+    }
+
+    private var columnDivider: some View {
+        Rectangle()
+            .fill(Color(nsColor: .separatorColor))
+            .accessibilityHidden(true)
+    }
+
+    private var narrative: some View {
+        DreamBriefText(text: report.narrative)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private var notesSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            SectionPanelLabel(text: Text("Notes"))
+            VStack(alignment: .leading, spacing: 6) {
+                ForEach(Array(notes.enumerated()), id: \.offset) { _, text in
+                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                        Text(verbatim: "•")
+                            .font(AppFont.scaled(.body))
+                            .workspaceSupportingForeground()
+                            .accessibilityHidden(true)
+                        DreamBriefText(text: text)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
+    }
+
     private var priorities: some View {
         VStack(alignment: .leading, spacing: 6) {
             SectionPanelLabel(text: prioritiesLabel)
-            VStack(alignment: .leading, spacing: 3) {
+            VStack(alignment: .leading, spacing: 6) {
                 ForEach(Array(report.topActions.enumerated()), id: \.offset) { index, action in
                     if let thread = linkedThread(report.topActionThreadID(at: index)) {
                         ActionThreadRow(thread: thread)
