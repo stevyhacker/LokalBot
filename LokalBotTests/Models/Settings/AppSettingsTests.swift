@@ -116,7 +116,7 @@ final class AppSettingsTests: XCTestCase {
     func testThinkModelDisplayNameFollowsSelectedBackendNotLeftoverLocalID() {
         var settings = AppSettings()
         settings.builtInModelID = ModelCatalog.defaultSummarizationID
-        XCTAssertEqual(settings.thinkModelDisplayName, "Qwen3.5 4B")
+        XCTAssertEqual(settings.thinkModelDisplayName, "Qwen3.5 4B (LokalBot v4)")
 
         settings.summarizerBackend = .openAICompatible
         settings.openAIModel = "z-ai/glm-5.3"
@@ -765,5 +765,16 @@ final class AppSettingsTests: XCTestCase {
 
         XCTAssertFalse(loaded.menuBarOnly)
         XCTAssertTrue(loaded.cotypingEnabled)
+    }
+
+    func testDismissedDefaultModelUpgradeKeyRoundTrips() throws {
+        let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertEqual(legacy.dismissedDefaultModelUpgradeKey, "")
+        XCTAssertTrue(legacy.corruptedSettingsKeys.isEmpty)
+
+        var settings = AppSettings()
+        settings.dismissedDefaultModelUpgradeKey = "think:qwen3.5-4b-lokalbot-v4"
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: JSONEncoder().encode(settings))
+        XCTAssertEqual(decoded.dismissedDefaultModelUpgradeKey, "think:qwen3.5-4b-lokalbot-v4")
     }
 }

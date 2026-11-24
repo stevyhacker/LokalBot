@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "في حقول السطر الواحد خارج تطبيقات الدردشة ومحررات الشيفرة، يتجاهل مفتاح Tab الاقتراح وينتقل إلى الحقل التالي بدلًا من قبوله.";
 "Pause in Low Power Mode" = "إيقاف مؤقت في نمط الطاقة المنخفضة";
 "Pause suggestions while Low Power Mode is on to save battery." = "إيقاف الاقتراحات مؤقتًا أثناء تشغيل نمط الطاقة المنخفضة لتوفير البطارية.";
+"New default models available" = "تتوفر نماذج افتراضية جديدة";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "قم بترقية %@ إلى النماذج الافتراضية الجديدة المضبوطة بدقة من LokalBot (%@). تبقى نماذجك الحالية نشطة حتى يكتمل التنزيل.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "بدّل %@ إلى النماذج الافتراضية الجديدة المضبوطة بدقة من LokalBot. لقد تم تنزيلها بالفعل.";
+"Upgrade & Download" = "ترقية وتنزيل";
+"Switch defaults" = "تبديل الافتراضيات";
+"LokalBot default models" = "النماذج الافتراضية لـ LokalBot";

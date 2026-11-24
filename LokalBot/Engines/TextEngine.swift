@@ -530,6 +530,9 @@ struct OpenAICompatibleEngine: TextEngine {
     func requestLevel(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let support = reasoningSupport
             ?? .known(provider: .init(dialect: chatDialect, baseURL: baseURL), model: model)
+        if chatDialect == .llamaServer, reasoningLevel == .automatic, support.defaultLevel == .off {
+            return .off
+        }
         return support.requestLevel(reasoningLevel, taskBudget: options?.reasoningBudgetTokens)
     }
 

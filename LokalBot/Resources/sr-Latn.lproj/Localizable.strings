@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "U jednorednim poljima van aplikacija za ćaskanje i editora koda, Tab odbacuje predlog i prelazi na sledeće polje umesto da ga prihvati.";
 "Pause in Low Power Mode" = "Pauziraj u režimu uštede energije";
 "Pause suggestions while Low Power Mode is on to save battery." = "Pauzira predloge dok je uključen režim uštede energije radi uštede baterije.";
+"New default models available" = "Dostupni su novi podrazumevani modeli";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Nadogradi %@ na nove LokalBot fino podešene podrazumevane modele (%@). Trenutni modeli ostaju aktivni dok se preuzimanje ne završi.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Prebaci %@ na nove LokalBot fino podešene podrazumevane modele. Već su preuzeti.";
+"Upgrade & Download" = "Nadogradi i preuzmi";
+"Switch defaults" = "Prebaci podrazumevane";
+"LokalBot default models" = "Podrazumevani LokalBot modeli";

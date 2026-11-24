@@ -166,6 +166,7 @@ enum SettingRegistry {
         "languageHint",
         "dreamingFirstEligibleDayKey",
         "chatGPTPlanNoticeAcknowledged",
+        "dismissedDefaultModelUpgradeKey",
     ]
 
     static func spec(for key: String) -> SettingSpec? {

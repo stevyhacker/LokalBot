@@ -190,6 +190,8 @@ extension ReasoningSupport {
         switch id {
         case "ministral-3-3b-instruct-2512": .unavailable
         case "lfm2.5-2.6b": .init(levels: [.low, .medium, .high])
+        case let id where id.hasPrefix("qwen3.5-4b-lokalbot-v"):
+            .init(levels: [.off, .low, .medium, .high], defaultLevel: .off)
         default: .init(levels: [.off, .low, .medium, .high])
         }
     }

@@ -287,7 +287,7 @@ fn choice_token(choices: &[SettingChoice], stored: &Value) -> Value {
         .unwrap_or_else(|| stored.clone())
 }
 
-pub const INTERNAL_KEYS: [&str; 11] = [
+pub const INTERNAL_KEYS: [&str; 12] = [
     "onboardingCompleted",
     "gettingStartedDismissed",
     "chatGPTPlanNoticeAcknowledged",
@@ -297,6 +297,7 @@ pub const INTERNAL_KEYS: [&str; 11] = [
     "githubStarSummaryCompleted",
     "githubStarActiveDays",
     "autocompleteDefaultAdopted",
+    "dismissedDefaultModelUpgradeKey",
     "paneWidths",
     "settingsPage",
 ];

@@ -61,6 +61,28 @@ struct TranscriptionModelStore {
         "TextDecoder.mlmodelc"
     ]
 
+    static func legacyQwenASRChoices(environment: Environment = .live) -> Set<TranscriptionModelChoice> {
+        var legacy: Set<TranscriptionModelChoice> = []
+        if QwenLlamaASR.accuracy.hasLegacyGGUFWeights(appSupport: environment.appSupport) {
+            legacy.insert(.qwenASR17B)
+        }
+        if QwenLlamaASR.compact.hasLegacyGGUFWeights(appSupport: environment.appSupport) {
+            legacy.insert(.qwenASR06B)
+        }
+        return legacy
+    }
+
+    static func legacyQwenASRMissingBytes(
+        _ choice: TranscriptionModelChoice,
+        environment: Environment = .live
+    ) -> Int64 {
+        switch choice {
+        case .qwenASR17B: QwenLlamaASR.accuracy.missingCurrentBytes(appSupport: environment.appSupport)
+        case .qwenASR06B: QwenLlamaASR.compact.missingCurrentBytes(appSupport: environment.appSupport)
+        default: 0
+        }
+    }
+
     static func downloadedChoices(
         environment: Environment = .live,
         graniteConfiguration: GraniteSpeechModelConfiguration = .defaultModel,

@@ -381,6 +381,48 @@ final class ModelRolesTests: XCTestCase {
         XCTAssertTrue(roles.transcriptionPreparations.isEmpty)
     }
 
+    func testUpgradeWaitsForOrdinaryPreparationThenRunsUpgradeWhileCoalescingDuplicateUpgrades() async throws {
+        let storage = temporaryStorage()
+        defer { try? FileManager.default.removeItem(at: storage.rootURL) }
+        let settings = isolatedSettings(transcription: .qwenASR17B)
+        let ordinaryGate = PreparationGate()
+        let upgradeGate = PreparationGate()
+        var invocations = 0
+        let roles = ModelRoles(
+            settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
+            prepareTranscription: { _, _, _ in
+                invocations += 1
+                if invocations == 1 {
+                    await ordinaryGate.run()
+                } else {
+                    await upgradeGate.run()
+                }
+            },
+            downloadedTranscriptionModels: { _ in [TranscriptionModelChoice.qwenASR17B.id] },
+            onReadinessChanged: {})
+
+        roles.prepareTranscriptionModel(.qwenASR17B, configuration: settings)
+        await ordinaryGate.waitUntilStarted()
+
+        let firstUpgrade = Task {
+            try await roles.ensureTranscriptionAvailable(.qwenASR17B, configuration: settings, upgradeLegacy: true)
+        }
+        let secondUpgrade = Task {
+            try await roles.ensureTranscriptionAvailable(.qwenASR17B, configuration: settings, upgradeLegacy: true)
+        }
+        await Task.yield()
+        await ordinaryGate.release()
+
+        await upgradeGate.waitUntilStarted()
+        XCTAssertEqual(invocations, 2)
+        await upgradeGate.release()
+
+        try await firstUpgrade.value
+        try await secondUpgrade.value
+        XCTAssertEqual(invocations, 2)
+        XCTAssertFalse(roles.isPreparingTranscription)
+    }
+
     private func makeSnapshot(
         statuses: [ModelRole: ModelRoleStatus]
     ) -> ModelRolesSnapshot {

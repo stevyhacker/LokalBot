@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Katika sehemu za mstari mmoja nje ya programu za gumzo na vihariri vya msimbo, Tab hufunga pendekezo na kuhamia sehemu inayofuata badala ya kukubali.";
 "Pause in Low Power Mode" = "Sitisha kwenye Hali ya Nishati Chini";
 "Pause suggestions while Low Power Mode is on to save battery." = "Sitisha mapendekezo wakati Hali ya Nishati Chini imewashwa ili kuokoa betri.";
+"New default models available" = "Miundo mipya chaguomsingi inapatikana";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Boresha %@ hadi miundo mipya chaguomsingi iliyoboreshwa ya LokalBot (%@). Miundo yako ya sasa inaendelea kufanya kazi hadi upakuaji ukamilike.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Badilisha %@ hadi miundo mipya chaguomsingi iliyoboreshwa ya LokalBot. Tayari imepakuliwa.";
+"Upgrade & Download" = "Boresha na Pakua";
+"Switch defaults" = "Badilisha chaguomsingi";
+"LokalBot default models" = "Miundo chaguomsingi ya LokalBot";

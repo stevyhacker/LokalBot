@@ -768,12 +768,18 @@ impl ThinkClient {
             Backend::BuiltIn { runtime, entry } => {
                 for attempt in 0..2 {
                     let lease = runtime.main_server(entry)?;
+                    let default_thinking =
+                        if entry.default_thinking_off || is_lokalbot_non_thinking(entry.id) {
+                            0
+                        } else {
+                            DEFAULT_THINKING_BUDGET
+                        };
                     let body = chat_body(
                         Dialect::LlamaServer,
                         entry.id,
                         request,
                         self.request_level(request),
-                        Some(DEFAULT_THINKING_BUDGET),
+                        Some(default_thinking),
                         entry.request_overrides,
                     );
                     match post_chat(&lease.base_url(), Some(lease.token()), &body) {
@@ -798,8 +804,15 @@ impl ThinkClient {
                 dialect,
                 data_policy,
             } => {
-                let default_thinking =
-                    (*dialect == Dialect::LlamaServer).then_some(DEFAULT_THINKING_BUDGET);
+                let default_thinking = (*dialect == Dialect::LlamaServer).then_some(
+                    if catalog::entry(model).is_some_and(|e| e.default_thinking_off)
+                        || is_lokalbot_non_thinking(model)
+                    {
+                        0
+                    } else {
+                        DEFAULT_THINKING_BUDGET
+                    },
+                );
                 let body = with_data_policy(
                     chat_body(
                         *dialect,
@@ -844,12 +857,18 @@ impl ThinkClient {
         match &self.inner.backend {
             Backend::BuiltIn { runtime, entry } => {
                 let lease = runtime.main_server(entry)?;
+                let default_thinking =
+                    if entry.default_thinking_off || is_lokalbot_non_thinking(entry.id) {
+                        0
+                    } else {
+                        DEFAULT_THINKING_BUDGET
+                    };
                 let body = chat_body(
                     Dialect::LlamaServer,
                     entry.id,
                     request,
                     self.request_level(request),
-                    Some(DEFAULT_THINKING_BUDGET),
+                    Some(default_thinking),
                     entry.request_overrides,
                 );
                 let result = stream_chat(
@@ -877,8 +896,15 @@ impl ThinkClient {
                 dialect,
                 data_policy,
             } => {
-                let default_thinking =
-                    (*dialect == Dialect::LlamaServer).then_some(DEFAULT_THINKING_BUDGET);
+                let default_thinking = (*dialect == Dialect::LlamaServer).then_some(
+                    if catalog::entry(model).is_some_and(|e| e.default_thinking_off)
+                        || is_lokalbot_non_thinking(model)
+                    {
+                        0
+                    } else {
+                        DEFAULT_THINKING_BUDGET
+                    },
+                );
                 let body = with_data_policy(
                     chat_body(
                         *dialect,
@@ -964,6 +990,20 @@ impl ThinkClient {
                 return None;
             }
         };
+        let is_llama_server = matches!(
+            &self.inner.backend,
+            Backend::BuiltIn { .. }
+                | Backend::Server {
+                    dialect: Dialect::LlamaServer,
+                    ..
+                }
+        );
+        if is_llama_server
+            && self.inner.level == ReasoningLevel::Automatic
+            && support.default_level == Some(ReasoningLevel::Off)
+        {
+            return Some(ReasoningLevel::Off);
+        }
         support.request_level(self.inner.level, request.reasoning_budget)
     }
 
@@ -1074,6 +1114,10 @@ pub(crate) fn ceiling_for_budget(tokens: u32) -> ReasoningLevel {
     }
 }
 
+fn is_lokalbot_non_thinking(id: &str) -> bool {
+    id.to_ascii_lowercase().starts_with("qwen3.5-4b-lokalbot-v")
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ReasoningSupport {
     pub levels: Vec<ReasoningLevel>,
@@ -1112,6 +1156,8 @@ impl ReasoningSupport {
             Self::new(&[], None)
         } else if entry.id == "lfm2.5-2.6b" {
             Self::new(&[Low, Medium, High], None)
+        } else if entry.default_thinking_off || is_lokalbot_non_thinking(entry.id) {
+            Self::new(&[Off, Low, Medium, High], Some(Off))
         } else {
             Self::new(&[Off, Low, Medium, High], None)
         }
@@ -1167,7 +1213,16 @@ impl ReasoningSupport {
             return anthropic::ModelTraits::new(&name).reasoning_support();
         }
         match dialect {
-            Dialect::LlamaServer => Self::new(&[Off, Low, Medium, High], None),
+            Dialect::LlamaServer => {
+                catalog::entry(model)
+                    .map(Self::built_in)
+                    .unwrap_or_else(|| {
+                        Self::new(
+                            &[Off, Low, Medium, High],
+                            is_lokalbot_non_thinking(model).then_some(Off),
+                        )
+                    })
+            }
             Dialect::OpenAi => Self::openai(&name),
             Dialect::OpenRouter => {
                 if let Some(rest) = name.strip_prefix("openai/") {
@@ -2591,6 +2646,32 @@ mod tests {
             &[],
         );
         assert_eq!(body["thinking_budget_tokens"], 0);
+
+        let tuned = catalog::entry(catalog::DEFAULT_THINK_ID).unwrap();
+        assert!(tuned.default_thinking_off);
+        let tuned_support = ReasoningSupport::built_in(tuned);
+        assert_eq!(tuned_support.default_level, Some(ReasoningLevel::Off));
+        let recorded = std::sync::Arc::new(parking_lot::Mutex::new(Vec::<Value>::new()));
+        let sink = recorded.clone();
+        let server = StubServer::start(move |req| {
+            sink.lock()
+                .push(serde_json::from_slice(&req.body).unwrap_or_default());
+            chat_reply("ok", "stop")
+        });
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", catalog::DEFAULT_THINK_ID);
+        client
+            .complete(&ChatRequest::new("s", "u").reasoning_budget(256))
+            .unwrap();
+        client
+            .clone()
+            .with_reasoning_level(ReasoningLevel::Low)
+            .complete(&ChatRequest::new("s", "u").max_tokens(2000))
+            .unwrap();
+        let bodies = recorded.lock();
+        assert_eq!(bodies[0]["thinking_budget_tokens"], 0);
+        assert_eq!(bodies[0]["chat_template_kwargs"]["enable_thinking"], false);
+        assert_eq!(bodies[1]["thinking_budget_tokens"], 512);
+        assert!(bodies[1].get("chat_template_kwargs").is_none());
     }
 
     #[test]
@@ -2969,7 +3050,10 @@ mod tests {
         let settings = Settings::default();
         let runtime = RuntimeManager::new(lokalbot_core::LibraryPaths::new(dir.path()), &settings);
         let client = ThinkClient::new(&runtime, &settings).unwrap();
-        assert_eq!(client.display_name(), "Qwen3.5 4B · on this PC");
+        assert_eq!(
+            client.display_name(),
+            "Qwen3.5 4B (LokalBot v4) · on this PC"
+        );
         assert!(client.is_local() && client.is_built_in());
         assert_eq!(client.context_tokens(), 32_768);
         let err = client.complete(&ChatRequest::new("s", "u")).unwrap_err();
@@ -3251,5 +3335,64 @@ mod tests {
         }
         out.push_str(&filter.finish());
         assert_eq!(out, "ab<tx");
+    }
+
+    #[test]
+    fn tuned_lokalbot_qwen_defaults_thinking_off() {
+        let v4 = catalog::entry("qwen3.5-4b-lokalbot-v4").unwrap();
+        assert_eq!(
+            ReasoningSupport::built_in(v4).default_level,
+            Some(ReasoningLevel::Off)
+        );
+        assert_eq!(
+            ReasoningSupport::known(
+                Dialect::LlamaServer,
+                "http://127.0.0.1:8080/v1",
+                "qwen3.5-4b-lokalbot-v4"
+            )
+            .default_level,
+            Some(ReasoningLevel::Off)
+        );
+        assert_eq!(
+            ReasoningSupport::known(
+                Dialect::LlamaServer,
+                "http://127.0.0.1:8080/v1",
+                "qwen3.5-4b-lokalbot-v5"
+            )
+            .default_level,
+            Some(ReasoningLevel::Off)
+        );
+        let req = ChatRequest {
+            system: "sys".into(),
+            user: "hello".into(),
+            context: Vec::new(),
+            max_tokens: Some(1024),
+            temperature: Some(0.0),
+            reasoning_budget: Some(256),
+            json_schema: None,
+            keep_truncated: false,
+        };
+        let auto_body = chat_body(
+            Dialect::LlamaServer,
+            "qwen3.5-4b-lokalbot-v4",
+            &req,
+            Some(ReasoningLevel::Off),
+            Some(0),
+            &[],
+        );
+        assert_eq!(auto_body["thinking_budget_tokens"], json!(0));
+        assert_eq!(
+            auto_body["chat_template_kwargs"]["enable_thinking"],
+            json!(false)
+        );
+        let low_body = chat_body(
+            Dialect::LlamaServer,
+            "qwen3.5-4b-lokalbot-v4",
+            &req,
+            Some(ReasoningLevel::Low),
+            Some(0),
+            &[],
+        );
+        assert_eq!(low_body["thinking_budget_tokens"], json!(512));
     }
 }

@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "چیٹ ایپس اور کوڈ ایڈیٹرز سے باہر ایک سطر کے خانوں میں، Tab تجویز کو قبول کرنے کے بجائے ہٹا کر اگلے خانے پر لے جاتا ہے۔";
 "Pause in Low Power Mode" = "لو پاور موڈ میں موقوف کریں";
 "Pause suggestions while Low Power Mode is on to save battery." = "بیٹری بچانے کے لیے لو پاور موڈ آن ہونے کے دوران تجاویز موقوف رکھیں۔";
+"New default models available" = "نئے ڈیفالٹ ماڈلز دستیاب ہیں";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "%@ کو LokalBot کے نئے فائن ٹیون شدہ ڈیفالٹ ماڈلز (%@) پر اپ گریڈ کریں۔ ڈاؤن لوڈ مکمل ہونے تک آپ کے موجودہ ماڈلز فعال رہیں گے۔";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "%@ کو LokalBot کے نئے فائن ٹیون شدہ ڈیفالٹ ماڈلز پر سوئچ کریں۔ وہ پہلے سے ڈاؤن لوڈ ہیں۔";
+"Upgrade & Download" = "اپ گریڈ اور ڈاؤن لوڈ کریں";
+"Switch defaults" = "ڈیفالٹس تبدیل کریں";
+"LokalBot default models" = "LokalBot ڈیفالٹ ماڈلز";

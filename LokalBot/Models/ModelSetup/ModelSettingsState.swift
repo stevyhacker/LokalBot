@@ -64,6 +64,7 @@ struct ModelSelectionPatch: Equatable {
     var cotypingThinkServerModel: String?
     var cotypingServerRequestStyle: CotypingServerRequestStyle?
     var dictationModelID: String?
+    var upgradeTranscriptionWeights: Bool = false
 
     var transcriptionToPrepare: TranscriptionModelChoice? {
         if let transcription { return transcription }
@@ -119,10 +120,19 @@ struct ModelSelectionPatch: Equatable {
             cotypingServerModel: cotypingServerModel.map { _ in settings.cotypingServerModel },
             cotypingThinkServerModel: cotypingThinkServerModel.map { _ in settings.cotypingThinkServerModel },
             cotypingServerRequestStyle: cotypingServerRequestStyle.map { _ in settings.cotypingServerRequestStyle },
-            dictationModelID: dictationModelID.map { _ in settings.dictationCompositionBuiltInModelID })
+            dictationModelID: dictationModelID.map { _ in settings.dictationCompositionBuiltInModelID },
+            upgradeTranscriptionWeights: false)
     }
 
-    func matches(_ settings: AppSettings) -> Bool { inverse(in: settings) == self }
+    var withoutTransientUpgradeFlag: Self {
+        var copy = self
+        copy.upgradeTranscriptionWeights = false
+        return copy
+    }
+
+    func matches(_ settings: AppSettings) -> Bool {
+        !upgradeTranscriptionWeights && inverse(in: settings) == self
+    }
 
     func preparationContextMatches(_ latest: AppSettings, original: AppSettings) -> Bool {
         for id in localModelIDs(in: original) {
@@ -324,5 +334,104 @@ enum ModelSettingsPresentation {
     private static func safeCombinedBytes(_ first: Int64, _ second: Int64) -> Int64? {
         let total = first.addingReportingOverflow(second)
         return total.overflow || total.partialValue <= 0 ? nil : total.partialValue
+    }
+}
+
+struct DefaultModelUpgradeOffer: Equatable {
+    struct DiskAvailability: Equatable, Sendable {
+        var hasLegacyAutocompleteModel = false
+        var hasDefaultThinkModel = false
+        var hasDefaultAutocompleteModel = false
+        var legacyQwenASRChoices: Set<TranscriptionModelChoice> = []
+        var legacyQwenASRMissingBytes: [TranscriptionModelChoice: Int64] = [:]
+    }
+
+    struct Item: Equatable, Identifiable, Sendable {
+        let role: ModelRole
+        let token: String
+        let targetName: String
+        let downloadBytes: Int64
+
+        var id: String { token }
+    }
+
+    let items: [Item]
+    let patch: ModelSelectionPatch
+
+    var totalDownloadBytes: Int64 {
+        items.reduce(Int64(0)) { $0 + max(0, $1.downloadBytes) }
+    }
+
+    var key: String {
+        items.map(\.token).sorted().joined(separator: ",")
+    }
+
+    func roleSummary(_ localized: (String) -> String) -> String {
+        items.map { localized($0.role.settingsTitle) }.joined(separator: ", ")
+    }
+
+    func targetSummary(_ localized: (String) -> String) -> String {
+        items.map { "\(localized($0.role.settingsTitle)): \($0.targetName)" }.joined(separator: " · ")
+    }
+
+    static func dismissedTokens(from stored: String) -> Set<String> {
+        Set(stored.split(separator: ",").map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }.filter { !$0.isEmpty })
+    }
+
+    static func mergedDismissalKey(existing: String, dismissing offer: Self) -> String {
+        var tokens = dismissedTokens(from: existing)
+        tokens.formUnion(offer.items.map(\.token))
+        return tokens.sorted().joined(separator: ",")
+    }
+
+    static func current(settings: AppSettings, availability: DiskAvailability) -> Self? {
+        let dismissed = dismissedTokens(from: settings.dismissedDefaultModelUpgradeKey)
+        var items: [Item] = []
+        var patch = ModelSelectionPatch()
+
+        if settings.transcriptionModel == .qwenASR17B || settings.transcriptionModel == .qwenASR06B,
+           availability.legacyQwenASRChoices.contains(settings.transcriptionModel) {
+            let isAccuracy = settings.transcriptionModel == .qwenASR17B
+            let token = isAccuracy ? "transcribe:qwen3-asr-1.7b-lokalbot-v3" : "transcribe:qwen3-asr-0.6b-lokalbot-v1"
+            if !dismissed.contains(token) {
+                let fallbackBytes = isAccuracy
+                    ? QwenLlamaASR.accuracy.files.reduce(Int64(0)) { $0 + $1.bytes }
+                    : QwenLlamaASR.compact.files.reduce(Int64(0)) { $0 + $1.bytes }
+                let bytes = availability.legacyQwenASRMissingBytes[settings.transcriptionModel] ?? fallbackBytes
+                let name = isAccuracy ? "Qwen3-ASR 1.7B (LokalBot v3)" : "Qwen3-ASR 0.6B (LokalBot v1)"
+                items.append(Item(role: .transcribe, token: token, targetName: name, downloadBytes: bytes))
+                patch.transcription = settings.transcriptionModel
+                patch.upgradeTranscriptionWeights = true
+            }
+        }
+
+        if settings.summarizerBackend == .builtIn,
+           settings.builtInModelID == ModelCatalog.previousDefaultSummarizationID,
+           let nextThink = ModelCatalog.entry(id: ModelCatalog.defaultSummarizationID) {
+            let token = "think:\(nextThink.id)"
+            if !dismissed.contains(token) {
+                let bytes = availability.hasDefaultThinkModel ? 0 : (nextThink.sizeBytes ?? 0)
+                items.append(Item(role: .think, token: token, targetName: nextThink.displayName, downloadBytes: bytes))
+                patch.backend = .builtIn
+                patch.assistantModelID = nextThink.id
+            }
+        }
+
+        if settings.cotypingBackend == .onDevice,
+           settings.cotypingBuiltInModelID == ModelCatalog.previousQualityCotypingID,
+           settings.cotypingEnabled || availability.hasLegacyAutocompleteModel,
+           let nextAutocomplete = ModelCatalog.entry(id: ModelCatalog.qualityCotypingID) {
+            let token = "autocomplete:\(nextAutocomplete.id)"
+            if !dismissed.contains(token) {
+                let bytes = availability.hasDefaultAutocompleteModel ? 0 : (nextAutocomplete.sizeBytes ?? 0)
+                items.append(Item(role: .autocomplete, token: token,
+                                  targetName: nextAutocomplete.displayName, downloadBytes: bytes))
+                patch.cotypingBackend = .onDevice
+                patch.autocompleteModelID = nextAutocomplete.id
+            }
+        }
+
+        guard !items.isEmpty else { return nil }
+        return Self(items: items, patch: patch)
     }
 }

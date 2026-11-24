@@ -140,7 +140,11 @@ final class ModelRoles: ObservableObject {
     private let onReadinessChanged: () -> Void
     private var downloadObserver: AnyCancellable?
     private var preparationTask: (
-        id: String, token: UUID, configuration: TranscriptionConfiguration, task: Task<String?, Never>
+        id: String,
+        token: UUID,
+        configuration: TranscriptionConfiguration,
+        upgradeLegacy: Bool,
+        task: Task<String?, Never>
     )?
     private var storageInfo: (date: Date, storedBytes: Int64, availableBytes: Int64?)?
     @Published private var diskState = ModelReadinessSnapshot.DiskState()
@@ -240,6 +244,15 @@ final class ModelRoles: ObservableObject {
 
     var downloadedTranscriptionModelIDs: Set<String> {
         usesInjectedDiscovery ? downloadedTranscriptionModels(settings()) : diskState.downloadedTranscriptionIDs
+    }
+
+    var defaultUpgradeDiskAvailability: DefaultModelUpgradeOffer.DiskAvailability {
+        DefaultModelUpgradeOffer.DiskAvailability(
+            hasLegacyAutocompleteModel: diskState.hasLegacyAutocompleteModel,
+            hasDefaultThinkModel: diskState.hasDefaultThinkModel,
+            hasDefaultAutocompleteModel: diskState.hasDefaultAutocompleteModel,
+            legacyQwenASRChoices: diskState.legacyQwenASRChoices,
+            legacyQwenASRMissingBytes: diskState.legacyQwenASRMissingBytes)
     }
 
     private func refreshDiskState() {
@@ -345,7 +358,11 @@ final class ModelRoles: ObservableObject {
         readinessDidChange()
     }
 
-    func prepareTranscriptionModel(_ choice: TranscriptionModelChoice, configuration: AppSettings? = nil) {
+    func prepareTranscriptionModel(
+        _ choice: TranscriptionModelChoice,
+        configuration: AppSettings? = nil,
+        upgradeLegacy: Bool = false
+    ) {
         guard preparationTask == nil else { return }
         let configuration = configuration ?? settings()
         let key = TranscriptionConfiguration(choice, configuration)
@@ -358,12 +375,18 @@ final class ModelRoles: ObservableObject {
             guard let self else { return nil }
             let failure: String?
             do {
-                try await self.prepareTranscription(configuration, choice) { [weak self] update in
+                let progressHandler: ModelPreparationProgressHandler = { [weak self] update in
                     guard let self,
                           self.preparationTask?.token == token else { return }
                     self.transcriptionPreparations[choice.id] = .init(
                         progress: update.fractionCompleted,
                         label: update.status)
+                }
+                if upgradeLegacy, !self.usesInjectedDiscovery,
+                   let engine = configuration.transcriptionEngine(for: choice) as? QwenASREngine {
+                    try await engine.upgradeWeights(progress: progressHandler)
+                } else {
+                    try await self.prepareTranscription(configuration, choice, progressHandler)
                 }
                 failure = nil
             } catch is CancellationError {
@@ -381,21 +404,34 @@ final class ModelRoles: ObservableObject {
             self.readinessDidChange()
             return failure
         }
-        preparationTask = (choice.id, token, key, task)
+        preparationTask = (choice.id, token, key, upgradeLegacy, task)
     }
 
-    func ensureTranscriptionAvailable(_ choice: TranscriptionModelChoice, configuration: AppSettings) async throws {
+    func ensureTranscriptionAvailable(
+        _ choice: TranscriptionModelChoice,
+        configuration: AppSettings,
+        upgradeLegacy: Bool = false
+    ) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
-        if choice != .funASRNano && choice != .appleSpeech,
+        if !upgradeLegacy,
+           choice != .funASRNano && choice != .appleSpeech,
            downloadedTranscriptionModels(configuration).contains(choice.id),
            preparationErrors[key] == nil {
             return
         }
-        if let preparationTask, preparationTask.configuration != key {
-            throw ModelDownloadManager.PreparationError.failed(
-                "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
+        while let existing = preparationTask {
+            guard existing.configuration == key else {
+                throw ModelDownloadManager.PreparationError.failed(
+                    "Another transcription model is preparing. Wait for it to finish or cancel it in Downloaded.")
+            }
+            if !upgradeLegacy || existing.upgradeLegacy {
+                break
+            }
+            _ = await existing.task.value
+            guard !existing.task.isCancelled else { throw CancellationError() }
+            try Task.checkCancellation()
         }
-        prepareTranscriptionModel(choice, configuration: configuration)
+        prepareTranscriptionModel(choice, configuration: configuration, upgradeLegacy: upgradeLegacy)
         if let preparationTask {
             let failure = await preparationTask.task.value
             guard !preparationTask.task.isCancelled else { throw CancellationError() }

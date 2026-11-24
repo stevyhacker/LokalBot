@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "Em campos de uma linha fora de apps de mensagens e editores de código, Tab dispensa a sugestão e move para o próximo campo em vez de aceitar.";
 "Pause in Low Power Mode" = "Pausar no Modo de Pouca Energia";
 "Pause suggestions while Low Power Mode is on to save battery." = "Pausa sugestões enquanto o Modo de Pouca Energia está ativado para economizar bateria.";
+"New default models available" = "Novos modelos padrão disponíveis";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Atualize %@ para os novos modelos padrão ajustados do LokalBot (%@). Seus modelos atuais continuam ativos até o download terminar.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Troque %@ para os novos modelos padrão ajustados do LokalBot. Eles já estão baixados.";
+"Upgrade & Download" = "Atualizar e baixar";
+"Switch defaults" = "Trocar padrões";
+"LokalBot default models" = "Modelos padrão do LokalBot";

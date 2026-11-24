@@ -2667,3 +2667,9 @@
 "In single-line fields outside chat apps and code editors, Tab dismisses the suggestion and moves to the next field instead of accepting." = "В однострочных полях вне чатов и редакторов кода Tab скрывает подсказку и переходит к следующему полю вместо принятия.";
 "Pause in Low Power Mode" = "Пауза в режиме энергосбережения";
 "Pause suggestions while Low Power Mode is on to save battery." = "Приостанавливать подсказки в режиме энергосбережения для экономии заряда.";
+"New default models available" = "Доступны новые модели по умолчанию";
+"Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes." = "Обновите %@ до новых дообученных моделей LokalBot по умолчанию (%@). Текущие модели останутся активны, пока не завершится загрузка.";
+"Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded." = "Переключите %@ на новые дообученные модели LokalBot по умолчанию. Они уже загружены.";
+"Upgrade & Download" = "Обновить и загрузить";
+"Switch defaults" = "Переключить модели";
+"LokalBot default models" = "Модели LokalBot по умолчанию";
