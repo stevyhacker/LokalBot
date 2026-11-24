@@ -294,6 +294,133 @@ fn notes_reserve_reasoning_room_and_charge_a_retried_request_twice() {
 }
 
 #[test]
+fn notes_retry_reserves_input_and_slots_before_dispatch_and_preserves_recovery() {
+    let server = StubServer::start(|request| match request.path.as_str() {
+        "/tokenize" => Reply::Json(200, json!({"tokens": [1, 2, 3]})),
+        _ if request.json()["thinking_budget_tokens"] == 0 => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "{\"notes\": [], \"actions\": []}"}, "finish_reason": "stop"}], "usage": {"completion_tokens": 100}}),
+        ),
+        _ => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "<think>weighing"}, "finish_reason": "length"}]}),
+        ),
+    });
+    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "qwen3.5-4b");
+    let prompt_input = u64::from(ENVELOPE_TOKENS + 3);
+
+    let mut partial_usage = Budget::new(Limits {
+        seconds: 600.0,
+        requests: 3,
+        input_tokens: prompt_input * 2 + 50,
+        output_tokens: 3_000,
+        scales_with_parts: false,
+    });
+    let (text, truncated) = request(
+        &think,
+        &mut partial_usage,
+        "system",
+        "prompt",
+        &[],
+        json!({"type": "object"}),
+        1_000,
+        "extract-1",
+        32_768,
+        false,
+    )
+    .unwrap();
+    assert_eq!(text, "{\"notes\": [], \"actions\": []}");
+    assert!(!truncated);
+    assert!(
+        partial_usage.reserve(51, 0).is_err(),
+        "retry prompt input must be charged"
+    );
+    assert!(
+        partial_usage.reserve(0, 901).is_err(),
+        "unreported first attempt keeps its 2,000-token estimate plus 100 actual"
+    );
+    partial_usage.reserve(50, 900).unwrap();
+
+    let single_slot_server = StubServer::start(|request| match request.path.as_str() {
+        "/tokenize" => Reply::Json(200, json!({"tokens": [1, 2, 3]})),
+        _ => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "<think>weighing"}, "finish_reason": "length"}]}),
+        ),
+    });
+    let single_think =
+        ThinkClient::llama_server(&single_slot_server.url("/v1"), "token", "qwen3.5-4b");
+    let mut one_slot = Budget::new(Limits {
+        seconds: 600.0,
+        requests: 1,
+        input_tokens: 100_000,
+        output_tokens: 10_000,
+        scales_with_parts: false,
+    });
+    let (empty, was_truncated) = request(
+        &single_think,
+        &mut one_slot,
+        "system",
+        "prompt",
+        &[],
+        json!({"type": "object"}),
+        1_000,
+        "extract-1",
+        32_768,
+        false,
+    )
+    .unwrap();
+    assert!(empty.is_empty());
+    assert!(was_truncated);
+    let chat_calls = single_slot_server
+        .requests()
+        .iter()
+        .filter(|r| r.path == "/v1/chat/completions")
+        .count();
+    assert_eq!(
+        chat_calls, 1,
+        "no retry is sent when no request slot remains"
+    );
+
+    let failing_off_server = StubServer::start(|request| match request.path.as_str() {
+        "/tokenize" => Reply::Json(200, json!({"tokens": [1, 2, 3]})),
+        _ if request.json()["thinking_budget_tokens"] == 0
+            && request.json()["max_tokens"] == 1_000 =>
+        {
+            Reply::Json(400, json!({"error": {"message": "same-size off rejected"}}))
+        }
+        _ if request.json()["thinking_budget_tokens"] == 0 => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "{\"notes\": [], \"actions\": []}"}, "finish_reason": "stop"}], "usage": {"completion_tokens": 120}}),
+        ),
+        _ => Reply::Json(
+            200,
+            json!({"choices": [{"message": {"content": "<think>weighing"}, "finish_reason": "length"}]}),
+        ),
+    });
+    let recovery_think =
+        ThinkClient::llama_server(&failing_off_server.url("/v1"), "token", "qwen3.5-4b");
+    let mut generous = Budget::new(Limits::for_preset(
+        lokalbot_core::settings::GenerationBudget::Unlimited,
+    ));
+    let (recovered, recovered_truncated) = request(
+        &recovery_think,
+        &mut generous,
+        "system",
+        "prompt",
+        &[],
+        json!({"type": "object"}),
+        1_000,
+        "extract-1",
+        32_768,
+        false,
+    )
+    .unwrap();
+    assert_eq!(recovered, "{\"notes\": [], \"actions\": []}");
+    assert!(!recovered_truncated);
+}
+
+#[test]
 fn a_page_with_more_continues_from_the_ledger() {
     let (meeting, transcript) = northwind_meeting();
     let (server, calls) = model(|prompt, call| {

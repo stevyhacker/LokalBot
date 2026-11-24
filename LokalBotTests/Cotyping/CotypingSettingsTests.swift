@@ -36,12 +36,12 @@ final class CotypingSettingsTests: XCTestCase {
             let settings = try JSONDecoder().decode(AppSettings.self, from: saved)
             XCTAssertTrue(settings.cotypingEnabled)
             XCTAssertEqual(settings.cotypingMaxWords, 6)
-            XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-base-q6")
+            XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
             let encoded = try JSONEncoder().encode(settings)
             let values = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
             XCTAssertNil(values["cotypingSelectiveOneWordHybrid"], "The retired flag must not be persisted")
         }
-        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-base-q6")
+        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
         XCTAssertFalse(SettingDescriptor.all.contains { $0.id == "settings.cotypingSelectiveOneWordHybrid" })
     }
 
@@ -57,7 +57,9 @@ final class CotypingSettingsTests: XCTestCase {
         settings.cotypingMultiLine = true
         settings.cotypingDebounceMs = 500
         settings.cotypingAcceptGranularity = .phrase
-        settings.cotypingFullAcceptKey = .rightArrow
+        settings.cotypingFullAcceptKey = .doubleTap
+        settings.cotypingTabMovesToNextField = true
+        settings.cotypingPauseInLowPowerMode = false
         settings.cotypingAutoAcceptTrailingPunctuation = true
         settings.cotypingEscapeBehavior = .passThrough
         settings.cotypingAddSpaceAfterAccept = true
@@ -76,7 +78,9 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertTrue(decoded.cotypingMultiLine)
         XCTAssertEqual(decoded.cotypingDebounceMs, 500)
         XCTAssertEqual(decoded.cotypingAcceptGranularity, .phrase)
-        XCTAssertEqual(decoded.cotypingFullAcceptKey, .rightArrow)
+        XCTAssertEqual(decoded.cotypingFullAcceptKey, .doubleTap)
+        XCTAssertTrue(decoded.cotypingTabMovesToNextField)
+        XCTAssertFalse(decoded.cotypingPauseInLowPowerMode)
         XCTAssertTrue(decoded.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertEqual(decoded.cotypingEscapeBehavior, .passThrough)
         XCTAssertTrue(decoded.cotypingAddSpaceAfterAccept)
@@ -145,7 +149,7 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)
         XCTAssertTrue(settings.cotypingUseLocalLearning)
-        XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-base-q6")
+        XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
         XCTAssertTrue(settings.menuBarOnly)
     }
 
@@ -179,6 +183,8 @@ final class CotypingSettingsTests: XCTestCase {
         let settings = AppSettings()
         XCTAssertEqual(settings.cotypingMaxWords, 4)
         XCTAssertEqual(settings.cotypingDebounceMs, 100)
+        XCTAssertFalse(settings.cotypingTabMovesToNextField)
+        XCTAssertTrue(settings.cotypingPauseInLowPowerMode)
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)
         XCTAssertEqual(settings.cotypingMaxResponseTokens, 6)

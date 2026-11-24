@@ -65,12 +65,32 @@ enum CotypingSecureFieldDetector {
         title: String?,
         descriptionLabel: String?
     ) -> Bool {
-        let markers = [role, subrole, roleDescription, title, descriptionLabel]
+        isSecureRole(role: role, subrole: subrole)
+            || hasSecureLabel(roleDescription: roleDescription, title: title, descriptionLabel: descriptionLabel)
+    }
+
+    static func isSecureRole(role: String?, subrole: String?) -> Bool {
+        containsSensitiveMarker([role, subrole])
+    }
+
+    static func hasSecureLabel(
+        roleDescription: String?,
+        title: String?,
+        descriptionLabel: String?,
+        extraLabels: [String?] = []
+    ) -> Bool {
+        let labels = [title, descriptionLabel] + extraLabels
+        return containsSensitiveMarker([roleDescription] + labels)
+            || labels.contains { $0.map(labelNamesSecret) ?? false }
+    }
+
+    private static func containsSensitiveMarker(_ markers: [String?]) -> Bool {
+        markers
             .compactMap { $0?.lowercased() }
             .filter { !$0.isEmpty }
-        return markers.contains { marker in
-            sensitiveMarkers.contains { marker.contains($0) }
-        }
+            .contains { marker in
+                sensitiveMarkers.contains { marker.contains($0) }
+            }
     }
 
     static let sensitiveMarkers: [String] = [
@@ -88,6 +108,152 @@ enum CotypingSecureFieldDetector {
         "card number",
         "credit card",
     ]
+
+    static let secretLabelSubstrings: [String] = [
+        "passwort", "kennwort",
+        "mot de passe",
+        "contraseña",
+        "wachtwoord",
+        "lösenord",
+        "adgangskode",
+        "passord",
+        "lozinka", "лозинка",
+        "パスワード",
+        "密码", "密碼",
+        "비밀번호", "암호",
+        "كلمة المرور", "كلمة السر",
+        "סיסמה",
+    ]
+
+    static let secretLabelWordStarts: [String] = [
+        "senha",
+        "şifre", "parola",
+        "hasło", "hasła", "haslo", "hasla",
+        "парол",
+        "api key", "secret key", "secret access key", "access token", "private key",
+        "recovery phrase", "seed phrase",
+        "ssn", "social security",
+    ]
+
+    private static let labelMatchOptions: String.CompareOptions = [.caseInsensitive, .diacriticInsensitive]
+
+    static func labelNamesSecret(_ label: String) -> Bool {
+        secretLabelSubstrings.contains { label.range(of: $0, options: labelMatchOptions) != nil }
+            || secretLabelWordStarts.contains { startsWord($0, in: label) }
+    }
+
+    static func startsWord(_ term: String, in label: String) -> Bool {
+        var searchRange = label.startIndex..<label.endIndex
+        while let found = label.range(of: term, options: labelMatchOptions, range: searchRange) {
+            guard found.lowerBound > label.startIndex else { return true }
+            let scalars = label.unicodeScalars
+            let previous = scalars[scalars.index(before: found.lowerBound)]
+            if !CharacterSet.alphanumerics.contains(previous) {
+                return true
+            }
+            searchRange = found.upperBound..<label.endIndex
+        }
+        return false
+    }
+}
+
+enum CotypingCredentialFieldDetector {
+    static let labelKeywords: [String] = [
+        "email", "e-mail", "username", "user name", "user id", "userid", "login", "log in", "sign in",
+        "phone", "mobile number", "password", "passcode", "pin", "one-time", "one time code",
+        "verification code", "security code", "otp", "2fa", "two-factor", "authentication code",
+        "card number", "cvc", "cvv", "expiry", "expiration",
+    ]
+
+    static let proseLabelWords: [String] = [
+        "subject", "message", "body", "preview", "title", "signature", "template",
+        "comment", "note", "notes", "reply", "search",
+    ]
+
+    static let credentialIdentifierWords: [String] = [
+        "email", "mail", "username", "userid", "login", "logon", "signin", "passwd", "password", "pwd",
+        "passcode", "otp", "totp", "mfa", "2fa", "phone", "telephone", "tel", "mobile", "msisdn", "pin",
+        "cvc", "cvv", "cardnumber", "identifierid", "onetimecode", "verificationcode", "securitycode", "authcode",
+        "apikey", "secretkey", "secretaccesskey", "accesstoken", "privatekey", "seedphrase", "recoveryphrase", "ssn",
+    ]
+
+    static let qualifierIdentifierWords: [String] = [
+        "user", "account", "address", "addr", "id", "identifier", "name", "number", "num", "no", "code",
+        "field", "input", "txt", "tb", "verification", "verify", "security", "auth", "onetime", "confirm",
+        "current", "new", "primary", "your", "enter",
+    ]
+
+    static let maximumIdentifierLength = 64
+
+    static func mightBeCredentialField(role: String) -> Bool {
+        role == "AXTextField" || role == "AXComboBox"
+    }
+
+    static func isCredentialField(
+        role: String,
+        labels: [String?],
+        domIdentifier: String?,
+        text: String?
+    ) -> Bool {
+        guard mightBeCredentialField(role: role) else { return false }
+        if labels.contains(where: { $0.map(labelNamesCredential) ?? false }) {
+            return true
+        }
+        if let domIdentifier, domIdentifierNamesCredential(domIdentifier) {
+            return true
+        }
+        return looksLikeAddressEntry(text)
+    }
+
+    static func labelNamesCredential(_ label: String) -> Bool {
+        let lowered = label.lowercased()
+        guard labelKeywords.contains(where: { containsWord($0, in: lowered) })
+            || CotypingSecureFieldDetector.labelNamesSecret(label) else {
+            return false
+        }
+        return !proseLabelWords.contains(where: { containsWord($0, in: lowered) })
+    }
+
+    static func domIdentifierNamesCredential(_ identifier: String) -> Bool {
+        let characters = Array(identifier.lowercased().filter { $0.isLetter || $0.isNumber })
+        guard !characters.isEmpty, characters.count <= maximumIdentifierLength else { return false }
+
+        var reach = [Bool?](repeating: nil, count: characters.count + 1)
+        reach[0] = false
+        for start in characters.indices {
+            guard let namesCredential = reach[start] else { continue }
+            if characters[start].isNumber {
+                reach[start + 1] = (reach[start + 1] ?? false) || namesCredential
+            }
+            for entry in identifierVocabulary where characters[start...].starts(with: entry.word) {
+                let end = start + entry.word.count
+                reach[end] = (reach[end] ?? false) || namesCredential || entry.namesCredential
+            }
+        }
+        return reach[characters.count] == true
+    }
+
+    static func looksLikeAddressEntry(_ text: String?) -> Bool {
+        guard let text = text?.trimmingCharacters(in: .whitespacesAndNewlines), !text.isEmpty else { return false }
+        return text.range(of: #"^[^\s@/:]+@[^\s@/:]*$"#, options: .regularExpression) != nil
+    }
+
+    private static let identifierVocabulary: [(word: [Character], namesCredential: Bool)] =
+        credentialIdentifierWords.map { (Array($0), true) } + qualifierIdentifierWords.map { (Array($0), false) }
+
+    static func containsWord(_ keyword: String, in label: String) -> Bool {
+        var searchRange = label.startIndex..<label.endIndex
+        while let found = label.range(of: keyword, range: searchRange) {
+            let before = found.lowerBound == label.startIndex ? nil : label[label.index(before: found.lowerBound)]
+            let after = found.upperBound == label.endIndex ? nil : label[found.upperBound]
+            let isBoundary: (Character?) -> Bool = { $0.map { !$0.isLetter && !$0.isNumber } ?? true }
+            if isBoundary(before) && isBoundary(after) {
+                return true
+            }
+            searchRange = found.upperBound..<label.endIndex
+        }
+        return false
+    }
 }
 
 enum CotypingCodeFieldDetector {

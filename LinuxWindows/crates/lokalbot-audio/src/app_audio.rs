@@ -8,6 +8,7 @@ pub struct AppAudioTarget {
     pub pid: u32,
     pub process_name: String,
     pub app_name: String,
+    pub keep_app_scope: bool,
 }
 
 impl AppAudioTarget {
@@ -49,16 +50,22 @@ pub(crate) enum Scope {
 #[derive(Clone, Debug)]
 pub(crate) struct ScopeChooser {
     can_tap: bool,
+    keep_app_scope: bool,
     scope: Scope,
     last_output: Option<Instant>,
     retry_at: Option<Instant>,
 }
 
 impl ScopeChooser {
-    pub fn new(can_tap: bool) -> Self {
+    pub fn new(can_tap: bool, keep_app_scope: bool) -> Self {
         Self {
             can_tap,
-            scope: Scope::WholeOutput,
+            keep_app_scope: can_tap && keep_app_scope,
+            scope: if can_tap && keep_app_scope {
+                Scope::App
+            } else {
+                Scope::WholeOutput
+            },
             last_output: None,
             retry_at: None,
         }
@@ -73,6 +80,11 @@ impl ScopeChooser {
         match app_output {
             Some(true) => {
                 self.last_output = Some(now);
+                if !retrying_later {
+                    self.scope = Scope::App;
+                }
+            }
+            Some(false) if self.keep_app_scope => {
                 if !retrying_later {
                     self.scope = Scope::App;
                 }
@@ -149,6 +161,7 @@ mod tests {
             pid,
             process_name: name.into(),
             app_name: name.into(),
+            keep_app_scope: false,
         }
     }
 
@@ -178,7 +191,7 @@ mod tests {
     #[test]
     fn without_a_tap_the_whole_output_is_recorded() {
         let now = Instant::now();
-        let mut chooser = ScopeChooser::new(false);
+        let mut chooser = ScopeChooser::new(false, false);
         assert_eq!(chooser.observe(Some(true), now), Scope::WholeOutput);
         assert_eq!(chooser.observe(None, now), Scope::WholeOutput);
     }
@@ -186,7 +199,7 @@ mod tests {
     #[test]
     fn an_app_with_nothing_to_tap_starts_on_the_whole_output() {
         let now = Instant::now();
-        let mut chooser = ScopeChooser::new(true);
+        let mut chooser = ScopeChooser::new(true, false);
         assert_eq!(chooser.observe(Some(false), now), Scope::WholeOutput);
         let later = now + Duration::from_secs(2);
         assert_eq!(chooser.observe(Some(true), later), Scope::App);
@@ -195,7 +208,7 @@ mod tests {
     #[test]
     fn a_short_gap_stays_on_the_app_and_a_long_one_does_not() {
         let now = Instant::now();
-        let mut chooser = ScopeChooser::new(true);
+        let mut chooser = ScopeChooser::new(true, false);
         assert_eq!(chooser.observe(Some(true), now), Scope::App);
         let during = now + NO_OUTPUT_GRACE - Duration::from_secs(1);
         assert_eq!(chooser.observe(Some(false), during), Scope::App);
@@ -208,7 +221,7 @@ mod tests {
     #[test]
     fn an_unreadable_state_changes_nothing() {
         let now = Instant::now();
-        let mut chooser = ScopeChooser::new(true);
+        let mut chooser = ScopeChooser::new(true, false);
         assert_eq!(chooser.observe(None, now), Scope::WholeOutput);
         chooser.observe(Some(true), now);
         let later = now + NO_OUTPUT_GRACE * 3;
@@ -216,9 +229,24 @@ mod tests {
     }
 
     #[test]
+    fn a_microphone_detected_call_keeps_its_app_through_silence() {
+        let now = Instant::now();
+        let mut chooser = ScopeChooser::new(true, true);
+        assert_eq!(chooser.observe(Some(false), now), Scope::App);
+        let silent = now + NO_OUTPUT_GRACE * 6;
+        assert_eq!(chooser.observe(Some(false), silent), Scope::App);
+        assert_eq!(chooser.tap_failed(silent), Scope::WholeOutput);
+        let soon = silent + TAP_RETRY - Duration::from_secs(1);
+        assert_eq!(chooser.observe(Some(false), soon), Scope::WholeOutput);
+        assert_eq!(chooser.observe(Some(false), silent + TAP_RETRY), Scope::App);
+        let mut without_tap = ScopeChooser::new(false, true);
+        assert_eq!(without_tap.observe(Some(false), now), Scope::WholeOutput);
+    }
+
+    #[test]
     fn a_failed_tap_records_the_whole_output_until_its_retry() {
         let now = Instant::now();
-        let mut chooser = ScopeChooser::new(true);
+        let mut chooser = ScopeChooser::new(true, false);
         chooser.observe(Some(true), now);
         assert_eq!(chooser.tap_failed(now), Scope::WholeOutput);
         let soon = now + TAP_RETRY - Duration::from_secs(1);

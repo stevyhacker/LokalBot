@@ -166,6 +166,7 @@ enum SettingRegistry {
         "languageHint",
         "dreamingFirstEligibleDayKey",
         "chatGPTPlanNoticeAcknowledged",
+        "dismissedDefaultModelUpgradeKey",
     ]
 
     static func spec(for key: String) -> SettingSpec? {
@@ -279,6 +280,12 @@ enum SettingRegistry {
               ]),
               .consent, aliases: "auto record detection notification",
               summary: "Record detected meetings automatically, ask with a notification, or never record automatically."),
+        entry("detectOtherBrowserCalls", .recording, "Detect other browser calls", .bool, .consent,
+              aliases: "browser microphone unspecified site corporate calls",
+              summary: "Detect calls on other sites through sustained browser microphone use. The browser's audio can include other tabs. Turning this on widens detection."),
+        entry("additionalCallApps", .recording, "Additional call apps", .structured, .readOnly,
+              aliases: "native app bundle custom corporate eXpress",
+              summary: "Additional native call apps as a JSON list of objects with an identifier and optional display name. Choose or remove apps in Settings → Meetings; this list is read-only from the terminal."),
         entry("stopDebounceSeconds", .recording, "Wait before stopping", .number(5...120),
               aliases: "stop debounce delay seconds audio",
               summary: "Seconds the meeting app's audio must be gone before the recording stops."),
@@ -704,8 +711,16 @@ enum SettingRegistry {
               .choice([.init("tab", stored: 48), .init("rightArrow", stored: 124)]),
               summary: "Key that accepts the next word or phrase."),
         entry("cotypingFullAcceptKey", .writing, "Accept the rest",
-              .choice([.init("backtick", stored: 50), .init("rightArrow", stored: 124), .init("off", stored: -1)]),
-              summary: "Key that accepts the whole suggestion."),
+              .choice([
+                  .init("backtick", stored: 50),
+                  .init("rightArrow", stored: 124),
+                  .init("doubleTap", stored: -2),
+                  .init("off", stored: -1),
+              ]),
+              summary: "Key or double-tap gesture that accepts the whole suggestion."),
+        entry("cotypingTabMovesToNextField", .writing, "Tab moves to next field", .bool,
+              aliases: "autocomplete tab form focus next field single line",
+              summary: "In single-line fields outside chat apps and code editors, pass Tab to the app instead of accepting."),
         entry("cotypingAutoAcceptTrailingPunctuation", .writing, "Accept punctuation with the word", .bool,
               aliases: "autocomplete tab full stop comma period",
               summary: "Take punctuation attached to the next word in the same press."),
@@ -759,6 +774,9 @@ enum SettingRegistry {
               summary: "Complete /macros such as math, dates, units, and currency."),
         entry("cotypingInProcessRuntime", .writing, "Use fast in-process runtime", .bool,
               summary: "Run the on-device autocomplete model in process instead of through llama-server."),
+        entry("cotypingPauseInLowPowerMode", .writing, "Pause in Low Power Mode", .bool,
+              aliases: "battery power saver low power mode",
+              summary: "Pause autocomplete while macOS Low Power Mode is active."),
     ]
 
     private static let dictation: [SettingSpec] = [

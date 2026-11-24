@@ -177,6 +177,7 @@ actor LlamaCotypingRuntime {
         var cparams = llama_context_default_params()
         cparams.n_ctx = 4096
         cparams.n_batch = 2048
+        cparams.swa_full = true
         let threads = replayThreadCount ?? Int32(max(1, ProcessInfo.processInfo.activeProcessorCount - 2))
         cparams.n_threads = threads
         cparams.n_threads_batch = replayBatchThreadCount ?? threads

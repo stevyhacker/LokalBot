@@ -197,7 +197,10 @@ struct AnthropicEngine: TextEngine {
 
     func maxTokens(requested: Int?, effort: ThinkReasoningLevel?, streaming: Bool) -> Int {
         let answer = max(1, requested ?? Self.defaultAnswerTokens)
-        let thinking = traits.thinksByDefault ? Self.thinkingAllowance(effort ?? traits.defaultEffort) : 0
+        let cap = min(MainLLMRuntimePolicy.highReasoningBudgetTokens, answer)
+        let thinking = traits.thinksByDefault
+            ? min(Self.thinkingAllowance(effort ?? traits.defaultEffort), cap)
+            : 0
         return min(answer + thinking, streaming ? Self.maximumStreamedTokens : Self.maximumWholeResponseTokens)
     }
 
@@ -373,23 +376,26 @@ struct AnthropicEngine: TextEngine {
     }
 
     private func message(system: String, prompt: String, context: [String],
-                         schema: [String: Any]?, options: TextGenerationOptions?) async throws -> String {
+                         schema: [String: Any]?, options: TextGenerationOptions?,
+                         omitting omitted: Set<OptionalField> = [],
+                         retriedReasoning: Bool = false) async throws -> String {
         let request = try makeRequest(system: system, prompt: prompt, context: context,
-                                      schema: schema, options: options)
+                                      schema: schema, options: options, omitting: omitted)
         do {
             return try await complete(request, options: options)
         } catch is ReasoningExhaustedReply {
+            guard !retriedReasoning else { throw TextEngineError.outputTruncated }
             lokalbotLog("anthropic reasoning used the whole output; retrying at the lowest effort model=\(model)")
             return try await message(system: system, prompt: prompt, context: context, schema: schema,
-                                     options: OpenAICompatibleEngine.withoutReasoning(options))
+                                     options: OpenAICompatibleEngine.withoutReasoning(options),
+                                     omitting: omitted, retriedReasoning: true)
         } catch {
-            let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options))
+            let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options).subtracting(omitted))
             guard !rejected.isEmpty else { throw error }
+            let nextOmitted = omitted.union(rejected)
             lokalbotLog("anthropic retry without=\(rejected.map(\.rawValue).sorted()) model=\(model)")
-            return try await complete(
-                try makeRequest(system: system, prompt: prompt, context: context,
-                                schema: schema, options: options, omitting: rejected),
-                options: options)
+            return try await message(system: system, prompt: prompt, context: context, schema: schema,
+                                     options: options, omitting: nextOmitted, retriedReasoning: retriedReasoning)
         }
     }
 
@@ -456,29 +462,35 @@ struct AnthropicEngine: TextEngine {
             await onPartial(result)
             return result
         }
+        return try await streamMessage(system: system, prompt: prompt, context: context,
+                                       options: options, omitting: [], retriedReasoning: false,
+                                       onPartial: onPartial)
+    }
+
+    private func streamMessage(system: String, prompt: String, context: [String],
+                               options: TextGenerationOptions,
+                               omitting omitted: Set<OptionalField>,
+                               retriedReasoning: Bool,
+                               onPartial: @escaping @MainActor (String) -> Void) async throws -> String {
         let request = try makeRequest(system: system, prompt: prompt, context: context,
-                                      schema: nil, options: options, streaming: true)
+                                      schema: nil, options: options, streaming: true, omitting: omitted)
         do {
             return try await stream(request, onPartial: onPartial)
         } catch is ReasoningExhaustedReply {
-            guard options.reasoning != .off, !options.keepsTruncatedReply,
+            guard !retriedReasoning, options.reasoning != .off, !options.keepsTruncatedReply,
                   reasoningAllowance(for: options) > 0 else { throw TextEngineError.outputTruncated }
             lokalbotLog("anthropic reasoning used the whole streamed output; retrying at the lowest effort model=\(model)")
-            return try await generateStreaming(system: system, prompt: prompt, context: context,
-                                               options: OpenAICompatibleEngine.withoutReasoning(options),
-                                               onPartial: onPartial)
+            return try await streamMessage(system: system, prompt: prompt, context: context,
+                                           options: OpenAICompatibleEngine.withoutReasoning(options),
+                                           omitting: omitted, retriedReasoning: true, onPartial: onPartial)
         } catch {
-            let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options))
+            let rejected = Self.rejectedFields(in: error, sent: optionalFields(for: options).subtracting(omitted))
             guard !rejected.isEmpty else { throw error }
+            let nextOmitted = omitted.union(rejected)
             lokalbotLog("anthropic stream retry without=\(rejected.map(\.rawValue).sorted()) model=\(model)")
-            do {
-                return try await stream(
-                    try makeRequest(system: system, prompt: prompt, context: context, schema: nil,
-                                    options: options, streaming: true, omitting: rejected),
-                    onPartial: onPartial)
-            } catch is ReasoningExhaustedReply {
-                throw TextEngineError.outputTruncated
-            }
+            return try await streamMessage(system: system, prompt: prompt, context: context,
+                                           options: options, omitting: nextOmitted,
+                                           retriedReasoning: retriedReasoning, onPartial: onPartial)
         }
     }
 

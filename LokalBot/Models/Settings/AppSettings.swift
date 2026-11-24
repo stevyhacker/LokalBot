@@ -14,6 +14,51 @@ enum OpenRouterDataPolicy: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
+struct AdditionalCallApp: Codable, Equatable, Identifiable {
+    let identifier: String
+    let name: String?
+
+    var id: String { identifier.lowercased() }
+
+    init(identifier: String, name: String? = nil) {
+        self.identifier = identifier
+        self.name = name
+    }
+
+    init?(applicationURL: URL) {
+        guard applicationURL.pathExtension.lowercased() == "app",
+              let bundle = Bundle(url: applicationURL),
+              let identifier = bundle.bundleIdentifier,
+              Self.isBundleIdentifier(identifier) else { return nil }
+        self.init(identifier: identifier, name: Self.applicationName(in: bundle))
+    }
+
+    static func applicationName(in bundle: Bundle) -> String {
+        for key in ["CFBundleDisplayName", "CFBundleName"] {
+            if let name = bundle.object(forInfoDictionaryKey: key) as? String,
+               !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                return name
+            }
+        }
+        return bundle.bundleURL.deletingPathExtension().lastPathComponent
+    }
+
+    static func unique(_ apps: [Self]) -> [Self] {
+        var seen: Set<String> = []
+        return apps.filter { isBundleIdentifier($0.identifier) && seen.insert($0.id).inserted }
+    }
+
+    static func fromLegacyList(_ value: String) -> [Self] {
+        unique(value.split(whereSeparator: { $0 == "," || $0.isNewline }).map {
+            Self(identifier: $0.trimmingCharacters(in: .whitespacesAndNewlines))
+        })
+    }
+
+    private static func isBundleIdentifier(_ value: String) -> Bool {
+        value.contains(".") && !value.contains(where: { $0 == "/" || $0.isWhitespace })
+    }
+}
+
 struct AppSettings: Codable, Equatable {
     enum AutoRecordMode: String, Codable, CaseIterable, Identifiable {
         case automatic = "Record automatically"
@@ -101,6 +146,9 @@ struct AppSettings: Codable, Equatable {
     }
 
     var autoRecordMode: AutoRecordMode = .ask
+    var detectOtherBrowserCalls = false
+    var additionalCallApps: [AdditionalCallApp] = []
+    var additionalCallBundleIDs: Set<String> { Set(additionalCallApps.map(\.id)) }
     var stopDebounceSeconds: TimeInterval = Self.defaultStopDebounceSeconds
 
     var calendarDetectionEnabled: Bool = false
@@ -345,6 +393,7 @@ struct AppSettings: Codable, Equatable {
 
     var summarizerBackend: SummarizerBackend = .builtIn
     var builtInModelID: String = ModelCatalog.defaultSummarizationID
+    var dismissedDefaultModelUpgradeKey: String = ""
     var customBuiltInModels: [ModelCatalog.Entry] = []
     var ollamaBaseURL: String = "http://localhost:11434"
     var ollamaModel: String = ""
@@ -467,9 +516,11 @@ struct AppSettings: Codable, Equatable {
     var cotypingAcceptGranularity: CotypingAcceptGranularity = .word
     var cotypingAcceptKey: CotypingAcceptKey = .tab
     var cotypingFullAcceptKey: CotypingFullAcceptKey = .backtick
+    var cotypingTabMovesToNextField: Bool = false
     var cotypingAutoAcceptTrailingPunctuation: Bool = false
     var cotypingEscapeBehavior: CotypingEscapeBehavior = .pause
     var cotypingAddSpaceAfterAccept: Bool = false
+    var cotypingPauseInLowPowerMode: Bool = true
     var cotypingExcludedApps: String = "1Password, Keychain Access, Bitwarden, KeePassXC, Terminal, iTerm"
     var cotypingExcludedDomains: String = ""
     var cotypingSuggestInIntegratedTerminals: Bool = false
@@ -640,6 +691,8 @@ struct AppSettings: Codable, Equatable {
         case meetingSettingsVersion
         case echoCancellation
         case autoRecordMode
+        case detectOtherBrowserCalls
+        case additionalCallApps
         case stopDebounceSeconds
         case calendarDetectionEnabled
         case useCalendarTitles
@@ -752,6 +805,7 @@ struct AppSettings: Codable, Equatable {
         case excludedApps
         case summarizerBackend
         case builtInModelID
+        case dismissedDefaultModelUpgradeKey
         case customBuiltInModels
         case ollamaBaseURL
         case ollamaModel
@@ -783,9 +837,11 @@ struct AppSettings: Codable, Equatable {
         case cotypingAcceptGranularity
         case cotypingAcceptKey
         case cotypingFullAcceptKey
+        case cotypingTabMovesToNextField
         case cotypingAutoAcceptTrailingPunctuation
         case cotypingEscapeBehavior
         case cotypingAddSpaceAfterAccept
+        case cotypingPauseInLowPowerMode
         case cotypingExcludedApps
         case cotypingExcludedDomains
         case cotypingSuggestInIntegratedTerminals
@@ -856,6 +912,8 @@ struct AppSettings: Codable, Equatable {
         try c.encode(Self.currentMeetingSettingsVersion, forKey: .meetingSettingsVersion)
         try c.encode(echoCancellation, forKey: .echoCancellation)
         try c.encode(autoRecordMode, forKey: .autoRecordMode)
+        try c.encode(detectOtherBrowserCalls, forKey: .detectOtherBrowserCalls)
+        try c.encode(additionalCallApps, forKey: .additionalCallApps)
         try c.encode(
             Self.migratedStopDebounceSeconds(
                 stopDebounceSeconds,
@@ -978,6 +1036,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(excludedApps, forKey: .excludedApps)
         try c.encode(summarizerBackend, forKey: .summarizerBackend)
         try c.encode(builtInModelID, forKey: .builtInModelID)
+        try c.encode(dismissedDefaultModelUpgradeKey, forKey: .dismissedDefaultModelUpgradeKey)
         try c.encode(customBuiltInModels, forKey: .customBuiltInModels)
         try c.encode(ollamaBaseURL, forKey: .ollamaBaseURL)
         try c.encode(ollamaModel, forKey: .ollamaModel)
@@ -1013,9 +1072,11 @@ struct AppSettings: Codable, Equatable {
         try c.encode(cotypingAcceptGranularity, forKey: .cotypingAcceptGranularity)
         try c.encode(cotypingAcceptKey, forKey: .cotypingAcceptKey)
         try c.encode(cotypingFullAcceptKey, forKey: .cotypingFullAcceptKey)
+        try c.encode(cotypingTabMovesToNextField, forKey: .cotypingTabMovesToNextField)
         try c.encode(cotypingAutoAcceptTrailingPunctuation, forKey: .cotypingAutoAcceptTrailingPunctuation)
         try c.encode(cotypingEscapeBehavior, forKey: .cotypingEscapeBehavior)
         try c.encode(cotypingAddSpaceAfterAccept, forKey: .cotypingAddSpaceAfterAccept)
+        try c.encode(cotypingPauseInLowPowerMode, forKey: .cotypingPauseInLowPowerMode)
         try c.encode(cotypingExcludedApps, forKey: .cotypingExcludedApps)
         try c.encode(cotypingExcludedDomains, forKey: .cotypingExcludedDomains)
         try c.encode(cotypingSuggestInIntegratedTerminals, forKey: .cotypingSuggestInIntegratedTerminals)
@@ -1061,6 +1122,12 @@ struct AppSettings: Codable, Equatable {
         let meetingSettingsVersion = decode(.meetingSettingsVersion, 0)
         echoCancellation = decode(.echoCancellation, defaults.echoCancellation)
         autoRecordMode = decode(.autoRecordMode, c.contains(.autoRecordMode) ? defaults.autoRecordMode : .automatic)
+        detectOtherBrowserCalls = decode(.detectOtherBrowserCalls, defaults.detectOtherBrowserCalls)
+        if let apps = try? c.decode([AdditionalCallApp].self, forKey: .additionalCallApps) {
+            additionalCallApps = AdditionalCallApp.unique(apps)
+        } else {
+            additionalCallApps = AdditionalCallApp.fromLegacyList(decode(.additionalCallApps, ""))
+        }
         stopDebounceSeconds = Self.migratedStopDebounceSeconds(
             decode(.stopDebounceSeconds, defaults.stopDebounceSeconds),
             decodedSettingsVersion: meetingSettingsVersion)
@@ -1210,6 +1277,8 @@ struct AppSettings: Codable, Equatable {
         excludedApps = decode(.excludedApps, defaults.excludedApps)
         summarizerBackend = decode(.summarizerBackend, defaults.summarizerBackend)
         builtInModelID = decode(.builtInModelID, defaults.builtInModelID)
+        dismissedDefaultModelUpgradeKey = decode(
+            .dismissedDefaultModelUpgradeKey, defaults.dismissedDefaultModelUpgradeKey)
         customBuiltInModels = decode(.customBuiltInModels, defaults.customBuiltInModels)
         ollamaBaseURL = decode(.ollamaBaseURL, defaults.ollamaBaseURL)
         ollamaModel = decode(.ollamaModel, defaults.ollamaModel)
@@ -1253,11 +1322,15 @@ struct AppSettings: Codable, Equatable {
             .cotypingAcceptGranularity, defaults.cotypingAcceptGranularity)
         cotypingAcceptKey = decode(.cotypingAcceptKey, defaults.cotypingAcceptKey)
         cotypingFullAcceptKey = decode(.cotypingFullAcceptKey, defaults.cotypingFullAcceptKey)
+        cotypingTabMovesToNextField = decode(
+            .cotypingTabMovesToNextField, defaults.cotypingTabMovesToNextField)
         cotypingAutoAcceptTrailingPunctuation = Self.migratedCotypingAutoAcceptTrailingPunctuation(
             decode(.cotypingAutoAcceptTrailingPunctuation, defaults.cotypingAutoAcceptTrailingPunctuation),
             decodedSettingsVersion: cotypingSettingsVersion)
         cotypingAddSpaceAfterAccept = decode(
             .cotypingAddSpaceAfterAccept, defaults.cotypingAddSpaceAfterAccept)
+        cotypingPauseInLowPowerMode = decode(
+            .cotypingPauseInLowPowerMode, defaults.cotypingPauseInLowPowerMode)
         cotypingEscapeBehavior = decode(.cotypingEscapeBehavior, defaults.cotypingEscapeBehavior)
         cotypingExcludedApps = decode(.cotypingExcludedApps, defaults.cotypingExcludedApps)
         cotypingExcludedDomains = decode(.cotypingExcludedDomains, defaults.cotypingExcludedDomains)

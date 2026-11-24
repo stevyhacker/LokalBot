@@ -22,7 +22,7 @@ use x11rb::protocol::xtest::ConnectionExt as _;
 use x11rb::rust_connection::RustConnection;
 use x11rb::wrapper::ConnectionExt as _;
 
-use super::geometry::Rect;
+use super::geometry::{Rect, Rgb};
 use super::{AcceptKeys, InterceptedKey, KeyHandler};
 
 const XK_TAB: u32 = 0xff09;
@@ -580,26 +580,34 @@ pub(super) fn screen_containing(rect: &Rect) -> Option<Rect> {
     .ok()
 }
 
-pub(super) fn sample_luminance(rect: &Rect) -> Option<f32> {
+pub(super) fn sample_luminance(rect: &Rect, field: Option<Rect>) -> Option<f32> {
+    let probes = super::policy::luminance_probe_xs(*rect, field, &[2.0, 7.0]);
+    let &first_x = probes.first()?;
     with_overlay_connection(|conn| {
         let root = conn.setup().roots[0].root;
-        let x = (rect.right() + 2.0).max(0.0) as i16;
+        let x = first_x.max(0) as i16;
         let y = rect.mid_y().max(0.0) as i16;
         let image = conn
             .get_image(ImageFormat::Z_PIXMAP, root, x, y, 6, 2, !0)?
             .reply()?;
         anyhow::ensure!(image.depth >= 24, "unexpected screen depth {}", image.depth);
-        let pixels: Vec<f32> = image
+        let mut pixels: Vec<f32> = image
             .data
             .as_chunks::<4>()
             .0
             .iter()
             .map(|[b, g, r, _]| {
-                (0.114 * f32::from(*b) + 0.587 * f32::from(*g) + 0.299 * f32::from(*r)) / 255.0
+                Rgb {
+                    r: *r,
+                    g: *g,
+                    b: *b,
+                }
+                .luminance()
             })
             .collect();
         anyhow::ensure!(!pixels.is_empty(), "no pixels");
-        Ok(pixels.iter().sum::<f32>() / pixels.len() as f32)
+        pixels.sort_by(f32::total_cmp);
+        Ok(pixels[pixels.len() / 2])
     })
     .ok()
 }

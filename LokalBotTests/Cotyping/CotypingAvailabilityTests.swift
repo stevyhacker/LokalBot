@@ -118,7 +118,11 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
     }
 
     func testNonPasswordSecretLabelsBlock() {
-        for label in ["CVV", "Security code", "Verification code", "One-time code", "Card number"] {
+        for label in [
+            "CVV", "Security code", "Verification code", "One-time code", "Card number",
+            "API key", "Secret Access Key", "Access token", "Private key", "Recovery phrase",
+            "Seed phrase", "SSN",
+        ] {
             XCTAssertTrue(
                 CotypingSecureFieldDetector.isSecure(
                     role: "AXTextField",
@@ -130,6 +134,32 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
         }
     }
 
+    func testLocalizedPasswordLabelsBlockWithoutOvermatchingOrdinaryWords() {
+        for label in [
+            "Passwort", "Mot de passe", "Contraseña", "Digite sua senha", "Wachtwoord",
+            "Lösenord", "Adgangskode", "Passord", "Hasło", "Şifre", "Parola",
+            "Lozinka", "Лозинка", "Пароль", "パスワード", "密码", "密碼", "비밀번호",
+            "كلمة المرور", "סיסמה",
+        ] {
+            XCTAssertTrue(
+                CotypingSecureFieldDetector.hasSecureLabel(
+                    roleDescription: nil, title: label, descriptionLabel: nil),
+                "Expected localized password label \(label) to block")
+        }
+        XCTAssertFalse(CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: nil, title: "Escreva uma resenha", descriptionLabel: nil))
+        XCTAssertTrue(CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: "text area",
+            title: nil,
+            descriptionLabel: nil,
+            extraLabels: ["Recovery phrase"]))
+        XCTAssertTrue(CotypingSecureFieldDetector.hasSecureLabel(
+            roleDescription: "text area",
+            title: nil,
+            descriptionLabel: nil,
+            extraLabels: [nil, "Enter your 12-word seed phrase"]))
+    }
+
     func testSearchFieldIsNotOvermatched() {
         XCTAssertFalse(CotypingSecureFieldDetector.isSecure(
             role: "AXTextField",
@@ -137,6 +167,63 @@ final class CotypingSecureFieldDetectorTests: XCTestCase {
             roleDescription: "text field",
             title: "Search",
             descriptionLabel: "Type to search"))
+    }
+}
+
+final class CotypingFieldFilterDetectorTests: XCTestCase {
+    func testCredentialFieldDetectionCoversLabelsDomIdsAndAddressEntry() {
+        XCTAssertTrue(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: ["Work email"], domIdentifier: nil, text: nil))
+        XCTAssertTrue(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: ["Username or phone"], domIdentifier: nil, text: nil))
+        XCTAssertTrue(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: [nil], domIdentifier: "identifierId", text: nil))
+        XCTAssertTrue(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: [nil], domIdentifier: "login_email_input", text: nil))
+        XCTAssertTrue(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: [nil], domIdentifier: nil, text: "ada@example"))
+
+        XCTAssertFalse(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: ["Email subject"], domIdentifier: nil, text: nil))
+        XCTAssertFalse(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: ["Reply to email"], domIdentifier: nil, text: nil))
+        XCTAssertFalse(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextArea", labels: ["Email"], domIdentifier: "login_email", text: "ada@example.com"))
+        XCTAssertFalse(CotypingCredentialFieldDetector.isCredentialField(
+            role: "AXTextField", labels: [nil], domIdentifier: "composer-message", text: "Hello team"))
+    }
+
+    func testSearchFieldDetectionRespectsAddressBarAndWebContext() {
+        XCTAssertEqual(
+            CotypingSearchFieldDetector.signal(
+                role: "AXSearchField", subrole: nil, labels: [nil], domIdentifier: nil),
+            .searchRole)
+        XCTAssertEqual(
+            CotypingSearchFieldDetector.signal(
+                role: "AXTextField", subrole: nil, labels: ["Search messages"], domIdentifier: nil),
+            .searchLabel)
+        XCTAssertEqual(
+            CotypingSearchFieldDetector.signal(
+                role: "AXTextField", subrole: nil, labels: ["Filter issues"], domIdentifier: nil),
+            .searchLabel)
+        XCTAssertEqual(
+            CotypingSearchFieldDetector.signal(
+                role: "AXTextField", subrole: nil, labels: [nil], domIdentifier: "global-search-box"),
+            .searchLabel)
+        XCTAssertNil(
+            CotypingSearchFieldDetector.signal(
+                role: "AXTextField", subrole: nil, labels: ["Search or enter website address"], domIdentifier: nil))
+
+        XCTAssertTrue(CotypingSearchFieldDetector.isSearchField(
+            signal: .searchRole, isBrowser: false, isInWebPage: { false }))
+        XCTAssertFalse(CotypingSearchFieldDetector.isSearchField(
+            signal: .searchRole, isBrowser: true, isInWebPage: { false }))
+        XCTAssertTrue(CotypingSearchFieldDetector.isSearchField(
+            signal: .searchRole, isBrowser: true, isInWebPage: { true }))
+        XCTAssertFalse(CotypingSearchFieldDetector.isSearchField(
+            signal: .searchLabel, isBrowser: true, isInWebPage: { false }))
+        XCTAssertTrue(CotypingSearchFieldDetector.isSearchField(
+            signal: .searchLabel, isBrowser: true, isInWebPage: { true }))
     }
 }
 

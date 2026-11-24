@@ -30,3 +30,23 @@ final class CotypingMeetingPauseTests: XCTestCase {
         XCTAssertNil(CotypingMeetingPause.transition(recordingActive: false, current: .idle))
     }
 }
+
+final class CotypingLowPowerPauseTests: XCTestCase {
+    func testLowPowerStartPausesFromIdleAndIsIdempotent() {
+        XCTAssertEqual(
+            CotypingLowPowerPause.transition(lowPowerActive: true, current: .idle),
+            .disabled(CotypingLowPowerPause.reason))
+        XCTAssertNil(CotypingLowPowerPause.transition(
+            lowPowerActive: true, current: .disabled(CotypingLowPowerPause.reason)))
+    }
+
+    func testLowPowerEndRestoresOnlyOwnPause() {
+        XCTAssertEqual(
+            CotypingLowPowerPause.transition(
+                lowPowerActive: false, current: .disabled(CotypingLowPowerPause.reason)),
+            .idle)
+        XCTAssertNil(CotypingLowPowerPause.transition(
+            lowPowerActive: false, current: .disabled(CotypingMeetingPause.reason)))
+        XCTAssertNil(CotypingLowPowerPause.transition(lowPowerActive: false, current: .idle))
+    }
+}

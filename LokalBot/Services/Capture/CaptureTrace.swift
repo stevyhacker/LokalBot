@@ -17,6 +17,7 @@ struct CaptureTrace: Codable, Equatable {
     enum Query: String, Codable {
         case frontmost, runningApps, isRunning, idleSeconds, trusted, axRead, focusedTitle
         case browserSnapshot, browserReadIssue, screenCaptureGranted, windows, audioProcesses, inputRunning
+        case browserMicrophoneWindowsAllowed
     }
 
     struct Event: Codable, Equatable {
@@ -34,12 +35,14 @@ struct CaptureTrace: Codable, Equatable {
         var issue: BrowserMeetingSession.ReadIssue?
         var windows: [ScreenshotCaptureLayout.Window]?
         var processes: [AudioProcess]?
+        var microphoneWindows: BrowserMeetingSession.MicrophoneWindows?
 
         init(t: TimeInterval, query: Query, processID: pid_t? = nil, includeText: Bool? = nil,
              app: RunningApp? = nil, apps: [RunningApp]? = nil, flag: Bool? = nil, seconds: Double? = nil,
              read: AccessibilityRead? = nil, title: String? = nil,
              browser: BrowserMeetingSession.Snapshot? = nil, issue: BrowserMeetingSession.ReadIssue? = nil,
-             windows: [ScreenshotCaptureLayout.Window]? = nil, processes: [AudioProcess]? = nil) {
+             windows: [ScreenshotCaptureLayout.Window]? = nil, processes: [AudioProcess]? = nil,
+             microphoneWindows: BrowserMeetingSession.MicrophoneWindows? = nil) {
             self.t = t
             self.query = query
             self.processID = processID
@@ -54,6 +57,7 @@ struct CaptureTrace: Codable, Equatable {
             self.issue = issue
             self.windows = windows
             self.processes = processes
+            self.microphoneWindows = microphoneWindows
         }
 
         var key: String { "\(query.rawValue)|\(processID ?? -1)|\(includeText.map(String.init) ?? "-")" }

@@ -86,6 +86,7 @@ impl PiLauncher {
             } else {
                 WorkspaceKind::ChosenFolder
             };
+            let choices = crate::session::ReasoningChoices::for_settings(&request.settings);
             let plan = launch::plan(PlanInputs {
                 bun: &self.layout.bun(),
                 pi_cli: &self.layout.pi_cli(),
@@ -99,6 +100,9 @@ impl PiLauncher {
                 library_root: self.paths.root(),
                 endpoint: &endpoint,
                 reasoning_level_file: Some(&request.reasoning_level_file),
+                reasoning_default_off: choices.default_level
+                    == Some(lokalbot_core::settings::ReasoningLevel::Off),
+                reasoning_effort_template: choices.effort_template,
                 helpers_dir: self.helpers_dir.as_deref(),
                 private_roots: &request.private_roots,
                 agent_capability: Some(&capability),

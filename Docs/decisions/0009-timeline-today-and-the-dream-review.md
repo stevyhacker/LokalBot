@@ -45,6 +45,12 @@ Repeated degraded writes for unchanged evidence increment a durable budget that 
 
 Where: `LokalBot/Services/Timeline/DayDigestEvidence.swift` (`DayDigestGenerationMetadataStore.record`), `LokalBot/Services/Timeline/DayDigestScheduler.swift` (`DayDigestScheduler.reconsiderEvidence`).
 
+### Daily reports follow the note language, and saved evidence stays as recorded
+
+A day has no single transcript to match, so the day digest and the overnight review write their prose in the explicit note language, and with Match Transcript in the resolved interface language. Every model pass, its retry after an output limit, and the segment cache key carry that rule, so changing the language never reuses another language's answers. Model-free fallbacks use the note language's interface catalog when one exists and the interface catalog otherwise (custom languages included). JSON keys, status values, IDs, parser-required headings such as `### Tasks`, and the internal `Pull requests:` prefix used for matching stay canonical; recorded actions, quoted sources and source titles are never translated. Existing reports are not rewritten when the setting changes. A model-free brief formats tracked time with the note language's units ("4 ч", not "4h"). The Dream report and work-memory Markdown files keep canonical English headings and provenance, because the memory file is fed back into prompts and both are library artifacts rather than interface; the provenance line on the Today card is interface text and follows the interface language on both platforms.
+
+Where: `LokalBot/Models/Meetings/SummaryLanguage.swift` (`DailySummaryLanguage`), `LokalBot/Services/Timeline/DayDigestEvidence.swift` (`DayDigestOverviewGenerator`, `displayedOutcome`), `LokalBot/Services/Dreaming/DreamCompiler.swift` (`fallbackReport`), `LinuxWindows/crates/lokalbot-ai/src/language.rs` (`DailySummaryLanguage`), `LinuxWindows/crates/lokalbot-ai/src/digest.rs`, `LinuxWindows/crates/lokalbot-ai/src/dream.rs`.
+
 ## Digest schedule and ownership
 
 ### The digest is written once a day after `dayDigestHour`, and past days are finalized once
@@ -316,3 +322,9 @@ Where: `LinuxWindows/crates/lokalbot-core/src/routines.rs` (`Library::routine_re
 - An edited journal or daily note belongs to the person. Generated output never replaces it, and any write that awaited a model checks ownership and revision again just before committing.
 - Source changes keep derived content and mark it out of date; only deletion withdraws a digest or review, and staleness is decided by the sources an artifact actually read. A new kind of evidence goes through `primaryEvidenceDidChange` (`Shared::evidence_changed`), with a decision on whether it feeds later days.
 - Completion markers (the journal's mtime, the report JSON, a routine's token) are written last, and the overnight review stays bounded: an opt-in start, seven days back, mains power, quiet, and no model downloads.
+
+### A meeting rewrite reopens past days only when its saved content changed
+
+Re-summarizing or re-transcribing a meeting hashes the meeting folder's JSON, Markdown and text files before and after the write. Identical content discards the prepared invalidation, so digests and overnight reviews are kept; changed content invalidates as before. The intent is written before the write, so a crash mid-write still invalidates. A meeting is an exact instant, so its source days are its UTC days from start to end plus one day either side, which covers every time zone; screen evidence keeps two days either side.
+
+Where: `LokalBot/Services/Dreaming/DreamEvidenceMutation.swift` (`MeetingEvidenceFingerprint`, `DreamEvidenceInvalidation.meetingDayKeys`), `LokalBot/Services/Dreaming/DreamStore.swift` (`withEvidenceMutation(…unlessUnchanged:)`).

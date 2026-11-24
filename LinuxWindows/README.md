@@ -28,7 +28,7 @@ More screenshots of both apps are in [docs/screenshots](docs/screenshots).
 | Day memory (app and window activity) | X11, Hyprland, Sway, KDE; GNOME with the Window Calls extension | ✓ | Window titles are cleared after the retention window set in Settings → Screen & activity. |
 | Screen context (visible text, optional encrypted screenshots) | X11; Sway and Hyprland with `grim`; other Wayland desktops through the screenshot portal when it can capture just the active window | ✓ | Off until you choose it in Settings → Screen & activity. Text comes from accessibility (AT-SPI, UI Automation) and on-device OCR in your app and system languages: the recognizer built into Windows, or Tesseract on Linux, with ocrs as the fallback for Latin letters. Any download is offered in that same setting and starts only when you ask. Screenshots are AES-GCM encrypted with a key in the system credential store. |
 | Dictation (hold a shortcut, speak, release) | X11; on Wayland, KDE Plasma and GNOME 48 or later take the shortcut from LokalBot through the desktop's shortcuts portal, which may ask you to confirm it; on other Wayland desktops bind a key to `lokalbot dictate` in your compositor | ✓ | Transcribe inserts what you said; Compose rewrites it with the Think model. Pastes at the cursor, or copies to the clipboard and says why when it cannot. Players pause while you dictate and resume afterwards. On X11 and Windows the shortcut can be two modifier keys alone. |
-| Meeting detection | ✓ (PulseAudio source outputs) | ✓ (WASAPI capture sessions and UI Automation) | Asks with a notification by default. Windows also recognizes Yandex Telemost and MTS Link in the browser and in their desktop clients. The Windows browser detector checks the Russian call controls after joining. |
+| Meeting detection | ✓ (PulseAudio source outputs) | ✓ (WASAPI capture sessions and UI Automation) | Asks with a notification by default. Windows recognizes Yandex Telemost and MTS Link in the browser and in their desktop clients, plus the native eXpress client. Under Settings → Meetings, **Detect other browser calls** enables microphone-based detection for other sites, and **Additional call apps** lets you choose an application file and remove it from detection later. |
 | System tray, launch at login | ✓ (StatusNotifierItem; GNOME needs the AppIndicator extension) | ✓ | |
 | `lokalbot-cli` + MCP for coding agents | ✓ | ✓ | Library access is read-only and off until you allow it in Settings → AI agents. Changing settings needs its own switch there, and anything that widens capture or sharing waits for your approval in the app. |
 | Signed automatic updates | ✓ (installed with `install.sh`, or run from the extracted folder) | ✓ (installed with the installer, or run from the extracted folder) | Checks GitHub daily; installs only when you choose Install and Relaunch. Package installs are told how to update with the package manager; other copies under `/usr`, `/opt` or Program Files are pointed at the download. On Windows, Installed apps (and winget) then shows the new version. |
@@ -238,8 +238,11 @@ comes from reading Omarchy's repository; it has not been tried on Omarchy. See
 
 Wayland lets no ordinary app take a key from another app, show text at its caret or type into it, so LokalBot
 takes part as an input method there, the way language input tools do. It sees the text around the caret, and
-shows a suggestion inline in the field, in the app's own text style with its usual underline for text not yet
-entered. What it sees and keeps is in [PRIVACY.md](../PRIVACY.md).
+shows a suggestion in a click-through pill under the caret on KDE Plasma and on compositors that place input method
+popups (Sway 1.10 and later, Hyprland), so browsers and mail apps that commit an input method's pending text on
+blur never insert an unaccepted suggestion. On GNOME, and on Sway 1.9 and other compositors that do not place the
+pill, the suggestion is shown inline in the field instead. What it sees and keeps is in
+[PRIVACY.md](../PRIVACY.md).
 
 | Desktop | How | Tried on |
 | --- | --- | --- |
@@ -266,8 +269,8 @@ nothing. After an update, log out and back in once so Plasma starts the new help
 | App | Sway | GNOME | KDE Plasma |
 | --- | --- | --- | --- |
 | GTK 3 and GTK 4 | Suggestions, accepts and Esc, run here | Suggestions, accepts and Esc, run here | GTK 3: suggestions, accepts and Esc, run here. GTK 4: a suggestion and its accept, run here |
-| Firefox 159 (Wayland) | Suggestions, accepts and Esc, run here | Stays quiet without the Window Calls extension, which names the app. Works with a stand-in for it, run here; the extension itself has not been tried | Not run |
-| Chrome 156 (Wayland) | Suggestions, accepts and Esc, run here, with no flags | As Firefox | Not run |
+| Firefox 159 (Wayland) | Suggestions, accepts and Esc, run here | Stays quiet without the Window Calls extension, which names the app. Works with a stand-in for it, run here; the extension itself has not been tried | Suggestions, accepts, Esc and focus loss without committing, run here |
+| Chrome 156 (Wayland) | Suggestions, accepts and Esc, run here, with no flags | As Firefox | Suggestions, accepts, Esc and focus loss without committing, run here |
 | Older Chromium and Electron | From their documentation, they need `--enable-wayland-ime` before they use an input method at all. Not run | Same | Same |
 | Qt 6 | From its documentation, it has text-input-v3. Not run | Same | A suggestion and its accept, run here |
 | Qt 5 (Kate) | No input method reaches it, so no suggestions; typing is unaffected. Run here | Not run | KWin gives Qt 5 its own text input protocol, so it works: a suggestion and its accept, run here |

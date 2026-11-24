@@ -39,12 +39,22 @@ final class CotypingWindowTextTests: XCTestCase {
         XCTAssertEqual(text, """
         Nadja
         Juniper launch
-        Press Enter to send
         Sarah: The migration timeline still works for my team.
         Daniel can start the database cutover on Thursday.
         Can you confirm the cutover today?
         """)
         XCTAssertFalse(text.contains("Sure, I'll confirm"), "The draft is already the text before the caret")
+        XCTAssertFalse(text.contains("Press Enter to send"), "Composer chrome right below the field is excluded")
+    }
+
+    func testTopPlacedReplyFieldKeepsThreadBelowComposerChromeBand() throws {
+        let topField = CGRect(x: 300, y: 120, width: 860, height: 60)
+        let lines = [
+            Self.line("Send · Attach", y: 192, width: 140),
+            Self.line("Earlier message in the thread below.", y: 260),
+        ]
+        let kept = CotypingWindowText.excerpts(from: lines, fieldFrame: topField, windowFrame: Self.window)
+        XCTAssertEqual(kept.map(\.text), ["Earlier message in the thread below."])
     }
 
     func testLongConversationKeepsTheNewestLinesWithoutHoles() {

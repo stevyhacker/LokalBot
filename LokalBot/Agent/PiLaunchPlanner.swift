@@ -26,6 +26,8 @@ enum PiLaunchPlanner {
                      workspaceKind: AgentWorkspaceKind? = nil,
                      endpoint: AgentLLMEndpoint,
                      reasoningLevelFile: URL? = nil,
+                     reasoningDefaultOff: Bool = false,
+                     reasoningEffortTemplate: Bool = false,
                      helpersDirectory: URL?,
                      privateRoots: [URL] = [],
                      agentAccessCapability: String? = nil,
@@ -67,6 +69,8 @@ enum PiLaunchPlanner {
         environment["LOKALBOT_LLM_API"] = endpoint.api.rawValue
         environment["LOKALBOT_LLM_SERVED_BY"] = endpoint.plan.map { "\($0.providerName) on the user's \($0.title)" }
         environment["LOKALBOT_LLM_REASONING_FILE"] = reasoningLevelFile?.path
+        environment["LOKALBOT_LLM_REASONING_DEFAULT_OFF"] = reasoningDefaultOff ? "1" : nil
+        environment["LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE"] = reasoningEffortTemplate ? "1" : nil
         environment[AgentWorkspaceKind.environmentKey] = workspaceKind?.rawValue
         let privateRootsJSON = try? JSONEncoder().encode(privateRoots.map { $0.standardizedFileURL.path })
         environment["LOKALBOT_AGENT_PRIVATE_ROOTS"] = privateRootsJSON.map {

@@ -23,8 +23,72 @@ enum CotypingAXFocusIdentityKey {
 }
 
 enum CotypingSearchFieldDetector {
+    static let searchFieldRole = "AXSearchField"
+    static let labelKeywords: [String] = ["search", "arama", "ara"]
+    static let leadingLabelKeywords: [String] = ["look for", "find", "filter", "jump to"]
+    static let addressLabelKeywords: [String] = ["address", "url", "website", "adres"]
+
+    enum Signal: Equatable {
+        case searchRole
+        case searchLabel
+    }
+
     static func isSearchField(role: String, subrole: String?) -> Bool {
-        role == "AXSearchField" || subrole == "AXSearchField"
+        role == searchFieldRole || subrole == searchFieldRole
+    }
+
+    static func mightBeSearchField(role: String) -> Bool {
+        role == "AXTextField" || role == "AXComboBox" || role == searchFieldRole
+    }
+
+    static func signal(
+        role: String,
+        subrole: String?,
+        labels: [String?],
+        domIdentifier: String?
+    ) -> Signal? {
+        guard mightBeSearchField(role: role) else { return nil }
+        let loweredLabels = labels.compactMap { $0?.lowercased() }.filter { !$0.isEmpty }
+        let namesAddress = loweredLabels.contains { label in
+            addressLabelKeywords.contains { CotypingCredentialFieldDetector.containsWord($0, in: label) }
+        }
+        if namesAddress {
+            return nil
+        }
+        if isSearchField(role: role, subrole: subrole) {
+            return .searchRole
+        }
+        for label in loweredLabels {
+            if labelKeywords.contains(where: { CotypingCredentialFieldDetector.containsWord($0, in: label) })
+                || leadingLabelKeywords.contains(where: { startsWithWord($0, label) }) {
+                return .searchLabel
+            }
+        }
+        return identifierNamesSearch(domIdentifier) ? .searchLabel : nil
+    }
+
+    static func isSearchField(signal: Signal?, isBrowser: Bool, isInWebPage: () -> Bool) -> Bool {
+        switch signal {
+        case nil:
+            return false
+        case .searchRole:
+            return !isBrowser || isInWebPage()
+        case .searchLabel:
+            return isInWebPage()
+        }
+    }
+
+    static func startsWithWord(_ keyword: String, _ label: String) -> Bool {
+        guard let start = label.firstIndex(where: { $0.isLetter || $0.isNumber }) else { return false }
+        let rest = label[start...]
+        guard rest.hasPrefix(keyword) else { return false }
+        let after = rest.dropFirst(keyword.count).first
+        return after.map { !$0.isLetter && !$0.isNumber } ?? true
+    }
+
+    static func identifierNamesSearch(_ identifier: String?) -> Bool {
+        guard let identifier, !identifier.isEmpty else { return false }
+        return CotypingCodeFieldDetector.words(in: identifier).contains { $0.hasPrefix("search") }
     }
 }
 

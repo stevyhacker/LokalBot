@@ -58,6 +58,10 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
   const api = providerAPI(process.env.LOKALBOT_LLM_API);
   const servedBy = process.env.LOKALBOT_LLM_SERVED_BY || undefined;
   const reasoningFile = process.env.LOKALBOT_LLM_REASONING_FILE;
+  const reasoningDefaults = {
+    defaultOff: process.env.LOKALBOT_LLM_REASONING_DEFAULT_OFF === "1",
+    effortTemplate: process.env.LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE === "1",
+  };
   const streams = api === "openai-responses" ? openAIResponsesApi() : openAICompletionsApi();
   const inferenceFetch = retryRejectedReasoning(inferenceFetchForOrigin(endpoint));
 
@@ -70,7 +74,9 @@ export default function lokalbotExtension(pi: ExtensionAPI) {
         fetch: inferenceFetch,
         onPayload: async (payload, payloadModel) => {
           const upstream = (await options?.onPayload?.(payload, payloadModel)) ?? payload;
-          const { level, defaultOff, effortTemplate } = readReasoningPreference(reasoningFile);
+          const { level, defaultOff, effortTemplate } = readReasoningPreference(
+            reasoningFile, reasoningDefaults,
+          );
           return api === "openai-responses"
             ? applyResponsesReasoningLevel(upstream as Record<string, unknown>, level)
             : applyReasoningLevel(
@@ -182,8 +188,13 @@ export function reasoningDialect(value: string | undefined): ReasoningDialect {
 
 export function readReasoningPreference(
   path: string | undefined,
+  defaults: { defaultOff?: boolean; effortTemplate?: boolean } = {},
 ): { level: ReasoningLevel; defaultOff: boolean; effortTemplate: boolean } {
-  const automatic = { level: "automatic" as ReasoningLevel, defaultOff: false, effortTemplate: false };
+  const automatic = {
+    level: "automatic" as ReasoningLevel,
+    defaultOff: defaults.defaultOff === true,
+    effortTemplate: defaults.effortTemplate === true,
+  };
   if (!path) return automatic;
   try {
     const file = JSON.parse(readFileSync(path, "utf8")) as {
@@ -192,12 +203,16 @@ export function readReasoningPreference(
     if (!(REASONING_LEVELS as readonly unknown[]).includes(file.level)) return automatic;
     return {
       level: file.level as ReasoningLevel,
-      defaultOff: file.defaultOff === true,
-      effortTemplate: file.effortTemplate === true,
+      defaultOff: typeof file.defaultOff === "boolean" ? file.defaultOff : automatic.defaultOff,
+      effortTemplate: typeof file.effortTemplate === "boolean" ? file.effortTemplate : automatic.effortTemplate,
     };
   } catch {
     return automatic;
   }
+}
+
+function isDefaultThinkingOffLlamaModel(model: string): boolean {
+  return /^qwen3\.5-4b-lokalbot-v\d+$/i.test(model.trim());
 }
 
 export function applyReasoningLevel(
@@ -208,8 +223,9 @@ export function applyReasoningLevel(
   defaultOff = false,
   effortTemplate = false,
 ): Record<string, unknown> {
+  const isDefaultOff = defaultOff || isDefaultThinkingOffLlamaModel(model);
   if (level === "automatic") {
-    if (dialect !== "llama-server" || !defaultOff) return payload;
+    if (dialect !== "llama-server" || !isDefaultOff) return payload;
     const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
     return { ...payload, chat_template_kwargs: { ...kwargs, enable_thinking: false } };
   }
@@ -224,7 +240,7 @@ export function applyReasoningLevel(
       const kwargs = (payload.chat_template_kwargs ?? {}) as Record<string, unknown>;
       if (budget === 0) {
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: false };
-      } else if (defaultOff) {
+      } else if (isDefaultOff) {
         shaped.chat_template_kwargs = { ...kwargs, enable_thinking: true };
       }
       if (effortTemplate) {

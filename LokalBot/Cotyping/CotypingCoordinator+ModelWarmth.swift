@@ -5,7 +5,7 @@ extension CotypingCoordinator {
     nonisolated static let modelWarmRequestInterval: Duration = .seconds(5)
 
     func warmModelAfterPause(now: ContinuousClock.Instant = .now) {
-        guard isRunning, !isMeetingRecordingActive() else { return }
+        guard isRunning, !isMeetingRecordingActive(), !isPausedForLowPowerMode else { return }
         if let lastModelWarmRequest, lastModelWarmRequest.duration(to: now) < Self.modelWarmRequestInterval {
             return
         }

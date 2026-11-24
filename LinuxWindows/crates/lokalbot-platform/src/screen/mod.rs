@@ -12,7 +12,7 @@ mod linux;
 #[cfg(windows)]
 mod uia;
 #[cfg(windows)]
-pub(crate) use uia::BrowserCallReader;
+pub(crate) use uia::{BrowserCallReader, BrowserInterfaceReader};
 #[cfg(target_os = "linux")]
 mod wayland;
 #[cfg(windows)]
@@ -135,6 +135,22 @@ pub struct FocusedWindow {
     pub pid: Option<u32>,
     pub title: String,
     pub rect: Option<WindowRect>,
+}
+
+impl FocusedWindow {
+    pub fn owns_pid(&self, pid: u32) -> bool {
+        if self.pid == Some(pid) {
+            return true;
+        }
+        #[cfg(windows)]
+        if self.id != 0 {
+            return crate::activity::window_owns_pid(
+                windows::Win32::Foundation::HWND(self.id as usize as *mut std::ffi::c_void),
+                pid,
+            );
+        }
+        false
+    }
 }
 
 pub trait WindowCapture: Send {

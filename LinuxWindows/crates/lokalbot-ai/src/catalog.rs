@@ -29,6 +29,7 @@ pub struct ModelEntry {
     pub license: Option<&'static str>,
     pub request_overrides: &'static [(&'static str, f64)],
     pub no_reasoning_control: bool,
+    pub default_thinking_off: bool,
     pub custom_url: Option<&'static str>,
 }
 
@@ -58,9 +59,11 @@ impl ModelEntry {
 }
 
 pub const COMPACT_FALLBACK_ID: &str = "qwen3.5-0.8b";
-pub const DEFAULT_THINK_ID: &str = "qwen3.5-4b";
+pub const PREVIOUS_DEFAULT_THINK_ID: &str = "qwen3.5-4b";
+pub const DEFAULT_THINK_ID: &str = "qwen3.5-4b-lokalbot-v4";
 pub const RECOMMENDED_SUMMARIZATION_ID: &str = "qwen3.6-35b-a3b";
-pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-base-q6";
+pub const PREVIOUS_QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-base-q6";
+pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-lokalbot-v4";
 pub const LIGHTWEIGHT_AUTOCOMPLETE_ID: &str = "lfm2.5-1.2b-instruct";
 pub const EMBEDDING_ID: &str = "embeddinggemma-2-q8";
 pub const EMBEDDING_MODEL_ID: &str = EMBEDDING_ID;
@@ -98,11 +101,12 @@ const fn text(
         license: None,
         request_overrides: &[],
         no_reasoning_control: false,
+        default_thinking_off: false,
         custom_url: None,
     }
 }
 
-static CATALOG: [ModelEntry; 16] = [
+static CATALOG: [ModelEntry; 18] = [
     text(
         COMPACT_FALLBACK_ID,
         "Qwen3.5 0.8B",
@@ -136,6 +140,22 @@ static CATALOG: [ModelEntry; 16] = [
         license: Some("Apache 2.0"),
         ..text(
             QUALITY_AUTOCOMPLETE_ID,
+            "Gemma 4 E2B (LokalBot v4)",
+            "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+            "e089648312aee558514a13dbbd4efb19a0b3eb25",
+            "Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
+            "i1-Q6_K",
+            3_845_323_008,
+            "ea8c01dd28abaae0a6664eb9c1324f6bf6cd0ffef99dace496510f7cceb40581",
+            "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ RAM.",
+            false,
+            true,
+        )
+    },
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        ..text(
+            PREVIOUS_QUALITY_AUTOCOMPLETE_ID,
             "Gemma 4 E2B Base (Autocomplete)",
             "mradermacher/gemma-4-E2B-i1-GGUF",
             "a9bf638e53783fc93778f357cc5c672eab5393b1",
@@ -143,7 +163,7 @@ static CATALOG: [ModelEntry; 16] = [
             "i1-Q6_K",
             3_845_328_608,
             "20f49b221691c71d955e1d5a840b6e26329db4a5e1626f702fa4226e80a9c629",
-            "Default autocomplete model for higher-quality suggestions. 16 GB+ RAM.",
+            "Stock Gemma 4 E2B Base autocomplete baseline. 16 GB+ RAM.",
             false,
             true,
         )
@@ -161,8 +181,25 @@ static CATALOG: [ModelEntry; 16] = [
         true,
         true,
     ),
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        default_thinking_off: true,
+        ..text(
+            DEFAULT_THINK_ID,
+            "Qwen3.5 4B (LokalBot v4)",
+            "stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
+            "b7c9e3308abcf996350e35c9dc97d9590bf6a00a",
+            "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+            "Q4_K_M",
+            2_741_241_952,
+            "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+            "Default Think model fine-tuned for LokalBot notes, memory, and Ask. 16 GB RAM.",
+            true,
+            false,
+        )
+    },
     text(
-        DEFAULT_THINK_ID,
+        PREVIOUS_DEFAULT_THINK_ID,
         "Qwen3.5 4B",
         "unsloth/Qwen3.5-4B-GGUF",
         "e87f176479d0855a907a41277aca2f8ee7a09523",
@@ -170,7 +207,7 @@ static CATALOG: [ModelEntry; 16] = [
         "Q4_K_M",
         2_740_937_888,
         "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
-        "Default Think model with balanced local summaries and long context. 16 GB RAM.",
+        "Stock Qwen3.5 4B baseline for local summaries and long context. 16 GB RAM.",
         true,
         true,
     ),
@@ -300,7 +337,7 @@ static CATALOG: [ModelEntry; 16] = [
             "IQ4_NL",
             17_627_940_768,
             "cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4",
-            "Best local notes in our tests, Serbian included; always thinks first, so slower. Needs a 24 GB GPU.",
+            "Best local notes in our tests, Serbian included; thinks by default, so slower. Needs a 24 GB GPU.",
             true,
             false,
         )
@@ -435,6 +472,7 @@ fn custom_entry(stored: StoredEntry) -> Option<ModelEntry> {
         license: None,
         request_overrides: &[],
         no_reasoning_control: false,
+        default_thinking_off: false,
         custom_url: Some(leaked(url)),
     })
 }
@@ -636,6 +674,118 @@ impl Preset {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum DefaultModelUpgradeRole {
+    Think,
+    Autocomplete,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DefaultModelUpgradeItem {
+    pub role: DefaultModelUpgradeRole,
+    pub token: String,
+    pub target_id: &'static str,
+    pub target_name: &'static str,
+    pub download_bytes: u64,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DefaultModelUpgradeOffer {
+    pub items: Vec<DefaultModelUpgradeItem>,
+}
+
+impl DefaultModelUpgradeOffer {
+    pub fn total_download_bytes(&self) -> u64 {
+        self.items.iter().map(|item| item.download_bytes).sum()
+    }
+
+    pub fn think_target(&self) -> Option<&'static str> {
+        self.items
+            .iter()
+            .find(|item| item.role == DefaultModelUpgradeRole::Think)
+            .map(|item| item.target_id)
+    }
+
+    pub fn autocomplete_target(&self) -> Option<&'static str> {
+        self.items
+            .iter()
+            .find(|item| item.role == DefaultModelUpgradeRole::Autocomplete)
+            .map(|item| item.target_id)
+    }
+
+    pub fn dismissed_tokens(stored: &str) -> std::collections::BTreeSet<String> {
+        stored
+            .split(',')
+            .map(str::trim)
+            .filter(|token| !token.is_empty())
+            .map(str::to_string)
+            .collect()
+    }
+
+    pub fn merged_dismissal_key(existing: &str, offer: &Self) -> String {
+        let mut tokens = Self::dismissed_tokens(existing);
+        for item in &offer.items {
+            tokens.insert(item.token.clone());
+        }
+        tokens.into_iter().collect::<Vec<_>>().join(",")
+    }
+
+    pub fn current(settings: &lokalbot_core::Settings, installed: &[String]) -> Option<Self> {
+        use lokalbot_core::settings::{CotypingBackend, SummarizerBackend};
+
+        let dismissed = Self::dismissed_tokens(&settings.dismissed_default_model_upgrade_key);
+        let mut items = Vec::new();
+
+        if settings.summarizer_backend == SummarizerBackend::BuiltIn
+            && settings.built_in_model_id == PREVIOUS_DEFAULT_THINK_ID
+            && let Some(next_think) = entry(DEFAULT_THINK_ID)
+        {
+            let token = format!("think:{}", next_think.id);
+            if !dismissed.contains(&token) {
+                let download_bytes = if installed.iter().any(|id| id == next_think.id) {
+                    0
+                } else {
+                    next_think.size_bytes
+                };
+                items.push(DefaultModelUpgradeItem {
+                    role: DefaultModelUpgradeRole::Think,
+                    token,
+                    target_id: next_think.id,
+                    target_name: next_think.display_name,
+                    download_bytes,
+                });
+            }
+        }
+
+        let has_legacy_autocomplete = installed
+            .iter()
+            .any(|id| id == PREVIOUS_QUALITY_AUTOCOMPLETE_ID);
+        if settings.cotyping_backend == CotypingBackend::OnDevice
+            && settings.cotyping_built_in_model_id == PREVIOUS_QUALITY_AUTOCOMPLETE_ID
+            && (settings.cotyping_enabled || has_legacy_autocomplete)
+            && let Some(next_autocomplete) = entry(QUALITY_AUTOCOMPLETE_ID)
+        {
+            let token = format!("autocomplete:{}", next_autocomplete.id);
+            if !dismissed.contains(&token) {
+                let download_bytes = if installed.iter().any(|id| id == next_autocomplete.id) {
+                    0
+                } else {
+                    next_autocomplete.size_bytes
+                };
+                items.push(DefaultModelUpgradeItem {
+                    role: DefaultModelUpgradeRole::Autocomplete,
+                    token,
+                    target_id: next_autocomplete.id,
+                    target_name: next_autocomplete.display_name,
+                    download_bytes,
+                });
+            }
+        }
+
+        (!items.is_empty()).then_some(Self { items })
+    }
+}
+
 #[cfg(test)]
 mod custom_tests {
     use super::*;
@@ -757,6 +907,11 @@ mod tests {
     #[test]
     fn presets_and_pickers_follow_macos() {
         assert_eq!(entry("qwen3.5-4b").unwrap().size_bytes, 2_740_937_888);
+        assert_eq!(entry(DEFAULT_THINK_ID).unwrap().size_bytes, 2_741_241_952);
+        assert_eq!(
+            entry(QUALITY_AUTOCOMPLETE_ID).unwrap().size_bytes,
+            3_845_323_008
+        );
         assert_eq!(
             embedding_entry().url(),
             "https://huggingface.co/ggml-org/embeddinggemma-2-GGUF/resolve/bfcd298762cc34d0357ece5ebdd31791a3a374d8/embeddinggemma-2-Q8_0.gguf"
@@ -765,11 +920,17 @@ mod tests {
             assert!(entry(preset.think).unwrap().think);
             assert!(entry(preset.autocomplete).unwrap().autocomplete);
         }
-        assert!(!think_entries().any(|e| e.id == QUALITY_AUTOCOMPLETE_ID || e.id == EMBEDDING_ID));
+        assert!(!think_entries().any(|e| {
+            e.id == QUALITY_AUTOCOMPLETE_ID
+                || e.id == PREVIOUS_QUALITY_AUTOCOMPLETE_ID
+                || e.id == EMBEDDING_ID
+        }));
         let autocomplete: Vec<_> = autocomplete_entries(None).map(|e| e.id).collect();
+        assert!(autocomplete.contains(&QUALITY_AUTOCOMPLETE_ID));
         assert!(autocomplete.contains(&"gemma4-e2b-base-q6"));
         assert!(autocomplete.contains(&"gemma4-e4b-q5-xl"));
         for excluded in [
+            DEFAULT_THINK_ID,
             "gemma4-e4b",
             "granite-4.1-3b",
             "lfm2.5-2.6b",
@@ -818,9 +979,87 @@ mod tests {
     #[test]
     fn autocomplete_defaults_to_gemma_e2b_as_on_macos() {
         let settings = lokalbot_core::Settings::default();
+        assert_eq!(settings.built_in_model_id, DEFAULT_THINK_ID);
+        assert_eq!(DEFAULT_THINK_ID, "qwen3.5-4b-lokalbot-v4");
         assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
-        assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-base-q6");
+        assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-lokalbot-v4");
+        assert_eq!(PRESETS[0].think, settings.built_in_model_id);
         assert_eq!(PRESETS[0].autocomplete, settings.cotyping_built_in_model_id);
+    }
+
+    #[test]
+    fn default_upgrade_offer_targets_only_existing_stock_defaults() {
+        let fresh = lokalbot_core::Settings::default();
+        assert_eq!(DefaultModelUpgradeOffer::current(&fresh, &[]), None);
+
+        let mut legacy = lokalbot_core::Settings {
+            built_in_model_id: PREVIOUS_DEFAULT_THINK_ID.into(),
+            cotyping_built_in_model_id: PREVIOUS_QUALITY_AUTOCOMPLETE_ID.into(),
+            cotyping_enabled: false,
+            ..Default::default()
+        };
+        let think_only = DefaultModelUpgradeOffer::current(&legacy, &[]).unwrap();
+        assert_eq!(think_only.items.len(), 1);
+        assert_eq!(think_only.think_target(), Some(DEFAULT_THINK_ID));
+        assert_eq!(think_only.autocomplete_target(), None);
+        assert_eq!(
+            think_only.total_download_bytes(),
+            entry(DEFAULT_THINK_ID).unwrap().size_bytes
+        );
+
+        let with_downloaded_stock_auto = DefaultModelUpgradeOffer::current(
+            &legacy,
+            &[PREVIOUS_QUALITY_AUTOCOMPLETE_ID.to_string()],
+        )
+        .unwrap();
+        assert_eq!(with_downloaded_stock_auto.items.len(), 2);
+        assert_eq!(
+            with_downloaded_stock_auto.autocomplete_target(),
+            Some(QUALITY_AUTOCOMPLETE_ID)
+        );
+
+        legacy.cotyping_enabled = true;
+        let both = DefaultModelUpgradeOffer::current(&legacy, &[]).unwrap();
+        assert_eq!(both.items.len(), 2);
+        assert_eq!(
+            both.total_download_bytes(),
+            entry(DEFAULT_THINK_ID).unwrap().size_bytes
+                + entry(QUALITY_AUTOCOMPLETE_ID).unwrap().size_bytes
+        );
+
+        let already_downloaded = DefaultModelUpgradeOffer::current(
+            &legacy,
+            &[
+                DEFAULT_THINK_ID.to_string(),
+                QUALITY_AUTOCOMPLETE_ID.to_string(),
+            ],
+        )
+        .unwrap();
+        assert_eq!(already_downloaded.total_download_bytes(), 0);
+
+        legacy.dismissed_default_model_upgrade_key =
+            DefaultModelUpgradeOffer::merged_dismissal_key("", &think_only);
+        let remaining = DefaultModelUpgradeOffer::current(&legacy, &[]).unwrap();
+        assert_eq!(remaining.items.len(), 1);
+        assert_eq!(remaining.think_target(), None);
+        assert_eq!(
+            remaining.autocomplete_target(),
+            Some(QUALITY_AUTOCOMPLETE_ID)
+        );
+
+        legacy.dismissed_default_model_upgrade_key = DefaultModelUpgradeOffer::merged_dismissal_key(
+            &legacy.dismissed_default_model_upgrade_key,
+            &remaining,
+        );
+        assert_eq!(DefaultModelUpgradeOffer::current(&legacy, &[]), None);
+
+        let custom = lokalbot_core::Settings {
+            built_in_model_id: RECOMMENDED_SUMMARIZATION_ID.into(),
+            cotyping_built_in_model_id: LIGHTWEIGHT_AUTOCOMPLETE_ID.into(),
+            cotyping_enabled: true,
+            ..Default::default()
+        };
+        assert_eq!(DefaultModelUpgradeOffer::current(&custom, &[]), None);
     }
 
     #[test]

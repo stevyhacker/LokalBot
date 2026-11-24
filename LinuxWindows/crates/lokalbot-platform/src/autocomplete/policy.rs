@@ -21,6 +21,7 @@ pub mod reasons {
     pub const NOT_EDITABLE: &str = "Not an editable text field.";
     pub const SEARCH: &str = "Search field.";
     pub const CODE_FIELD: &str = "Verification code field.";
+    pub const CREDENTIAL: &str = "Sign-in or verification field.";
     pub const NO_CARET: &str = "No caret in this field.";
     pub const TERMINAL: &str = "Not available in terminal apps.";
     pub const INTEGRATED_TERMINAL: &str = "Not available in the integrated terminal.";
@@ -178,9 +179,346 @@ pub fn is_secure_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
         "credit card",
     ];
     labels.into_iter().any(|label| {
-        let label = label.to_lowercase();
-        MARKERS.iter().any(|marker| label.contains(marker))
+        let lower = label.to_lowercase();
+        MARKERS.iter().any(|marker| lower.contains(marker)) || label_names_secret(label)
     })
+}
+
+fn fold_diacritics(text: &str) -> String {
+    text.to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ä' | 'ã' | 'å' | 'ą' => 'a',
+            'ć' | 'č' | 'ç' => 'c',
+            'ď' | 'đ' => 'd',
+            'é' | 'è' | 'ê' | 'ë' | 'ę' => 'e',
+            'í' | 'ì' | 'î' | 'ï' | 'ı' => 'i',
+            'ł' => 'l',
+            'ñ' | 'ń' => 'n',
+            'ó' | 'ò' | 'ô' | 'ö' | 'õ' | 'ø' => 'o',
+            'ś' | 'š' | 'ş' => 's',
+            'ú' | 'ù' | 'û' | 'ü' => 'u',
+            'ý' | 'ÿ' => 'y',
+            'ź' | 'ż' | 'ž' => 'z',
+            other => other,
+        })
+        .collect()
+}
+
+fn starts_word(term: &str, folded_label: &str) -> bool {
+    let mut rest = folded_label;
+    let mut offset = 0;
+    while let Some(pos) = rest.find(term) {
+        let abs = offset + pos;
+        let boundary = abs == 0
+            || folded_label[..abs]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_alphanumeric());
+        if boundary {
+            return true;
+        }
+        let advance = pos + term.len();
+        offset += advance;
+        rest = &folded_label[offset..];
+    }
+    false
+}
+
+pub fn label_names_secret(label: &str) -> bool {
+    const SUBSTRINGS: [&str; 17] = [
+        "passwort",
+        "kennwort",
+        "mot de passe",
+        "contrasena",
+        "wachtwoord",
+        "losenord",
+        "adgangskode",
+        "passord",
+        "lozinka",
+        "лозинка",
+        "パスワード",
+        "密码",
+        "密碼",
+        "비밀번호",
+        "암호",
+        "كلمة المرور",
+        "كلمة السر",
+    ];
+    const WORD_STARTS: [&str; 15] = [
+        "senha",
+        "sifre",
+        "parola",
+        "haslo",
+        "hasla",
+        "парол",
+        "api key",
+        "secret key",
+        "secret access key",
+        "access token",
+        "private key",
+        "recovery phrase",
+        "seed phrase",
+        "ssn",
+        "social security",
+    ];
+    let folded = fold_diacritics(label);
+    folded.contains("סיסמה")
+        || SUBSTRINGS.iter().any(|s| folded.contains(s))
+        || WORD_STARTS.iter().any(|w| starts_word(w, &folded))
+}
+
+fn contains_word(keyword: &str, label: &str) -> bool {
+    let mut rest = label;
+    let mut offset = 0;
+    while let Some(pos) = rest.find(keyword) {
+        let start = offset + pos;
+        let end = start + keyword.len();
+        let before_ok = start == 0
+            || label[..start]
+                .chars()
+                .next_back()
+                .is_none_or(|c| !c.is_alphanumeric());
+        let after_ok = end == label.len()
+            || label[end..]
+                .chars()
+                .next()
+                .is_none_or(|c| !c.is_alphanumeric());
+        if before_ok && after_ok {
+            return true;
+        }
+        offset = end;
+        rest = &label[offset..];
+    }
+    false
+}
+
+fn starts_with_word(keyword: &str, label: &str) -> bool {
+    let Some(start) = label.find(|c: char| c.is_alphanumeric()) else {
+        return false;
+    };
+    let rest = &label[start..];
+    let Some(tail) = rest.strip_prefix(keyword) else {
+        return false;
+    };
+    tail.chars().next().is_none_or(|c| !c.is_alphanumeric())
+}
+
+pub fn label_names_credential(label: &str) -> bool {
+    const KEYWORDS: [&str; 27] = [
+        "email",
+        "e-mail",
+        "username",
+        "user name",
+        "user id",
+        "userid",
+        "login",
+        "log in",
+        "sign in",
+        "phone",
+        "mobile number",
+        "password",
+        "passcode",
+        "pin",
+        "one-time",
+        "one time code",
+        "verification code",
+        "security code",
+        "otp",
+        "2fa",
+        "two-factor",
+        "authentication code",
+        "card number",
+        "cvc",
+        "cvv",
+        "expiry",
+        "expiration",
+    ];
+    const PROSE_WORDS: [&str; 12] = [
+        "subject",
+        "message",
+        "body",
+        "preview",
+        "title",
+        "signature",
+        "template",
+        "comment",
+        "note",
+        "notes",
+        "reply",
+        "search",
+    ];
+    let lowered = label.to_lowercase();
+    let matched = KEYWORDS.iter().any(|k| contains_word(k, &lowered)) || label_names_secret(label);
+    matched && !PROSE_WORDS.iter().any(|p| contains_word(p, &lowered))
+}
+
+pub fn identifier_names_credential(identifier: &str) -> bool {
+    const CREDENTIAL_WORDS: [&str; 38] = [
+        "email",
+        "mail",
+        "username",
+        "userid",
+        "login",
+        "logon",
+        "signin",
+        "passwd",
+        "password",
+        "pwd",
+        "passcode",
+        "otp",
+        "totp",
+        "mfa",
+        "2fa",
+        "phone",
+        "telephone",
+        "tel",
+        "mobile",
+        "msisdn",
+        "pin",
+        "cvc",
+        "cvv",
+        "cardnumber",
+        "identifierid",
+        "onetimecode",
+        "verificationcode",
+        "securitycode",
+        "authcode",
+        "apikey",
+        "secretkey",
+        "secretaccesskey",
+        "accesstoken",
+        "privatekey",
+        "seedphrase",
+        "recoveryphrase",
+        "ssn",
+        "passphrase",
+    ];
+    const QUALIFIER_WORDS: [&str; 25] = [
+        "user",
+        "account",
+        "address",
+        "addr",
+        "id",
+        "identifier",
+        "name",
+        "number",
+        "num",
+        "no",
+        "code",
+        "field",
+        "input",
+        "txt",
+        "tb",
+        "verification",
+        "verify",
+        "security",
+        "auth",
+        "onetime",
+        "confirm",
+        "current",
+        "new",
+        "primary",
+        "your",
+    ];
+    let chars: Vec<char> = identifier
+        .to_lowercase()
+        .chars()
+        .filter(|c| c.is_alphanumeric())
+        .collect();
+    if chars.is_empty() || chars.len() > 64 {
+        return false;
+    }
+    let mut reach: Vec<Option<bool>> = vec![None; chars.len() + 1];
+    reach[0] = Some(false);
+    for start in 0..chars.len() {
+        let Some(has_cred) = reach[start] else {
+            continue;
+        };
+        if chars[start].is_numeric() {
+            reach[start + 1] = Some(reach[start + 1].unwrap_or(false) || has_cred);
+        }
+        for (words, is_cred) in [
+            (CREDENTIAL_WORDS.as_slice(), true),
+            (QUALIFIER_WORDS.as_slice(), false),
+        ] {
+            for word in words {
+                let word_chars: Vec<char> = word.chars().collect();
+                if chars[start..].starts_with(&word_chars) {
+                    let end = start + word_chars.len();
+                    reach[end] = Some(reach[end].unwrap_or(false) || has_cred || is_cred);
+                }
+            }
+        }
+    }
+    reach[chars.len()] == Some(true)
+}
+
+pub fn looks_like_address_entry(text: &str) -> bool {
+    let trimmed = text.trim();
+    if trimmed.is_empty() {
+        return false;
+    }
+    let Some((local, domain)) = trimmed.split_once('@') else {
+        return false;
+    };
+    !local.is_empty()
+        && !local
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '@' | '/' | ':'))
+        && !domain
+            .chars()
+            .any(|c| c.is_whitespace() || matches!(c, '@' | '/' | ':'))
+}
+
+pub fn is_credential_field<'a>(
+    single_line: bool,
+    labels: impl IntoIterator<Item = &'a str>,
+    identifier: Option<&str>,
+    text: Option<&str>,
+) -> bool {
+    if !single_line {
+        return false;
+    }
+    if labels.into_iter().any(label_names_credential) {
+        return true;
+    }
+    if identifier.is_some_and(identifier_names_credential) {
+        return true;
+    }
+    text.is_some_and(looks_like_address_entry)
+}
+
+pub fn is_search_label_or_id<'a>(
+    single_line: bool,
+    labels: impl IntoIterator<Item = &'a str>,
+    identifier: Option<&str>,
+) -> bool {
+    const ADDRESS_KEYWORDS: [&str; 4] = ["address", "url", "website", "adres"];
+    const LABEL_KEYWORDS: [&str; 3] = ["search", "arama", "ara"];
+    const LEADING_KEYWORDS: [&str; 4] = ["look for", "find", "filter", "jump to"];
+    if !single_line {
+        return false;
+    }
+    let lowered: Vec<String> = labels
+        .into_iter()
+        .map(str::to_lowercase)
+        .filter(|s| !s.is_empty())
+        .collect();
+    if lowered
+        .iter()
+        .any(|label| ADDRESS_KEYWORDS.iter().any(|k| contains_word(k, label)))
+    {
+        return false;
+    }
+    if lowered.iter().any(|label| {
+        LABEL_KEYWORDS.iter().any(|k| contains_word(k, label))
+            || LEADING_KEYWORDS.iter().any(|k| starts_with_word(k, label))
+    }) {
+        return true;
+    }
+    identifier
+        .is_some_and(|id| !id.is_empty() && label_words(id).iter().any(|w| w.starts_with("search")))
 }
 
 pub fn is_code_field<'a>(labels: impl IntoIterator<Item = &'a str>) -> bool {
@@ -306,6 +644,44 @@ pub fn is_search_field<'a>(roles: impl IntoIterator<Item = &'a str>) -> bool {
     })
 }
 
+pub fn is_non_text_glyph(c: char) -> bool {
+    matches!(
+        u32::from(c),
+        0xFFFC | 0xFFFD | 0xE000..=0xF8FF | 0xF0000..=0xFFFFD | 0x100000..=0x10FFFD
+    )
+}
+
+pub fn strip_non_text_glyphs(text: &str) -> (String, Option<u32>) {
+    let mut first_removed = None;
+    let mut removed_after_space = false;
+    let mut out = String::with_capacity(text.len());
+    for c in text.chars() {
+        let c = if c == '\u{00A0}' { ' ' } else { c };
+        if is_non_text_glyph(c) {
+            if first_removed.is_none() {
+                first_removed = Some(u32::from(c));
+            }
+            removed_after_space = out.ends_with(' ');
+        } else if c == ' ' && removed_after_space {
+            removed_after_space = false;
+        } else {
+            removed_after_space = false;
+            out.push(c);
+        }
+    }
+    (out, first_removed)
+}
+
+pub fn is_inaccessible_editor_placeholder(name: &str, class_name: &str) -> bool {
+    let lower_name = name.to_lowercase();
+    if lower_name.contains("editor is not accessible at this time") {
+        return true;
+    }
+    let lower_class = class_name.to_lowercase();
+    (lower_class.contains("native-edit-context") || lower_class.contains("inputarea"))
+        && lower_name.contains("enable screen reader optimized mode")
+}
+
 pub fn bounded_before(text: &str, read_truncated: bool) -> (String, bool) {
     let mut start = 0;
     let mut units = 0;
@@ -351,7 +727,38 @@ pub fn bounded_after(text: &str, read_truncated: bool) -> String {
 }
 
 pub fn caret_at_end_of_line(after: &str) -> bool {
-    after.chars().next().is_none_or(|c| c == '\n' || c == '\r')
+    after
+        .split(['\n', '\r'])
+        .next()
+        .unwrap_or("")
+        .trim_end_matches([' ', '\t'])
+        .is_empty()
+}
+
+pub fn luminance_probe_xs(caret: Rect, field: Option<Rect>, offsets: &[f32]) -> Vec<i32> {
+    const LEFT_INSET: f32 = 4.0;
+    const RIGHT_SCROLLBAR_INSET: f32 = 18.0;
+    if let Some(frame) = field.filter(|f| f.is_finite() && f.width >= 64.0) {
+        let min_x = frame.x + LEFT_INSET;
+        let max_x = frame.right() - RIGHT_SCROLLBAR_INSET;
+        if max_x <= min_x {
+            return Vec::new();
+        }
+        let valid: Vec<i32> = offsets
+            .iter()
+            .map(|dx| caret.right() + dx)
+            .filter(|x| *x >= min_x && *x <= max_x)
+            .map(|x| x as i32)
+            .collect();
+        if valid.len() < offsets.len().min(2) {
+            return Vec::new();
+        }
+        return valid;
+    }
+    offsets
+        .iter()
+        .map(|dx| (caret.right() + dx) as i32)
+        .collect()
 }
 
 pub fn host_from_url(url: &str) -> Option<String> {
@@ -440,6 +847,34 @@ pub fn field_identity(field: &FieldSnapshot) -> String {
     .join("\u{1f}")
 }
 
+pub fn background_cache_key(field: &FieldSnapshot, dark_theme: bool) -> String {
+    let frame = field.field_frame.map_or_else(String::new, |f| {
+        format!(
+            "{},{},{},{}",
+            (f.x / 16.0).round() as i64,
+            (f.y / 16.0).round() as i64,
+            (f.width / 16.0).round() as i64,
+            (f.height / 16.0).round() as i64
+        )
+    });
+    let host = field
+        .url
+        .as_deref()
+        .and_then(host_from_url)
+        .unwrap_or_default();
+    let theme = if dark_theme { "dark" } else { "light" };
+    [
+        field.pid.to_string(),
+        field.app_id.clone(),
+        field.focus_key.clone(),
+        host,
+        field.window_title.clone(),
+        frame,
+        theme.to_string(),
+    ]
+    .join("\u{1f}")
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct PollBackoff {
     idle_captures: u32,
@@ -472,7 +907,8 @@ impl PollBackoff {
 
 #[derive(Clone, Debug, Default)]
 pub struct FlickerGate {
-    last_supported: Option<String>,
+    last_supported_key: Option<String>,
+    last_supported_app: Option<String>,
     blocked_reads: u32,
 }
 
@@ -482,38 +918,52 @@ impl FlickerGate {
     pub fn apply(&mut self, focus: &FocusSnapshot) -> bool {
         match &focus.capability {
             Capability::Supported => {
-                self.last_supported = focus
+                self.last_supported_key = focus
                     .field
                     .as_ref()
                     .map(|f| f.focus_key.clone())
                     .or_else(|| focus.focus_key.clone());
+                self.last_supported_app = (!focus.app_id.is_empty()).then(|| focus.app_id.clone());
                 self.blocked_reads = 0;
                 true
             }
             Capability::Blocked(reason) => {
                 let same = *reason == reasons::SELECTION
-                    && self.last_supported.is_some()
+                    && self.last_supported_key.is_some()
                     && focus.focus_key.is_some()
-                    && self.last_supported == focus.focus_key;
-                if !same {
-                    self.last_supported = None;
-                    self.blocked_reads = 0;
-                    return true;
-                }
-                self.blocked_reads += 1;
-                if self.blocked_reads >= Self::REQUIRED_BLOCKED_READS {
-                    self.last_supported = None;
-                    self.blocked_reads = 0;
-                    return true;
-                }
-                false
+                    && self.last_supported_key == focus.focus_key;
+                self.absorb_blip(same)
             }
-            Capability::Unsupported(_) => {
-                self.last_supported = None;
-                self.blocked_reads = 0;
-                true
+            Capability::Unsupported(reason) => {
+                let transient = *reason == reasons::NO_CARET || *reason == reasons::NOT_EDITABLE;
+                let same = transient
+                    && self.last_supported_app.is_some()
+                    && !focus.app_id.is_empty()
+                    && self.last_supported_app.as_deref() == Some(focus.app_id.as_str())
+                    && focus
+                        .focus_key
+                        .as_ref()
+                        .is_none_or(|key| self.last_supported_key.as_ref() == Some(key));
+                self.absorb_blip(same)
             }
         }
+    }
+
+    fn absorb_blip(&mut self, same: bool) -> bool {
+        if !same {
+            self.last_supported_key = None;
+            self.last_supported_app = None;
+            self.blocked_reads = 0;
+            return true;
+        }
+        self.blocked_reads += 1;
+        if self.blocked_reads >= Self::REQUIRED_BLOCKED_READS {
+            self.last_supported_key = None;
+            self.last_supported_app = None;
+            self.blocked_reads = 0;
+            return true;
+        }
+        false
     }
 }
 
@@ -536,6 +986,20 @@ pub fn choose_caret(
                     .contains_rect(&character)
             }))
     {
+        if let Some(empty) = empty_range {
+            let empty_in_field = field.is_none_or(|f| {
+                f.inset(-CONTAINMENT_TOLERANCE, -CONTAINMENT_TOLERANCE)
+                    .contains_rect(&empty)
+            });
+            let wrapped_next_line = empty_in_field
+                && is_collapsed_caret(&empty)
+                && empty.y >= character.bottom() - 2.0
+                && (!right_to_left && empty.x < character.x
+                    || right_to_left && empty.x > character.right());
+            if wrapped_next_line {
+                return Some(Rect::new(empty.x, empty.y, 0.0, empty.height));
+            }
+        }
         let x = if right_to_left {
             character.x
         } else {
@@ -543,11 +1007,68 @@ pub fn choose_caret(
         };
         return Some(Rect::new(x, character.y, 0.0, character.height));
     }
-    empty_range
+    empty_range.filter(is_collapsed_caret).map(|empty| {
+        Rect::new(
+            if right_to_left {
+                empty.right()
+            } else {
+                empty.x
+            },
+            empty.y,
+            0.0,
+            empty.height,
+        )
+    })
 }
 
 pub fn is_collapsed_caret(rect: &Rect) -> bool {
     rect.is_finite() && rect.height > 0.0 && rect.width <= (rect.height / 4.0).max(2.0)
+}
+
+pub fn is_stuck_at_origin_caret(first_char: Rect, previous_char: Rect, before: &str) -> bool {
+    if !first_char.is_finite() || !previous_char.is_finite() {
+        return false;
+    }
+    let has_newline = before.contains('\n');
+    let visible_chars = before.chars().filter(|c| !c.is_control()).count();
+    if !has_newline && visible_chars < 3 {
+        return false;
+    }
+    (previous_char.x - first_char.x).abs() < 1.0 && (previous_char.y - first_char.y).abs() < 1.0
+}
+
+pub fn translate_for_leading_button(
+    previous_char: Rect,
+    first_char: Rect,
+    field: Rect,
+    button_right: f32,
+) -> Rect {
+    const BUTTON_GAP: f32 = 4.0;
+    if !previous_char.is_finite()
+        || !first_char.is_finite()
+        || !field.is_finite()
+        || button_right <= field.x
+        || first_char.x >= button_right - 1.0
+    {
+        return previous_char;
+    }
+    let origin = first_char.x.max(field.x);
+    let shift = (button_right - origin + BUTTON_GAP).max(0.0);
+    let max_x = (field.right() - previous_char.width).max(previous_char.x);
+    Rect::new(
+        (previous_char.x + shift).min(max_x),
+        previous_char.y,
+        previous_char.width,
+        previous_char.height,
+    )
+}
+
+pub fn is_plausible_system_caret(caret: Rect, field: Option<Rect>) -> bool {
+    const MIN_HEIGHT: f32 = 8.0;
+    const TOLERANCE: f32 = 4.0;
+    caret.is_finite()
+        && caret.height >= MIN_HEIGHT
+        && field.is_none_or(|f| f.inset(-TOLERANCE, -TOLERANCE).contains_rect(&caret))
 }
 
 #[derive(Clone, Debug, Default)]
@@ -738,6 +1259,49 @@ mod tests {
         assert!(is_search_field(["entry", "searchbox"]));
         assert!(is_search_field(["search box"]));
         assert!(!is_search_field(["entry", "textbox"]));
+
+        for secret in [
+            "Passwort",
+            "Mot de passe",
+            "Contraseña",
+            "Senha",
+            "Lozinka",
+            "Лозинка",
+            "Пароль",
+            "パスワード",
+            "密码",
+            "API key",
+            "Secret Access Key",
+            "Recovery phrase",
+            "SSN",
+        ] {
+            assert!(is_secure_field([secret]), "{secret}");
+        }
+        assert!(!is_secure_field(["resenha de livro"]));
+
+        assert!(is_credential_field(true, ["Email"], None, None));
+        assert!(is_credential_field(true, ["Username"], None, None));
+        assert!(is_credential_field(true, [], Some("login_email"), None));
+        assert!(is_credential_field(true, [], Some("identifierId"), None));
+        assert!(is_credential_field(true, [], None, Some("ada@")));
+        assert!(!is_credential_field(true, ["Email subject"], None, None));
+        assert!(!is_credential_field(false, ["Email"], None, Some("ada@")));
+        assert!(!is_credential_field(
+            true,
+            [],
+            None,
+            Some("reach me at ada@example.com")
+        ));
+
+        assert!(is_search_label_or_id(true, ["Search GitHub"], None));
+        assert!(is_search_label_or_id(true, ["Jump to..."], None));
+        assert!(is_search_label_or_id(true, [], Some("headerSearchInput")));
+        assert!(!is_search_label_or_id(
+            true,
+            ["Search or enter website name"],
+            None
+        ));
+        assert!(!is_search_label_or_id(false, ["Search notes"], None));
     }
 
     #[test]
@@ -816,6 +1380,8 @@ mod tests {
     #[test]
     fn caret_end_of_line() {
         assert!(caret_at_end_of_line(""));
+        assert!(caret_at_end_of_line("   "));
+        assert!(caret_at_end_of_line(" \t \nnext line"));
         assert!(caret_at_end_of_line("\nnext line"));
         assert!(!caret_at_end_of_line(" world"));
     }
@@ -946,6 +1512,17 @@ mod tests {
         let mut other = blip.clone();
         other.focus_key = Some("other".into());
         assert!(gate.apply(&other));
+
+        assert!(gate.apply(&supported));
+        let mut no_caret = FocusSnapshot::unsupported("Text Editor", "gedit", reasons::NO_CARET);
+        assert!(!gate.apply(&no_caret));
+        assert!(gate.apply(&no_caret));
+        assert!(gate.apply(&supported));
+        no_caret.app_id = "terminal".into();
+        assert!(gate.apply(&no_caret));
+        assert!(gate.apply(&supported));
+        let terminal = FocusSnapshot::unsupported("Text Editor", "gedit", reasons::TERMINAL);
+        assert!(gate.apply(&terminal));
     }
 
     #[test]
@@ -970,8 +1547,88 @@ mod tests {
         );
         let range = Rect::new(50.0, 10.0, 0.0, 18.0);
         assert_eq!(choose_caret(Some(range), None, field, false), Some(range));
+        assert_eq!(
+            choose_caret(Some(Rect::new(5.0, 5.0, 788.0, 23.0)), None, field, false),
+            None
+        );
         assert!(is_collapsed_caret(&Rect::new(5.0, 5.0, 1.0, 16.0)));
         assert!(!is_collapsed_caret(&Rect::new(5.0, 5.0, 788.0, 23.0)));
+
+        let multiline = Some(Rect::new(0.0, 0.0, 400.0, 200.0));
+        let soft_wrapped = choose_caret(
+            Some(Rect::new(12.0, 51.0, 2.0, 27.0)),
+            Some(Rect::new(380.0, 0.0, 12.0, 51.0)),
+            multiline,
+            false,
+        );
+        assert_eq!(soft_wrapped, Some(Rect::new(12.0, 51.0, 0.0, 27.0)));
+    }
+
+    #[test]
+    fn non_text_glyphs_and_inaccessible_placeholders_are_filtered() {
+        let (clean, first) = strip_non_text_glyphs("\u{FFFC}hello \u{EAB6}world 👍");
+        assert_eq!(clean, "hello world 👍");
+        assert_eq!(first, Some(0xFFFC));
+        assert_eq!(
+            strip_non_text_glyphs("Hey \u{FFFC} "),
+            ("Hey ".into(), Some(0xFFFC))
+        );
+        assert_eq!(
+            strip_non_text_glyphs("plain text"),
+            ("plain text".into(), None)
+        );
+        assert_eq!(
+            strip_non_text_glyphs("Hello\u{00A0}world\u{00A0}"),
+            ("Hello world ".into(), None)
+        );
+        let notepad_frame = Some(Rect::new(4170.0, 500.0, 824.0, 900.0));
+        assert!(
+            luminance_probe_xs(
+                Rect::new(4979.0, 881.0, 0.0, 27.0),
+                notepad_frame,
+                &[4.0, 10.0, 16.0]
+            )
+            .is_empty()
+        );
+        assert_eq!(
+            luminance_probe_xs(
+                Rect::new(4186.0, 908.0, 0.0, 27.0),
+                notepad_frame,
+                &[4.0, 10.0, 16.0]
+            ),
+            vec![4190, 4196, 4202]
+        );
+        assert!(is_inaccessible_editor_placeholder(
+            "The editor is not accessible at this time. To enable screen reader optimized mode, use Shift+Alt+F1",
+            "native-edit-context"
+        ));
+        assert!(!is_inaccessible_editor_placeholder(
+            "Search settings",
+            "inputarea"
+        ));
+    }
+
+    #[test]
+    fn background_cache_separates_pages_and_frames() {
+        let mut a = field("Firefox", "firefox.exe");
+        a.url = Some("https://developer.mozilla.org/en-US/".into());
+        a.field_frame = Some(Rect::new(100.0, 200.0, 300.0, 40.0));
+        let mut b = a.clone();
+        b.url = Some("https://github.com/".into());
+        assert_ne!(
+            background_cache_key(&a, true),
+            background_cache_key(&b, true)
+        );
+        assert_ne!(
+            background_cache_key(&a, true),
+            background_cache_key(&a, false)
+        );
+        let mut nudged = a.clone();
+        nudged.field_frame = Some(Rect::new(101.0, 201.0, 300.0, 40.0));
+        assert_eq!(
+            background_cache_key(&a, true),
+            background_cache_key(&nudged, true)
+        );
     }
 
     #[test]
@@ -990,5 +1647,30 @@ mod tests {
         assert!(is_right_to_left("שלום"));
         assert!(!is_right_to_left("hello"));
         assert!(!is_right_to_left("שלום hello"));
+    }
+
+    #[test]
+    fn stuck_origin_caret_and_leading_button_offsets_are_detected() {
+        let origin = Rect::new(552.0, 109.0, 8.0, 18.0);
+        assert!(is_stuck_at_origin_caret(origin, origin, "SELECT * FROM "));
+        assert!(is_stuck_at_origin_caret(origin, origin, "a\nb"));
+        assert!(!is_stuck_at_origin_caret(origin, origin, "ab"));
+        assert!(!is_stuck_at_origin_caret(
+            origin,
+            Rect::new(620.0, 109.0, 8.0, 18.0),
+            "SELECT * FROM "
+        ));
+
+        let field_rect = Rect::new(7.0, 120.0, 3753.0, 27.0);
+        let first = Rect::new(7.0, 120.0, 7.0, 24.0);
+        let prev = Rect::new(549.0, 120.0, 7.0, 24.0);
+        let shifted = translate_for_leading_button(prev, first, field_rect, 32.0);
+        assert_eq!(shifted.x, 578.0);
+
+        let already_offset = Rect::new(36.0, 120.0, 7.0, 24.0);
+        assert_eq!(
+            translate_for_leading_button(prev, already_offset, field_rect, 32.0),
+            prev
+        );
     }
 }

@@ -49,7 +49,7 @@ final class SettingRegistryTests: XCTestCase {
             "cotypingServerRequestStyle": try stored(CotypingServerRequestStyle.allCases),
             "cotypingAcceptGranularity": try stored(CotypingAcceptGranularity.allCases),
             "cotypingAcceptKey": try stored(CotypingAcceptKey.allCases),
-            "cotypingFullAcceptKey": try stored([CotypingFullAcceptKey.backtick, .rightArrow, .off]),
+            "cotypingFullAcceptKey": try stored(CotypingFullAcceptKey.allCases),
             "cotypingEscapeBehavior": try stored(CotypingEscapeBehavior.allCases),
             "cotypingMirrorPreference": try stored([CotypingMirrorPreference.auto, .alwaysInline, .alwaysMirror]),
             "dictationIntent": try stored(DictationIntent.allCases),

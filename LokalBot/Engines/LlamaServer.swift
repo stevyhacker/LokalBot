@@ -37,7 +37,7 @@ actor LlamaServer {
                                       runtimeAllowanceBytes: 384 * 1_048_576)
     static let cotyping = LlamaServer(
         role: .cotyping, contextTokens: 4_096,
-        extraArgs: ["--parallel", "1", "--cache-ram", "512"],
+        extraArgs: ["--parallel", "1", "--cache-ram", "512", "--swa-full"],
         runtimeAllowanceBytes: 768 * 1_048_576)
 
     nonisolated let port: Int

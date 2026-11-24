@@ -153,7 +153,8 @@ final class AnthropicEngineTests: XCTestCase {
         let notes = try body(sonnet.makeRequest(system: "S", prompt: "P", context: [], schema: nil,
                                                 options: .init(maxTokens: 4_096)))
         XCTAssertNil(notes["output_config"])
-        XCTAssertEqual(notes["max_tokens"] as? Int, 4_096 + sonnet.reasoningAllowance(for: .init(maxTokens: 4_096)))
+        XCTAssertEqual(sonnet.reasoningAllowance(for: .init(maxTokens: 4_096)), 4_096)
+        XCTAssertEqual(notes["max_tokens"] as? Int, 4_096 + 4_096)
 
         let plain = try body(engine("claude-haiku-4-5").makeRequest(system: "S", prompt: "P", context: [], schema: nil,
                                                                     options: .init(maxTokens: 4_096, reasoning: .off)))
@@ -163,10 +164,12 @@ final class AnthropicEngineTests: XCTestCase {
 
     func testMaxTokensStayWithinTheResponseWindow() {
         let sonnet = engine()
-        XCTAssertEqual(sonnet.maxTokens(requested: nil, effort: nil, streaming: false),
+        XCTAssertEqual(sonnet.maxTokens(requested: nil, effort: nil, streaming: false), 8_192 + 8_192)
+        XCTAssertEqual(sonnet.maxTokens(requested: nil, effort: nil, streaming: true), 8_192 + 8_192)
+        XCTAssertEqual(sonnet.maxTokens(requested: 16_384, effort: nil, streaming: false),
                        AnthropicEngine.maximumWholeResponseTokens)
-        XCTAssertEqual(sonnet.maxTokens(requested: nil, effort: nil, streaming: true), 8_192 + 16_384)
-        XCTAssertEqual(sonnet.maxTokens(requested: 900, effort: .medium, streaming: false), 900 + 8_192)
+        XCTAssertEqual(sonnet.maxTokens(requested: 16_384, effort: nil, streaming: true), 16_384 + 8_192)
+        XCTAssertEqual(sonnet.maxTokens(requested: 900, effort: .medium, streaming: false), 900 + 900)
     }
 
     func testServerFallbackOnlyForModelsThatAcceptIt() throws {
@@ -258,6 +261,35 @@ final class AnthropicEngineTests: XCTestCase {
         XCTAssertEqual((bodies[0]["output_config"] as? [String: Any])?["effort"] as? String, "low")
         XCTAssertNil(bodies[1]["output_config"])
         XCTAssertEqual(bodies[1]["fallbacks"] as? String, "default", "only the rejected field is dropped")
+    }
+
+    func testReasoningRecoverySurvivesOptionalFieldNegotiation() async throws {
+        let recorder = Recorder()
+        let rejectedFallbacks = json(["type": "error", "error": [
+            "type": "invalid_request_error", "message": "fallbacks is not supported",
+        ]])
+        let thinkingOnly = json(["content": [["type": "thinking", "thinking": "weighing", "signature": "s"]],
+                                 "stop_reason": "max_tokens",
+                                 "usage": ["input_tokens": 5, "output_tokens": 512]])
+        let reply = json(["content": [["type": "text", "text": "ok"]], "stop_reason": "end_turn",
+                          "usage": ["input_tokens": 5, "output_tokens": 2]])
+        let claude = engine(transport: { request in
+            switch await recorder.record(request) {
+            case 1: return (rejectedFallbacks, Self.response(request, status: 400))
+            case 2: return (thinkingOnly, Self.response(request, status: 200))
+            default: return (reply, Self.response(request, status: 200))
+            }
+        })
+
+        let text = try await claude.generate(system: "S", prompt: "P", context: [],
+                                             options: .init(maxTokens: 512))
+        XCTAssertEqual(text, "ok")
+        let bodies = await recorder.bodies
+        XCTAssertEqual(bodies.count, 3)
+        XCTAssertEqual(bodies[0]["fallbacks"] as? String, "default")
+        XCTAssertNil(bodies[1]["fallbacks"])
+        XCTAssertNil(bodies[2]["fallbacks"], "omitted field stays omitted on reasoning retry")
+        XCTAssertEqual((bodies[2]["output_config"] as? [String: Any])?["effort"] as? String, "low")
     }
 
     func testOtherRejectionsAreReportedWithAnthropicsRequestID() async {

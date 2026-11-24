@@ -4,7 +4,9 @@ Practical runbook for cutting a notarized LokalBot release and publishing a
 Sparkle update. The same tag also ships the Linux and Windows app with its own
 signed update feeds ([Linux and Windows](Docs/releasing/linux-and-windows.md)) and the Android
 app as a signed APK and, when `PLAY_PUBLISH=true`, a signed Google Play App Bundle
-([Android](Docs/releasing/android.md)). The release tooling lives in
+([Android](Docs/releasing/android.md)), and sends the iPhone and iPad app to App
+Review when `APP_STORE_PUBLISH=true` ([iPhone and iPad](Docs/releasing/ios.md)).
+The release tooling lives in
 `Scripts/release/` and `Scripts/build/`:
 
 | File | Role |
@@ -18,6 +20,7 @@ app as a signed APK and, when `PLAY_PUBLISH=true`, a signed Google Play App Bund
 | `Scripts/release/sign-android-release.sh` | align and sign the Android APK, then check its certificate |
 | `Scripts/release/sign-android-bundle.sh` | sign the Android App Bundle (`.aab`) with the Play upload key, then check its certificate |
 | `Scripts/release/publish_google_play.py` | upload the signed `.aab`, R8 mapping and release notes to Google Play |
+| `Scripts/release/publish_app_store.py` | upload the signed iPhone and iPad app to App Store Connect and submit it for review |
 | `LinuxWindows/scripts/release-feeds.sh` | sign the Linux/Windows archives and write their update feeds |
 | `LinuxWindows/scripts/linux-repos.sh` | add the `.deb` and `.rpm` to the signed apt and dnf repositories ([Linux package repositories](Docs/releasing/linux-package-repos.md)) |
 | `LinuxWindows/scripts/third-party-licenses.sh` | regenerate the Linux/Windows crate license list ([Third-party licenses](Docs/releasing/linux-and-windows.md#third-party-licenses)) |
@@ -60,6 +63,7 @@ These have their own pages under [`Docs/releasing/`](Docs/releasing/):
 - [Windows code signing](Docs/releasing/windows-signing.md): SignPath Foundation Authenticode signing for Windows binaries and the Inno Setup installer.
 - [Linux package repositories](Docs/releasing/linux-package-repos.md): the signed apt and dnf repositories at pkg.lokalbot.com and their key.
 - [Android](Docs/releasing/android.md): the signed APK and Google Play.
+- [iPhone and iPad](Docs/releasing/ios.md): the App Store upload and review submission.
 - [Homebrew](Docs/releasing/homebrew.md): syncing the cask after a stable release.
 - [MCP Registry](Docs/releasing/mcp-registry.md): publishing the server entry.
 
@@ -94,18 +98,19 @@ whose changelog base has no fixture.
 
 ### 1. Bump the version
 
-One tag ships macOS, Linux, Windows and Android, so the marketing version lives
-in `LokalBot/Info.plist` (the source of truth), `project.yml`, the Linux and
-Windows workspace (`LinuxWindows/Cargo.toml` and its crates in
-`LinuxWindows/Cargo.lock`) and the Android app
-(`Companion/android/app/build.gradle.kts`). Set all of them at once:
+One tag ships macOS, Linux, Windows, Android and the iPhone and iPad app, so the
+marketing version lives in `LokalBot/Info.plist` (the source of truth),
+`project.yml`, the Linux and Windows workspace (`LinuxWindows/Cargo.toml` and its
+crates in `LinuxWindows/Cargo.lock`), the Android app
+(`Companion/android/app/build.gradle.kts`) and the iPhone and iPad app
+(`Companion/ios/project.yml`). Set all of them at once:
 
 ```sh
 python3 Scripts/release/bump-version.py 1.0.0 100
 ```
 
-- `CFBundleShortVersionString`, the workspace version and `versionName` → marketing version, e.g. `1.0.0`
-- `CFBundleVersion` and `versionCode` → build number, e.g. `100` (monotonic; Sparkle and Android compare this)
+- `CFBundleShortVersionString`, the workspace version, `versionName` and `MARKETING_VERSION` → marketing version, e.g. `1.0.0`
+- `CFBundleVersion`, `versionCode` and `CURRENT_PROJECT_VERSION` → build number, e.g. `100` (monotonic; Sparkle, Android and App Store Connect compare this)
 
 `release-preflight.py` (also in every CI helpers run) fails when any of these
 disagree, or when the Linux/Windows update key differs from `SUPublicEDKey`.
@@ -123,14 +128,15 @@ the metadata files together (replace the version below):
 ```sh
 git fetch origin --tags
 git add project.yml LokalBot/Info.plist LinuxWindows/Cargo.toml LinuxWindows/Cargo.lock \
-  Companion/android/app/build.gradle.kts Scripts/release/release-notes/v0.8.1.md
+  Companion/android/app/build.gradle.kts Companion/ios/project.yml \
+  Scripts/release/release-notes/v0.8.1.md
 python3 Scripts/release/release-preflight.py --version 0.8.1 --candidate --staged
 git diff --cached
 ```
 
 This read-only preflight checks every version source, the notes and changelog
 base, increasing build numbers, local/remote tag availability, and that the
-staged snapshot contains exactly the six validated metadata files. Complete
+staged snapshot contains exactly the seven validated metadata files. Complete
 feature/fix commits separately before preparing this candidate. It never
 commits, tags, or publishes. Without `--candidate --staged`, the script checks
 metadata consistency and stable-release notes, including for already-released
@@ -476,6 +482,12 @@ optional `PLAY_UPLOAD_KEY_ALIAS` and `PLAY_UPLOAD_KEY_PASSWORD`) and either
 stable releases upload the signed `.aab` and R8 mapping to Google Play once the
 `PLAY_PUBLISH` repository variable is `true`
 ([Google Play](Docs/releasing/android.md#google-play)).
+
+Optional: `APP_STORE_CONNECT_KEY_ID`, `APP_STORE_CONNECT_ISSUER_ID` and
+`APP_STORE_CONNECT_API_KEY` (an App Store Connect team key with the Admin role)
+let stable releases sign the iPhone and iPad app, upload it and submit it for
+review once the `APP_STORE_PUBLISH` repository variable is `true`
+([iPhone and iPad](Docs/releasing/ios.md)).
 
 Set the certificate and credential secrets without pasting them into source or
 shell history. `gh secret set NAME` prompts for the value securely:

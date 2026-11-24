@@ -144,7 +144,8 @@ pub fn generate_meeting_notes_with(
     let cancel = options.cancel.as_deref();
     let _hold = think.hold()?;
     let template = settings.note_template;
-    let language = language::prompt_language(&settings.summary_language, transcript);
+    let notes_language = language::notes_language(&settings.summary_language, transcript);
+    let language = notes_language.as_ref().map(|l| l.prompt.clone());
     let marked = transcript.marking_suspected_echo();
     let evidence = Evidence::new(
         View::new(&marked, settings.microphone_is_user),
@@ -267,7 +268,13 @@ pub fn generate_meeting_notes_with(
         .into());
     }
     let (claims, outcomes, body) = merged(&checkpoint, &evidence, template, &revision);
-    let header = header(meeting, transcript, settings, language.as_deref(), think);
+    let header = header(
+        meeting,
+        transcript,
+        settings,
+        notes_language.as_ref().map(|l| l.name.as_str()),
+        think,
+    );
     let claims_value = json!({"version": 1, "transcriptRevision": revision, "claims": claims});
     progress("Notes ready");
     Ok(MeetingNotes {
@@ -562,18 +569,43 @@ fn request(
     }
     let reserved = u64::from(tokens) + u64::from(thinking);
     budget.reserve(u64::from(input), reserved)?;
-    let completion = match think.complete_full(&request) {
+    let single_attempt = request.clone().keep_truncated();
+    let mut completion = match think.complete_full(&single_attempt) {
         Ok(completion) => completion,
         Err(err) => {
-            budget.finish(reserved, None, 1);
+            budget.finish(reserved, None);
             return Err(err);
         }
     };
     budget.finish(
         reserved,
         completion.usage.as_ref().and_then(|u| u.completion_tokens),
-        completion.attempts,
     );
+    if think.falls_back(&request, &completion) {
+        let retry_reserved = u64::from(tokens);
+        if budget.reserve(u64::from(input), retry_reserved).is_ok() {
+            log::info!("notes {stage}: reply was all reasoning, retrying once with reasoning off");
+            match think.complete_full(&single_attempt.reasoning(TaskReasoning::Off)) {
+                Ok(retry) => {
+                    budget.finish(
+                        retry_reserved,
+                        retry.usage.as_ref().and_then(|u| u.completion_tokens),
+                    );
+                    completion = retry;
+                }
+                Err(err) if crate::error::is_cancelled(&err) => {
+                    budget.finish(retry_reserved, None);
+                    return Err(err);
+                }
+                Err(err) => {
+                    budget.finish(retry_reserved, None);
+                    log::warn!(
+                        "notes {stage}: reasoning-off retry failed, keeping initial truncated reply: {err}"
+                    );
+                }
+            }
+        }
+    }
     log::info!(
         "notes {stage}: {} chars, truncated={}",
         completion.text.len(),

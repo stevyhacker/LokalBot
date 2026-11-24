@@ -32,8 +32,11 @@ fn main() -> Result<()> {
         "replay",
     );
     let settings = Settings::default();
+    let level_tag = rest.first().map(String::as_str).unwrap_or("automatic");
+    let checkpoint_dir = out.join(format!("checkpoints-{level_tag}"));
+    std::fs::create_dir_all(&checkpoint_dir)?;
     let options = NotesOptions {
-        checkpoint_dir: Some(out.clone()),
+        checkpoint_dir: Some(checkpoint_dir),
         ..NotesOptions::default()
     };
     let started = Instant::now();

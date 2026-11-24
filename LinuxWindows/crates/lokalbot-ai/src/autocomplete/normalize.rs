@@ -7,8 +7,8 @@ use std::sync::OnceLock;
 
 use super::prompt::{Request, WINDOW_LABEL};
 use super::text::{
-    self, char_at, char_before, is_control, is_letter, is_newline, is_url_domain_or_file,
-    is_url_like, is_word_char,
+    self, char_at, char_before, is_control, is_letter, is_newline, is_non_text_glyph,
+    is_url_domain_or_file, is_url_like, is_word_char,
 };
 use super::window;
 
@@ -787,21 +787,102 @@ pub fn duplicates_trailing_text(completion: &str, after: &str) -> bool {
     overlap >= MINIMUM.max(completion.len() / 2)
 }
 
+fn is_allowed_invisible(code: u32) -> bool {
+    matches!(
+        code,
+        0x061C | 0x200C..=0x200F | 0xFE00..=0xFE0F | 0xE0100..=0xE01EF
+    )
+}
+
+fn is_disallowed_format_or_control(code: u32, allow_tab_and_cr: bool) -> bool {
+    if code == 0x0A {
+        return false;
+    }
+    if allow_tab_and_cr && (code == 0x09 || code == 0x0D) {
+        return false;
+    }
+    matches!(
+        code,
+        0x00..=0x1F
+            | 0x7F..=0x9F
+            | 0x00AD
+            | 0x180E
+            | 0x200B
+            | 0x2028..=0x202E
+            | 0x2060..=0x206F
+            | 0xFEFF
+    )
+}
+
+fn is_subdivision_tag_payload(code: u32) -> bool {
+    matches!(code, 0xE0030..=0xE0039 | 0xE0061..=0xE007A)
+}
+
+fn subdivision_flag_length(chars: &[char], start: usize) -> Option<usize> {
+    if u32::from(chars[start]) != 0x1F3F4 {
+        return None;
+    }
+    let mut index = start + 1;
+    let mut tag_count = 0usize;
+    while index < chars.len() && is_subdivision_tag_payload(u32::from(chars[index])) {
+        tag_count += 1;
+        index += 1;
+        if tag_count > 7 {
+            return None;
+        }
+    }
+    if (3..=7).contains(&tag_count) && index < chars.len() && u32::from(chars[index]) == 0xE007F {
+        return Some(index - start + 1);
+    }
+    None
+}
+
+pub fn first_unsafe_codepoint(text: &str) -> Option<u32> {
+    let chars: Vec<char> = text.chars().collect();
+    let mut index = 0;
+    while index < chars.len() {
+        if let Some(flag_len) = subdivision_flag_length(&chars, index) {
+            index += flag_len;
+            continue;
+        }
+        let c = chars[index];
+        let code = u32::from(c);
+        if is_non_text_glyph(c)
+            || is_disallowed_format_or_control(code, true)
+            || (0xE0000..=0xE007F).contains(&code)
+        {
+            return Some(code);
+        }
+        index += 1;
+    }
+    None
+}
+
 pub fn is_safe_to_insert(completion: &str) -> bool {
     if completion.is_empty() {
         return false;
     }
+    let chars: Vec<char> = completion.chars().collect();
     let mut saw_visible = false;
-    for c in completion.chars() {
-        if c == '\u{FFFD}' {
+    let mut index = 0;
+    while index < chars.len() {
+        if let Some(flag_len) = subdivision_flag_length(&chars, index) {
+            saw_visible = true;
+            index += flag_len;
+            continue;
+        }
+        let c = chars[index];
+        let code = u32::from(c);
+        if is_non_text_glyph(c)
+            || is_disallowed_format_or_control(code, false)
+            || (0xE0000..=0xE007F).contains(&code)
+        {
             return false;
         }
-        if c != '\n' && ((c as u32) < 0x20 || c == '\u{7F}') {
-            return false;
-        }
-        if !c.is_whitespace() {
+        if !c.is_whitespace() && !is_allowed_invisible(code) {
             saw_visible = true;
         }
+        index += 1;
     }
     saw_visible
 }
@@ -1204,9 +1285,41 @@ mod tests {
     fn insertion_safety() {
         assert!(is_safe_to_insert(" ok"));
         assert!(is_safe_to_insert("line\nnext"));
+        assert!(is_safe_to_insert(" 👍"));
         assert!(!is_safe_to_insert(""));
         assert!(!is_safe_to_insert("   "));
         assert!(!is_safe_to_insert("bad\u{7}"));
         assert!(!is_safe_to_insert("\u{FFFD}"));
+        assert!(!is_safe_to_insert("\u{FFFC}"));
+        assert!(!is_safe_to_insert("\u{FFFC}\u{FFFC}\u{FFFC}\u{FFFC}"));
+        assert!(!is_safe_to_insert("\u{EAB6}"));
+        assert_eq!(
+            detailed("\u{FFFC}\u{FFFC}\u{FFFC}", &request("Hello ")),
+            Normalized::suppressed(Suppression::UnsafeToInsert)
+        );
+        assert_eq!(
+            detailed("\u{EAB6}", &request("src ")),
+            Normalized::suppressed(Suppression::UnsafeToInsert)
+        );
+        assert_eq!(first_unsafe_codepoint("ok \u{FFFC}"), Some(0xFFFC));
+        assert_eq!(first_unsafe_codepoint("\u{EAB6}"), Some(0xEAB6));
+        assert_eq!(first_unsafe_codepoint("normal text 👍"), None);
+
+        assert!(!is_safe_to_insert("hello \u{202E}dlrow"));
+        assert!(!is_safe_to_insert("hello \u{2066}world\u{2069}"));
+        assert!(!is_safe_to_insert("hel\u{200B}lo"));
+        assert!(!is_safe_to_insert("soft\u{00AD}hyphen"));
+        assert!(!is_safe_to_insert("bom\u{FEFF}text"));
+        assert!(!is_safe_to_insert("c1\u{0085}control"));
+        assert!(!is_safe_to_insert("line\u{2028}sep"));
+        assert!(!is_safe_to_insert("para\u{2029}sep"));
+        assert!(!is_safe_to_insert("stray\u{E0061}tag"));
+        assert!(!is_safe_to_insert("\u{200D}\u{FE0F}"));
+        assert!(is_safe_to_insert(
+            "🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}"
+        ));
+        assert!(is_safe_to_insert("می\u{200C}خواهم"));
+        assert!(is_safe_to_insert("👨‍👩‍👧‍👦"));
+        assert!(is_safe_to_insert("hello\u{200F}"));
     }
 }

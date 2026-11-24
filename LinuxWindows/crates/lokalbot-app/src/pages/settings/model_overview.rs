@@ -381,6 +381,13 @@ impl SettingsPage {
         let mut sections = Vec::new();
         if let Some(feedback) = self.model_setup_feedback(cx) {
             sections.push(Section::new(None).row("settings-model-switch", feedback));
+        } else if let Some(offer) =
+            lokalbot_ai::catalog::DefaultModelUpgradeOffer::current(&settings, &status.installed)
+        {
+            sections.push(Section::new(None).row(
+                "settings-default-model-upgrade",
+                self.default_model_upgrade_row(offer, cx),
+            ));
         }
 
         let mut roles = Section::new(lokalbot_i18n::tr("What each model does"))
@@ -443,6 +450,139 @@ impl SettingsPage {
         );
         sections.extend(self.models_advanced(&settings, &status, &downloads, cx));
         sections
+    }
+
+    fn default_model_upgrade_row(
+        &self,
+        offer: lokalbot_ai::catalog::DefaultModelUpgradeOffer,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        use lokalbot_ai::catalog::{DefaultModelUpgradeOffer, DefaultModelUpgradeRole};
+
+        let lb = cx.lb().clone();
+        let roles = offer
+            .items
+            .iter()
+            .map(|item| match item.role {
+                DefaultModelUpgradeRole::Think => lokalbot_i18n::tr("Think"),
+                DefaultModelUpgradeRole::Autocomplete => lokalbot_i18n::tr("Autocomplete"),
+            })
+            .collect::<Vec<_>>()
+            .join(", ");
+        let targets = offer
+            .items
+            .iter()
+            .map(|item| {
+                let role = match item.role {
+                    DefaultModelUpgradeRole::Think => lokalbot_i18n::tr("Think"),
+                    DefaultModelUpgradeRole::Autocomplete => lokalbot_i18n::tr("Autocomplete"),
+                };
+                format!("{role}: {}", item.target_name)
+            })
+            .collect::<Vec<_>>()
+            .join(" · ");
+        let total = offer.total_download_bytes();
+        let detail = if total > 0 {
+            fill(
+                lokalbot_i18n::tr(
+                    "Upgrade %@ to LokalBot's new fine-tuned defaults (%@). Your current models stay active until the download finishes.",
+                ),
+                &[&roles, &size_label(total)],
+            )
+        } else {
+            fill(
+                lokalbot_i18n::tr(
+                    "Switch %@ to LokalBot's new fine-tuned defaults. They are already downloaded.",
+                ),
+                &[&roles],
+            )
+        };
+        let primary_label = if total > 0 {
+            lokalbot_i18n::tr("Upgrade & Download")
+        } else {
+            lokalbot_i18n::tr("Switch defaults")
+        };
+        let patch = super::model_setup::ModelPatch {
+            backend: offer.think_target().map(|_| SummarizerBackend::BuiltIn),
+            assistant_model_id: offer.think_target().map(str::to_string),
+            autocomplete_model_id: offer.autocomplete_target().map(str::to_string),
+            ..Default::default()
+        };
+        let dismiss_data = self.data.clone();
+        let dismiss_offer = offer.clone();
+        let apply_page = cx.entity();
+        let row = h_flex()
+            .w_full()
+            .gap(px(12.))
+            .items_center()
+            .child(ui::icon_tile(Ico::Package, lb.accent_text, px(32.)))
+            .child(
+                v_flex()
+                    .flex_1()
+                    .min_w_0()
+                    .gap(px(3.))
+                    .child(
+                        div()
+                            .text_size(ty::BODY)
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .text_color(lb.text)
+                            .child(lokalbot_i18n::tr("New default models available")),
+                    )
+                    .child(settings_row::help(detail, cx))
+                    .child(
+                        div()
+                            .text_size(ty::CAPTION)
+                            .text_color(lb.text_secondary)
+                            .child(ui::text::paragraph(targets)),
+                    ),
+            )
+            .child(
+                h_flex()
+                    .flex_none()
+                    .gap(px(8.))
+                    .items_center()
+                    .child(
+                        Button::new("settings-default-model-upgrade-dismiss")
+                            .outline()
+                            .small()
+                            .label(lokalbot_i18n::tr("Not now"))
+                            .on_click(move |_, _, cx| {
+                                let offer = dismiss_offer.clone();
+                                dismiss_data.update(cx, |data, cx| {
+                                    let merged = DefaultModelUpgradeOffer::merged_dismissal_key(
+                                        &data.settings.dismissed_default_model_upgrade_key,
+                                        &offer,
+                                    );
+                                    data.update_settings(
+                                        move |s| s.dismissed_default_model_upgrade_key = merged,
+                                        cx,
+                                    );
+                                });
+                            }),
+                    )
+                    .child(
+                        Button::new("settings-default-model-upgrade-apply")
+                            .primary()
+                            .small()
+                            .label(primary_label)
+                            .disabled(self.models.setup.is_switching())
+                            .on_click(move |_, _, cx| {
+                                let patch = patch.clone();
+                                apply_page.update(cx, |page, cx| {
+                                    let data = page.data.clone();
+                                    page.models.setup.apply(
+                                        patch,
+                                        lokalbot_i18n::tr("LokalBot default models"),
+                                        &data,
+                                        cx,
+                                    );
+                                    cx.notify();
+                                });
+                            }),
+                    ),
+            );
+        settings_row::content_row("settings-default-model-upgrade", row, false, cx)
+            .into_any_element()
     }
 
     fn model_set_row(&self, settings: &Settings, cx: &mut Context<Self>) -> AnyElement {

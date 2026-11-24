@@ -21,6 +21,7 @@ pub fn display_name(code: &str) -> Option<&'static str> {
         "pt" => "Portuguese (Brazil)",
         "pt-PT" => "Portuguese (Portugal)",
         "ru" => "Russian",
+        "uk" => "Ukrainian",
         "ar" => "Arabic",
         "hi" => "Hindi",
         "it" => "Italian",
@@ -31,18 +32,52 @@ pub fn display_name(code: &str) -> Option<&'static str> {
         "da" => "Danish",
         "no" => "Norwegian (Bokmål)",
         "nn" => "Norwegian (Nynorsk)",
+        "bs" => "Bosnian",
+        "hr" => "Croatian",
+        "cnr" => "Montenegrin",
         "sr" => "Serbian",
+        "bcms" => "Bosnian, Croatian, Montenegrin, Serbian",
         "th" => "Thai",
         "vi" => "Vietnamese",
         _ => return None,
     })
 }
 
-pub fn prompt_language(setting: &str, transcript: &Transcript) -> Option<String> {
+pub fn prompt_name(code: &str) -> Option<&'static str> {
+    Some(match code.trim() {
+        "sr" => "Serbian, in the script the source text uses (Latin or Cyrillic)",
+        "cnr" => "Montenegrin, in the script the source text uses (Latin or Cyrillic)",
+        "bcms" => {
+            "the transcript's own language (Bosnian, Croatian, Montenegrin or Serbian), keeping its ijekavian or ekavian forms and its script"
+        }
+        other => return display_name(other),
+    })
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct NotesLanguage {
+    pub name: String,
+    pub prompt: String,
+}
+
+impl NotesLanguage {
+    fn named(name: &str) -> Self {
+        let code = name.trim();
+        Self {
+            name: display_name(code).unwrap_or(code).to_string(),
+            prompt: prompt_name(code).unwrap_or(code).to_string(),
+        }
+    }
+}
+
+pub fn notes_language(setting: &str, transcript: &Transcript) -> Option<NotesLanguage> {
     let setting = setting.trim();
     if let Some(custom) = setting.strip_prefix("custom:") {
         let name = custom.trim();
-        return (!name.is_empty()).then(|| name.to_string());
+        return (!name.is_empty()).then(|| NotesLanguage {
+            name: name.to_string(),
+            prompt: name.to_string(),
+        });
     }
     if setting.is_empty() || setting.eq_ignore_ascii_case("match") {
         let passages: Vec<String> = transcript
@@ -50,11 +85,75 @@ pub fn prompt_language(setting: &str, transcript: &Transcript) -> Option<String>
             .iter()
             .map(|s| Transcript::display_text(&s.text))
             .collect();
-        return detect(&passages).map(str::to_string);
+        return detect(&passages).map(NotesLanguage::named);
     }
-    display_name(setting)
-        .map(str::to_string)
-        .or_else(|| Some(setting.to_string()))
+    Some(NotesLanguage::named(setting))
+}
+
+pub fn prompt_language(setting: &str, transcript: &Transcript) -> Option<String> {
+    notes_language(setting, transcript).map(|language| language.prompt)
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct DailySummaryLanguage {
+    pub name: String,
+    pub fallback_locale: &'static str,
+}
+
+impl Default for DailySummaryLanguage {
+    fn default() -> Self {
+        Self::resolve("en", "en", &["en"])
+    }
+}
+
+impl DailySummaryLanguage {
+    pub fn from_settings(settings: &lokalbot_core::Settings) -> Self {
+        Self::resolve(
+            &settings.summary_language,
+            &settings.app_language,
+            &lokalbot_i18n::system_preferences(),
+        )
+    }
+
+    pub fn resolve(notes: &str, interface: &str, preferred: &[impl AsRef<str>]) -> Self {
+        let app = lokalbot_i18n::resolve(interface, preferred);
+        let notes = notes.trim();
+        let name = notes
+            .strip_prefix("custom:")
+            .map(str::trim)
+            .filter(|s| !s.is_empty())
+            .or_else(|| prompt_name(notes))
+            .unwrap_or(app.english_name)
+            .to_string();
+        let catalog = match notes {
+            "zh" => "zh-Hans",
+            "sr" | "cnr" => "sr-Latn",
+            other => other,
+        };
+        let fallback_locale = lokalbot_i18n::LANGUAGES
+            .iter()
+            .find(|language| language.code == catalog)
+            .map_or(app.code, |language| language.code);
+        Self {
+            name,
+            fallback_locale,
+        }
+    }
+
+    pub fn system(&self, base: &str) -> String {
+        format!(
+            "{base}\n\nWrite all human-readable titles, notes, summaries, recommendations, and memory text in {}. Keep JSON keys, status enum values, identifiers, source markers, proper names, and quoted source text unchanged. This output-language rule also applies when the evidence is in another language.",
+            self.name
+        )
+    }
+
+    pub fn text<'a>(&self, key: &'a str) -> &'a str {
+        lokalbot_i18n::translate(self.fallback_locale, key)
+    }
+
+    pub fn uses_english_catalog(&self) -> bool {
+        self.fallback_locale == "en"
+    }
 }
 
 fn letters(text: &str) -> usize {
@@ -92,9 +191,9 @@ fn distributed(samples: Vec<String>) -> Vec<String> {
 pub fn detect(passages: &[String]) -> Option<&'static str> {
     let samples = distributed(passages.iter().flat_map(|p| windows(p)).collect());
     if samples.is_empty() {
-        return Some("English");
+        return Some("en");
     }
-    let mut votes: Vec<(Option<&'static str>, f64, f64)> = Vec::new();
+    let mut votes: Vec<(&'static str, f64, f64)> = Vec::new();
     for sample in &samples {
         let Some((name, confidence)) = recognized(sample) else {
             continue;
@@ -112,12 +211,9 @@ pub fn detect(passages: &[String]) -> Option<&'static str> {
         b.1.partial_cmp(&a.1)
             .unwrap_or(std::cmp::Ordering::Equal)
             .then(b.2.partial_cmp(&a.2).unwrap_or(std::cmp::Ordering::Equal))
-            .then_with(|| (b.0 == Some("English")).cmp(&(a.0 == Some("English"))))
+            .then_with(|| (b.0 == "en").cmp(&(a.0 == "en")))
     });
-    match votes.first() {
-        Some((name, _, _)) => *name,
-        None => Some("English"),
-    }
+    Some(votes.first().map_or("en", |(code, _, _)| *code))
 }
 
 pub fn is_mostly_english(transcript: &Transcript) -> bool {
@@ -143,35 +239,37 @@ pub fn is_mostly_english(transcript: &Transcript) -> bool {
     total == 0.0 || english * 2.0 >= total
 }
 
-fn recognized(sample: &str) -> Option<(Option<&'static str>, f64)> {
+fn recognized(sample: &str) -> Option<(&'static str, f64)> {
     if let Some(chinese) = chinese_script(sample) {
-        return Some((Some(chinese), 1.0));
+        return Some((chinese, 1.0));
     }
     let info = whatlang::detect(sample)?;
-    let name = match info.lang() {
-        Lang::Eng => Some("English"),
-        Lang::Jpn => Some("Japanese"),
-        Lang::Kor => Some("Korean"),
-        Lang::Spa => Some("Spanish"),
-        Lang::Fra => Some("French"),
-        Lang::Deu => Some("German"),
-        Lang::Por => Some("Portuguese (Brazil)"),
-        Lang::Rus => Some("Russian"),
-        Lang::Ara => Some("Arabic"),
-        Lang::Hin => Some("Hindi"),
-        Lang::Ita => Some("Italian"),
-        Lang::Nld => Some("Dutch"),
-        Lang::Tur => Some("Turkish"),
-        Lang::Pol => Some("Polish"),
-        Lang::Swe => Some("Swedish"),
-        Lang::Dan => Some("Danish"),
-        Lang::Nob => Some("Norwegian (Bokmål)"),
-        Lang::Tha => Some("Thai"),
-        Lang::Vie => Some("Vietnamese"),
-        Lang::Cmn => Some("Simplified Chinese (Mandarin)"),
-        _ => None,
+    let code = match info.lang() {
+        Lang::Eng => "en",
+        Lang::Jpn => "ja",
+        Lang::Kor => "ko",
+        Lang::Spa => "es",
+        Lang::Fra => "fr",
+        Lang::Deu => "de",
+        Lang::Por => "pt",
+        Lang::Rus => "ru",
+        Lang::Ukr => "uk",
+        Lang::Ara => "ar",
+        Lang::Hin => "hi",
+        Lang::Ita => "it",
+        Lang::Nld => "nl",
+        Lang::Tur => "tr",
+        Lang::Pol => "pl",
+        Lang::Swe => "sv",
+        Lang::Dan => "da",
+        Lang::Nob => "no",
+        Lang::Hrv | Lang::Srp => "bcms",
+        Lang::Tha => "th",
+        Lang::Vie => "vi",
+        Lang::Cmn => "zh",
+        other => other.eng_name(),
     };
-    Some((name, info.confidence()))
+    Some((code, info.confidence()))
 }
 
 fn chinese_script(text: &str) -> Option<&'static str> {
@@ -213,9 +311,9 @@ fn chinese_script(text: &str) -> Option<&'static str> {
         .filter(|c| SIMPLIFIED_ONLY.contains(*c))
         .count();
     if bopomofo > 0 || traditional > simplified {
-        Some("Traditional Chinese (Mandarin)")
+        Some("zh-Hant")
     } else {
-        Some("Simplified Chinese (Mandarin)")
+        Some("zh")
     }
 }
 
@@ -283,5 +381,86 @@ mod tests {
             prompt_language("match", &transcript(&texts)).as_deref(),
             Some("English")
         );
+    }
+    #[test]
+    fn a_serbian_croatian_meeting_gets_the_shared_name_and_keeps_its_variant() {
+        let meeting = transcript(&[
+            "Dobro jutro, drago mi je da smo se čuli danas prije podne.",
+            "Ja radim kao softverski inženjer već desetak godina, uglavnom za strane firme.",
+            "Projekat je trenutno u fazi testiranja i imamo prve korisnike na Linuxu i Windowsu.",
+            "Mislim da bi trebalo prvo da završimo dokumentaciju, pa onda da pričamo o investiciji.",
+            "neka alternativa.",
+            "Ne znam da li si stigao da pogledaš tekst koji sam ti poslao prošle sedmice.",
+            "Proces kod nas obično traje tri ili četiri sastanka prije konačne odluke.",
+            "Ajde, čujemo se sljedeće nedjelje, pa ćemo vidjeti šta dalje.",
+        ]);
+        let language = notes_language("match", &meeting).unwrap();
+        assert_eq!(language.name, "Bosnian, Croatian, Montenegrin, Serbian");
+        assert!(
+            language
+                .prompt
+                .contains("keeping its ijekavian or ekavian forms and its script")
+        );
+        let cyrillic = transcript(&[
+            "Видјећемо се сутра, па ћемо причати о пројекту и документацији.",
+            "Мислим да ће тестирање бити готово до краја мјесеца.",
+            "Ја ћу ти послати документацију чим је завршим.",
+            "Шта ћемо са инвестицијом, то ћемо одлучити касније.",
+        ]);
+        assert_eq!(
+            notes_language("match", &cyrillic).unwrap().name,
+            "Bosnian, Croatian, Montenegrin, Serbian"
+        );
+        let croatian = notes_language("hr", &meeting).unwrap();
+        assert_eq!(
+            (croatian.name.as_str(), croatian.prompt.as_str()),
+            ("Croatian", "Croatian")
+        );
+        let serbian = notes_language("sr", &meeting).unwrap();
+        assert_eq!(serbian.name, "Serbian");
+        assert_eq!(
+            serbian.prompt,
+            "Serbian, in the script the source text uses (Latin or Cyrillic)"
+        );
+    }
+
+    #[test]
+    fn a_language_outside_the_menu_keeps_its_own_name() {
+        let czech = transcript(&[
+            "Myslím, že musíme dokončit projekt do pátku a poslat zprávu klientovi.",
+            "Zítra se sejdeme znovu a probereme rozpočet na příští rok.",
+        ]);
+        assert_eq!(prompt_language("match", &czech).as_deref(), Some("Czech"));
+        let ukrainian = transcript(&[
+            "Думаю, нам потрібно завершити проєкт до п'ятниці та надіслати звіт клієнту.",
+            "Завтра ми зустрінемося знову й обговоримо бюджет на наступний рік.",
+        ]);
+        assert_eq!(
+            prompt_language("match", &ukrainian).as_deref(),
+            Some("Ukrainian")
+        );
+    }
+
+    #[test]
+    fn daily_language_prefers_notes_and_resolves_system_without_translating_sources() {
+        let french = DailySummaryLanguage::from_settings(&lokalbot_core::Settings {
+            summary_language: "fr".into(),
+            app_language: "ru".into(),
+            ..lokalbot_core::Settings::default()
+        });
+        assert_eq!(french.name, "French");
+        assert_eq!(french.fallback_locale, "fr");
+        let russian = DailySummaryLanguage::resolve("match", "system", &["ru-RU", "en"]);
+        assert_eq!(russian.name, "Russian");
+        assert_eq!(russian.fallback_locale, "ru");
+        let serbian = DailySummaryLanguage::resolve("sr", "en", &["en"]);
+        assert_eq!(
+            serbian.name,
+            "Serbian, in the script the source text uses (Latin or Cyrillic)"
+        );
+        assert_eq!(serbian.fallback_locale, "sr-Latn");
+        let custom = DailySummaryLanguage::resolve("custom:Klingon", "ru", &["en"]);
+        assert_eq!(custom.name, "Klingon");
+        assert_eq!(custom.fallback_locale, "ru");
     }
 }

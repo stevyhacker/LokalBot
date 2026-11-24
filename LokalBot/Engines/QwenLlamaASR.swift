@@ -15,6 +15,8 @@ enum QwenLlamaASR {
         let folderName: String
         let role: LlamaServerRole
         let legacyMLXRepository: String
+        let legacyModel: File?
+        let legacyProjector: File?
 
         var files: [File] { [model, projector] }
 
@@ -33,8 +35,26 @@ enum QwenLlamaASR {
             modelRoot(appSupport: appSupport).appendingPathComponent(file.name)
         }
 
-        func isDownloaded(appSupport: URL) -> Bool {
+        func hasCurrentWeights(appSupport: URL) -> Bool {
             files.allSatisfy { ModelFileValidator.looksLikeGGUF(url(for: $0, appSupport: appSupport)) }
+        }
+
+        func hasLegacyGGUFWeights(appSupport: URL) -> Bool {
+            guard !hasCurrentWeights(appSupport: appSupport),
+                  let legacyModel, let legacyProjector else { return false }
+            return ModelFileValidator.looksLikeGGUF(url(for: legacyModel, appSupport: appSupport))
+                && ModelFileValidator.looksLikeGGUF(url(for: legacyProjector, appSupport: appSupport))
+        }
+
+        func missingCurrentBytes(appSupport: URL) -> Int64 {
+            files.reduce(Int64(0)) { total, file in
+                ModelFileValidator.looksLikeGGUF(url(for: file, appSupport: appSupport))
+                    ? total : total + file.bytes
+            }
+        }
+
+        func isDownloaded(appSupport: URL) -> Bool {
+            hasCurrentWeights(appSupport: appSupport) || hasLegacyGGUFWeights(appSupport: appSupport)
         }
 
         func legacyMLXDirectory(appSupport: URL) -> URL {
@@ -51,17 +71,45 @@ enum QwenLlamaASR {
                 runtimeAllowanceBytes: 768 * 1_048_576)
         }
 
-        func prepareFiles(appSupport: URL, progress: ModelPreparationProgressHandler?) async throws -> (model: URL, projector: URL) {
+        func prepareFiles(
+            appSupport: URL,
+            upgradingLegacyWeights: Bool = false,
+            progress: ModelPreparationProgressHandler?
+        ) async throws -> (model: URL, projector: URL) {
             try FileManager.default.createDirectory(at: modelRoot(appSupport: appSupport),
                                                     withIntermediateDirectories: true)
+            if !upgradingLegacyWeights, hasLegacyGGUFWeights(appSupport: appSupport),
+               let legacyModel, let legacyProjector {
+                let modelURL = url(for: legacyModel, appSupport: appSupport)
+                let projectorURL = url(for: legacyProjector, appSupport: appSupport)
+                let modelValid = await DownloadIntegrity.verifiedExisting(
+                    at: modelURL, expectedBytes: legacyModel.bytes, expectedSHA256: legacyModel.sha256)
+                let projectorValid = await DownloadIntegrity.verifiedExisting(
+                    at: projectorURL, expectedBytes: legacyProjector.bytes, expectedSHA256: legacyProjector.sha256)
+                if modelValid && projectorValid {
+                    return (modelURL, projectorURL)
+                }
+            }
             for (file, status) in [(model, "Downloading Qwen3-ASR model..."),
                                    (projector, "Downloading Qwen3-ASR audio encoder...")] {
                 try await QwenLlamaASR.downloadIfNeeded(file, from: downloadURL(for: file),
                                                         to: url(for: file, appSupport: appSupport),
                                                         status: status, progress: progress)
             }
+            removeSupersededGGUFWeights(appSupport: appSupport)
             removeLegacyMLXWeights(appSupport: appSupport)
             return (url(for: model, appSupport: appSupport), url(for: projector, appSupport: appSupport))
+        }
+
+        func removeSupersededGGUFWeights(appSupport: URL) {
+            let currentNames = Set(files.map(\.name))
+            for legacy in [legacyModel, legacyProjector].compactMap({ $0 })
+            where !currentNames.contains(legacy.name) {
+                let legacyURL = url(for: legacy, appSupport: appSupport)
+                guard FileManager.default.fileExists(atPath: legacyURL.path) else { continue }
+                DownloadIntegrity.removeFileAndMarker(at: legacyURL)
+                lokalbotLog("qwen-asr removed superseded stock file=\(legacy.name)")
+            }
         }
 
         private func removeLegacyMLXWeights(appSupport: URL) {
@@ -77,24 +125,32 @@ enum QwenLlamaASR {
     }
 
     static let accuracy = Weights(
-        repository: "ggml-org/Qwen3-ASR-1.7B-GGUF",
-        revision: "36a678687ba7d07a74ca70ccb0e36902e005fb80",
-        model: File(name: "Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 2_165_034_944,
-                    sha256: "58e22d0532d4eacaf034cfac17a6fed159f37c41390c710186783be439d1fc57"),
-        projector: File(name: "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 355_709_344,
-                        sha256: "46c1d533af3f354ceb37ce855dbceff7da7fa7cf1e6a523df3b13440bd164c0d"),
+        repository: "stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF",
+        revision: "33ca434ce773d56914f609cec80e843d085b5645",
+        model: File(name: "Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf", bytes: 2_165_035_040,
+                    sha256: "a3611b68d5065e3984d0cf8a93adaf7cfaf5f4a09b33da8d68914a7ae85aee19"),
+        projector: File(name: "mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf", bytes: 355_709_376,
+                        sha256: "0eb673620a73c412a0de2bb31a427ac5367f686e14db0922944023e44356c785"),
         folderName: "Qwen3-ASR-1.7B-Q8_0", role: .qwenASR,
-        legacyMLXRepository: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit")
+        legacyMLXRepository: "aufklarer/Qwen3-ASR-1.7B-MLX-8bit",
+        legacyModel: File(name: "Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 2_165_034_944,
+                          sha256: "58e22d0532d4eacaf034cfac17a6fed159f37c41390c710186783be439d1fc57"),
+        legacyProjector: File(name: "mmproj-Qwen3-ASR-1.7B-Q8_0.gguf", bytes: 355_709_344,
+                              sha256: "46c1d533af3f354ceb37ce855dbceff7da7fa7cf1e6a523df3b13440bd164c0d"))
 
     static let compact = Weights(
-        repository: "ggml-org/Qwen3-ASR-0.6B-GGUF",
-        revision: "928ab958557df9aa2ef1c93e0e83c7ad0933fae2",
-        model: File(name: "Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 804_749_248,
-                    sha256: "bca259818b50ca7c4c05e9bdb35a5dc04fa039653a6d6f3f0f331f96f6aa1971"),
+        repository: "stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF",
+        revision: "4f9e435248343b208223ce33fa1a8b0b2f2e6bc6",
+        model: File(name: "Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf", bytes: 804_749_344,
+                    sha256: "c7493d2b337bb351f1c562337e7c9fdfef0195a26d4e91cfae805a6416066c3c"),
         projector: File(name: "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 214_392_480,
                         sha256: "41a342b5e4c514e968cb756de6cd1b7be39eff43c44c57a2ef5fc6522e36603d"),
         folderName: "Qwen3-ASR-0.6B-Q8_0", role: .qwenASRCompact,
-        legacyMLXRepository: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
+        legacyMLXRepository: "aufklarer/Qwen3-ASR-0.6B-MLX-4bit",
+        legacyModel: File(name: "Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 804_749_248,
+                          sha256: "bca259818b50ca7c4c05e9bdb35a5dc04fa039653a6d6f3f0f331f96f6aa1971"),
+        legacyProjector: File(name: "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf", bytes: 214_392_480,
+                              sha256: "41a342b5e4c514e968cb756de6cd1b7be39eff43c44c57a2ef5fc6522e36603d"))
 
     static let mediaMarker = "<__media__>"
     static let serverEnvironment = ["LLAMA_MEDIA_MARKER": mediaMarker]

@@ -865,6 +865,8 @@ final class AgentSessionController: ObservableObject {
                 ? .agentWorkspace : .chosenFolder,
             endpoint: endpoint,
             reasoningLevelFile: reasoningLevelFile,
+            reasoningDefaultOff: reasoningSupport?.defaultLevel == .off,
+            reasoningEffortTemplate: reasoningSupport?.templateTakesEffort == true,
             helpersDirectory: FileManager.default.fileExists(atPath: helpers.path) ? helpers : nil,
             privateRoots: privateWorkspaceRoots,
             agentAccessCapability: capabilityToken,

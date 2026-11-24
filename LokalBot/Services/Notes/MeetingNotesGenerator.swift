@@ -195,7 +195,8 @@ enum MeetingNotesGenerator {
             throw TextEngineError.badResponse(
                 "Notes request cannot fit the model's input allowance. Source-linked progress was saved.")
         }
-        var options = TextGenerationOptions(maxTokens: tokens, reasoning: reasoning, temperature: 0)
+        var options = TextGenerationOptions(maxTokens: tokens, reasoning: reasoning, temperature: 0,
+                                            keepsTruncatedReply: true)
         if input + tokens + engine.reasoningAllowance(for: options) > contextTokens { options.reasoning = .off }
         let thinking = engine.reasoningAllowance(for: options)
         return try await MeetingGenerationBudget.$stage.withValue(stage) {

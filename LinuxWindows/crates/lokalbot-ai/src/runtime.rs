@@ -262,6 +262,9 @@ impl Role {
                 if has("--cache-ram") {
                     args.extend(["--cache-ram".into(), "512".into()]);
                 }
+                if has("--swa-full") {
+                    args.push("--swa-full".into());
+                }
             }
         }
         args
@@ -295,7 +298,7 @@ struct InstallRecord {
     cuda_unverified: bool,
 }
 
-const PROBE_VERSION: u32 = 2;
+const PROBE_VERSION: u32 = 3;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -306,12 +309,13 @@ struct BackendChoice {
     device: Option<String>,
 }
 
-const CONDITIONAL_FLAGS: [&str; 5] = [
+const CONDITIONAL_FLAGS: [&str; 6] = [
     "--reasoning",
     "--cache-ram",
     "--no-ui",
     "--no-webui",
     "--jinja",
+    "--swa-full",
 ];
 
 const CUDA_UNAVAILABLE: &str = "CUDA could not initialize with the matching runtime libraries. Check available GPU memory and the NVIDIA driver; newer PTX or driver features may require a driver update. Choose Vulkan or CPU if unsupported.";
@@ -2319,7 +2323,7 @@ mod tests {
         );
         assert_eq!(
             Role::Autocomplete.extra_args(&all),
-            ["--parallel", "1", "--cache-ram", "512"]
+            ["--parallel", "1", "--cache-ram", "512", "--swa-full"]
         );
     }
 

@@ -281,6 +281,50 @@ struct DreamStore {
         }
     }
 
+    func withEvidenceMutation<T>(affectedDayKeys: Set<String>, affectedMeetingIDs: Set<UUID>,
+                                 reportDayKeys: Set<String>, unlessUnchanged fingerprint: () -> Data?,
+                                 _ mutation: () throws -> T) throws -> T {
+        try withLock {
+            guard let before = fingerprint() else {
+                return try withEvidenceMutation(affectedDayKeys: affectedDayKeys,
+                                                affectedMeetingIDs: affectedMeetingIDs,
+                                                reportDayKeys: reportDayKeys, mutation)
+            }
+            try prepareEvidenceInvalidation(affectedDayKeys: affectedDayKeys,
+                                            affectedMeetingIDs: affectedMeetingIDs, reportDayKeys: reportDayKeys,
+                                            protectedByMutationLock: true)
+            let result: T
+            do {
+                result = try mutation()
+            } catch {
+                try invalidateEvidence(affectedDayKeys: affectedDayKeys,
+                                       affectedMeetingIDs: affectedMeetingIDs, reportDayKeys: reportDayKeys)
+                throw error
+            }
+            if fingerprint() == before {
+                try discardPreparedInvalidation(affectedDayKeys: affectedDayKeys, affectedMeetingIDs: affectedMeetingIDs)
+            } else {
+                try invalidateEvidence(affectedDayKeys: affectedDayKeys,
+                                       affectedMeetingIDs: affectedMeetingIDs, reportDayKeys: reportDayKeys)
+            }
+            return result
+        }
+    }
+
+    private func discardPreparedInvalidation(affectedDayKeys: Set<String>, affectedMeetingIDs: Set<UUID>) throws {
+        var intents = try pendingIntents()
+        guard let index = intents.lastIndex(where: {
+            $0.awaitingSourceMutation && $0.ownerProcessID == getpid()
+                && $0.days == affectedDayKeys && $0.meetings == affectedMeetingIDs
+        }) else { return }
+        intents.remove(at: index)
+        if intents.isEmpty {
+            try FileManager.default.removeItem(at: pendingInvalidationURL)
+        } else {
+            try write(intents, to: pendingInvalidationURL)
+        }
+    }
+
     @discardableResult
     func setPinned(
         _ pinned: Bool,

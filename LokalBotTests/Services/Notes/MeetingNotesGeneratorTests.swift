@@ -593,6 +593,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         let calls = await script.recorded()
 
         XCTAssertEqual(calls.map { $0.options.maxTokens }, [4_096, 8_192])
+        XCTAssertEqual(calls.map { $0.options.keepsTruncatedReply }, [true, true])
         XCTAssertEqual(result.claims.count, 1)
         XCTAssertTrue(result.body.contains("Will ship the update on Friday."))
     }

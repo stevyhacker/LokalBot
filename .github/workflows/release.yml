@@ -9,7 +9,8 @@
 # and Windows archives; once the macOS release exists, their update feeds are
 # signed with the same Sparkle key and attached to it. companion-android.yml
 # builds and tests the Android app the same way; once the macOS release exists,
-# its APK is signed and attached too.
+# its APK is signed and attached too, and stable tags go on to Google Play
+# (google-play.yml) and the App Store (app-store.yml) when those are switched on.
 #
 # Required repo secrets (see RELEASING.md "CI release"):
 #   MACOS_CERTIFICATE      base64 of the Developer ID Application .p12
@@ -47,6 +48,11 @@
 #                                 PLAY_SERVICE_ACCOUNT_EMAIL). Active only while
 #                                 the PLAY_PUBLISH repository variable is `true`
 #                                 (google-play.yml).
+#   APP_STORE_CONNECT_KEY_ID      App Store Connect API key (ID, issuer ID and the
+#   APP_STORE_CONNECT_ISSUER_ID   .p8 file's text) that signs the iPhone and iPad
+#   APP_STORE_CONNECT_API_KEY     app, uploads it and submits it for review. Active
+#                                 only while the APP_STORE_PUBLISH repository
+#                                 variable is `true` (app-store.yml).
 #
 # Optional repository variable (no secret):
 #   MCP_REGISTRY_PUBLISH   `false` keeps stable releases out of the official
@@ -624,6 +630,25 @@ jobs:
     permissions:
       contents: read
       id-token: write # optional keyless GCP Workload Identity Federation auth
+
+  # Archives the iPhone and iPad app from the tag, signs it with the App Store
+  # Connect key, uploads it and submits it for review once the macOS release
+  # gates have passed. Runs only while APP_STORE_PUBLISH is `true`, so releases
+  # without it spend no macOS runner time here; pre-releases stay off the App
+  # Store. GitHub-hosted, like every job that sees a secret.
+  ios-app-store:
+    name: App Store
+    if: github.event_name == 'push' && !contains(github.ref_name, '-') && vars.APP_STORE_PUBLISH == 'true'
+    needs: release
+    uses: ./.github/workflows/app-store.yml
+    with:
+      tag: ${{ github.ref_name }}
+    secrets:
+      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+      APP_STORE_CONNECT_API_KEY: ${{ secrets.APP_STORE_CONNECT_API_KEY }}
+    permissions:
+      contents: read
 
   # Adds a stable release's .deb and .rpm to the apt and dnf repositories at
   # pkg.lokalbot.com once they are attached (linux-repos.yml, which lists its

@@ -128,11 +128,13 @@ impl ModelTraits {
     ) -> u32 {
         let answer = requested.unwrap_or(DEFAULT_ANSWER_TOKENS).max(1);
         let thinking = if self.thinks_by_default {
+            let cap = crate::think::DEFAULT_THINKING_BUDGET.min(answer);
             match effort.or(self.default_effort) {
                 Some(ReasoningLevel::Low) => 4_096,
                 Some(ReasoningLevel::Medium) => 8_192,
                 _ => 16_384,
             }
+            .min(cap)
         } else {
             0
         };
@@ -792,11 +794,16 @@ mod tests {
     fn the_reasoning_allowance_is_the_room_added_to_the_answer() {
         let request = ChatRequest::new("s", "u").max_tokens(2_000);
         let opus = engine("", "claude-opus-5-5", ReasoningLevel::Automatic);
-        assert_eq!(opus.reasoning_allowance(&request), 8_192);
+        assert_eq!(opus.reasoning_allowance(&request), 2_000);
         assert_eq!(
             opus.reasoning_allowance(&request.clone().reasoning(TaskReasoning::Off)),
-            4_096
+            2_000
         );
+        let large = ChatRequest::new("s", "u").max_tokens(12_000);
+        let sonnet = engine("", "claude-sonnet-5-5", ReasoningLevel::Automatic);
+        assert_eq!(sonnet.reasoning_allowance(&large), 8_000);
+        let mid = ChatRequest::new("s", "u").max_tokens(4_096);
+        assert_eq!(sonnet.reasoning_allowance(&mid), 4_096);
         let sonnet46 = engine("", "claude-sonnet-4-6", ReasoningLevel::High);
         assert_eq!(sonnet46.reasoning_allowance(&request), 0);
     }
@@ -878,7 +885,7 @@ mod tests {
         );
         assert_eq!(body["output_config"]["effort"], "low");
         assert_eq!(body["fallbacks"], "default");
-        assert_eq!(body["max_tokens"], 2_000 + 4_096);
+        assert_eq!(body["max_tokens"], 2_000 + 2_000);
         assert!(body.get("temperature").is_none());
         assert!(body.get("stream").is_none());
         let raw = String::from_utf8(sent.body).unwrap();
@@ -981,7 +988,7 @@ mod tests {
         assert_eq!(completion.usage.unwrap().completion_tokens, Some(2));
         let body = server.requests().pop().unwrap().json();
         assert_eq!(body["stream"], true);
-        assert_eq!(body["max_tokens"], 100 + 8_192);
+        assert_eq!(body["max_tokens"], 100 + 100);
 
         let cut = StubServer::start(|_| {
             Reply::Sse(vec![

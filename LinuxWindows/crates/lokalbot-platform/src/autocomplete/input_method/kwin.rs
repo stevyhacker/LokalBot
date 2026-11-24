@@ -11,7 +11,7 @@ use super::super::policy::ReadPolicy;
 use super::super::{AcceptKeys, FocusHandler, InputSourceSteps};
 use super::kwin_wire::{self, Event, Inbox, Outbox, Request, VERSION};
 use super::surface::{self, Request as Question};
-use super::{Command, Content, Core, Handle, Output, Surrounding};
+use super::{Command, Content, Core, GhostStyle, Handle, Output, Surrounding};
 
 const RETRY_EVERY: Duration = Duration::from_secs(3);
 const RETRY_MISMATCHED: Duration = Duration::from_secs(30);
@@ -32,7 +32,8 @@ pub(super) fn start(
         .spawn(move || surface::run(questions, answers, false))
         .context("could not start the input method's reader")?;
     let reading = policy.enabled;
-    let core = Core::new(policy, handler, requests.clone(), handle.limitation.clone());
+    let core = Core::new(policy, handler, requests.clone(), handle.limitation.clone())
+        .with_overlay_ghost();
     let route = Route {
         core,
         link: Link::default(),
@@ -110,15 +111,46 @@ impl Link {
 
 impl Output for Link {
     fn preedit(&mut self, text: &str) {
-        self.push(&Request::Preedit { text: text.into() });
+        self.ghost(GhostStyle::default(), text);
+    }
+
+    fn ghost(&mut self, style: GhostStyle, text: &str) {
+        self.push(&Request::Ghost {
+            text: text.into(),
+            emphasis_chars: style.emphasis_chars,
+            dark: style.dark,
+        });
+    }
+
+    fn nudge(&mut self) {
+        self.push(&Request::Nudge);
     }
 
     fn commit(&mut self, removed_before: &str, removed_after: &str, text: &str, preedit: &str) {
+        self.commit_styled(
+            removed_before,
+            removed_after,
+            text,
+            preedit,
+            GhostStyle::default(),
+        );
+    }
+
+    fn commit_styled(
+        &mut self,
+        removed_before: &str,
+        removed_after: &str,
+        text: &str,
+        next: &str,
+        style: GhostStyle,
+    ) {
         self.push(&Request::Commit {
             delete_before: u32::try_from(removed_before.len()).unwrap_or(u32::MAX),
             delete_after: u32::try_from(removed_after.len()).unwrap_or(u32::MAX),
             text: text.into(),
-            preedit: preedit.into(),
+            next: next.into(),
+            next_emphasis_chars: style.emphasis_chars,
+            dark: style.dark,
         });
     }
 

@@ -729,6 +729,11 @@ test("a reasoning level becomes each server's own request fields", () => {
   const quietOff = applyReasoningLevel(base, "off", "llama-server", "gemma4-e4b", true);
   expect(quietOff.chat_template_kwargs).toEqual({ enable_thinking: false });
   expect(applyReasoningLevel(base, "high", "generic", "gemma", true).chat_template_kwargs).toBeUndefined();
+  const tunedAuto = applyReasoningLevel(base, "automatic", "llama-server", "qwen3.5-4b-lokalbot-v4");
+  expect(tunedAuto.chat_template_kwargs).toEqual({ enable_thinking: false });
+  const tunedLow = applyReasoningLevel(base, "low", "llama-server", "qwen3.5-4b-lokalbot-v4");
+  expect(tunedLow.thinking_budget_tokens).toBe(512);
+  expect(tunedLow.chat_template_kwargs).toEqual({ enable_thinking: true });
 });
 
 test("a template that takes an effort hears the chosen level, and Off as none", () => {
@@ -908,6 +913,49 @@ test("the registered provider tells a template that takes an effort the level", 
     expect(bodies[1].chat_template_kwargs).toEqual({ reasoning_effort: "medium" });
     expect(bodies[2].thinking_budget_tokens).toBeUndefined();
     expect(bodies[2].chat_template_kwargs?.reasoning_effort).toBeUndefined();
+  } finally {
+    server.stop(true);
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("missing reasoning file keeps launch model capabilities and accepts later level updates", async () => {
+  const bodies: any[] = [];
+  const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
+    async fetch(request) {
+      bodies.push(await request.json());
+      const chunk = (delta: object, finish: string | null) =>
+        `data: ${JSON.stringify({ id: "c", object: "chat.completion.chunk", created: 0, model: "gemma4-e4b",
+          choices: [{ index: 0, delta, finish_reason: finish }] })}\n\n`;
+      return new Response(chunk({ role: "assistant", content: "ok" }, null) + chunk({}, "stop") + "data: [DONE]\n\n",
+        { headers: { "content-type": "text/event-stream" } });
+    },
+  });
+  const root = await mkdtemp(join(tmpdir(), "lokalbot-reasoning-"));
+  const file = join(root, "missing.json");
+  try {
+    const baseUrl = `http://127.0.0.1:${server.port}/v1`;
+    await withExtensionFixture(async ({ provider }) => {
+      const model = { ...provider.models[0], provider: "lokalbot", api: provider.api,
+        baseUrl, maxTokens: 128, name: "Gemma", reasoning: false };
+      const ask = async () => {
+        const stream = provider.streamSimple(model, {
+          messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
+        }, { apiKey: "synthetic-token", maxRetries: 0, timeoutMs: 2_000 });
+        for await (const _ of stream) {}
+      };
+      await ask();
+      await writeFile(file, JSON.stringify({ level: "low" }));
+      await ask();
+    }, baseUrl, {
+      LOKALBOT_LLM_MODEL: "gemma4-e4b",
+      LOKALBOT_LLM_REASONING_DIALECT: "llama-server",
+      LOKALBOT_LLM_REASONING_FILE: file,
+      LOKALBOT_LLM_REASONING_DEFAULT_OFF: "1",
+    });
+    expect(bodies[0].chat_template_kwargs).toEqual({ enable_thinking: false });
+    expect(bodies[1].thinking_budget_tokens).toBeGreaterThan(0);
+    expect(bodies[1].chat_template_kwargs).toEqual({ enable_thinking: true });
   } finally {
     server.stop(true);
     await rm(root, { recursive: true, force: true });

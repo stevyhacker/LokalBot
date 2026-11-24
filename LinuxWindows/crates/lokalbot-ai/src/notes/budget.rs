@@ -145,8 +145,7 @@ impl Budget {
         Ok(())
     }
 
-    pub fn finish(&mut self, reserved: u64, actual: Option<u64>, attempts: u32) {
-        self.requests += attempts.saturating_sub(1) as usize;
+    pub fn finish(&mut self, reserved: u64, actual: Option<u64>) {
         if let Some(actual) = actual {
             self.output_tokens = (self.output_tokens + actual).saturating_sub(reserved);
         }
@@ -180,7 +179,7 @@ mod tests {
             scales_with_parts: false,
         });
         budget.reserve(400, 1_000).unwrap();
-        budget.finish(1_000, Some(200), 1);
+        budget.finish(1_000, Some(200));
         budget.reserve(400, 1_000).unwrap();
         assert!(budget.reserve(1, 1).is_err());
         assert!(budget.allowance(1, 4_096, 512).is_err());
@@ -217,10 +216,19 @@ mod tests {
             output_tokens: 3_000,
             scales_with_parts: false,
         });
-        budget.reserve(0, 2_000).unwrap();
-        budget.finish(2_000, Some(2_000 + 300), 2);
-        assert!(budget.reserve(0, 701).is_err());
-        budget.reserve(0, 700).unwrap();
+        budget.reserve(400, 2_000).unwrap();
+        budget.finish(2_000, Some(2_000));
+        budget.reserve(400, 1_000).unwrap();
+        budget.finish(1_000, Some(300));
+        assert!(
+            budget.reserve(201, 0).is_err(),
+            "both attempts' input counts"
+        );
+        assert!(
+            budget.reserve(0, 701).is_err(),
+            "both attempts' output counts"
+        );
+        budget.reserve(200, 700).unwrap();
         assert!(
             budget.reserve(0, 0).is_err(),
             "two attempts count as two requests"

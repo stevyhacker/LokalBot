@@ -345,6 +345,7 @@ struct OllamaEngine: TextEngine {
 
     var displayName: String { "Ollama — \(model)" }
     var checkpointIdentity: String { "\(displayName)|\(baseURL.scheme ?? "")|\(baseURL.host ?? "")|\(baseURL.port ?? 0)|\(baseURL.path)" }
+    var accountsForGenerationRequests: Bool { true }
 
     func generate(system: String, prompt: String, context: [String]) async throws -> String {
         try await chat(system: system, prompt: prompt, context: context, schema: nil, options: nil)
@@ -384,27 +385,55 @@ struct OllamaEngine: TextEngine {
                                  reasoningAllowance: reasoningAllowance(for: options))
         request.httpBody = try JSONSerialization.data(withJSONObject: body, options: schema == nil ? [] : [.sortedKeys])
 
-        let (data, response) = try await sendInferenceRequest(request, base: baseURL)
-        let httpResponse = response as? HTTPURLResponse
-        guard let status = httpResponse?.statusCode, (200...299).contains(status) else {
-            throw TextEngineError.fromHTTPResponse(httpResponse, data: data)
-        }
-        guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let message = json["message"] as? [String: Any],
-              let content = message["content"] as? String else {
-            throw TextEngineError.badResponse("unexpected /api/chat payload")
-        }
-        if json["done_reason"] as? String == "length" {
-            if OpenAICompatibleEngine.visibleText(ofTruncatedReply: strippingReasoning(content)).isEmpty,
-               options?.reasoning != .off, options?.keepsTruncatedReply != true,
-               reasoningAllowance(for: options) > 0 {
-                lokalbotLog("reasoning used the whole output; retrying without it dialect=ollama model=\(model)")
-                return try await chat(system: system, prompt: prompt, context: context, schema: schema,
-                                      options: OpenAICompatibleEngine.withoutReasoning(options))
+        let budget = MeetingGenerationBudget.current
+        let reservation = try await budget?.reserve(input: MeetingGenerationBudget.promptTokens,
+                                                    output: (options?.maxTokens ?? 4_096)
+                                                        + reasoningAllowance(for: options))
+        let started = ProcessInfo.processInfo.systemUptime
+        var metric = GenerationCallTelemetry(stage: MeetingGenerationBudget.stage, outcome: "failed", wallSeconds: 0)
+        do {
+            let (data, response) = try await sendInferenceRequest(request, base: baseURL)
+            let httpResponse = response as? HTTPURLResponse
+            guard let status = httpResponse?.statusCode, (200...299).contains(status) else {
+                throw TextEngineError.fromHTTPResponse(httpResponse, data: data)
             }
-            throw TextEngineError.outputTruncated
+            guard let json = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+                  let message = json["message"] as? [String: Any],
+                  let content = message["content"] as? String else {
+                throw TextEngineError.badResponse("unexpected /api/chat payload")
+            }
+            metric.inputTokens = json["prompt_eval_count"] as? Int
+            metric.outputTokens = json["eval_count"] as? Int
+            let truncated = json["done_reason"] as? String == "length"
+            metric.outcome = truncated ? "truncated" : "complete"
+            let reply = strippingReasoning(content)
+            if truncated {
+                if OpenAICompatibleEngine.visibleText(ofTruncatedReply: reply).isEmpty,
+                   options?.reasoning != .off, options?.keepsTruncatedReply != true,
+                   reasoningAllowance(for: options) > 0 {
+                    throw ReasoningExhaustedReply()
+                }
+                if budget != nil { throw TruncatedStructuredResponse(content: reply) }
+                throw TextEngineError.outputTruncated
+            }
+            metric.wallSeconds = ProcessInfo.processInfo.systemUptime - started
+            metric.log()
+            if let reservation { await budget?.finish(reservation, metric: metric) }
+            return reply
+        } catch is ReasoningExhaustedReply {
+            metric.wallSeconds = ProcessInfo.processInfo.systemUptime - started
+            metric.log()
+            if let reservation { await budget?.finish(reservation, metric: metric) }
+            lokalbotLog("reasoning used the whole output; retrying without it dialect=ollama model=\(model)")
+            return try await chat(system: system, prompt: prompt, context: context, schema: schema,
+                                  options: OpenAICompatibleEngine.withoutReasoning(options))
+        } catch {
+            if error is CancellationError { metric.outcome = "cancelled" }
+            metric.wallSeconds = ProcessInfo.processInfo.systemUptime - started
+            metric.log()
+            if let reservation { await budget?.finish(reservation, metric: metric) }
+            throw error
         }
-        return strippingReasoning(content)
     }
 
     var resolvedReasoningSupport: ReasoningSupport {
@@ -893,7 +922,10 @@ struct OpenAICompatibleEngine: TextEngine {
                 body["temperature"] = max(0, temperature)
             }
             var template = body["chat_template_kwargs"] as? [String: Any] ?? [:]
-            if let requestLevel {
+            if off {
+                body["thinking_budget_tokens"] = 0
+                template["enable_thinking"] = false
+            } else if let requestLevel {
                 let budget = max(0, requestLevel.budgetTokens ?? 0)
                 body["thinking_budget_tokens"] = budget
                 if budget == 0 {
@@ -901,15 +933,12 @@ struct OpenAICompatibleEngine: TextEngine {
                 } else if !templateThinksByDefault {
                     template["enable_thinking"] = true
                 }
-            } else if off {
-                body["thinking_budget_tokens"] = 0
-                template["enable_thinking"] = false
             } else if allowance > 0 {
                 body["thinking_budget_tokens"] = allowance
             } else if !templateThinksByDefault {
                 template["enable_thinking"] = false
             }
-            if templateTakesEffort, let effort = requestLevel ?? (off ? .off : nil) {
+            if templateTakesEffort, let effort = off ? .off : requestLevel {
                 template["reasoning_effort"] = effort.effortValue
             }
             if !template.isEmpty { body["chat_template_kwargs"] = template }

@@ -65,9 +65,13 @@ Where: `LinuxWindows/crates/lokalbot-ai/src/notes/partial.rs`, `LinuxWindows/cra
 
 ### The summary language is voted over passages sampled across the meeting
 
-Each bounded passage is detected on its own and the language with the most material support wins, because `NLLanguageRecognizer` can lock onto a foreign-language opening even when the rest is in another language, and a single prefix must never decide a meeting. The port detects with `whatlang` instead of `NLLanguageRecognizer`. A language outside the summary presets keeps the prompt's own "the transcript's language" rule.
+Each bounded passage is detected on its own and the language with the most material support wins, because `NLLanguageRecognizer` can lock onto a foreign-language opening even when the rest is in another language, and a single prefix must never decide a meeting. The port detects with `whatlang` instead of `NLLanguageRecognizer`.
 
-Where: `LinuxWindows/crates/lokalbot-ai/src/language.rs`, `LokalBot/Models/Meetings/SummaryLanguage.swift` (`SummaryLanguage.detectTranscriptLanguage`), `LokalBot/Models/Transcription/LanguageCode.swift`.
+A passage votes for the detector's top answer, never for a weaker runner-up that happens to be in the notes menu. Skipping unlisted answers once turned a Serbian call into Swedish notes: every passage read as Croatian at full confidence and was dropped, so a 0.23 Swedish guess on a two-word line was the only vote left. A language outside the menu is named in English ("Czech"), so the header and the prompt still name it.
+
+Neither detector tells Bosnian, Croatian, Montenegrin and Serbian apart. Apple reports Croatian for all of them in Latin script and Ukrainian, Kazakh or Bulgarian for Serbian Cyrillic, which `SerbianLatinScript.isSerbianCyrillic` catches first. Detection therefore gives them one shared name, "Bosnian, Croatian, Montenegrin, Serbian", and tells the model to keep the transcript's own ijekavian or ekavian forms and script. The menu lists each of the four for an explicit choice, and a hand-picked Serbian or Montenegrin writes in the script the source uses.
+
+Where: `LinuxWindows/crates/lokalbot-ai/src/language.rs`, `LokalBot/Models/Meetings/SummaryLanguage.swift` (`SummaryLanguage.detectTranscriptLanguage`, `SummaryLanguage.detectedLanguage`), `LokalBot/Models/Transcription/LanguageCode.swift` (`summaryPromptName`).
 
 ## Outcomes and evidence
 

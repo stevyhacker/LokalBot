@@ -27,11 +27,17 @@ class Proxy(BaseHTTPRequestHandler):
         headers = {k: v for k, v in self.headers.items() if k.lower() not in ("host", "content-length")}
         request = urllib.request.Request(UPSTREAM + self.path, data=body, method=method, headers=headers)
         started = time.time()
+        transport_error = None
         try:
             with urllib.request.urlopen(request, timeout=1800) as response:
                 status, data, reply_headers = response.status, response.read(), response.headers
         except urllib.error.HTTPError as error:
             status, data, reply_headers = error.code, error.read(), error.headers
+        except (urllib.error.URLError, TimeoutError, OSError) as error:
+            transport_error = repr(error)
+            status = 502
+            data = json.dumps({"error": {"message": str(error)}}).encode("utf-8")
+            reply_headers = {"Content-Type": "application/json"}
         elapsed = time.time() - started
         if self.path.endswith("/chat/completions") and body:
             try:
@@ -51,10 +57,10 @@ class Proxy(BaseHTTPRequestHandler):
                     "timings": got.get("timings"),
                     "reasoning_chars": len(message.get("reasoning_content") or ""),
                     "content_chars": len(message.get("content") or ""),
-                    "error": None if status == 200 else data[:300].decode("utf-8", "replace"),
+                    "error": transport_error or (None if status == 200 else data[:300].decode("utf-8", "replace")),
                 })
             except Exception as exc:
-                record({"at": started, "proxy_error": repr(exc)})
+                record({"at": started, "elapsed": round(elapsed, 2), "proxy_error": repr(exc)})
         self.send_response(status)
         for key, value in reply_headers.items():
             if key.lower() not in ("transfer-encoding", "content-length", "connection"):

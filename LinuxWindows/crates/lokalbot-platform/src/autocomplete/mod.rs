@@ -296,10 +296,27 @@ pub struct InlineGhost {
 
 impl InlineGhost {
     pub fn show(&self, field: &FieldSnapshot, text: &str) {
+        self.show_styled(field, text, 0, false);
+    }
+
+    pub fn show_styled(
+        &self,
+        field: &FieldSnapshot,
+        text: &str,
+        emphasis_chars: usize,
+        dark: bool,
+    ) {
         #[cfg(target_os = "linux")]
-        self.inner.show(field, text);
+        self.inner.show(
+            field,
+            text,
+            input_method::GhostStyle {
+                emphasis_chars,
+                dark,
+            },
+        );
         #[cfg(not(target_os = "linux"))]
-        let _ = (field, text);
+        let _ = (field, text, emphasis_chars, dark);
     }
 
     pub fn accept(
@@ -310,10 +327,34 @@ impl InlineGhost {
         edit: &Edit,
         next: &str,
     ) {
+        self.accept_styled(field, before, after, edit, next, 0, false);
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn accept_styled(
+        &self,
+        field: &FieldSnapshot,
+        before: &str,
+        after: &str,
+        edit: &Edit,
+        next: &str,
+        next_emphasis_chars: usize,
+        dark: bool,
+    ) {
         #[cfg(target_os = "linux")]
-        self.inner.accept(field, before, after, edit, next);
+        self.inner.accept(
+            field,
+            before,
+            after,
+            edit,
+            next,
+            input_method::GhostStyle {
+                emphasis_chars: next_emphasis_chars,
+                dark,
+            },
+        );
         #[cfg(not(target_os = "linux"))]
-        let _ = (field, before, after, edit, next);
+        let _ = (field, before, after, edit, next, next_emphasis_chars, dark);
     }
 }
 
@@ -350,7 +391,7 @@ impl AcceptKeys {
         let full = match settings.cotyping_full_accept_key {
             CotypingFullAcceptKey::Backtick => Some(InterceptedKey::Backtick),
             CotypingFullAcceptKey::RightArrow => Some(InterceptedKey::RightArrow),
-            CotypingFullAcceptKey::Off => None,
+            CotypingFullAcceptKey::DoubleTap | CotypingFullAcceptKey::Off => None,
         };
         Self {
             accept,
@@ -561,18 +602,18 @@ pub fn screen_containing(rect: &Rect) -> Option<Rect> {
     }
 }
 
-pub fn sample_luminance(rect: &Rect) -> Option<f32> {
+pub fn sample_luminance(rect: &Rect, field: Option<Rect>) -> Option<f32> {
     #[cfg(target_os = "linux")]
     {
-        x11::sample_luminance(rect)
+        x11::sample_luminance(rect, field)
     }
     #[cfg(windows)]
     {
-        win32::sample_luminance(rect)
+        win32::sample_luminance(rect, field)
     }
     #[cfg(not(any(windows, target_os = "linux")))]
     {
-        let _ = rect;
+        let _ = (rect, field);
         None
     }
 }

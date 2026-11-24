@@ -12,9 +12,10 @@ use std::time::{Duration, Instant};
 use gpui_kit::{App, AppContext as _, Context, Entity, Global, Task};
 use lokalbot_ai::autocomplete::memory::{MemoryGuard, Policy};
 use lokalbot_ai::autocomplete::server::ServerProblem;
+use lokalbot_ai::autocomplete::surface::SurfaceClass;
 use lokalbot_ai::autocomplete::{AcceptOptions, AcceptScope, SuggestionKind};
 use lokalbot_core::Settings;
-use lokalbot_core::settings::CotypingEscapeBehavior;
+use lokalbot_core::settings::{CotypingAcceptKey, CotypingEscapeBehavior, CotypingFullAcceptKey};
 use lokalbot_engine::{
     AutocompleteCommand, AutocompleteLearning, AutocompleteMeasures, AutocompleteUpdate, Command,
     FieldContext,
@@ -22,7 +23,8 @@ use lokalbot_engine::{
 use lokalbot_platform::autocomplete::geometry::RenderMode;
 use lokalbot_platform::autocomplete::policy::{self, EscapePause, ReadPolicy};
 use lokalbot_platform::autocomplete::session::{
-    GhostSession, Reconcile, SentContexts, drop_graphemes, inline_text,
+    GhostSession, InsertProgress, Reconcile, SentContexts, drop_graphemes, inline_text,
+    progression_between, typed_since,
 };
 use lokalbot_platform::autocomplete::{
     self as platform, AcceptKeys, Capability, Edit, FieldSnapshot, FieldWatcher, FocusSnapshot,
@@ -34,6 +36,133 @@ use crate::state::{AppData, DictationHud};
 pub const PRACTICE_FIELD_ID: u64 = u64::MAX;
 
 const KEY_FOCUS_GRACE: Duration = Duration::from_millis(500);
+const AWAITING_INSERT_TIMEOUT: Duration = Duration::from_millis(500);
+const DOUBLE_TAP_WINDOW: Duration = Duration::from_millis(300);
+
+#[derive(Clone, Debug, Default)]
+struct DoubleTapAcceptance {
+    last: Option<(String, Instant)>,
+}
+
+impl DoubleTapAcceptance {
+    fn reset(&mut self) {
+        self.last = None;
+    }
+
+    fn resolve(
+        &mut self,
+        whole: bool,
+        full_accept_key: CotypingFullAcceptKey,
+        suggestion_key: &str,
+        now: Instant,
+    ) -> bool {
+        if whole || full_accept_key != CotypingFullAcceptKey::DoubleTap {
+            self.reset();
+            return whole;
+        }
+        if let Some((previous_key, previous_at)) = &self.last
+            && previous_key == suggestion_key
+            && now.saturating_duration_since(*previous_at) <= DOUBLE_TAP_WINDOW
+        {
+            self.reset();
+            return true;
+        }
+        self.last = Some((suggestion_key.to_string(), now));
+        false
+    }
+}
+
+fn should_pass_tab_to_host(settings: &Settings, whole: bool, field: &FieldSnapshot) -> bool {
+    settings.cotyping_tab_moves_to_next_field
+        && settings.cotyping_accept_key == CotypingAcceptKey::Tab
+        && !whole
+        && field.single_line
+        && !matches!(
+            SurfaceClass::of(&field.app_id, &field.app_name),
+            SurfaceClass::Chat | SurfaceClass::CodeEditor
+        )
+}
+
+struct PendingInsert {
+    field_id: u64,
+    floor: String,
+    target: String,
+    truncated: bool,
+    at: Instant,
+}
+
+impl PendingInsert {
+    fn record(
+        slot: &mut Option<Self>,
+        field_id: u64,
+        candidate_floor: &str,
+        target: String,
+        truncated: bool,
+        now: Instant,
+    ) {
+        let (floor, truncated) = match slot {
+            Some(prev)
+                if prev.field_id == field_id
+                    && now.duration_since(prev.at) < AWAITING_INSERT_TIMEOUT =>
+            {
+                let combined_truncated = prev.truncated || truncated;
+                let kept = if target.starts_with(prev.floor.as_str())
+                    || (combined_truncated
+                        && typed_since(prev.floor.as_str(), &target, true).is_some())
+                {
+                    prev.floor.clone()
+                } else {
+                    let len = prev
+                        .floor
+                        .char_indices()
+                        .zip(candidate_floor.chars())
+                        .take_while(|((_, a), b)| *a == *b)
+                        .last()
+                        .map_or(0, |((idx, ch), _)| idx + ch.len_utf8());
+                    prev.floor[..len].to_string()
+                };
+                (kept, combined_truncated)
+            }
+            _ => (candidate_floor.to_string(), truncated),
+        };
+        *slot = Some(Self {
+            field_id,
+            floor,
+            target,
+            truncated,
+            at: now,
+        });
+    }
+
+    fn holds_context(
+        slot: &mut Option<Self>,
+        field_id: u64,
+        before: &str,
+        before_truncated: bool,
+        now: Instant,
+    ) -> bool {
+        let Some(pending) = slot.as_ref() else {
+            return false;
+        };
+        if pending.field_id != field_id || now.duration_since(pending.at) >= AWAITING_INSERT_TIMEOUT
+        {
+            *slot = None;
+            return false;
+        }
+        match progression_between(
+            &pending.floor,
+            &pending.target,
+            before,
+            pending.truncated || before_truncated,
+        ) {
+            InsertProgress::InFlight => true,
+            InsertProgress::Settled | InsertProgress::Diverged => {
+                *slot = None;
+                false
+            }
+        }
+    }
+}
 
 pub const PRACTICE_CONVERSATION: [(&str, &str); 2] = [
     (
@@ -149,25 +278,50 @@ impl Practice {
     }
 }
 
+enum InsertJob {
+    Type {
+        field_id: u64,
+        field: Box<FieldSnapshot>,
+        edit: Edit,
+    },
+    PassThrough {
+        keys: Arc<KeyInterceptor>,
+        key: InterceptedKey,
+    },
+}
+
 struct Inserter {
-    jobs: crossbeam_channel::Sender<(u64, FieldSnapshot, Edit)>,
+    jobs: crossbeam_channel::Sender<InsertJob>,
 }
 
 impl Inserter {
     fn start(events: smol::channel::Sender<Event>) -> Option<Self> {
-        let (jobs, receiver) = crossbeam_channel::unbounded::<(u64, FieldSnapshot, Edit)>();
+        let (jobs, receiver) = crossbeam_channel::unbounded::<InsertJob>();
         std::thread::Builder::new()
             .name("lokalbot-autocomplete-insert".into())
             .spawn(move || {
-                while let Ok((field_id, field, edit)) = receiver.recv() {
-                    let ok = match platform::insert(&field, &edit) {
-                        Ok(()) => true,
-                        Err(err) => {
-                            log::warn!("autocomplete: could not type the suggestion: {err:#}");
-                            false
+                while let Ok(job) = receiver.recv() {
+                    match job {
+                        InsertJob::Type {
+                            field_id,
+                            field,
+                            edit,
+                        } => {
+                            let ok = match platform::insert(&field, &edit) {
+                                Ok(()) => true,
+                                Err(err) => {
+                                    log::warn!(
+                                        "autocomplete: could not type the suggestion: {err:#}"
+                                    );
+                                    false
+                                }
+                            };
+                            let _ = events.send_blocking(Event::Inserted { field_id, ok });
                         }
-                    };
-                    let _ = events.send_blocking(Event::Inserted { field_id, ok });
+                        InsertJob::PassThrough { keys, key } => {
+                            keys.pass_through(key);
+                        }
+                    }
                 }
             })
             .ok()?;
@@ -194,6 +348,10 @@ pub struct Autocomplete {
     session_guard: Option<Arc<MemoryGuard>>,
     session_after: String,
     predicted_caret: Option<Rect>,
+    held_inline_caret: Option<(u64, Rect)>,
+    last_accept_at: Option<Instant>,
+    double_tap: DoubleTapAcceptance,
+    practice_double_tap: DoubleTapAcceptance,
     sent: SentContexts,
     last_context: Option<FieldContext>,
     escape: EscapePause,
@@ -201,10 +359,13 @@ pub struct Autocomplete {
     keys_active: bool,
     accept_keys: AcceptKeys,
     last_key: Option<Instant>,
+    pending_insert: Option<PendingInsert>,
     focus_generation: u64,
     luminance: std::collections::HashMap<String, f32>,
     fake: Option<String>,
     fake_task: Option<Task<()>>,
+    power_task: Option<Task<()>>,
+    low_power_paused: bool,
     pub practice: Practice,
     pub measures: AutocompleteMeasures,
     pub learning: AutocompleteLearning,
@@ -245,6 +406,10 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             session_guard: None,
             session_after: String::new(),
             predicted_caret: None,
+            held_inline_caret: None,
+            last_accept_at: None,
+            double_tap: DoubleTapAcceptance::default(),
+            practice_double_tap: DoubleTapAcceptance::default(),
             sent: SentContexts::default(),
             last_context: None,
             escape: EscapePause::default(),
@@ -252,10 +417,13 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             keys_active: false,
             accept_keys: AcceptKeys::default(),
             last_key: None,
+            pending_insert: None,
             focus_generation: 0,
             luminance: Default::default(),
             fake,
             fake_task: None,
+            power_task: None,
+            low_power_paused: false,
             practice: Practice::default(),
             measures: AutocompleteMeasures::default(),
             learning: AutocompleteLearning::default(),
@@ -301,14 +469,25 @@ impl Autocomplete {
     }
 
     fn sync(&mut self, cx: &mut Context<Self>) {
-        let (enabled, paused, policy, accept_keys) = {
+        let (enabled, pause_in_low_power, low_power, paused, policy, accept_keys) = {
             let data = self.data.read(cx);
             let settings = &data.settings;
             let enabled = settings.cotyping_enabled;
-            let paused = data.dictation != DictationHud::Idle || data.recording.is_active();
+            let pause_in_low_power = settings.cotyping_pause_in_low_power_mode;
+            let low_power = pause_in_low_power && lokalbot_platform::power::current().saving_power;
+            let paused =
+                data.dictation != DictationHud::Idle || data.recording.is_active() || low_power;
             let policy = ReadPolicy::from_settings(settings, enabled && !paused);
-            (enabled, paused, policy, AcceptKeys::from_settings(settings))
+            (
+                enabled,
+                pause_in_low_power,
+                low_power,
+                paused,
+                policy,
+                AcceptKeys::from_settings(settings),
+            )
         };
+        self.low_power_paused = low_power;
         if accept_keys != self.accept_keys {
             self.accept_keys = accept_keys;
             if let Some(keys) = &self.keys {
@@ -326,6 +505,11 @@ impl Autocomplete {
             self.start_watching(policy.clone(), cx);
         } else if !wants && self.running {
             self.stop_watching(cx);
+        }
+        if wants && pause_in_low_power {
+            self.ensure_power_polling(cx);
+        } else {
+            self.power_task = None;
         }
         if !enabled && (self.practice.session.is_some() || self.last_context.is_some()) {
             self.dismiss_everything(cx);
@@ -348,6 +532,27 @@ impl Autocomplete {
                 self.leave_field(cx);
             }
         }
+    }
+
+    fn ensure_power_polling(&mut self, cx: &mut Context<Self>) {
+        if self.power_task.is_some() {
+            return;
+        }
+        self.power_task = Some(cx.spawn(async move |this, cx| {
+            loop {
+                smol::Timer::after(Duration::from_secs(5)).await;
+                let saving = lokalbot_platform::power::current().saving_power;
+                let ok = this.update(cx, |this, cx| {
+                    let wants_pause = this.settings(cx).cotyping_pause_in_low_power_mode && saving;
+                    if wants_pause != this.low_power_paused {
+                        this.sync(cx);
+                    }
+                });
+                if ok.is_err() {
+                    break;
+                }
+            }
+        }));
     }
 
     fn start_watching(&mut self, policy: ReadPolicy, cx: &mut Context<Self>) {
@@ -388,6 +593,7 @@ impl Autocomplete {
 
     fn stop_watching(&mut self, cx: &mut Context<Self>) {
         self.dismiss_everything(cx);
+        self.power_task = None;
         self.watcher = None;
         if let Some(keys) = self.keys.take() {
             keys.set_active(false);
@@ -418,21 +624,44 @@ impl Autocomplete {
             Event::Key(InterceptedKey::Escape) => self.on_escape(cx),
             Event::Key(key) => self.on_accept_key(key, cx),
             Event::Inserted { field_id, ok } => {
-                if !ok
-                    && self
+                if !ok {
+                    if self
+                        .pending_insert
+                        .as_ref()
+                        .is_some_and(|p| p.field_id == field_id)
+                    {
+                        self.pending_insert = None;
+                    }
+                    if self
                         .session
                         .as_ref()
                         .is_some_and(|s| s.field_id == field_id)
-                {
-                    self.clear_session(cx);
-                    crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
+                    {
+                        self.clear_session(cx);
+                        crate::bridge::send(
+                            Command::Autocomplete(AutocompleteCommand::Dismiss),
+                            cx,
+                        );
+                    }
                 }
             }
         }
     }
 
     fn on_focus(&mut self, focus: FocusSnapshot, cx: &mut Context<Self>) {
-        if !self.running || self.paused {
+        if !self.running {
+            return;
+        }
+        let low_power = self.settings(cx).cotyping_pause_in_low_power_mode
+            && lokalbot_platform::power::current().saving_power;
+        let paused = {
+            let data = self.data.read(cx);
+            data.dictation != DictationHud::Idle || data.recording.is_active() || low_power
+        };
+        if paused != self.paused {
+            self.sync(cx);
+        }
+        if self.paused {
             return;
         }
         self.focus_generation += 1;
@@ -487,14 +716,12 @@ impl Autocomplete {
             .current
             .as_ref()
             .is_some_and(|current| current.identity == identity);
-        if !same {
-            self.leave_field(cx);
-            self.next_id += 1;
-            self.sent.clear();
-        }
         let id = if same {
             self.current.as_ref().map_or(self.next_id, |c| c.id)
         } else {
+            self.leave_field(cx);
+            self.next_id += 1;
+            self.sent.clear();
             self.next_id
         };
         self.current = Some(Current {
@@ -503,27 +730,68 @@ impl Autocomplete {
             field: field.clone(),
         });
         if self.escape.is_paused(&identity, Instant::now()) {
+            self.pending_insert = None;
             self.clear_session(cx);
             return;
         }
+        if self
+            .pending_insert
+            .as_ref()
+            .is_some_and(|p| p.at.elapsed() >= AWAITING_INSERT_TIMEOUT)
+        {
+            self.pending_insert = None;
+            if let Some(session) = self.session.as_mut() {
+                session.stop_awaiting();
+            }
+        }
         self.reconcile_session(&field, cx);
+        if self.is_awaiting_insert(id, &field.before, field.before_truncated) {
+            return;
+        }
         self.send_context(id, &field, cx);
     }
 
     fn reconcile_session(&mut self, field: &FieldSnapshot, cx: &mut Context<Self>) {
+        let pending_active = self
+            .pending_insert
+            .as_ref()
+            .is_some_and(|p| p.at.elapsed() < AWAITING_INSERT_TIMEOUT);
         let Some(session) = self.session.as_mut() else {
             return;
         };
-        let awaiting = session.awaiting.is_some();
+        let awaiting = session.awaiting.is_some() || pending_active;
+        let after_changed = lokalbot_ai::autocomplete::inline_after(&field.after)
+            != lokalbot_ai::autocomplete::inline_after(&self.session_after)
+            && !awaiting;
+        if self.session_kind == SuggestionKind::Emoji
+            && !after_changed
+            && !awaiting
+            && lokalbot_ai::autocomplete::emoji_ghost(&field.before, &session.remaining).is_some()
+        {
+            session.anchor = field.before.clone();
+            session.anchor_truncated = field.before_truncated;
+            self.predicted_caret = None;
+            self.session_after = field.after.clone();
+            self.present(cx);
+            return;
+        }
         let outcome = session.reconcile(&field.before, field.before_truncated);
-        let after_changed = field.after != self.session_after && !awaiting;
         let replacement = self.session_kind != SuggestionKind::Continuation
             && !matches!(outcome, Reconcile::Unchanged);
         match outcome {
-            _ if after_changed || replacement => self.clear_session(cx),
-            Reconcile::Stale | Reconcile::Exhausted => self.clear_session(cx),
+            _ if after_changed || replacement => {
+                self.pending_insert = None;
+                self.clear_session(cx);
+            }
+            Reconcile::Stale => {
+                self.pending_insert = None;
+                self.clear_session(cx);
+            }
+            Reconcile::Exhausted => self.clear_session(cx),
             Reconcile::Advanced { .. } => {
+                self.double_tap.reset();
                 self.predicted_caret = None;
+                self.session_after = field.after.clone();
                 self.present(cx);
             }
             Reconcile::Unchanged => {
@@ -552,15 +820,19 @@ impl Autocomplete {
             field_frame: field.field_frame,
             pid: field.pid,
         };
-        self.send(context, cx);
+        self.send(context, field.before_truncated, cx);
     }
 
-    fn send(&mut self, context: FieldContext, cx: &mut Context<Self>) {
+    fn send(&mut self, context: FieldContext, before_truncated: bool, cx: &mut Context<Self>) {
         if self.last_context.as_ref() == Some(&context) {
             return;
         }
-        self.sent
-            .record(context.field_id, &context.before, Instant::now());
+        self.sent.record(
+            context.field_id,
+            &context.before,
+            before_truncated,
+            Instant::now(),
+        );
         self.last_context = Some(context.clone());
         if self.fake.is_some() {
             self.fake_suggestion(&context, cx);
@@ -619,7 +891,7 @@ impl Autocomplete {
                     return;
                 }
                 let before = self.practice.before.clone();
-                let fitted = self.fitted(field_id, &before, &text, &kind);
+                let fitted = self.fitted(field_id, &before, false, &text, &kind);
                 log::debug!(
                     "autocomplete: practice suggestion of {} characters",
                     fitted.chars().count()
@@ -642,9 +914,39 @@ impl Autocomplete {
                     return;
                 };
                 let field = current.field.clone();
-                let fitted = self.fitted(field_id, &field.before, &text, &kind);
+                let pending = self
+                    .pending_insert
+                    .as_ref()
+                    .filter(|p| p.field_id == field_id && p.at.elapsed() < AWAITING_INSERT_TIMEOUT);
+                let effective_before = self
+                    .session
+                    .as_ref()
+                    .filter(|s| s.field_id == field_id && s.awaiting.is_some())
+                    .map(|s| s.anchor.as_str())
+                    .or_else(|| pending.map(|p| p.target.as_str()))
+                    .unwrap_or(field.before.as_str());
+                let effective_truncated = self
+                    .session
+                    .as_ref()
+                    .filter(|s| s.field_id == field_id && s.awaiting.is_some())
+                    .map(|s| s.anchor_truncated)
+                    .or_else(|| pending.map(|p| p.truncated))
+                    .unwrap_or(field.before_truncated);
+                let fitted = self.fitted(
+                    field_id,
+                    effective_before,
+                    effective_truncated,
+                    &text,
+                    &kind,
+                );
                 if fitted.is_empty() {
-                    self.clear_session(cx);
+                    if self
+                        .session
+                        .as_ref()
+                        .is_none_or(|s| s.field_id != field_id || s.awaiting.is_none())
+                    {
+                        self.clear_session(cx);
+                    }
                     return;
                 }
                 if let Some(session) = &self.session
@@ -656,6 +958,8 @@ impl Autocomplete {
                     return;
                 }
                 let same_kind = self.session_kind == kind;
+                let pending_pair =
+                    pending.map(|p| (p.floor.clone(), p.target.clone(), p.truncated));
                 let session = match self.session.take() {
                     Some(mut session)
                         if session.field_id == field_id
@@ -665,15 +969,34 @@ impl Autocomplete {
                         session.remaining = fitted;
                         session
                     }
+                    Some(session)
+                        if session.field_id == field_id
+                            && session.awaiting.is_some()
+                            && !session.remaining.is_empty() =>
+                    {
+                        self.session = Some(session);
+                        return;
+                    }
                     _ => {
                         self.predicted_caret = None;
                         self.session_after = field.after.clone();
-                        GhostSession::new(
-                            field_id,
-                            field.before.clone(),
-                            fitted,
-                            field.before_truncated,
-                        )
+                        if let Some((floor, target, truncated)) = pending_pair {
+                            let mut next = GhostSession::new(
+                                field_id,
+                                target,
+                                fitted,
+                                truncated || field.before_truncated,
+                            );
+                            next.awaiting = Some(floor);
+                            next
+                        } else {
+                            GhostSession::new(
+                                field_id,
+                                field.before.clone(),
+                                fitted,
+                                field.before_truncated,
+                            )
+                        }
                     }
                 };
                 self.session = Some(session);
@@ -711,11 +1034,18 @@ impl Autocomplete {
         }
     }
 
-    fn fitted(&mut self, field_id: u64, before: &str, text: &str, kind: &SuggestionKind) -> String {
+    fn fitted(
+        &self,
+        field_id: u64,
+        before: &str,
+        before_truncated: bool,
+        text: &str,
+        kind: &SuggestionKind,
+    ) -> String {
         match kind {
             SuggestionKind::Continuation | SuggestionKind::Emoji => self
                 .sent
-                .fit(field_id, before, text, Instant::now())
+                .fit(field_id, before, before_truncated, text, Instant::now())
                 .to_string(),
             SuggestionKind::Macro { .. } | SuggestionKind::Correction { .. } => text.to_string(),
         }
@@ -729,11 +1059,19 @@ impl Autocomplete {
             {
                 let (drawn, emphasis) = drawn_ghost(session, &self.session_kind, &settings);
                 let whole = self.session_kind != SuggestionKind::Continuation;
-                Some((current.field.clone(), drawn, emphasis, whole))
+                let mut field = current.field.clone();
+                let awaiting = session.awaiting.is_some()
+                    || self.pending_insert.as_ref().is_some_and(|p| {
+                        p.field_id == session.field_id && p.at.elapsed() < AWAITING_INSERT_TIMEOUT
+                    });
+                if awaiting {
+                    field.after = self.session_after.clone();
+                }
+                Some((session.field_id, field, drawn, emphasis, whole))
             }
             _ => None,
         };
-        let Some((field, remaining, emphasis, whole)) = target else {
+        let Some((field_id, field, remaining, emphasis, whole)) = target else {
             self.clear_session(cx);
             return;
         };
@@ -748,24 +1086,54 @@ impl Autocomplete {
             {
                 session.remaining = shown.clone();
             }
+            let dark = self.appearance(cx).dark;
             log::debug!(
                 "autocomplete: showing {} characters in the field",
                 shown.chars().count()
             );
-            inline.show(&field, &shown);
+            inline.show_styled(&field, &shown, emphasis.chars().count(), dark);
             self.inline_shown = true;
             self.set_keys_active(true);
             return;
         }
-        let caret = self.predicted_caret.unwrap_or(field.caret);
+        let raw_caret = self.predicted_caret.unwrap_or(field.caret);
+        let mut scale = platform::scale_at(&raw_caret).unwrap_or_else(|| self.overlay.scale());
+        let caret = if self.predicted_caret.is_none()
+            && field.caret_exact
+            && policy::caret_at_end_of_line(&field.after)
+            && let Some((prev_id, prev_caret)) = self.held_inline_caret
+            && prev_id == field_id
+        {
+            let s = scale.max(0.5);
+            let rtl = lokalbot_ai::autocomplete::is_right_to_left(&field.before);
+            let anchor_of = |r: Rect| (if rtl { r.x / s } else { r.right() / s }, r.y / s);
+            let ms_since_accept = self
+                .last_accept_at
+                .map(|at| u64::try_from(at.elapsed().as_millis()).unwrap_or(u64::MAX));
+            if (raw_caret.height - prev_caret.height).abs() / s <= 8.0
+                && platform::geometry::should_hold_reanchor(
+                    anchor_of(prev_caret),
+                    anchor_of(raw_caret),
+                    ms_since_accept,
+                    rtl,
+                )
+            {
+                prev_caret
+            } else {
+                raw_caret
+            }
+        } else {
+            raw_caret
+        };
         let screen = platform::screen_containing(&caret);
-        let sampled = self.background_luminance(&field, caret);
         let appearance = self.appearance(cx);
-        let mut scale = self.overlay.scale();
+        let sampled = self.background_luminance(&field, caret, appearance.dark);
+        let mut final_mode = RenderMode::Pill;
         for _ in 0..2 {
             let Some(placement) = layout::place(
                 &remaining,
                 &emphasis,
+                !whole,
                 &field,
                 caret,
                 screen,
@@ -779,11 +1147,14 @@ impl Autocomplete {
                 return;
             };
             log::debug!(
-                "autocomplete: showing {:?}, {} characters, at {:?}",
+                "autocomplete: showing {:?} (exact={}, lum={:?}), {} characters, at {:?}",
                 placement.mode,
+                field.caret_exact,
+                sampled,
                 placement.shown.chars().count(),
                 placement.frame
             );
+            final_mode = placement.mode;
             if placement.mode == RenderMode::Inline && placement.shown.len() < remaining.len() {
                 if whole {
                     self.clear_session(cx);
@@ -798,6 +1169,11 @@ impl Autocomplete {
                 break;
             }
             scale = now;
+        }
+        if final_mode == RenderMode::Inline {
+            self.held_inline_caret = Some((field_id, caret));
+        } else {
+            self.held_inline_caret = None;
         }
         self.set_keys_active(true);
     }
@@ -827,22 +1203,24 @@ impl Autocomplete {
         }
     }
 
-    fn background_luminance(&mut self, field: &FieldSnapshot, caret: Rect) -> Option<f32> {
-        let reported = field
-            .style
-            .as_ref()
-            .is_some_and(|s| s.color.is_some() && s.background.is_some());
-        if reported {
-            return None;
-        }
-        if let Some(luminance) = self.luminance.get(&field.app_id) {
+    fn background_luminance(
+        &mut self,
+        field: &FieldSnapshot,
+        caret: Rect,
+        dark_theme: bool,
+    ) -> Option<f32> {
+        let key = policy::background_cache_key(field, dark_theme);
+        if let Some(luminance) = self.luminance.get(&key) {
             return Some(*luminance);
         }
         if self.overlay.is_visible() {
             return None;
         }
-        let luminance = platform::sample_luminance(&caret)?;
-        self.luminance.insert(field.app_id.clone(), luminance);
+        let luminance = platform::sample_luminance(&caret, field.field_frame)?;
+        if self.luminance.len() >= 128 {
+            self.luminance.clear();
+        }
+        self.luminance.insert(key, luminance);
         Some(luminance)
     }
 
@@ -857,6 +1235,7 @@ impl Autocomplete {
             .session_guard
             .as_ref()
             .is_some_and(|guard| !guard.is_current(Policy::from_settings(&settings)));
+        let now = Instant::now();
         let plan = (|| {
             let whole = self.accept_keys.is_full(key)?;
             if revoked {
@@ -867,43 +1246,89 @@ impl Autocomplete {
             if session.field_id != current.id || !self.ghost_visible() {
                 return None;
             }
-            if current.field.before != session.anchor && session.awaiting.is_none() {
+            if should_pass_tab_to_host(&settings, whole, &current.field) {
                 return None;
             }
+            let synced = current.field.before == session.anchor
+                || session.awaiting.is_some()
+                || ((current.field.before_truncated || session.anchor_truncated)
+                    && typed_since(&session.anchor, &current.field.before, true) == Some(""));
+            if !synced {
+                return None;
+            }
+            let suggestion_key = format!(
+                "{}\u{1f}{}{}",
+                session.field_id, session.anchor, session.remaining
+            );
+            let effective_whole = self.double_tap.resolve(
+                whole,
+                settings.cotyping_full_accept_key,
+                &suggestion_key,
+                now,
+            );
             plan_acceptance(
                 &session.remaining,
                 &self.session_kind,
                 &session.anchor,
                 &self.session_after,
                 &settings,
-                whole,
+                effective_whole,
             )
         })();
         let Some(plan) = plan else {
-            keys.pass_through(key);
+            self.pending_insert = None;
+            self.pass_through(&keys, key);
             self.clear_session(cx);
             if revoked {
                 crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
             }
             return;
         };
+        let dark = self.appearance(cx).dark;
         let (Some(session), Some(current)) = (self.session.as_mut(), self.current.as_ref()) else {
             return;
         };
         let field_id = session.field_id;
+        let truncated = session.anchor_truncated || current.field.before_truncated;
         let around = (session.anchor.clone(), self.session_after.clone());
         if self.inline.is_none()
             && let Some(inserter) = &self.inserter
         {
-            let _ = inserter
-                .jobs
-                .send((field_id, current.field.clone(), plan.edit.clone()));
+            let _ = inserter.jobs.send(InsertJob::Type {
+                field_id,
+                field: Box::new(current.field.clone()),
+                edit: plan.edit.clone(),
+            });
         }
         session.accept(&plan.chunk, &plan.edit.text, plan.edit.backward);
+        let accepted_anchor = session.anchor.clone();
+        let floor = session.awaiting.clone().unwrap_or_else(|| around.0.clone());
         if let Some(inline) = &self.inline {
-            let (drawn, _) = drawn_ghost(session, &self.session_kind, &settings);
+            let (drawn, next_emphasis) = drawn_ghost(session, &self.session_kind, &settings);
             let next = inline_text(&drawn, false).unwrap_or_default();
-            inline.accept(&current.field, &around.0, &around.1, &plan.edit, &next);
+            inline.accept_styled(
+                &current.field,
+                &around.0,
+                &around.1,
+                &plan.edit,
+                &next,
+                next_emphasis.chars().count(),
+                dark,
+            );
+        }
+        let exhausted = session.is_exhausted();
+        let now = Instant::now();
+        self.last_accept_at = Some(now);
+        self.sent.record(field_id, &accepted_anchor, truncated, now);
+        if self.inline.is_none() {
+            PendingInsert::record(
+                &mut self.pending_insert,
+                field_id,
+                &floor,
+                accepted_anchor,
+                truncated,
+                now,
+            );
         }
         self.session_after = drop_graphemes(&self.session_after, plan.edit.forward);
         crate::bridge::send(
@@ -914,7 +1339,7 @@ impl Autocomplete {
             }),
             cx,
         );
-        if session.is_exhausted() {
+        if exhausted {
             self.clear_session(cx);
             return;
         }
@@ -950,7 +1375,7 @@ impl Autocomplete {
             .next()
             .unwrap_or("");
         let input = platform::geometry::InlineInput {
-            caret: logical(caret),
+            caret: platform::geometry::inline_caret_box(logical(caret), size),
             field: field.field_frame.map(logical),
             preceding_line: preceding,
             screen: platform::screen_containing(&caret).map(logical),
@@ -976,7 +1401,7 @@ impl Autocomplete {
             return;
         };
         if self.session.is_none() || !self.ghost_visible() {
-            keys.pass_through(InterceptedKey::Escape);
+            self.pass_through(&keys, InterceptedKey::Escape);
             return;
         }
         match self.settings(cx).cotyping_escape_behavior {
@@ -985,14 +1410,29 @@ impl Autocomplete {
                     self.escape.pause(current.identity.clone(), Instant::now());
                 }
             }
-            CotypingEscapeBehavior::PassThrough => keys.pass_through(InterceptedKey::Escape),
+            CotypingEscapeBehavior::PassThrough => {
+                self.pass_through(&keys, InterceptedKey::Escape);
+            }
         }
+        self.pending_insert = None;
         self.clear_session(cx);
         crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
     }
 
+    fn pass_through(&self, keys: &Arc<KeyInterceptor>, key: InterceptedKey) {
+        if let Some(inserter) = &self.inserter {
+            let _ = inserter.jobs.send(InsertJob::PassThrough {
+                keys: keys.clone(),
+                key,
+            });
+        } else {
+            keys.pass_through(key);
+        }
+    }
+
     fn leave_field(&mut self, cx: &mut Context<Self>) {
         let had = self.session.is_some() || self.current.is_some();
+        self.pending_insert = None;
         self.clear_session(cx);
         self.current = None;
         self.sent.clear();
@@ -1005,6 +1445,9 @@ impl Autocomplete {
         self.session = None;
         self.session_guard = None;
         self.predicted_caret = None;
+        self.held_inline_caret = None;
+        self.last_accept_at = None;
+        self.double_tap.reset();
         self.overlay.hide(cx);
         if self.inline_shown {
             self.inline_shown = false;
@@ -1013,6 +1456,16 @@ impl Autocomplete {
             }
         }
         self.set_keys_active(false);
+    }
+
+    fn is_awaiting_insert(&mut self, field_id: u64, before: &str, before_truncated: bool) -> bool {
+        PendingInsert::holds_context(
+            &mut self.pending_insert,
+            field_id,
+            before,
+            before_truncated,
+            Instant::now(),
+        )
     }
 
     fn ghost_visible(&self) -> bool {
@@ -1032,7 +1485,8 @@ impl Autocomplete {
 
     pub fn practice_changed(&mut self, before: String, after: String, cx: &mut Context<Self>) {
         let unchanged = self.practice.before == before && self.practice.after == after;
-        let after_changed = self.practice.after != after;
+        let after_changed = lokalbot_ai::autocomplete::inline_after(&self.practice.after)
+            != lokalbot_ai::autocomplete::inline_after(&after);
         self.practice.before = before.clone();
         self.practice.after = after.clone();
         if unchanged {
@@ -1040,15 +1494,23 @@ impl Autocomplete {
         }
         self.rehearsal = None;
         if let Some(session) = self.practice.session.as_mut() {
-            let continuation = self
+            let kind = self
                 .practice
                 .kind
-                .as_ref()
-                .is_none_or(|kind| *kind == SuggestionKind::Continuation);
-            match session.reconcile(&before, false) {
-                Reconcile::Unchanged if !after_changed => {}
-                Reconcile::Advanced { .. } if !after_changed && continuation => {}
-                _ => self.practice.session = None,
+                .clone()
+                .unwrap_or(SuggestionKind::Continuation);
+            if kind == SuggestionKind::Emoji
+                && !after_changed
+                && lokalbot_ai::autocomplete::emoji_ghost(&before, &session.remaining).is_some()
+            {
+                session.anchor = before.clone();
+            } else {
+                let continuation = kind == SuggestionKind::Continuation;
+                match session.reconcile(&before, false) {
+                    Reconcile::Unchanged if !after_changed => {}
+                    Reconcile::Advanced { .. } if !after_changed && continuation => {}
+                    _ => self.practice.session = None,
+                }
             }
             cx.notify();
         }
@@ -1085,6 +1547,7 @@ impl Autocomplete {
                 field_frame: None,
                 pid: 0,
             },
+            false,
             cx,
         );
     }
@@ -1098,19 +1561,28 @@ impl Autocomplete {
             .unwrap_or(SuggestionKind::Continuation);
         let session = self.practice.session.as_mut()?;
         if session.anchor != self.practice.before {
+            self.practice_double_tap.reset();
             return None;
         }
+        let suggestion_key = format!("{}{}", session.anchor, session.remaining);
+        let effective_whole = self.practice_double_tap.resolve(
+            whole,
+            settings.cotyping_full_accept_key,
+            &suggestion_key,
+            Instant::now(),
+        );
         let plan = plan_acceptance(
             &session.remaining,
             &kind,
             &self.practice.before,
             &self.practice.after,
             &settings,
-            whole,
+            effective_whole,
         )?;
         session.accept(&plan.chunk, &plan.edit.text, plan.edit.backward);
         if session.is_exhausted() {
             self.practice.session = None;
+            self.practice_double_tap.reset();
         }
         crate::bridge::send(
             Command::Autocomplete(AutocompleteCommand::Accepted {
@@ -1125,6 +1597,7 @@ impl Autocomplete {
     }
 
     pub fn practice_drop(&mut self, cx: &mut Context<Self>) {
+        self.practice_double_tap.reset();
         if self.practice.session.take().is_some() {
             crate::bridge::send(Command::Autocomplete(AutocompleteCommand::Dismiss), cx);
             cx.notify();
@@ -1132,6 +1605,7 @@ impl Autocomplete {
     }
 
     pub fn practice_dismiss(&mut self, cx: &mut Context<Self>) -> bool {
+        self.practice_double_tap.reset();
         if self.practice.session.take().is_none() {
             return false;
         }
@@ -1188,6 +1662,61 @@ mod tests {
     }
 
     #[test]
+    fn double_tap_promotes_second_accept_within_window() {
+        let mut state = DoubleTapAcceptance::default();
+        let start = Instant::now();
+        assert!(!state.resolve(false, CotypingFullAcceptKey::DoubleTap, "s1", start));
+        assert!(state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(200),
+        ));
+        assert!(!state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(250),
+        ));
+        assert!(!state.resolve(
+            false,
+            CotypingFullAcceptKey::DoubleTap,
+            "s1",
+            start + Duration::from_millis(600),
+        ));
+    }
+
+    #[test]
+    fn tab_form_navigation_applies_only_to_single_line_non_chat_non_editor_fields() {
+        let mut settings = Settings {
+            cotyping_tab_moves_to_next_field: true,
+            cotyping_accept_key: CotypingAcceptKey::Tab,
+            ..Default::default()
+        };
+        let mut field = FieldSnapshot {
+            app_name: "Firefox".into(),
+            app_id: "firefox".into(),
+            single_line: true,
+            ..Default::default()
+        };
+        assert!(should_pass_tab_to_host(&settings, false, &field));
+        assert!(!should_pass_tab_to_host(&settings, true, &field));
+        field.single_line = false;
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.single_line = true;
+        field.app_id = "slack".into();
+        field.app_name = "Slack".into();
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.app_id = "code".into();
+        field.app_name = "Visual Studio Code".into();
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+        field.app_id = "firefox".into();
+        field.app_name = "Firefox".into();
+        settings.cotyping_accept_key = CotypingAcceptKey::RightArrow;
+        assert!(!should_pass_tab_to_host(&settings, false, &field));
+    }
+
+    #[test]
     fn settings_shape_what_a_press_takes() {
         let punctuation = Settings {
             cotyping_auto_accept_trailing_punctuation: true,
@@ -1220,5 +1749,78 @@ mod tests {
         assert_eq!(plan.chunk, "🚀");
         assert_eq!(plan.edit.text, "🚀");
         assert_eq!(plan.edit.backward, ":rocket".chars().count());
+    }
+
+    #[test]
+    fn pending_insert_holds_intermediate_echoes_until_settled_or_diverged() {
+        let t0 = Instant::now();
+        let mut slot = None;
+        PendingInsert::record(&mut slot, 7, "Hello", "Hello world".into(), false, t0);
+        assert!(PendingInsert::holds_context(
+            &mut slot, 7, "Hello ", false, t0
+        ));
+        assert!(PendingInsert::holds_context(
+            &mut slot, 7, "Hello wo", false, t0
+        ));
+        PendingInsert::record(
+            &mut slot,
+            7,
+            "Hello world",
+            "Hello world friend".into(),
+            false,
+            t0,
+        );
+        assert!(PendingInsert::holds_context(
+            &mut slot,
+            7,
+            "Hello wor",
+            false,
+            t0
+        ));
+        assert!(PendingInsert::holds_context(
+            &mut slot,
+            7,
+            "Hello world fri",
+            false,
+            t0
+        ));
+        assert!(!PendingInsert::holds_context(
+            &mut slot,
+            7,
+            "Hello world friend",
+            false,
+            t0
+        ));
+        assert!(slot.is_none());
+
+        let base: String = (0..1000).map(|i| format!("w{i:03} ")).collect();
+        let floor = base[base.len() - 4090..].to_string();
+        let target = format!("{floor} alpha beta");
+        PendingInsert::record(&mut slot, 9, &floor, target, true, t0);
+        let mid = format!("{} alpha", &floor[6..]);
+        assert!(PendingInsert::holds_context(&mut slot, 9, &mid, true, t0));
+        let done = format!("{} alpha beta", &floor[11..]);
+        assert!(!PendingInsert::holds_context(&mut slot, 9, &done, true, t0));
+        assert!(slot.is_none());
+
+        PendingInsert::record(&mut slot, 7, "Hello", "Hello world".into(), false, t0);
+        assert!(!PendingInsert::holds_context(
+            &mut slot,
+            7,
+            "Hello wox",
+            false,
+            t0
+        ));
+        assert!(slot.is_none());
+
+        PendingInsert::record(&mut slot, 7, "Hello", "Hello world".into(), false, t0);
+        assert!(!PendingInsert::holds_context(
+            &mut slot,
+            7,
+            "Hello wo",
+            false,
+            t0 + AWAITING_INSERT_TIMEOUT
+        ));
+        assert!(slot.is_none());
     }
 }

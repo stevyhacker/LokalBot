@@ -1,7 +1,7 @@
 # 0012. Models and inference
 
 - Status: Accepted
-- Date: 2026-11-20
+- Date: 2026-11-23
 
 ## Context
 
@@ -11,9 +11,9 @@ This feature covers how LokalBot gets, runs and talks to language models: the bu
 
 ### Each model role runs its own loopback-only `llama-server` with a random bearer token
 
-Think, embeddings and autocomplete each run as a separate `llama-server` subprocess on a fixed loopback port with a random bearer token that rotates on every start; a non-loopback base URL for a built-in server would be a data-exfiltration bug, not a configuration choice. A `Lease` keeps a server loaded, and after the last lease drops it lingers for the role's idle time, then stops. The on-disk marker that shares the token is mode 0600, and CLI callers check that its PID is alive, is the recorded executable and owns the expected listening port before trusting localhost.
+Think, embeddings and autocomplete each run as a separate `llama-server` subprocess on a fixed loopback port with a random bearer token that rotates on every start; a non-loopback base URL for a built-in server would be a data-exfiltration bug, not a configuration choice. The autocomplete server passes `--swa-full` (probed conditionally on Windows and Linux via `CONDITIONAL_FLAGS` at `PROBE_VERSION = 3`) so sliding-window models like Gemma 4 keep full SWA KV memory across partial prompt reuse. A `Lease` keeps a server loaded, and after the last lease drops it lingers for the role's idle time, then stops. The on-disk marker that shares the token is mode 0600, and CLI callers check that its PID is alive, is the recorded executable and owns the expected listening port before trusting localhost.
 
-Where: `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`, `LokalBot/CLISupport/AskLibraryEngine.swift` (`LocalLlamaServerMarker`), `LokalBotTests/Engines/LlamaServerTests.swift` (`testSharedServersAreLoopbackOnlyAndOnDistinctPorts`).
+Where: `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`, `LokalBot/Engines/LlamaServer.swift` (`LlamaServer.cotyping`), `LokalBot/CLISupport/AskLibraryEngine.swift` (`LocalLlamaServerMarker`), `LokalBotTests/Engines/LlamaServerTests.swift` (`testSharedServersAreLoopbackOnlyAndOnDistinctPorts`).
 
 ### The installed app's ports never move, and Agent Mode shares the Think server
 

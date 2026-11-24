@@ -21,6 +21,7 @@ extension CotypingCoordinator {
         case .acceptance, .fullAcceptance:
             CotypingWindowTextCapture.shared.noteTyping()
         case .textMutation:
+            doubleTapAcceptance.reset()
             CotypingWindowTextCapture.shared.noteTyping()
             pendingKeystrokeUptime = nil
             if advanceActiveSessionIfTypedCharactersMatch(event.characters) {
@@ -32,6 +33,7 @@ extension CotypingCoordinator {
             }
             scheduleGenerationAfterHostPublishDelay()
         case .dismissal, .navigation, .shortcut, .other:
+            doubleTapAcceptance.reset()
             pendingKeystrokeUptime = nil
             cancelPendingGenerationWork()
             clearSuggestion()
@@ -63,7 +65,8 @@ extension CotypingCoordinator {
         } else if let field = focus.field {
             reanchorVisibleSuggestion(to: field)
         }
-        if session == nil, state == .idle || isDisabledState, !isMeetingRecordingActive() {
+        if session == nil, state == .idle || isDisabledState,
+           !isMeetingRecordingActive(), !isPausedForLowPowerMode {
             let settings = settingsProvider()
             if let reason = CotypingAvailability.disabledReason(
                 enabled: settings.cotypingEnabled,
@@ -115,7 +118,8 @@ extension CotypingCoordinator {
         guard isRunning, pollGeneration == hostPublishPollGeneration else { return }
         let focus = await focusTracker.refreshNow()
         guard isRunning, pollGeneration == hostPublishPollGeneration else { return }
-        let nextElapsed = elapsedMs + Self.hostPublishPollIntervalMs
+        let interval = Self.hostPublishPollIntervalMs(elapsedMilliseconds: elapsedMs)
+        let nextElapsed = elapsedMs + interval
 
         if CotypingSessionReconciler.hostPublishDidMove(from: baseline, to: focus.field) {
             let consumed = Self.elapsedMilliseconds(since: keystrokeUptimeNanoseconds)
@@ -129,7 +133,7 @@ extension CotypingCoordinator {
                    liveField: focus.field,
                    pendingInsertionConsumedCount: pendingInsertionConsumedCount),
                nextElapsed < Self.hostPublishWaitCeilingMs {
-                try? await Task.sleep(for: .milliseconds(Self.hostPublishPollIntervalMs))
+                try? await Task.sleep(for: .milliseconds(interval))
                 guard !Task.isCancelled else { return }
                 await pollForHostPublish(
                     baseline: baseline,
@@ -147,7 +151,7 @@ extension CotypingCoordinator {
             return
         }
 
-        try? await Task.sleep(for: .milliseconds(Self.hostPublishPollIntervalMs))
+        try? await Task.sleep(for: .milliseconds(interval))
         guard !Task.isCancelled else { return }
         await pollForHostPublish(
             baseline: baseline,

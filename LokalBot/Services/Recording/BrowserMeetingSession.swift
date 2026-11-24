@@ -34,6 +34,37 @@ enum BrowserMeetingSession {
         }
     }
 
+    enum MicrophoneWindows: String, Codable, Equatable, Sendable {
+        case allowed, unreadable, privateWindow
+
+        var allowsStart: Bool { self == .allowed }
+        var allowsContinuation: Bool { self != .privateWindow }
+    }
+
+    static func microphoneWindows(_ titles: [String?]) -> MicrophoneWindows {
+        if titles.contains(where: { $0.map(ScreenContextPrivacy.isPrivateWindow(title:)) ?? false }) {
+            return .privateWindow
+        }
+        let readable = !titles.isEmpty && titles.allSatisfy {
+            !($0 ?? "").trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        }
+        return readable ? .allowed : .unreadable
+    }
+
+    static func microphoneFallbackWindows(processIDs: [pid_t]) async -> [pid_t: MicrophoneWindows] {
+        guard !processIDs.isEmpty else { return [:] }
+        let accessibility = CaptureEnvironment.current.accessibility
+        return await withCheckedContinuation { continuation in
+            observationQueue.async {
+                var windows: [pid_t: MicrophoneWindows] = [:]
+                for pid in processIDs {
+                    windows[pid] = accessibility.browserMicrophoneWindows(processID: pid)
+                }
+                continuation.resume(returning: windows)
+            }
+        }
+    }
+
     struct Window {
         var element: AXUIElement
         var snapshot: Snapshot
@@ -290,7 +321,7 @@ enum BrowserMeetingSession {
         let native = bundleID.flatMap { nativeWebClients[$0] }
         var read = WindowRead()
         let observed = observeWindow(processID: processID, expectedURL: expectedURL, preferFocused: false,
-                                     bundleID: bundleID, bound: bound, read: &read)
+                                     bundleID: bundleID, bound: bound, read: &read, includeInactive: true)
         if observed?.snapshot.state == .inCall {
             bindings.set(observed, for: processID)
         } else if observed?.snapshot.state == .ended {
@@ -419,16 +450,19 @@ enum BrowserMeetingSession {
     }
 
     private static func observeWindow(processID: pid_t, expectedURL: URL?, preferFocused: Bool,
-                                      bundleID: String?, bound: Window?, read: inout WindowRead) -> Window? {
+                                      bundleID: String?, bound: Window?, read: inout WindowRead,
+                                      includeInactive: Bool = false) -> Window? {
         var issue = ReadIssue.noMeetingDocument
         let found = window(processID: processID, expectedURL: expectedURL, preferFocused: preferFocused,
-                           bundleID: bundleID, bound: bound, read: &read, issue: &issue)
+                           bundleID: bundleID, bound: bound, read: &read,
+                           includeInactive: includeInactive, issue: &issue)
         readIssues.set(found == nil ? issue : nil, for: processID)
         return found
     }
 
     private static func window(processID: pid_t, expectedURL: URL?, preferFocused: Bool,
-                               bundleID: String?, bound: Window?, read: inout WindowRead, issue: inout ReadIssue) -> Window? {
+                               bundleID: String?, bound: Window?, read: inout WindowRead,
+                               includeInactive: Bool, issue: inout ReadIssue) -> Window? {
         guard AXIsProcessTrusted() else { issue = .accessibilityUntrusted; return nil }
         let app = AXUIElementCreateApplication(processID)
         AXUIElementSetMessagingTimeout(app, 0.012)
@@ -540,7 +574,12 @@ enum BrowserMeetingSession {
         }
         if expected == nil {
             let calls = matches.filter { $0.snapshot.state == .inCall }
-            return calls.count == 1 ? calls.first : nil
+            if calls.count == 1 { return calls.first }
+            if includeInactive, var identified = matches.first {
+                if matches.count > 1 { identified.snapshot.state = .unavailable }
+                return identified
+            }
+            return nil
         }
         return matches.count == 1 ? matches.first : nil
     }

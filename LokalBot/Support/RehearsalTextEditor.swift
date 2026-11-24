@@ -85,6 +85,7 @@ struct RehearsalTextEditor: NSViewRepresentable {
 
 private final class RehearsalNativeTextView: NSTextView {
     private let inputSource = CotypingKeyboardInputSourceMonitor()
+    private var doubleTapAcceptance = CotypingDoubleTapAcceptanceState()
     var suggestion = ""
     var acceptKey: CotypingAcceptKey = .tab
     var fullAcceptKey: CotypingFullAcceptKey = .backtick
@@ -104,14 +105,22 @@ private final class RehearsalNativeTextView: NSTextView {
             .subtracting([.capsLock, .numericPad, .function])
         if canAccept, modifiers.isEmpty {
             if event.keyCode == UInt16(acceptKey.rawValue) {
-                onAccept?(.chunk)
+                let scope = doubleTapAcceptance.resolveScope(
+                    requested: .chunk,
+                    fullAcceptKey: fullAcceptKey,
+                    suggestionKey: string + suggestion,
+                    now: event.timestamp,
+                    isRepeat: event.isARepeat)
+                onAccept?(scope)
                 return
             }
             if let full = fullAcceptKey.keyCode, event.keyCode == UInt16(full) {
+                doubleTapAcceptance.reset()
                 onAccept?(.whole)
                 return
             }
         }
+        doubleTapAcceptance.reset()
         if event.keyCode == 48, !hasMarkedText(), !inputSource.isComposingIMEActive,
            modifiers.isEmpty || modifiers == .shift {
             if modifiers == .shift { window?.selectPreviousKeyView(self) } else { window?.selectNextKeyView(self) }

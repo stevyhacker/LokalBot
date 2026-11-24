@@ -49,6 +49,7 @@ fn audio_target(meeting: &lokalbot_platform::DetectedMeeting) -> AppAudioTarget 
         pid: meeting.audio_pid,
         process_name: meeting.process_name.clone(),
         app_name: meeting.app_name.clone(),
+        keep_app_scope: meeting.microphone_detected,
     }
 }
 
@@ -610,9 +611,23 @@ mod tests {
             audio_pid: 10,
             meeting_url: None,
             title_hint: None,
+            microphone_detected: false,
+            needs_confirmation: false,
         });
         assert_eq!(target.pid, 10);
         assert_eq!(target.app_name, "Teams");
+        assert!(!target.keep_app_scope);
+        let express = audio_target(&lokalbot_platform::DetectedMeeting {
+            app_name: "eXpress".into(),
+            process_name: "eXpress.exe".into(),
+            pid: 10,
+            audio_pid: 10,
+            meeting_url: None,
+            title_hint: None,
+            microphone_detected: true,
+            needs_confirmation: false,
+        });
+        assert!(express.keep_app_scope);
     }
 
     fn crashed_recording(library: &Library, seconds: f64, system: bool) -> Meeting {

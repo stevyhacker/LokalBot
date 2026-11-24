@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{collections::HashSet, path::Path};
 
 use serde::{Deserialize, Serialize};
 
@@ -22,6 +22,9 @@ pub struct Settings {
     pub getting_started_dismissed: bool,
 
     pub auto_record_mode: AutoRecordMode,
+    pub detect_other_browser_calls: bool,
+    #[serde(deserialize_with = "deserialize_call_apps")]
+    pub additional_call_apps: Vec<AdditionalCallApp>,
     pub stop_debounce_seconds: f64,
     pub record_system_audio: bool,
     pub microphone_device: String,
@@ -183,9 +186,11 @@ pub struct Settings {
     pub cotyping_extended_context: String,
     pub cotyping_accept_key: CotypingAcceptKey,
     pub cotyping_full_accept_key: CotypingFullAcceptKey,
+    pub cotyping_tab_moves_to_next_field: bool,
     pub cotyping_auto_accept_trailing_punctuation: bool,
     pub cotyping_escape_behavior: CotypingEscapeBehavior,
     pub cotyping_add_space_after_accept: bool,
+    pub cotyping_pause_in_low_power_mode: bool,
     pub cotyping_suggest_in_integrated_terminals: bool,
     pub cotyping_use_app_context: bool,
     pub cotyping_use_clipboard: bool,
@@ -210,6 +215,7 @@ pub struct Settings {
     pub github_star_summary_completed: bool,
     pub github_star_active_days: Vec<String>,
     pub autocomplete_default_adopted: bool,
+    pub dismissed_default_model_upgrade_key: String,
     pub pane_widths: std::collections::BTreeMap<String, f64>,
     pub settings_page: String,
 
@@ -232,6 +238,8 @@ impl Default for Settings {
             getting_started_dismissed: false,
 
             auto_record_mode: AutoRecordMode::Ask,
+            detect_other_browser_calls: false,
+            additional_call_apps: Vec::new(),
             stop_debounce_seconds: 15.0,
             record_system_audio: true,
             microphone_device: String::new(),
@@ -274,7 +282,7 @@ impl Default for Settings {
             transcription_prompt: String::new(),
             auto_transcription_vocabulary: true,
             summarizer_backend: SummarizerBackend::BuiltIn,
-            built_in_model_id: "qwen3.5-4b".into(),
+            built_in_model_id: "qwen3.5-4b-lokalbot-v4".into(),
             ollama_base_url: "http://localhost:11434".into(),
             ollama_model: String::new(),
             openai_base_url: "http://localhost:1234/v1".into(),
@@ -307,7 +315,7 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            cotyping_built_in_model_id: "gemma4-e2b-base-q6".into(),
+            cotyping_built_in_model_id: "gemma4-e2b-lokalbot-v4".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
             cotyping_use_visible_context: true,
@@ -374,9 +382,11 @@ impl Default for Settings {
             cotyping_extended_context: String::new(),
             cotyping_accept_key: CotypingAcceptKey::default(),
             cotyping_full_accept_key: CotypingFullAcceptKey::default(),
+            cotyping_tab_moves_to_next_field: false,
             cotyping_auto_accept_trailing_punctuation: false,
             cotyping_escape_behavior: CotypingEscapeBehavior::default(),
             cotyping_add_space_after_accept: false,
+            cotyping_pause_in_low_power_mode: true,
             cotyping_suggest_in_integrated_terminals: false,
             cotyping_use_app_context: true,
             cotyping_use_clipboard: true,
@@ -398,6 +408,7 @@ impl Default for Settings {
             github_star_summary_completed: false,
             github_star_active_days: Vec::new(),
             autocomplete_default_adopted: false,
+            dismissed_default_model_upgrade_key: String::new(),
             pane_widths: Default::default(),
             settings_page: String::new(),
             other: serde_json::Map::new(),
@@ -581,6 +592,115 @@ pub fn split_list(raw: &str) -> Vec<String> {
         .filter(|s| !s.is_empty())
         .map(str::to_string)
         .collect()
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct AdditionalCallApp {
+    pub identifier: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub name: Option<String>,
+}
+
+impl AdditionalCallApp {
+    pub fn detector_key(&self) -> Option<String> {
+        let identifier = self.identifier.trim();
+        let key = normalized_executable_name(identifier);
+        (!identifier.contains(['/', '\\'])
+            && !key.is_empty()
+            && key != "lokalbot"
+            && !starts_other_apps(&key))
+        .then_some(key)
+    }
+
+    pub fn display_name(&self) -> &str {
+        self.name.as_deref().unwrap_or(&self.identifier)
+    }
+}
+
+pub fn starts_other_apps(key: &str) -> bool {
+    matches!(
+        key,
+        "explorer"
+            | "cmd"
+            | "powershell"
+            | "powershell_ise"
+            | "pwsh"
+            | "windowsterminal"
+            | "wt"
+            | "conhost"
+            | "openconsole"
+            | "svchost"
+            | "services"
+            | "wininit"
+            | "winlogon"
+            | "userinit"
+            | "sihost"
+            | "runtimebroker"
+            | "dllhost"
+            | "rundll32"
+            | "taskhostw"
+            | "taskmgr"
+            | "applicationframehost"
+            | "startmenuexperiencehost"
+            | "shellexperiencehost"
+            | "searchhost"
+            | "wsl"
+            | "wslhost"
+            | "bash"
+            | "sh"
+            | "dash"
+            | "zsh"
+            | "fish"
+            | "mintty"
+            | "systemd"
+            | "init"
+            | "sshd"
+            | "sudo"
+            | "gnome-shell"
+            | "gnome-session-binary"
+            | "gnome-terminal-server"
+            | "plasmashell"
+            | "kwin_x11"
+            | "kwin_wayland"
+            | "krunner"
+            | "konsole"
+            | "kitty"
+            | "alacritty"
+            | "xterm"
+            | "wezterm-gui"
+            | "tmux"
+            | "screen"
+    )
+}
+
+pub fn normalized_executable_name(name: &str) -> String {
+    let lower = name.to_lowercase();
+    lower.strip_suffix(".exe").unwrap_or(&lower).to_string()
+}
+
+fn deserialize_call_apps<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<AdditionalCallApp>, D::Error> {
+    #[derive(Deserialize)]
+    #[serde(untagged)]
+    enum SavedApps {
+        List(Vec<AdditionalCallApp>),
+        Legacy(String),
+    }
+
+    let mut apps = match SavedApps::deserialize(deserializer)? {
+        SavedApps::List(apps) => apps,
+        SavedApps::Legacy(raw) => split_list(&raw)
+            .into_iter()
+            .map(|identifier| AdditionalCallApp {
+                identifier,
+                name: None,
+            })
+            .collect(),
+    };
+    let mut seen = HashSet::new();
+    apps.retain(|app| app.detector_key().is_some_and(|key| seen.insert(key)));
+    Ok(apps)
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
@@ -1061,6 +1181,7 @@ pub enum CotypingFullAcceptKey {
     #[default]
     Backtick,
     RightArrow,
+    DoubleTap,
     Off,
 }
 
@@ -1069,6 +1190,7 @@ impl From<CotypingFullAcceptKey> for i32 {
         match key {
             CotypingFullAcceptKey::Backtick => 50,
             CotypingFullAcceptKey::RightArrow => 124,
+            CotypingFullAcceptKey::DoubleTap => -2,
             CotypingFullAcceptKey::Off => -1,
         }
     }
@@ -1081,6 +1203,7 @@ impl TryFrom<i32> for CotypingFullAcceptKey {
         match code {
             50 => Ok(Self::Backtick),
             124 => Ok(Self::RightArrow),
+            -2 => Ok(Self::DoubleTap),
             -1 => Ok(Self::Off),
             other => Err(format!("unknown full-accept key {other}")),
         }
@@ -1098,6 +1221,46 @@ pub enum CotypingEscapeBehavior {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn migrates_legacy_call_apps_and_round_trips_selected_names() {
+        let mut settings: Settings = serde_json::from_str(
+            r#"{"additionalCallApps":"Brand Client.exe, BRAND CLIENT, Bad/Client.exe, OldClient.exe"}"#,
+        ).unwrap();
+        assert_eq!(settings.additional_call_apps.len(), 2);
+        assert_eq!(
+            settings.additional_call_apps[0].display_name(),
+            "Brand Client.exe"
+        );
+        settings
+            .additional_call_apps
+            .retain(|app| app.detector_key().as_deref() != Some("oldclient"));
+        settings.additional_call_apps.push(AdditionalCallApp {
+            identifier: "Other, Client.exe".into(),
+            name: Some("Corporate Calls".into()),
+        });
+        let restored: Settings =
+            serde_json::from_value(serde_json::to_value(&settings).unwrap()).unwrap();
+        assert_eq!(restored.additional_call_apps, settings.additional_call_apps);
+        assert_eq!(
+            restored.additional_call_apps[1].detector_key().as_deref(),
+            Some("other, client")
+        );
+    }
+
+    #[test]
+    fn shells_and_system_hosts_never_become_call_apps() {
+        let settings: Settings = serde_json::from_str(
+            r#"{"additionalCallApps":[{"identifier":"explorer.exe"},{"identifier":"CMD.EXE"},{"identifier":"pwsh.exe"},{"identifier":"WindowsTerminal.exe"},{"identifier":"bash"},{"identifier":"eXpressHelper.exe"}]}"#,
+        )
+        .unwrap();
+        let keys: Vec<_> = settings
+            .additional_call_apps
+            .iter()
+            .filter_map(AdditionalCallApp::detector_key)
+            .collect();
+        assert_eq!(keys, ["expresshelper"]);
+    }
 
     #[test]
     fn each_enabled_period_of_the_overnight_review_has_a_start() {
@@ -1153,7 +1316,7 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(back, Settings::default());
         assert!(json.contains("\"autoRecordMode\":\"Ask via notification\""));
-        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b\""));
+        assert!(json.contains("\"builtInModelID\":\"qwen3.5-4b-lokalbot-v4\""));
     }
 
     #[test]
@@ -1433,5 +1596,24 @@ mod tests {
             settings.remote_transcription_base_url,
             "http://127.0.0.1:9000/v1"
         );
+
+        let defaults = Settings::default();
+        assert!(!defaults.cotyping_tab_moves_to_next_field);
+        assert!(defaults.cotyping_pause_in_low_power_mode);
+
+        let custom: Settings = serde_json::from_str(
+            r#"{"cotypingFullAcceptKey":-2,"cotypingTabMovesToNextField":true,"cotypingPauseInLowPowerMode":false}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            custom.cotyping_full_accept_key,
+            CotypingFullAcceptKey::DoubleTap
+        );
+        assert!(custom.cotyping_tab_moves_to_next_field);
+        assert!(!custom.cotyping_pause_in_low_power_mode);
+        let roundtrip = serde_json::to_value(&custom).unwrap();
+        assert_eq!(roundtrip["cotypingFullAcceptKey"], -2);
+        assert_eq!(roundtrip["cotypingTabMovesToNextField"], true);
+        assert_eq!(roundtrip["cotypingPauseInLowPowerMode"], false);
     }
 }

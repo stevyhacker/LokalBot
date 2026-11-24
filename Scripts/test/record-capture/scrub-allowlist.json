@@ -98,7 +98,8 @@
     "企业微信",
     "Yandex Telemost",
     "MTS Link",
-    "МТС Линк"
+    "МТС Линк",
+    "eXpress"
   ],
   "meetingHosts": [
     "meet.google.com",
@@ -143,7 +144,12 @@
     "com.alibaba.DingTalk-Helper",
     "com.tencent.WeWorkMac",
     "ru.yandex.desktop.telemost",
-    "ru.weteams.desktop"
+    "ru.weteams.desktop",
+    "ru.unlimitedtech.express.desktop",
+    "ru.yandex.desktop.yandex-browser",
+    "com.operasoftware.Opera",
+    "com.vivaldi.Vivaldi",
+    "org.chromium.Chromium"
   ],
   "bundlePrefixes": [
     "com.apple."

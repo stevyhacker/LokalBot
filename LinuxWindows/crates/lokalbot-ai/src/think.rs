@@ -139,20 +139,22 @@ impl Completion {
 
 impl Usage {
     fn summed(earlier: Option<Usage>, later: Option<Usage>) -> Option<Usage> {
-        let add = |a: Option<u64>, b: Option<u64>| match (a, b) {
-            (None, None) => None,
-            (a, b) => Some(a.unwrap_or(0) + b.unwrap_or(0)),
-        };
-        match (earlier, later) {
-            (None, None) => None,
-            (earlier, later) => {
-                let (earlier, later) = (earlier.unwrap_or_default(), later.unwrap_or_default());
-                Some(Usage {
-                    prompt_tokens: add(earlier.prompt_tokens, later.prompt_tokens),
-                    completion_tokens: add(earlier.completion_tokens, later.completion_tokens),
-                })
-            }
+        let (earlier, later) = (earlier?, later?);
+        let prompt_tokens = earlier
+            .prompt_tokens
+            .zip(later.prompt_tokens)
+            .map(|(a, b)| a + b);
+        let completion_tokens = earlier
+            .completion_tokens
+            .zip(later.completion_tokens)
+            .map(|(a, b)| a + b);
+        if prompt_tokens.is_none() && completion_tokens.is_none() {
+            return None;
         }
+        Some(Usage {
+            prompt_tokens,
+            completion_tokens,
+        })
     }
 }
 
@@ -826,11 +828,23 @@ impl ThinkClient {
             return Ok(first);
         }
         log::info!("think: the reply was all reasoning, retrying once with reasoning off");
-        let retry = self.complete_once(&request.clone().reasoning(TaskReasoning::Off))?;
-        Ok(retry.after(first))
+        match self.complete_once(&request.clone().reasoning(TaskReasoning::Off)) {
+            Ok(retry) => Ok(retry.after(first)),
+            Err(err) if crate::error::is_cancelled(&err) => Err(err),
+            Err(err) => {
+                log::warn!(
+                    "think: reasoning-off retry failed, keeping initial truncated reply: {err}"
+                );
+                Ok(Completion {
+                    attempts: first.attempts + 1,
+                    usage: None,
+                    ..first
+                })
+            }
+        }
     }
 
-    fn falls_back(&self, request: &ChatRequest, completion: &Completion) -> bool {
+    pub(crate) fn falls_back(&self, request: &ChatRequest, completion: &Completion) -> bool {
         request.reasoning == TaskReasoning::ModelDefault
             && !request.keep_truncated
             && completion.truncated
@@ -920,6 +934,12 @@ impl ThinkClient {
         })?;
         if shown || !self.falls_back(request, &first) {
             return Ok(first);
+        }
+        if cancel.is_some_and(|c| c.load(Ordering::Relaxed)) {
+            return Ok(Completion {
+                cancelled: true,
+                ..first
+            });
         }
         log::info!("think: the streamed reply was all reasoning, retrying once with reasoning off");
         let retry = self.stream_once(
@@ -1540,7 +1560,10 @@ pub(crate) fn chat_body(
             if let Some(t) = temperature {
                 body["temperature"] = json!(t);
             }
-            if let Some(level) = level {
+            if off {
+                body["thinking_budget_tokens"] = json!(0);
+                body["chat_template_kwargs"] = json!({"enable_thinking": false});
+            } else if let Some(level) = level {
                 let budget = level.budget_tokens().unwrap_or(0);
                 body["thinking_budget_tokens"] = json!(budget);
                 if budget == 0 {
@@ -1548,16 +1571,17 @@ pub(crate) fn chat_body(
                 } else if reasoning.default_off {
                     body["chat_template_kwargs"] = json!({"enable_thinking": true});
                 }
-            } else if off {
-                body["thinking_budget_tokens"] = json!(0);
-                body["chat_template_kwargs"] = json!({"enable_thinking": false});
             } else if reasoning.allowance > 0 {
                 body["thinking_budget_tokens"] = json!(reasoning.allowance);
             } else if reasoning.default_off {
                 body["chat_template_kwargs"] = json!({"enable_thinking": false});
             }
             if reasoning.takes_effort
-                && let Some(effort) = level.or(off.then_some(ReasoningLevel::Off))
+                && let Some(effort) = if off {
+                    Some(ReasoningLevel::Off)
+                } else {
+                    level
+                }
             {
                 body["chat_template_kwargs"]["reasoning_effort"] = json!(effort_value(effort));
             }
@@ -2843,7 +2867,12 @@ mod tests {
         assert_eq!(medium["thinking_budget_tokens"], 4_096);
         assert_eq!(medium["max_tokens"], 300 + 4_096);
         assert!(medium.get("chat_template_kwargs").is_none());
-        for model in ["gemma4-e4b", "qwen3.5-0.8b", "granite-4.1-3b"] {
+        for model in [
+            "gemma4-e4b",
+            "qwen3.5-0.8b",
+            "granite-4.1-3b",
+            "qwen3.5-4b-lokalbot-v4",
+        ] {
             let woken = llama_body(model, ReasoningLevel::Low, &request);
             assert_eq!(woken["thinking_budget_tokens"], 512, "{model}");
             assert_eq!(woken["max_tokens"], 300 + 512, "{model}");
@@ -2857,6 +2886,14 @@ mod tests {
         assert_eq!(off["thinking_budget_tokens"], 0);
         assert_eq!(off["max_tokens"], 300);
         assert_eq!(off["chat_template_kwargs"]["enable_thinking"], false);
+        let tuned_auto = llama_body(
+            catalog::DEFAULT_THINK_ID,
+            ReasoningLevel::Automatic,
+            &request,
+        );
+        assert!(tuned_auto.get("thinking_budget_tokens").is_none());
+        assert_eq!(tuned_auto["max_tokens"], 300);
+        assert_eq!(tuned_auto["chat_template_kwargs"]["enable_thinking"], false);
     }
 
     #[test]
@@ -2962,6 +2999,7 @@ mod tests {
         for id in [
             "qwen3.5-0.8b",
             "qwen3.5-2b",
+            "qwen3.5-4b-lokalbot-v4",
             "gemma4-e4b",
             "gemma4-e4b-q5-xl",
             "gemma4-12b",
@@ -2971,10 +3009,6 @@ mod tests {
         ] {
             assert_eq!(default(id), Some(Off), "{id}");
         }
-        assert_eq!(
-            ReasoningSupport::built_in_id("qwen3.5-4b-lokalbot-v4").default_level,
-            Some(Off)
-        );
         assert_eq!(default("lfm2.5-8b-a1b"), None);
         let ministral =
             ReasoningSupport::built_in(catalog::entry("ministral-3-3b-instruct-2512").unwrap());
@@ -3491,7 +3525,10 @@ mod tests {
         let settings = Settings::default();
         let runtime = RuntimeManager::new(lokalbot_core::LibraryPaths::new(dir.path()), &settings);
         let client = ThinkClient::new(&runtime, &settings).unwrap();
-        assert_eq!(client.display_name(), "Qwen3.5 4B · on this PC");
+        assert_eq!(
+            client.display_name(),
+            "Qwen3.5 4B (LokalBot v4) · on this PC"
+        );
         assert!(client.is_local() && client.is_built_in());
         assert_eq!(client.context_tokens(), 32_768);
         let err = client.complete(&ChatRequest::new("s", "u")).unwrap_err();
@@ -3791,5 +3828,154 @@ mod tests {
         }
         out.push_str(&filter.finish());
         assert_eq!(out, "ab<tx");
+    }
+
+    #[test]
+    fn tuned_lokalbot_qwen_defaults_thinking_off() {
+        let v4 = catalog::entry("qwen3.5-4b-lokalbot-v4").unwrap();
+        let support = ReasoningSupport::built_in(v4);
+        assert_eq!(support.default_level, Some(ReasoningLevel::Off));
+        assert_eq!(
+            ReasoningSupport::known(
+                Dialect::LlamaServer,
+                "http://127.0.0.1:8080/v1",
+                "qwen3.5-4b-lokalbot-v4"
+            )
+            .default_level,
+            Some(ReasoningLevel::Off)
+        );
+        assert_eq!(
+            ReasoningSupport::known(
+                Dialect::LlamaServer,
+                "http://127.0.0.1:8080/v1",
+                "qwen3.5-4b-lokalbot-v5"
+            )
+            .default_level,
+            Some(ReasoningLevel::Off)
+        );
+        let req = ChatRequest::new("sys", "hello")
+            .max_tokens(1024)
+            .temperature(0.0);
+        let auto_body = chat_body(
+            Dialect::LlamaServer,
+            "qwen3.5-4b-lokalbot-v4",
+            &req,
+            support.request_reasoning(ReasoningLevel::Automatic, &req),
+            &[],
+        );
+        assert!(auto_body.get("thinking_budget_tokens").is_none());
+        assert_eq!(
+            auto_body["chat_template_kwargs"]["enable_thinking"],
+            json!(false)
+        );
+        let low_body = chat_body(
+            Dialect::LlamaServer,
+            "qwen3.5-4b-lokalbot-v4",
+            &req,
+            support.request_reasoning(ReasoningLevel::Low, &req),
+            &[],
+        );
+        assert_eq!(low_body["thinking_budget_tokens"], json!(512));
+        assert_eq!(
+            low_body["chat_template_kwargs"]["enable_thinking"],
+            json!(true)
+        );
+    }
+
+    #[test]
+    fn off_request_always_sends_zero_thinking_budget_on_llama_server() {
+        let support = ReasoningSupport::built_in_id("lfm2.5-2.6b");
+        let req = ChatRequest::new("sys", "hello")
+            .max_tokens(1024)
+            .reasoning(TaskReasoning::Off);
+        for level in [ReasoningLevel::Automatic, ReasoningLevel::High] {
+            let body = chat_body(
+                Dialect::LlamaServer,
+                "lfm2.5-2.6b",
+                &req,
+                support.request_reasoning(level, &req),
+                &[],
+            );
+            assert_eq!(body["max_tokens"], json!(1024), "{level:?}");
+            assert_eq!(body["thinking_budget_tokens"], json!(0), "{level:?}");
+            assert_eq!(
+                body["chat_template_kwargs"]["enable_thinking"],
+                json!(false),
+                "{level:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn usage_summed_drops_partial_counts() {
+        let full = Some(Usage {
+            prompt_tokens: Some(10),
+            completion_tokens: Some(100),
+        });
+        let missing_completion = Some(Usage {
+            prompt_tokens: Some(10),
+            completion_tokens: None,
+        });
+        assert_eq!(Usage::summed(None, full.clone()), None);
+        assert_eq!(Usage::summed(full.clone(), None), None);
+        assert_eq!(
+            Usage::summed(missing_completion, full.clone()),
+            Some(Usage {
+                prompt_tokens: Some(20),
+                completion_tokens: None,
+            })
+        );
+        assert_eq!(
+            Usage::summed(full.clone(), full),
+            Some(Usage {
+                prompt_tokens: Some(20),
+                completion_tokens: Some(200),
+            })
+        );
+    }
+
+    #[test]
+    fn failed_off_retry_keeps_initial_truncated_completion() {
+        let server = llama_stub(|body| {
+            if body["thinking_budget_tokens"] == 0 {
+                Reply::Json(400, json!({"error": {"message": "bad off param"}}))
+            } else {
+                Reply::Json(
+                    200,
+                    json!({"choices": [{"message": {"content": "<think>weighing"}, "finish_reason": "length"}], "usage": {"prompt_tokens": 10, "completion_tokens": 200}}),
+                )
+            }
+        });
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", "qwen3.5-4b");
+        let completion = client
+            .complete_full(&ChatRequest::new("s", "u").max_tokens(100))
+            .unwrap();
+        assert!(completion.truncated);
+        assert!(completion.text.is_empty());
+        assert_eq!(completion.attempts, 2);
+        assert_eq!(completion.usage, None);
+        assert_eq!(server.requests().len(), 2);
+    }
+
+    #[test]
+    fn stream_full_skips_second_request_when_cancelled_during_whitespace_chunk() {
+        let server = StubServer::start(|_| {
+            Reply::Sse(vec![
+                json!({"choices": [{"delta": {"content": "   "}, "finish_reason": null}]})
+                    .to_string(),
+                json!({"choices": [{"delta": {}, "finish_reason": "length"}]}).to_string(),
+            ])
+        });
+        let client = ThinkClient::llama_server(&server.url("/v1"), "t", "qwen3.5-4b");
+        let cancel = AtomicBool::new(false);
+        let completion = client
+            .stream_full(
+                &ChatRequest::new("s", "u").max_tokens(64),
+                Some(&cancel),
+                &mut |_| cancel.store(true, Ordering::Relaxed),
+            )
+            .unwrap();
+        assert!(completion.cancelled);
+        assert_eq!(server.requests().len(), 1);
     }
 }

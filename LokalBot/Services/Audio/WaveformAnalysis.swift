@@ -11,9 +11,17 @@ enum WaveformAnalysis {
     struct Request: Hashable, Sendable {
         let sources: [Source]
         let duration: TimeInterval
+        let binCount: Int
+
+        init(sources: [Source], duration: TimeInterval, binCount: Int = WaveformAnalysis.binCount) {
+            self.sources = sources
+            self.duration = duration
+            self.binCount = binCount
+        }
     }
 
-    private static let binCount = 1_024
+    static let binCount = 1_024
+    static let detailBinCount = 16_384
     private static let cache: NSCache<NSString, PeaksBox> = {
         let cache = NSCache<NSString, PeaksBox>()
         cache.countLimit = 64
@@ -55,16 +63,18 @@ enum WaveformAnalysis {
         guard request.sources.allSatisfy({ $0.url.isFileURL && $0.url.deletingLastPathComponent() == folder }) else {
             return nil
         }
-        return folder.appendingPathComponent(".waveform-peaks-v2.json")
+        let fileName = request.binCount == binCount ? ".waveform-peaks-v2.json" : ".waveform-peaks-detail-v1.json"
+        return folder.appendingPathComponent(fileName)
     }
 
     private static func readDiskCache(_ request: Request, key: String) -> [Float]? {
+        let maxBytes = request.binCount == binCount ? 65_536 : 1_048_576
         guard let url = diskCacheURL(for: request),
               let attributes = try? FileManager.default.attributesOfItem(atPath: url.path),
-              let size = attributes[.size] as? NSNumber, size.intValue <= 65_536,
+              let size = attributes[.size] as? NSNumber, size.intValue <= maxBytes,
               let data = try? Data(contentsOf: url),
               let entry = try? JSONDecoder().decode(DiskEntry.self, from: data),
-              entry.key == key, entry.peaks.count == binCount,
+              entry.key == key, entry.peaks.count == request.binCount,
               entry.peaks.allSatisfy({ $0.isFinite && $0 >= 0 && $0 <= 1 }) else { return nil }
         return entry.peaks
     }
@@ -86,17 +96,19 @@ enum WaveformAnalysis {
             let modified = attributes?[.modificationDate] as? Date
             return "\(source.url.absoluteString)|\(source.gain)|\(size?.int64Value ?? -1)|\(modified?.timeIntervalSince1970 ?? 0)"
         }
-        return ("\(request.duration):" + files.joined(separator: "\n")) as NSString
+        let binPrefix = request.binCount == binCount ? "" : "b\(request.binCount):"
+        return ("\(binPrefix)\(request.duration):" + files.joined(separator: "\n")) as NSString
     }
 
     static func decode(_ request: Request) -> [Float]? {
+        let bins = max(1, request.binCount)
         guard request.duration.isFinite, request.duration > 0 else { return nil }
-        var combined = [Float](repeating: 0, count: binCount)
+        var combined = [Float](repeating: 0, count: bins)
         var decodedTrack = false
         for source in request.sources {
             guard !Task.isCancelled else { return nil }
             guard source.gain.isFinite, source.gain > 0,
-                  let track = decode(source, duration: request.duration) else { continue }
+                  let track = decode(source, duration: request.duration, binCount: bins) else { continue }
             decodedTrack = true
             for index in combined.indices {
                 combined[index] = max(combined[index], track[index])
@@ -107,7 +119,7 @@ enum WaveformAnalysis {
         return maximum > 0 ? combined.map { $0 / maximum } : combined
     }
 
-    private static func decode(_ source: Source, duration: TimeInterval) -> [Float]? {
+    private static func decode(_ source: Source, duration: TimeInterval, binCount: Int) -> [Float]? {
         guard let file = try? AVAudioFile(forReading: source.url,
                                          commonFormat: .pcmFormatFloat32, interleaved: false),
               file.length > 0 else { return nil }
@@ -163,6 +175,30 @@ enum WaveformAnalysis {
             let start = index * peaks.count / count
             let end = (index + 1) * peaks.count / count
             return peaks[start..<end].max() ?? 0
+        }
+    }
+
+    static func resample(
+        _ peaks: [Float],
+        duration: TimeInterval,
+        visibleStart: TimeInterval,
+        visibleEnd: TimeInterval,
+        width: Double
+    ) -> [Float] {
+        guard !peaks.isEmpty, duration.isFinite, duration > 0,
+              visibleStart.isFinite, visibleEnd.isFinite, visibleEnd > visibleStart,
+              width.isFinite, width > 0 else { return [] }
+        let startRatio = clamp(visibleStart / duration)
+        let endRatio = clamp(visibleEnd / duration)
+        guard endRatio > startRatio else { return [] }
+        let startIndex = min(peaks.count - 1, max(0, Int(floor(startRatio * Double(peaks.count)))))
+        let endIndex = min(peaks.count, max(startIndex + 1, Int(ceil(endRatio * Double(peaks.count)))))
+        let slice = peaks[startIndex..<endIndex]
+        let count = min(slice.count, max(1, Int(min(width / 4, Double(slice.count)))))
+        return (0..<count).map { index in
+            let lo = startIndex + index * slice.count / count
+            let hi = min(endIndex, max(lo + 1, startIndex + (index + 1) * slice.count / count))
+            return peaks[lo..<hi].max() ?? 0
         }
     }
 
