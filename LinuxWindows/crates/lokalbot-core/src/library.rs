@@ -110,6 +110,37 @@ pub enum MeetingLookup {
     Ambiguous(Vec<String>),
 }
 
+impl MeetingLookup {
+    pub fn find(meetings: &[Meeting], reference: &str) -> Self {
+        let reference = reference.trim().to_lowercase();
+        if reference == "latest" {
+            return meetings
+                .first()
+                .cloned()
+                .map(Self::Found)
+                .unwrap_or(Self::NotFound);
+        }
+        if let Ok(id) = Uuid::parse_str(&reference) {
+            return meetings
+                .iter()
+                .find(|m| m.id == id)
+                .cloned()
+                .map(Self::Found)
+                .unwrap_or(Self::NotFound);
+        }
+        let prefix = reference.replace('-', "");
+        let matches: Vec<&Meeting> = meetings
+            .iter()
+            .filter(|m| m.id.simple().to_string().starts_with(&prefix))
+            .collect();
+        match matches.as_slice() {
+            [] => Self::NotFound,
+            [only] => Self::Found((*only).clone()),
+            _ => Self::Ambiguous(matches.iter().map(|m| m.short_id()).collect()),
+        }
+    }
+}
+
 impl Library {
     pub(crate) fn chat_key_slot(&self) -> &parking_lot::RwLock<Option<crate::sealed::KeySource>> {
         &self.inner.chat_keys
@@ -304,35 +335,7 @@ impl Library {
     }
 
     pub fn find_meeting(&self, reference: &str) -> Result<MeetingLookup> {
-        let reference = reference.trim().to_lowercase();
-        let meetings = self.list_meetings()?;
-        if reference == "latest" {
-            return Ok(meetings
-                .into_iter()
-                .next()
-                .map(MeetingLookup::Found)
-                .unwrap_or(MeetingLookup::NotFound));
-        }
-        if let Ok(id) = Uuid::parse_str(&reference) {
-            return Ok(meetings
-                .into_iter()
-                .find(|m| m.id == id)
-                .map(MeetingLookup::Found)
-                .unwrap_or(MeetingLookup::NotFound));
-        }
-        let matches: Vec<Meeting> = meetings
-            .into_iter()
-            .filter(|m| {
-                m.id.simple()
-                    .to_string()
-                    .starts_with(&reference.replace('-', ""))
-            })
-            .collect();
-        Ok(match matches.len() {
-            0 => MeetingLookup::NotFound,
-            1 => MeetingLookup::Found(matches.into_iter().next().unwrap()),
-            _ => MeetingLookup::Ambiguous(matches.iter().map(|m| m.short_id()).collect()),
-        })
+        Ok(MeetingLookup::find(&self.list_meetings()?, reference))
     }
 
     pub fn create_meeting(

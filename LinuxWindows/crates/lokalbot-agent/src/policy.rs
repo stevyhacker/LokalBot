@@ -723,6 +723,7 @@ mod tests {
             "lokalbot-cli restart",
             "lokalbot-cli models download whisper",
             "lokalbot-cli install-skill",
+            "lokalbot-cli reprocess eb749eed --wait 600",
         ] {
             assert!(!is_library_lookup(Some(command)), "{command}");
         }

@@ -884,6 +884,77 @@ fn fake_app(replies: Vec<Value>) -> FakeApp {
 }
 
 #[cfg(unix)]
+fn processing(state: &str) -> Value {
+    serde_json::json!({"protocol": 1, "result": {
+        "id": "fb709013",
+        "title": "Pricing review",
+        "state": state,
+    }})
+}
+
+#[cfg(unix)]
+#[test]
+fn reprocess_asks_the_app_to_summarize_again() {
+    let app = fake_app(vec![processing("queued")]);
+    let output = cli(&app.root, &["reprocess", "fb709013"]);
+    assert!(output.status.success(), "{output:?}");
+    let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+    assert_eq!(reply["state"], "queued");
+    let sent = app.requests.recv().unwrap();
+    assert_eq!(sent["method"], "meetings.reprocess");
+    assert_eq!(sent["params"]["id"], "fb709013");
+    assert_eq!(sent["params"]["transcribe"], false);
+    assert_eq!(sent["params"]["summarize"], true);
+
+    let app = fake_app(vec![processing("queued")]);
+    let output = cli(
+        &app.root,
+        &["reprocess", "latest", "--transcribe", "--no-summary"],
+    );
+    assert!(output.status.success(), "{output:?}");
+    let sent = app.requests.recv().unwrap();
+    assert_eq!(sent["params"]["transcribe"], true);
+    assert_eq!(sent["params"]["summarize"], false);
+}
+
+#[cfg(unix)]
+#[test]
+fn reprocess_wait_follows_the_work_until_it_settles() {
+    for (states, code) in [
+        (vec!["summarizing", "idle"], 0),
+        (vec!["failed"], 1),
+        (vec!["waitingForModels"], 3),
+    ] {
+        let mut replies = vec![processing("queued")];
+        replies.extend(states.iter().map(|state| processing(state)));
+        let app = fake_app(replies);
+        let output = cli(&app.root, &["reprocess", "fb709013", "--wait", "60"]);
+        assert_eq!(output.status.code(), Some(code), "{states:?}: {output:?}");
+        let reply: Value = serde_json::from_str(&stdout(&output)).unwrap();
+        assert_eq!(reply["state"], *states.last().unwrap());
+        assert_eq!(app.requests.recv().unwrap()["method"], "meetings.reprocess");
+        for _ in &states {
+            let poll = app.requests.recv().unwrap();
+            assert_eq!(poll["method"], "meetings.processing");
+            assert_eq!(poll["params"]["id"], "fb709013");
+        }
+    }
+}
+
+#[test]
+fn reprocess_checks_its_flags_before_asking_the_app() {
+    let dir = tempfile::tempdir().unwrap();
+    let no_summary = cli(dir.path(), &["reprocess", "fb709013", "--no-summary"]);
+    assert_eq!(no_summary.status.code(), Some(2), "{no_summary:?}");
+    let wait = cli(dir.path(), &["reprocess", "fb709013", "--wait", "0"]);
+    assert!(!wait.status.success(), "{wait:?}");
+    assert!(
+        String::from_utf8_lossy(&wait.stderr).contains("--wait must be positive"),
+        "{wait:?}"
+    );
+}
+
+#[cfg(unix)]
 fn waiting_request(state: &str) -> Value {
     serde_json::json!({
         "id": "ID-1",

@@ -41,6 +41,8 @@ pub const METHOD_SETTINGS_REQUEST: &str = "settings.request";
 pub const METHOD_SECRET_LIST: &str = "secret.list";
 pub const METHOD_SECRET_SET: &str = "secret.set";
 pub const METHOD_SECRET_CLEAR: &str = "secret.clear";
+pub const METHOD_MEETINGS_REPROCESS: &str = "meetings.reprocess";
+pub const METHOD_MEETINGS_PROCESSING: &str = "meetings.processing";
 pub const METHOD_SETUP_PLAN: &str = "setup.plan";
 pub const METHOD_SETUP_FINISH: &str = "setup.finish";
 pub const METHOD_MODELS_STATUS: &str = "models.status";
@@ -182,6 +184,15 @@ impl ControlError {
             format!(
                 "No API key is named {name}. Choose one of: {}.",
                 names.join(", ")
+            ),
+        )
+    }
+
+    pub fn unknown_meeting(id: &str) -> Self {
+        Self::new(
+            "unknown_meeting",
+            format!(
+                "No meeting matches {id}. Run `lokalbot-cli list` for meeting IDs; a short ID must match only one meeting."
             ),
         )
     }

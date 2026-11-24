@@ -8,6 +8,7 @@ use lokalbot_core::control::protocol::{
     PERMISSION_NAMES, Request, RequestState, SETTINGS_DESTINATIONS,
 };
 use lokalbot_core::control::registry::{self, SettingCategory, SettingSpec, SettingTier};
+use lokalbot_core::control::reprocess;
 use lokalbot_core::control::setup::{self, Grant, SetupAnswer, SetupPlan, SetupRequest};
 use lokalbot_core::control::{change::ChangeRequest, socket};
 use lokalbot_core::{LibraryPaths, access};
@@ -21,6 +22,8 @@ pub const EXIT_DENIED: i32 = 4;
 pub const EXIT_EXPIRED: i32 = 5;
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(15);
+const PROCESSING_POLL: Duration = Duration::from_secs(2);
+const MAXIMUM_PROCESSING_WAIT: f64 = 3600.0;
 
 /// How commands that need the running app reach it.
 #[derive(Args, Debug, Clone)]
@@ -1193,6 +1196,70 @@ pub fn run_permissions(
         }
     };
     Ok(pretty(&launch.request(client, method, params)?))
+}
+
+pub fn run_reprocess(
+    id: &str,
+    transcribe: bool,
+    no_summary: bool,
+    wait: Option<f64>,
+    launch: &LaunchOptions,
+    client: &Client,
+) -> Result<String, CliError> {
+    if wait.is_some_and(|seconds| seconds <= 0.0) {
+        return Err(validation("--wait must be positive."));
+    }
+    let mut params = Map::new();
+    params.insert("id".into(), json!(id));
+    params.insert("transcribe".into(), json!(transcribe));
+    params.insert("summarize".into(), json!(!no_summary));
+    let queued = launch.request(client, protocol::METHOD_MEETINGS_REPROCESS, Some(params))?;
+    let Some(wait) = wait else {
+        return Ok(pretty(&queued));
+    };
+    stderr("Following the work in LokalBot…");
+    let id = queued["id"].as_str().unwrap_or(id);
+    let status = follow_processing(client, id, wait, launch.launch_timeout)?;
+    match status["state"].as_str() {
+        None | Some("idle") => Ok(pretty(&status)),
+        Some("failed") => Err(exit(1, pretty(&status))),
+        Some("waitingForModels") => {
+            stderr(
+                "LokalBot is waiting for its models; download them in Settings → Models to finish.",
+            );
+            Err(exit(EXIT_WAITING, pretty(&status)))
+        }
+        Some(_) => {
+            stderr("Still running in LokalBot. Check again with a longer --wait, or in the app.");
+            Err(exit(EXIT_WAITING, pretty(&status)))
+        }
+    }
+}
+
+fn follow_processing(
+    client: &Client,
+    id: &str,
+    seconds: f64,
+    launch_timeout: f64,
+) -> Result<Value, CliError> {
+    let deadline =
+        Instant::now() + Duration::from_secs_f64(seconds.clamp(0.0, MAXIMUM_PROCESSING_WAIT));
+    let mut params = Map::new();
+    params.insert("id".into(), json!(id));
+    loop {
+        std::thread::sleep(PROCESSING_POLL);
+        let status = client
+            .request(
+                protocol::METHOD_MEETINGS_PROCESSING,
+                Some(params.clone()),
+                false,
+                launch_timeout,
+            )
+            .map_err(CliError::Control)?;
+        if reprocess::is_settled(status["state"].as_str()) || Instant::now() >= deadline {
+            return Ok(status);
+        }
+    }
 }
 
 pub fn run_status(launch: &LaunchOptions, client: &Client) -> Result<String, CliError> {

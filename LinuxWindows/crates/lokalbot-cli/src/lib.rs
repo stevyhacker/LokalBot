@@ -218,6 +218,35 @@ pub enum Command {
         /// Optional meeting ID. Omit to print the library root.
         id: Option<String>,
     },
+    /// Summarize a meeting again, or transcribe it again first, in LokalBot.
+    ///
+    /// Does what Reprocess does in the meeting's menu. By default LokalBot
+    /// writes new notes from the saved transcript with the notes model,
+    /// template, and language chosen in Settings, which may be a cloud model
+    /// the person approved. The previous notes are kept as summary.previous.md.
+    /// --transcribe runs speech recognition on the recording again first, on
+    /// this computer; add --no-summary to stop there.
+    ///
+    /// Needs "Allow external agents to change LokalBot settings". The work runs
+    /// in LokalBot, which this command starts in the background when it isn't
+    /// running. --wait follows it: exit 0 finished, 1 failed, 3 still running
+    /// or waiting for models when the wait ends.
+    Reprocess {
+        /// Meeting ID from `list`, or 'latest' for the most recent.
+        id: String,
+        /// Transcribe the recording again before summarizing. Speech recognition
+        /// runs on this computer.
+        #[arg(long)]
+        transcribe: bool,
+        /// With --transcribe, only transcribe and keep the current notes.
+        #[arg(long, requires = "transcribe")]
+        no_summary: bool,
+        /// Seconds to follow the work until it finishes (at most 3600).
+        #[arg(long, value_name = "seconds")]
+        wait: Option<f64>,
+        #[command(flatten)]
+        launch: control::LaunchOptions,
+    },
     /// Set LokalBot up for the person, with their approval in the app.
     ///
     /// `setup start` asks the person, in LokalBot, to let this agent change
@@ -555,6 +584,13 @@ pub fn run(cli: Cli) -> Result<String, CliError> {
                 table,
             )
         }
+        Command::Reprocess {
+            id,
+            transcribe,
+            no_summary,
+            wait,
+            launch,
+        } => control::run_reprocess(&id, transcribe, no_summary, wait, &launch, &client()),
         Command::Setup { command } => control::run_setup(command, &client()),
         Command::Config { command } => control::run_config(command, &client()),
         Command::Secret { command } => control::run_secret(command, &client()),

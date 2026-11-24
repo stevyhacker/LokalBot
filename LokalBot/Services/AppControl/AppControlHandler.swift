@@ -64,6 +64,10 @@ final class AppControlHandler {
                 return .success(["cleared": .string(secret.rawValue)])
             case .meetingsImport:
                 return .success(try await importMeetings(request.params ?? [:], caller: peer.description, in: app))
+            case .meetingsReprocess:
+                return .success(try reprocessMeeting(request.params ?? [:], caller: peer.description, in: app))
+            case .meetingsProcessing:
+                return .success(try processingState(request.params ?? [:], in: app))
             case .setupPlan, .setupFinish, .modelsStatus, .modelsPreset, .modelsDownload, .modelsCancel,
                  .permissionsList, .permissionsRequest, .launchAtLogin, .restart, .doctor:
                 return .success(try setupResponse(method, request.params ?? [:], peer: peer, in: app))
