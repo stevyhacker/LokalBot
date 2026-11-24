@@ -1,0 +1,23 @@
+{
+  "engine": "on-device demo",
+  "segments": [
+    {
+      "start": 0,
+      "end": 22,
+      "speaker": "me",
+      "text": "Goal: first meeting captured within ten minutes of install."
+    },
+    {
+      "start": 22,
+      "end": 44,
+      "speaker": "them",
+      "text": "Biggest drop-off is the permissions step \u2014 we should explain the mic prompt before it fires."
+    },
+    {
+      "start": 44,
+      "end": 62,
+      "speaker": "me",
+      "text": "Agreed. Pre-prompt explainer screen, then the system dialog."
+    }
+  ]
+}
