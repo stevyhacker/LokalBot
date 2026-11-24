@@ -193,7 +193,7 @@ enum ProjectStatusGenerator {
             context: [promptContext(evidence)],
             schema: schema(labels: evidence.meetings.map(\.label), enumLimit: engine.structuredOutputEnumLimit),
             options: TextGenerationOptions(maxTokens: 1_000 + engine.minimumStructuredOutputTokens,
-                                           reasoningBudgetTokens: 256, temperature: 0.2))
+                                           temperature: 0.2))
         guard let json = ChatPrompt.extractJSONObject(strippingReasoning(output)),
               let reply = try? JSONDecoder().decode(Reply.self, from: Data(json.utf8)) else {
             throw GenerationError.unreadableResponse

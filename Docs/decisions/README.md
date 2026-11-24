@@ -28,7 +28,7 @@ the bar a decision has to clear.
 | [0009](0009-timeline-today-and-the-dream-review.md) | Timeline, Today and the Dream review | 48 |
 | [0010](0010-ask-and-search.md) | Ask and search | 43 |
 | [0011](0011-agent-mode.md) | Agent Mode | 58 |
-| [0012](0012-models-and-inference.md) | Models and inference | 80 |
+| [0012](0012-models-and-inference.md) | Models and inference | 84 |
 | [0013](0013-coding-agent-sessions.md) | Coding-agent sessions | 39 |
 | [0014](0014-file-search.md) | File search | 22 |
 | [0015](0015-people-personal-model-projects-and-actions.md) | People, personal model, projects and actions | 34 |

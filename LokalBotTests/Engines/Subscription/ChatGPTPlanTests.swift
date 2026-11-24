@@ -516,7 +516,7 @@ final class ChatGPTPlanTests: XCTestCase {
         ]
         let request = try engine().makeRequest(
             system: "Write notes.", prompt: "Summarize.", context: ["Transcript A", "  "],
-            schema: schema, options: .init(maxTokens: 900, reasoningBudgetTokens: 0, temperature: 0.2),
+            schema: schema, options: .init(maxTokens: 900, reasoning: .off, temperature: 0.2),
             accessToken: "access-1")
         let body = try body(request)
 
@@ -550,16 +550,17 @@ final class ChatGPTPlanTests: XCTestCase {
     }
 
     func testGPT6RequestsCarryTheChosenLevel() throws {
-        func effort(_ model: String, _ level: ThinkReasoningLevel, taskBudget: Int? = nil) throws -> String? {
+        func effort(_ model: String, _ level: ThinkReasoningLevel, reasoning: TaskReasoning? = nil) throws -> String? {
             let request = try engine(level: level, model: model).makeRequest(
                 system: "", prompt: "Hi", context: [], schema: nil,
-                options: taskBudget.map { .init(reasoningBudgetTokens: $0) }, accessToken: "t")
+                options: reasoning.map { .init(reasoning: $0) }, accessToken: "t")
             return (try body(request)["reasoning"] as? [String: Any])?["effort"] as? String
         }
         XCTAssertEqual(try effort("gpt-6.1-sol", .high), "high")
         XCTAssertEqual(try effort("gpt-6.1-sol", .max), "max")
-        XCTAssertEqual(try effort("gpt-6.1-sol", .high, taskBudget: 0), "low", "6.1 Sol rejects none")
-        XCTAssertEqual(try effort("gpt-6-luna", .high, taskBudget: 0), "none")
+        XCTAssertEqual(try effort("gpt-6.1-sol", .high, reasoning: .off), "low", "6.1 Sol rejects none")
+        XCTAssertEqual(try effort("gpt-6-luna", .high, reasoning: .off), "none")
+        XCTAssertEqual(try effort("gpt-6-luna", .high, reasoning: .modelDefault), "high")
         XCTAssertNil(try effort("gpt-6.1-sol", .automatic))
         XCTAssertEqual(engine(model: "gpt-6.1-sol").minimumStructuredOutputTokens, 2_048,
                        "reasoning cannot be switched off")

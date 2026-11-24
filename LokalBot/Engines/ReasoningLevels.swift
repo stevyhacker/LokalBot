@@ -49,22 +49,22 @@ enum ThinkReasoningLevel: String, Codable, CaseIterable, Identifiable, Comparabl
         case .max: 24_576
         }
     }
+}
 
-    static func ceiling(forTaskBudget tokens: Int) -> Self {
-        if tokens <= 0 { return .off }
-        if tokens <= 512 { return .low }
-        if tokens <= 4_096 { return .medium }
-        return .high
-    }
+enum TaskReasoning: Equatable, Sendable {
+    case modelDefault
+    case off
 }
 
 struct ReasoningSupport: Equatable, Sendable {
     var levels: [ThinkReasoningLevel]
     var defaultLevel: ThinkReasoningLevel?
+    var templateTakesEffort: Bool
 
-    init(levels: [ThinkReasoningLevel], defaultLevel: ThinkReasoningLevel? = nil) {
+    init(levels: [ThinkReasoningLevel], defaultLevel: ThinkReasoningLevel? = nil, templateTakesEffort: Bool = false) {
         self.levels = levels.filter { $0 != .automatic }.sorted()
         self.defaultLevel = defaultLevel
+        self.templateTakesEffort = templateTakesEffort
     }
 
     static let unavailable = ReasoningSupport(levels: [])
@@ -77,13 +77,22 @@ struct ReasoningSupport: Equatable, Sendable {
         return levels.last { $0 <= level } ?? levels.first
     }
 
-    func requestLevel(_ level: ThinkReasoningLevel, taskBudget: Int?) -> ThinkReasoningLevel? {
+    func requestLevel(_ level: ThinkReasoningLevel, reasoning: TaskReasoning) -> ThinkReasoningLevel? {
         guard level != .automatic else {
-            guard taskBudget == 0, let defaultLevel, defaultLevel > .off, levels.contains(.off) else { return nil }
+            guard reasoning == .off, let defaultLevel, defaultLevel > .off, levels.contains(.off) else { return nil }
             return .off
         }
-        let ceiling = taskBudget.map(ThinkReasoningLevel.ceiling(forTaskBudget:)) ?? level
-        return clamp(Swift.min(level, ceiling))
+        return clamp(reasoning == .off ? .off : level)
+    }
+
+    var thinksByDefault: Bool { defaultLevel.map { $0 > .off } ?? true }
+
+    func reasoningAllowance(_ level: ThinkReasoningLevel, reasoning: TaskReasoning, answerTokens: Int?) -> Int {
+        guard reasoning == .modelDefault else { return 0 }
+        if let chosen = requestLevel(level, reasoning: reasoning) { return max(0, chosen.budgetTokens ?? 0) }
+        guard thinksByDefault else { return 0 }
+        let cap = MainLLMRuntimePolicy.highReasoningBudgetTokens
+        return min(cap, answerTokens.map { max(1, $0) } ?? cap)
     }
 
     var automaticTitle: String {
@@ -187,12 +196,23 @@ extension ReasoningSupport {
     }
 
     private static func builtIn(_ id: String) -> ReasoningSupport {
+        let adjustable: [ThinkReasoningLevel] = [.off, .low, .medium, .high]
         switch id {
-        case "ministral-3-3b-instruct-2512": .unavailable
-        case "lfm2.5-2.6b": .init(levels: [.low, .medium, .high])
+        case "ministral-3-3b-instruct-2512":
+            return .init(levels: [], defaultLevel: .off)
+        case "lfm2.5-2.6b":
+            return .init(levels: [.low, .medium, .high], defaultLevel: .high)
+        case "qwen3.5-4b", "qwen3.6-35b-a3b", "qwen3.6-27b":
+            return .init(levels: adjustable, defaultLevel: .high)
+        case "inkling-2-mini":
+            return .init(levels: adjustable, defaultLevel: .high, templateTakesEffort: true)
+        case "qwen3.5-0.8b", "qwen3.5-2b", "gemma4-e4b", "gemma4-e4b-q5-xl", "gemma4-12b",
+             "lfm2.5-1.2b-instruct", "granite-4.1-3b":
+            return .init(levels: adjustable, defaultLevel: .off)
         case let id where id.hasPrefix("qwen3.5-4b-lokalbot-v"):
-            .init(levels: [.off, .low, .medium, .high], defaultLevel: .off)
-        default: .init(levels: [.off, .low, .medium, .high])
+            return .init(levels: adjustable, defaultLevel: .off)
+        default:
+            return .init(levels: adjustable)
         }
     }
 

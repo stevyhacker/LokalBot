@@ -9,13 +9,13 @@ final class AgentLLMEndpointTests: XCTestCase {
         return s
     }
 
-    func testMainLLMUsesHighReasoningAnd32KContextPolicy() {
+    func testMainLLMRunsWithAutomaticReasoningAndA32KContext() {
         XCTAssertEqual(MainLLMRuntimePolicy.contextTokens, 32_768)
         XCTAssertEqual(MainLLMRuntimePolicy.highReasoningBudgetTokens, 8_192)
         XCTAssertEqual(AgentLLMEndpoint.defaultContextTokens, 32_768)
         XCTAssertEqual(
             Array(MainLLMRuntimePolicy.serverExtraArguments.suffix(2)),
-            ["--reasoning", "on"])
+            ["--reasoning", "auto"])
     }
 
     func testBuiltInResolvesToModelID() {

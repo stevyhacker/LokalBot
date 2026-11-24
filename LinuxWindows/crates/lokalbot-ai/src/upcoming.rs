@@ -549,7 +549,6 @@ pub fn generate_brief(think: &ThinkClient, evidence: &UpcomingEvidence) -> Resul
     );
     let request = ChatRequest::new(BRIEF_SYSTEM, user)
         .max_tokens(420 + think.minimum_structured_output_tokens())
-        .reasoning_budget(256)
         .temperature(0.2)
         .json_schema(schema);
     let output = think.complete(&request)?;

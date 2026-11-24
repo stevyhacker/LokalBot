@@ -42,5 +42,6 @@ pub use download::{DownloadSpec, download, extract_archive};
 pub use error::{AiError, ai_error};
 pub use runtime::{Lease, LlamaBackend, LlamaServer, Role, RuntimeManager};
 pub use think::{
-    ChatRequest, Completion, CompletionClient, CompletionRequest, EmbeddingClient, ThinkClient,
+    ChatRequest, Completion, CompletionClient, CompletionRequest, EmbeddingClient, TaskReasoning,
+    ThinkClient,
 };

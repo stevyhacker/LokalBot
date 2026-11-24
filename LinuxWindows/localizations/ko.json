@@ -349,7 +349,7 @@
   "Hindi": "힌디어",
   "Hold the modifiers and press a key, like Ctrl+Shift+Space.": "수정자를 누른 상태에서 Ctrl+Shift+Space와 같은 키를 누릅니다.",
   "How LokalBot uses this": "LokalBot이 이를 사용하는 방법",
-  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own default. A level sets the most any task uses. Agent Mode follows this unless you pick its own level in the Agent composer.": "요약과 질문에서 사고 모델이 답하기 전에 얼마나 추론할지 정합니다. 선택할 수 있는 수준은 이 모델이 지원하는 수준입니다. 자동은 LokalBot이 작업별로 정한 양과 서버 자체 기본값을 유지합니다. 수준을 고르면 모든 작업이 그 이하로 사용합니다. 에이전트 모드는 에이전트 입력창에서 별도 수준을 고르지 않으면 이 설정을 따릅니다.",
+  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic lets the model use its own default. A level applies to every task except quick ones, such as Compose and selection actions, which always skip reasoning. Agent Mode follows this unless you pick its own level in the Agent composer.": "요약과 질문에서 사고 모델이 답하기 전에 얼마나 추론할지 정합니다. 선택할 수 있는 수준은 이 모델이 지원하는 수준입니다. 자동은 모델이 자체 기본값을 쓰게 합니다. 수준을 고르면 모든 작업에 적용되지만, 작성과 선택 영역 작업 같은 빠른 작업은 항상 추론을 건너뜁니다. 에이전트 모드는 에이전트 입력창에서 별도 수준을 고르지 않으면 이 설정을 따릅니다.",
   "How much the agent reasons before each step, from the levels this model accepts. Same as Think follows Settings → Models. A change applies from the agent's next step.": "이 모델이 허용하는 수준에서 각 단계 전에 에이전트가 추론하는 정도입니다. Think와 동일하게 설정 → 모델을 따릅니다. 변경사항은 상담원의 다음 단계부터 적용됩니다.",
   "Hybrid": "하이브리드",
   "Identifying speakers": "화자 식별",

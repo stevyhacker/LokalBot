@@ -111,7 +111,7 @@ enum FollowUpDraftGenerator {
             prompt: "Draft the follow-up email for \(evidence.meetingTitle).",
             context: [promptContext(evidence)],
             schema: schema,
-            options: TextGenerationOptions(maxTokens: 900, reasoningBudgetTokens: 256, temperature: 0.3))
+            options: TextGenerationOptions(maxTokens: 900, temperature: 0.3))
         guard let json = ChatPrompt.extractJSONObject(strippingReasoning(output)),
               let draft = try? JSONDecoder().decode(Draft.self, from: Data(json.utf8)) else {
             throw GenerationError.unreadableResponse

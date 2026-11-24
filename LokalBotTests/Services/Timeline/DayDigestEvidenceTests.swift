@@ -30,7 +30,7 @@ final class DayDigestEvidenceTests: XCTestCase {
         struct Call: Equatable, Sendable {
             var isFocus: Bool
             var maxTokens: Int?
-            var reasoningBudgetTokens: Int?
+            var reasoning: TaskReasoning
             var temperature: Double?
         }
 
@@ -44,7 +44,7 @@ final class DayDigestEvidenceTests: XCTestCase {
             calls.append(Call(
                 isFocus: isFocus,
                 maxTokens: options.maxTokens,
-                reasoningBudgetTokens: options.reasoningBudgetTokens,
+                reasoning: options.reasoning,
                 temperature: options.temperature))
             return calls.filter { $0.isFocus == isFocus }.count
         }
@@ -597,12 +597,12 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertEqual(calls.count, 4)
         XCTAssertTrue(calls.prefix(3).allSatisfy {
             $0.isFocus && $0.maxTokens == 2_048
-                && $0.reasoningBudgetTokens == 256 && $0.temperature == 0.2
+                && $0.reasoning == .modelDefault && $0.temperature == 0.2
         })
         XCTAssertEqual(calls.last, GenerationRecorder.Call(
             isFocus: false,
             maxTokens: 1_600,
-            reasoningBudgetTokens: 512,
+            reasoning: .modelDefault,
             temperature: 0.2))
     }
 
@@ -631,7 +631,7 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertEqual(calls[1], GenerationRecorder.Call(
             isFocus: true,
             maxTokens: 4_096,
-            reasoningBudgetTokens: 0,
+            reasoning: .off,
             temperature: 0))
     }
 
@@ -659,7 +659,7 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertEqual(calls[1], GenerationRecorder.Call(
             isFocus: true,
             maxTokens: 4_096,
-            reasoningBudgetTokens: 0,
+            reasoning: .off,
             temperature: 0))
     }
 
@@ -918,7 +918,7 @@ final class DayDigestEvidenceTests: XCTestCase {
         XCTAssertEqual(calls.last, GenerationRecorder.Call(
             isFocus: false,
             maxTokens: 3_200,
-            reasoningBudgetTokens: 0,
+            reasoning: .off,
             temperature: 0))
     }
 

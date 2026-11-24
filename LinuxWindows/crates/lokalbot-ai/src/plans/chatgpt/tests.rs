@@ -572,7 +572,6 @@ fn responses_requests_stream_without_storage_or_sampling() {
     let mut request = ChatRequest::new("Be brief.", "Summarize.")
         .max_tokens(500)
         .temperature(0.2)
-        .reasoning_budget(256)
         .json_schema(json!({"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"], "additionalProperties": false}));
     request.context = vec!["Transcript".into(), "  ".into()];
     let mut deltas = String::new();
@@ -598,7 +597,7 @@ fn responses_requests_stream_without_storage_or_sampling() {
     assert_eq!(body["instructions"], "Be brief.");
     assert_eq!(body["text"]["format"]["type"], "json_schema");
     assert_eq!(body["text"]["format"]["strict"], true);
-    assert_eq!(body["reasoning"]["effort"], "low");
+    assert_eq!(body["reasoning"]["effort"], "high");
     let content = body["input"][0]["content"].as_array().unwrap();
     assert_eq!(content.len(), 2, "blank context blocks are dropped");
     assert_eq!(content[0]["text"], "Transcript");

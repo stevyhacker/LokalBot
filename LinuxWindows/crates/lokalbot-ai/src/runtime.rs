@@ -18,7 +18,7 @@ use crate::process;
 
 mod cuda;
 
-pub const LLAMA_BUILD: &str = "b12359";
+pub const LLAMA_BUILD: &str = "b12613";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -88,16 +88,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "win-vulkan-x64",
-        name: "llama-b12359-bin-win-vulkan-x64.zip",
-        size: 38_090_643,
-        sha256: "e8d18c6e4210cca87e7307c2ea78363ac8d158e4e1397358ec96ab70b53a0d5e",
+        name: "llama-b12613-bin-win-vulkan-x64.zip",
+        size: 38_845_965,
+        sha256: "56f1fca056efc933a39226fa767328a0082ebd42ec3c4d2e0193a37ac44abdee",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "win-cpu-x64",
-        name: "llama-b12359-bin-win-cpu-x64.zip",
-        size: 25_097_509,
-        sha256: "837c1655e87df3b66989f4be33a792a1399c785bf259038dc75c900096683e69",
+        name: "llama-b12613-bin-win-cpu-x64.zip",
+        size: 25_009_376,
+        sha256: "4c4ca218083b090393f517b598e7c86fc61e62f4d15f8748d6fedf24f809f429",
     },
 ];
 
@@ -108,16 +108,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "ubuntu-vulkan-x64",
-        name: "llama-b12359-bin-ubuntu-vulkan-x64.tar.gz",
-        size: 36_153_377,
-        sha256: "19b60f00395a3f4954e46a5037695bc1d843404fc9d3124f82a612ecd8fbe9f0",
+        name: "llama-b12613-bin-ubuntu-vulkan-x64.tar.gz",
+        size: 36_860_521,
+        sha256: "0f9e00b9d370ae23319ed1cede97b3edbee4ba826b593f2181a2972e99e44e4e",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "ubuntu-x64",
-        name: "llama-b12359-bin-ubuntu-x64.tar.gz",
-        size: 23_311_084,
-        sha256: "0bc1f091e8916102b6d8f2cf944233a620e90a0f856c72d0ce41150c65c2e72e",
+        name: "llama-b12613-bin-ubuntu-x64.tar.gz",
+        size: 23_184_889,
+        sha256: "1a1af0cb6dc2af9779e10085266de44084288d58a2917e14b64400c436fb124a",
     },
 ];
 
@@ -240,7 +240,7 @@ impl Role {
                     args.extend(["--cache-ram".into(), "2048".into()]);
                 }
                 if has("--reasoning") {
-                    args.extend(["--reasoning".into(), "on".into()]);
+                    args.extend(["--reasoning".into(), "auto".into()]);
                 }
             }
             Role::Embedder | Role::MediaEmbedder => {
@@ -2306,7 +2306,7 @@ mod tests {
         let all: Vec<String> = CONDITIONAL_FLAGS.iter().map(|f| f.to_string()).collect();
         assert_eq!(
             Role::Main.extra_args(&all),
-            ["--cache-ram", "2048", "--reasoning", "on"]
+            ["--cache-ram", "2048", "--reasoning", "auto"]
         );
         assert_eq!(Role::Main.extra_args(&[]), Vec::<String>::new());
         assert_eq!(
@@ -2342,7 +2342,7 @@ mod tests {
             assert!(
                 asset
                     .url()
-                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12359/")
+                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12613/")
             );
             assert!(asset.name.contains(asset.tag));
         }
@@ -2653,7 +2653,7 @@ mod tests {
     #[test]
     fn folder_and_archive_names_give_their_build() {
         for (name, build) in [
-            ("b12359-ubuntu-x64", Some("b12359")),
+            ("b12613-ubuntu-x64", Some("b12613")),
             ("b11669-win-cuda-13.4-x64", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz.part", Some("b11669")),

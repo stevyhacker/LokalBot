@@ -474,7 +474,7 @@ enum PersonalLearning {
         let output = try await engine.generate(
             system: system, prompt: prompt(utterances: lines, known: known), context: [],
             schema: schema,
-            options: TextGenerationOptions(maxTokens: maxOutputTokens, reasoningBudgetTokens: 0, temperature: 0))
+            options: TextGenerationOptions(maxTokens: maxOutputTokens, temperature: 0))
         return await groundedCandidates(from: output, utterances: lines, embed: embed) { utterance in
             provenance(for: utterance, revision: revision)
         }

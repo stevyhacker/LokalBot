@@ -70,7 +70,7 @@ enum DreamRollupService {
             let inside = DreamRollupFormat.reviews(in: period, from: reviews)
             let output = try await engine.generate(
                 system: system, prompt: prompt(period: period, reviews: inside, calendar: calendar), context: [],
-                options: TextGenerationOptions(maxTokens: 200, reasoningBudgetTokens: 0, temperature: 0.2))
+                options: TextGenerationOptions(maxTokens: 200, temperature: 0.2))
             guard let line = line(from: output) else { continue }
             let rollup = Rollup(kind: period.kind, key: period.key, firstDay: period.firstDay,
                                 lastDay: period.lastDay, line: line,

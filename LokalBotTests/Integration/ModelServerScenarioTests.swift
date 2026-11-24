@@ -114,7 +114,7 @@ final class ModelServerScenarioTests: XCTestCase {
         XCTAssertEqual(recorded, [7])
     }
 
-    func testReasoningHeavyModelFitsOnTheLargerRetry() async throws {
+    func testReasoningHeavyModelFitsInTheRoomLeftForThinking() async throws {
         try await server.load([
             StubRule.reasoning(focusJSON, tokens: 2_030, system: focus),
             StubRule.reply(digestJSON, system: aggregate),
@@ -124,8 +124,61 @@ final class ModelServerScenarioTests: XCTestCase {
             sleep: { _ in })
         XCTAssertEqual(result.quality, .complete)
         let focusRequests = try await server.requests().filter { $0.system.hasPrefix(focus) }
-        XCTAssertEqual(focusRequests.map(\.maxTokens),
-                       [DayDigestOverviewGenerator.focusTokens, DayDigestOverviewGenerator.focusRetryTokens])
+        XCTAssertEqual(focusRequests.map(\.maxTokens), [DayDigestOverviewGenerator.focusTokens * 2])
+    }
+
+    func testReplyThatSpendsItsWholeOutputThinkingIsRetriedOnceWithoutReasoning() async throws {
+        try await server.load([
+            StubRule.reasoning("Done", tokens: 50_000, nth: 1),
+            StubRule.reply("Done"),
+        ])
+
+        let reply = try await engine.generate(system: "system", prompt: "prompt", context: [],
+                                              options: .init(maxTokens: 512))
+
+        XCTAssertEqual(reply, "Done")
+        let requests = try await server.requests()
+        XCTAssertEqual(requests.map(\.maxTokens), [1_024, 512])
+        XCTAssertNil(requests[0].body["reasoning"], "the first request keeps the model's default")
+        XCTAssertEqual((requests[1].body["reasoning"] as? [String: Any])?["effort"] as? String, "none")
+    }
+
+    func testAnOffRequestThatRunsOutIsNotRetried() async throws {
+        try await server.load([StubRule.reasoning("Done", tokens: 50_000)])
+
+        do {
+            _ = try await engine.generate(system: "system", prompt: "prompt", context: [],
+                                          options: .init(maxTokens: 512, reasoning: .off))
+            XCTFail("expected a truncated reply")
+        } catch TextEngineError.outputTruncated {}
+
+        let requests = try await server.requests()
+        XCTAssertEqual(requests.count, 1)
+    }
+
+    func testReasoningFallbackInsideANotesBudgetIsChargedAsASecondRequest() async throws {
+        try await server.load([
+            StubRule.reasoning("Done", tokens: 1_100, nth: 1),
+            StubRule.reply("Done"),
+        ])
+        let budget = MeetingGenerationBudget()
+        let engine = engine
+
+        let reply = try await budget.run {
+            try await engine.generate(system: "system", prompt: "prompt", context: [],
+                                      options: .init(maxTokens: 512))
+        }
+
+        XCTAssertEqual(reply, "Done")
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        await budget.saveMetrics(in: folder, outcome: "test")
+        let report = try XCTUnwrap(JSONSerialization.jsonObject(
+            with: Data(contentsOf: folder.appendingPathComponent("notes-generation-metrics.json"))) as? [String: Any])
+        XCTAssertEqual(report["requests"] as? Int, 2)
+        let calls = try XCTUnwrap(report["calls"] as? [[String: Any]])
+        XCTAssertEqual(calls.map { $0["outcome"] as? String }, ["truncated", "complete"])
     }
 
     func testMalformedJSONTakesTheRetryPrompt() async throws {

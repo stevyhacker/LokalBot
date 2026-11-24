@@ -16,7 +16,7 @@ use super::PlanError;
 use crate::anthropic::ModelTraits;
 use crate::error::AiError;
 use crate::json as model_json;
-use crate::think::{ChatRequest, Completion, ReasoningSupport, Usage, ceiling_for_budget};
+use crate::think::{ChatRequest, Completion, ReasoningSupport, TaskReasoning, Usage};
 
 pub const SYSTEM_PROMPT_FILE: &str = "system-prompt.txt";
 const FALLBACK_SYSTEM_PROMPT: &str = "You are a helpful assistant.";
@@ -280,13 +280,15 @@ pub(crate) fn traits(model: &str) -> (ReasoningSupport, bool) {
     (traits.reasoning_support(), traits.thinks_by_default)
 }
 
-fn effort(model: &str, level: ReasoningLevel, task_budget: Option<u32>) -> Option<ReasoningLevel> {
+fn effort(model: &str, level: ReasoningLevel, reasoning: TaskReasoning) -> Option<ReasoningLevel> {
     let (support, thinks_by_default) = traits(model);
-    if let Some(level) = support.request_level(level, task_budget) {
+    if let Some(level) = support.request_level(level, reasoning) {
         return Some(level);
     }
-    let budget = task_budget.filter(|_| thinks_by_default)?;
-    support.clamp(ceiling_for_budget(budget))
+    if reasoning == TaskReasoning::Off && thinks_by_default {
+        return support.clamp(ReasoningLevel::Off);
+    }
+    None
 }
 
 pub fn arguments(
@@ -336,7 +338,7 @@ pub fn arguments(
     if !model.is_empty() {
         arguments.extend(["--model".into(), model.to_string()]);
     }
-    if let Some(effort) = effort(model, level, request.reasoning_budget) {
+    if let Some(effort) = effort(model, level, request.reasoning) {
         arguments.extend([
             "--effort".into(),
             crate::think::effort_value(effort).to_string(),
@@ -431,6 +433,7 @@ pub(crate) fn parse_result(json: &Value, wants_structured: bool) -> Result<Compl
         truncated,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -712,6 +715,7 @@ impl Engine {
                 truncated: false,
                 cancelled: true,
                 usage: None,
+                attempts: 1,
             });
         }
         let structured = request.json_schema.is_some();

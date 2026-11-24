@@ -1696,7 +1696,6 @@ pub fn answer_with_tools(
             )
             .json_schema(tool_call_schema(&specs))
             .max_tokens(512)
-            .reasoning_budget(128)
             .temperature(0.1)
             .keep_truncated();
             match think.complete_full(&retry) {

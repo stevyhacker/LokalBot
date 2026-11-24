@@ -349,7 +349,7 @@
   "Hindi": "ヒンディー語",
   "Hold the modifiers and press a key, like Ctrl+Shift+Space.": "修飾子を押したまま、Ctrl+Shift+Space などのキーを押します。",
   "How LokalBot uses this": "LokalBotでの使われ方",
-  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own default. A level sets the most any task uses. Agent Mode follows this unless you pick its own level in the Agent composer.": "要約と「質問」で、思考モデルが回答する前にどれだけ推論するかを設定します。選べるレベルは、このモデルが対応しているものです。「自動」では、LokalBotがタスクごとに決めた量とサーバー自身の既定値のままにします。レベルを選ぶと、どのタスクもその量を上限に使います。エージェントモードは、エージェントのコンポーザーで独自のレベルを選ばない限り、この設定に従います。",
+  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic lets the model use its own default. A level applies to every task except quick ones, such as Compose and selection actions, which always skip reasoning. Agent Mode follows this unless you pick its own level in the Agent composer.": "要約と「質問」で、思考モデルが回答する前にどれだけ推論するかを設定します。選べるレベルは、このモデルが対応しているものです。「自動」では、モデル自身の既定値を使います。レベルを選ぶとすべてのタスクに適用されますが、「文章作成」や選択テキスト操作のような素早いタスクは常に推論を省きます。エージェントモードは、エージェントのコンポーザーで独自のレベルを選ばない限り、この設定に従います。",
   "How much the agent reasons before each step, from the levels this model accepts. Same as Think follows Settings → Models. A change applies from the agent's next step.": "このモデルが受け入れるレベルから、各ステップの前にエージェントがどの程度推論するか。 Think と同じように、[設定] → [モデル] に進みます。変更はエージェントの次のステップから適用されます。",
   "Hybrid": "ハイブリッド",
   "Identifying speakers": "発言者の識別",

@@ -47,6 +47,8 @@ pub struct PlanInputs<'a> {
     pub library_root: &'a Path,
     pub endpoint: &'a LlmEndpoint,
     pub reasoning_level_file: Option<&'a Path>,
+    pub reasoning_default_off: bool,
+    pub reasoning_effort_template: bool,
     pub helpers_dir: Option<&'a Path>,
     pub private_roots: &'a [PathBuf],
     pub agent_capability: Option<&'a str>,
@@ -62,6 +64,8 @@ pub const ENV_DIALECT: &str = "LOKALBOT_LLM_REASONING_DIALECT";
 pub const ENV_API: &str = "LOKALBOT_LLM_API";
 pub const ENV_SERVED_BY: &str = "LOKALBOT_LLM_SERVED_BY";
 pub const ENV_REASONING_FILE: &str = "LOKALBOT_LLM_REASONING_FILE";
+pub const ENV_REASONING_DEFAULT_OFF: &str = "LOKALBOT_LLM_REASONING_DEFAULT_OFF";
+pub const ENV_REASONING_EFFORT_TEMPLATE: &str = "LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE";
 pub const ENV_PRIVATE_ROOTS: &str = "LOKALBOT_AGENT_PRIVATE_ROOTS";
 pub const ENV_API_KEY: &str = "LOKALBOT_LLM_API_KEY";
 pub const ENV_WORKSPACE_KIND: &str = "LOKALBOT_AGENT_WORKSPACE_KIND";
@@ -136,6 +140,16 @@ pub fn plan(inputs: PlanInputs<'_>) -> LaunchPlan {
         &mut env,
         ENV_REASONING_FILE,
         inputs.reasoning_level_file.map(path_string),
+    );
+    set(
+        &mut env,
+        ENV_REASONING_DEFAULT_OFF,
+        inputs.reasoning_default_off.then(|| "1".into()),
+    );
+    set(
+        &mut env,
+        ENV_REASONING_EFFORT_TEMPLATE,
+        inputs.reasoning_effort_template.then(|| "1".into()),
     );
     set(
         &mut env,
@@ -233,6 +247,8 @@ mod tests {
         capability: Option<&'static str>,
         session: SessionChoice,
         reasoning_file: Option<PathBuf>,
+        reasoning_default_off: bool,
+        reasoning_effort_template: bool,
         tools: Option<Vec<&'static str>>,
         plan: Option<SubscriptionPlan>,
         inherited_served_by: bool,
@@ -248,6 +264,8 @@ mod tests {
                 capability: None,
                 session: SessionChoice::Fresh,
                 reasoning_file: None,
+                reasoning_default_off: false,
+                reasoning_effort_template: false,
                 tools: None,
                 plan: None,
                 inherited_served_by: false,
@@ -299,6 +317,8 @@ mod tests {
             library_root: Path::new("/store"),
             endpoint: &endpoint,
             reasoning_level_file: options.reasoning_file.as_deref(),
+            reasoning_default_off: options.reasoning_default_off,
+            reasoning_effort_template: options.reasoning_effort_template,
             helpers_dir: options.helpers.then_some(Path::new("/opt/lokalbot")),
             private_roots: &private_roots,
             agent_capability: options.capability,
@@ -366,15 +386,21 @@ mod tests {
         let file = PathBuf::from("/tmp/lokalbot-agent-reasoning-x.json");
         let with_file = make(Options {
             reasoning_file: Some(file.clone()),
+            reasoning_default_off: true,
+            reasoning_effort_template: true,
             ..Options::default()
         });
         assert_eq!(
             with_file.environment[ENV_REASONING_FILE],
             file.to_string_lossy()
         );
+        assert_eq!(with_file.environment[ENV_REASONING_DEFAULT_OFF], "1");
+        assert_eq!(with_file.environment[ENV_REASONING_EFFORT_TEMPLATE], "1");
         let plain = make(Options::default()).environment;
         assert_eq!(plain[ENV_DIALECT], "llama-server");
         assert!(!plain.contains_key(ENV_REASONING_FILE));
+        assert!(!plain.contains_key(ENV_REASONING_DEFAULT_OFF));
+        assert!(!plain.contains_key(ENV_REASONING_EFFORT_TEMPLATE));
     }
 
     #[test]

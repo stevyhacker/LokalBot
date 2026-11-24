@@ -10,7 +10,7 @@ use crate::json::strip_reasoning;
 use crate::notes::view::normalized_text;
 use crate::prompts::{DICTATION_CLEANUP_SYSTEM, DICTATION_COMPOSE_SYSTEM};
 use crate::sanitize::{redact, sanitize};
-use crate::think::{ChatRequest, ThinkClient};
+use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 
 const SPOKEN_MAX_CHARACTERS: usize = 12_000;
 const WINDOW_TEXT_LIMIT: usize = 2_000;
@@ -348,7 +348,7 @@ pub fn prepare_with(
     };
     let request = ChatRequest::new(system, user)
         .max_tokens(4_096)
-        .reasoning_budget(0)
+        .reasoning(TaskReasoning::Off)
         .temperature(0.2);
     let output = think.complete(&request)?;
     let text = if writing {

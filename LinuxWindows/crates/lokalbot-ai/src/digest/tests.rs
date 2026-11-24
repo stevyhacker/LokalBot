@@ -165,8 +165,8 @@ fn two_passes_build_tasks_and_follow_ups() {
             "{user}"
         );
         if system.starts_with("You extract substantive work") {
-            assert_eq!(body["max_tokens"], 2048);
-            assert_eq!(body["thinking_budget_tokens"], 256);
+            assert_eq!(body["max_tokens"], 2048 + 2048);
+            assert_eq!(body["thinking_budget_tokens"], 2048);
             if user.contains("Standalone capture") {
                 return chat(focus("Notes capture", false));
             }

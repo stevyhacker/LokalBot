@@ -1101,7 +1101,7 @@ pub(super) fn table() -> Vec<SettingSpec> {
             Choice(REASONING_LEVELS),
             Preference,
             "reasoning effort thinking budget think off low medium high",
-            "How much the Think model reasons. automatic keeps per-task budgets.",
+            "How much the Think model reasons. automatic uses the model's own default.",
         ),
         e(
             "agentReasoningLevel",

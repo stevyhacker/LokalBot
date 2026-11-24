@@ -10,9 +10,7 @@ use lokalbot_core::settings::ReasoningLevel;
 use crate::error::AiError;
 use crate::http;
 use crate::json as model_json;
-use crate::think::{
-    ChatRequest, Completion, ReasoningSupport, Usage, ceiling_for_budget, effort_value,
-};
+use crate::think::{ChatRequest, Completion, ReasoningSupport, TaskReasoning, Usage, effort_value};
 
 pub const HOST: &str = "api.anthropic.com";
 const VERSION: &str = "2023-06-01";
@@ -110,14 +108,16 @@ impl ModelTraits {
     pub(crate) fn effort(
         &self,
         level: ReasoningLevel,
-        task_budget: Option<u32>,
+        reasoning: TaskReasoning,
     ) -> Option<ReasoningLevel> {
         let support = self.reasoning_support();
-        if let Some(level) = support.request_level(level, task_budget) {
+        if let Some(level) = support.request_level(level, reasoning) {
             return Some(level);
         }
-        let budget = task_budget.filter(|_| self.thinks_by_default)?;
-        support.clamp(ceiling_for_budget(budget))
+        if reasoning == TaskReasoning::Off && self.thinks_by_default {
+            return support.clamp(ReasoningLevel::Off);
+        }
+        None
     }
 
     fn max_tokens(
@@ -128,11 +128,13 @@ impl ModelTraits {
     ) -> u32 {
         let answer = requested.unwrap_or(DEFAULT_ANSWER_TOKENS).max(1);
         let thinking = if self.thinks_by_default {
+            let cap = crate::think::DEFAULT_THINKING_BUDGET.min(answer);
             match effort.or(self.default_effort) {
                 Some(ReasoningLevel::Low) => 4_096,
                 Some(ReasoningLevel::Medium) => 8_192,
                 _ => 16_384,
             }
+            .min(cap)
         } else {
             0
         };
@@ -279,7 +281,14 @@ impl Engine {
     }
 
     fn effort(&self, request: &ChatRequest) -> Option<ReasoningLevel> {
-        self.traits().effort(self.level, request.reasoning_budget)
+        self.traits().effort(self.level, request.reasoning)
+    }
+
+    pub(crate) fn reasoning_allowance(&self, request: &ChatRequest) -> u32 {
+        let answer = request.max_tokens.unwrap_or(DEFAULT_ANSWER_TOKENS).max(1);
+        self.traits()
+            .max_tokens(request.max_tokens, self.effort(request), false)
+            .saturating_sub(answer)
     }
 
     fn optional_fields(&self, request: &ChatRequest) -> BTreeSet<OptionalField> {
@@ -433,6 +442,7 @@ impl Engine {
                     truncated: false,
                     cancelled: true,
                     usage: None,
+                    attempts: 1,
                 });
             }
             match parse_stream_line(&line) {
@@ -481,6 +491,7 @@ impl Engine {
             truncated,
             cancelled: false,
             usage: Some(usage.usage()),
+            attempts: 1,
         })
     }
 
@@ -630,6 +641,7 @@ pub(crate) fn parse_message(json: &Value) -> Result<Completion> {
         truncated,
         cancelled: false,
         usage,
+        attempts: 1,
     })
 }
 
@@ -768,12 +780,32 @@ mod tests {
             ModelTraits::new("claude-3-haiku")
         );
         assert!(ModelTraits::new("claude-fable-5-1").server_fallback);
-        assert_eq!(opus.effort(Automatic, Some(0)), Some(Low));
-        assert_eq!(opus.effort(Automatic, None), None);
-        assert_eq!(opus.effort(Max, Some(4_096)), Some(Medium));
-        assert_eq!(opus.effort(Xhigh, None), Some(Xhigh));
-        assert_eq!(sonnet46.effort(Automatic, Some(0)), None);
-        assert_eq!(sonnet46.effort(Xhigh, None), Some(High));
+        let (off, model_default) = (TaskReasoning::Off, TaskReasoning::ModelDefault);
+        assert_eq!(opus.effort(Automatic, off), Some(Low));
+        assert_eq!(opus.effort(Automatic, model_default), None);
+        assert_eq!(opus.effort(Max, model_default), Some(Max));
+        assert_eq!(opus.effort(Max, off), Some(Low));
+        assert_eq!(opus.effort(Xhigh, model_default), Some(Xhigh));
+        assert_eq!(sonnet46.effort(Automatic, off), None);
+        assert_eq!(sonnet46.effort(Xhigh, model_default), Some(High));
+    }
+
+    #[test]
+    fn the_reasoning_allowance_is_the_room_added_to_the_answer() {
+        let request = ChatRequest::new("s", "u").max_tokens(2_000);
+        let opus = engine("", "claude-opus-5-5", ReasoningLevel::Automatic);
+        assert_eq!(opus.reasoning_allowance(&request), 2_000);
+        assert_eq!(
+            opus.reasoning_allowance(&request.clone().reasoning(TaskReasoning::Off)),
+            2_000
+        );
+        let large = ChatRequest::new("s", "u").max_tokens(12_000);
+        let sonnet = engine("", "claude-sonnet-5-5", ReasoningLevel::Automatic);
+        assert_eq!(sonnet.reasoning_allowance(&large), 8_000);
+        let mid = ChatRequest::new("s", "u").max_tokens(4_096);
+        assert_eq!(sonnet.reasoning_allowance(&mid), 4_096);
+        let sonnet46 = engine("", "claude-sonnet-4-6", ReasoningLevel::High);
+        assert_eq!(sonnet46.reasoning_allowance(&request), 0);
     }
 
     #[test]
@@ -818,7 +850,7 @@ mod tests {
             .context(vec!["Transcript part".into(), "  ".into()])
             .max_tokens(2_000)
             .temperature(0.0)
-            .reasoning_budget(0)
+            .reasoning(TaskReasoning::Off)
             .json_schema(json!({"type": "object", "properties": {"ok": {"type": "boolean"}}, "required": ["ok"]}));
         let completion = engine.complete(&request).unwrap();
         assert_eq!(completion.text, "{\"ok\": true}");
@@ -853,7 +885,7 @@ mod tests {
         );
         assert_eq!(body["output_config"]["effort"], "low");
         assert_eq!(body["fallbacks"], "default");
-        assert_eq!(body["max_tokens"], 2_000 + 4_096);
+        assert_eq!(body["max_tokens"], 2_000 + 2_000);
         assert!(body.get("temperature").is_none());
         assert!(body.get("stream").is_none());
         let raw = String::from_utf8(sent.body).unwrap();
@@ -956,7 +988,7 @@ mod tests {
         assert_eq!(completion.usage.unwrap().completion_tokens, Some(2));
         let body = server.requests().pop().unwrap().json();
         assert_eq!(body["stream"], true);
-        assert_eq!(body["max_tokens"], 100 + 8_192);
+        assert_eq!(body["max_tokens"], 100 + 100);
 
         let cut = StubServer::start(|_| {
             Reply::Sse(vec![

@@ -399,9 +399,9 @@ struct ModelStackOverviewView: View {
             }
         }
         .help("How much the Think model reasons before it answers in summaries and Ask. The levels are the "
-              + "ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own "
-              + "default. A level sets the most any task uses. Agent Mode follows this unless you pick its "
-              + "own level in the Agent composer.")
+              + "ones this model accepts. Automatic lets the model use its own default. A level applies to every "
+              + "task except quick ones, such as Compose and selection actions, which always skip reasoning. "
+              + "Agent Mode follows this unless you pick its own level in the Agent composer.")
         .settingTarget("settings.thinkReasoningLevel", selected: app.focusedSettingID)
         .task(id: ReasoningSupport.lookupKey(for: app.settings)) {
             resolvedReasoning = await .resolve(for: app.settings)

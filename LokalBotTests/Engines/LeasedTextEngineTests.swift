@@ -160,7 +160,7 @@ final class LeasedTextEngineTests: XCTestCase {
         let constrained = try await engine.generate(
             system: "s", prompt: "bounded", context: [],
             schema: ["type": "object"],
-            options: TextGenerationOptions(maxTokens: 768, reasoningBudgetTokens: 256))
+            options: TextGenerationOptions(maxTokens: 768, reasoning: .off))
         XCTAssertEqual(constrained, "schema-options:bounded")
 
         let completion = try await engine.complete(completionRequest)

@@ -2,7 +2,7 @@ import CryptoKit
 import Foundation
 
 enum WindowHandoffBriefPrompt {
-    static let options = TextGenerationOptions(maxTokens: 1_500, reasoningBudgetTokens: 0, temperature: 0.2)
+    static let options = TextGenerationOptions(maxTokens: 1_500, reasoning: .off, temperature: 0.2)
     static let textCharacterLimit = 24_000
     static let selectionCharacterLimit = 4_000
 

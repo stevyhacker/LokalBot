@@ -76,14 +76,14 @@ final class AntigravityPlanEngineTests: XCTestCase {
         XCTAssertFalse(arguments.contains("-p"))
     }
 
-    func testEffortAvoidsConflictWithExplicitEffortSlugAndCapsByBudget() {
+    func testEffortAvoidsConflictWithExplicitEffortSlugAndDropsToTheLowestForOffTasks() {
         let base = AntigravityPlanEngine(model: "gemini-4-neon", reasoningLevel: .xhigh)
         XCTAssertEqual(base.effort(for: nil), .xhigh)
-        XCTAssertEqual(base.effort(for: .init(reasoningBudgetTokens: 4_096)), .medium)
-        XCTAssertEqual(base.effort(for: .init(reasoningBudgetTokens: 0)), .low)
+        XCTAssertEqual(base.effort(for: .init(maxTokens: 4_096)), .xhigh)
+        XCTAssertEqual(base.effort(for: .init(reasoning: .off)), .low)
 
         let automatic = AntigravityPlanEngine(model: "gemini-3.8-flash", reasoningLevel: .automatic)
-        XCTAssertEqual(automatic.effort(for: .init(reasoningBudgetTokens: 0)), .low)
+        XCTAssertEqual(automatic.effort(for: .init(reasoning: .off)), .low)
         XCTAssertNil(automatic.effort(for: nil))
 
         let pinned = AntigravityPlanEngine(model: "gemini-4-neon-high", reasoningLevel: .low)

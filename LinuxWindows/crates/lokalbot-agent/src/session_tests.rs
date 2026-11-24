@@ -639,6 +639,49 @@ fn reasoning_level_is_written_for_the_extension_and_follows_changes() {
 }
 
 #[test]
+fn the_level_file_says_whether_the_model_thinks_by_default() {
+    let default_off = |model: &str| {
+        let mut h = Harness::new();
+        {
+            let mut settings = h.env.settings.write();
+            settings.built_in_model_id = model.into();
+            settings.agent_reasoning_level = Some(ReasoningLevel::Low);
+        }
+        h.start();
+        let text = std::fs::read_to_string(h.session.reasoning_level_file()).unwrap();
+        let file: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(file["level"], "low", "{model}");
+        h.session.shutdown();
+        file["defaultOff"].as_bool().unwrap()
+    };
+    assert!(default_off("gemma4-e4b"));
+    assert!(default_off("qwen3.5-0.8b"));
+    assert!(!default_off("qwen3.5-4b"));
+    assert!(!default_off("lfm2.5-8b-a1b"));
+}
+
+#[test]
+fn the_level_file_says_whether_the_template_takes_an_effort() {
+    let effort_template = |model: &str| {
+        let mut h = Harness::new();
+        {
+            let mut settings = h.env.settings.write();
+            settings.built_in_model_id = model.into();
+            settings.agent_reasoning_level = Some(ReasoningLevel::Off);
+        }
+        h.start();
+        let text = std::fs::read_to_string(h.session.reasoning_level_file()).unwrap();
+        let file: Value = serde_json::from_str(&text).unwrap();
+        assert_eq!(file["level"], "off", "{model}");
+        assert_eq!(file["defaultOff"], false, "{model}");
+        h.session.shutdown();
+        file["effortTemplate"].as_bool().unwrap()
+    };
+    assert!(effort_template("inkling-2-mini"));
+    assert!(!effort_template("qwen3.6-35b-a3b"));
+}
+
+#[test]
 fn history_restore_rebuilds_the_visible_conversation() {
     let mut h = Harness::new();
     let ws = h.env.dirs.default_workspace();

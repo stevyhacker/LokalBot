@@ -349,7 +349,7 @@
   "Hindi": "印地语",
   "Hold the modifiers and press a key, like Ctrl+Shift+Space.": "按住修饰符并按一个键，例如 Ctrl+Shift+Space。",
   "How LokalBot uses this": "LokalBot 如何使用此项",
-  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic keeps LokalBot's per-task amounts and the server's own default. A level sets the most any task uses. Agent Mode follows this unless you pick its own level in the Agent composer.": "思考模型在摘要和问答中回答前的推理量。可选级别是此模型接受的级别。“自动”会保持 LokalBot 为各任务设定的量以及服务器自身的默认值。选定级别即为任何任务使用的上限。智能体模式沿用此设置，除非你在智能体输入框中为它单独选择级别。",
+  "How much the Think model reasons before it answers in summaries and Ask. The levels are the ones this model accepts. Automatic lets the model use its own default. A level applies to every task except quick ones, such as Compose and selection actions, which always skip reasoning. Agent Mode follows this unless you pick its own level in the Agent composer.": "思考模型在摘要和问答中回答前的推理量。可选级别是此模型接受的级别。“自动”让模型使用其自身的默认值。选定级别适用于所有任务，但“撰写”和选区操作等快速任务始终跳过推理。智能体模式沿用此设置，除非你在智能体输入框中为它单独选择级别。",
   "How much the agent reasons before each step, from the levels this model accepts. Same as Think follows Settings → Models. A change applies from the agent's next step.": "智能体在每一步之前根据该模型接受的级别进行推理多少。与 Think 相同，遵循“设置”→“型号”。更改从代理的下一步开始生效。",
   "Hybrid": "混合动力",
   "Identifying speakers": "识别说话者",

@@ -6,7 +6,7 @@ struct ModelRecording: Codable, Equatable {
     struct Call: Codable, Equatable {
         var purpose: ModelRequestPurpose
         var maxTokens: Int?
-        var reasoningBudgetTokens: Int?
+        var reasoning: String?
         var content: String
         var finishReason: String
         var completionTokens: Int?
@@ -125,7 +125,7 @@ final class RecordingTextEngine: TextEngine, @unchecked Sendable {
         let call = ModelRecording.Call(
             purpose: ModelRequestPurpose.classify(system: system) ?? .ask,
             maxTokens: options.maxTokens,
-            reasoningBudgetTokens: options.reasoningBudgetTokens,
+            reasoning: options.reasoning == .off ? "off" : "modelDefault",
             content: content,
             finishReason: finish,
             completionTokens: usage["completion_tokens"] as? Int,

@@ -19,6 +19,8 @@ final class PiLaunchPlannerTests: XCTestCase {
                           continuePrevious: Bool = false,
                           specificSession: URL? = nil,
                           reasoningLevelFile: URL? = nil,
+                          reasoningDefaultOff: Bool = false,
+                          reasoningEffortTemplate: Bool = false,
                           inheritedEnvironment: [String: String] = [:]) -> PiLaunchPlan {
         var environment = ["PATH": "/usr/bin:/bin", "HOME": "/Users/x"].merging(inheritedEnvironment) { $1 }
         environment["LOKALBOT_LLM_API_KEY"] = inheritedAPIKey
@@ -35,6 +37,8 @@ final class PiLaunchPlannerTests: XCTestCase {
                                        contextTokens: endpoint.contextTokens, apiKey: apiKey,
                                        reasoningDialect: .llamaServer),
             reasoningLevelFile: reasoningLevelFile,
+            reasoningDefaultOff: reasoningDefaultOff,
+            reasoningEffortTemplate: reasoningEffortTemplate,
             helpersDirectory: helpers,
             privateRoots: [URL(fileURLWithPath: "/store"), URL(fileURLWithPath: "/app-support")],
             agentAccessCapability: capability,
@@ -85,9 +89,19 @@ final class PiLaunchPlannerTests: XCTestCase {
 
     func testEnvironmentNamesTheReasoningFieldsAndLevelFile() {
         let file = URL(fileURLWithPath: "/tmp/lokalbot-agent-reasoning-x.json")
-        XCTAssertEqual(makePlan(reasoningLevelFile: file).environment["LOKALBOT_LLM_REASONING_FILE"], file.path)
-        XCTAssertEqual(makePlan().environment["LOKALBOT_LLM_REASONING_DIALECT"], "llama-server")
-        XCTAssertNil(makePlan().environment["LOKALBOT_LLM_REASONING_FILE"])
+        let configured = makePlan(reasoningLevelFile: file, reasoningDefaultOff: true,
+                                  reasoningEffortTemplate: true).environment
+        XCTAssertEqual(configured["LOKALBOT_LLM_REASONING_FILE"], file.path)
+        XCTAssertEqual(configured["LOKALBOT_LLM_REASONING_DEFAULT_OFF"], "1")
+        XCTAssertEqual(configured["LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE"], "1")
+        let plain = makePlan(inheritedEnvironment: [
+            "LOKALBOT_LLM_REASONING_DEFAULT_OFF": "1",
+            "LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE": "1",
+        ]).environment
+        XCTAssertEqual(plain["LOKALBOT_LLM_REASONING_DIALECT"], "llama-server")
+        XCTAssertNil(plain["LOKALBOT_LLM_REASONING_FILE"])
+        XCTAssertNil(plain["LOKALBOT_LLM_REASONING_DEFAULT_OFF"])
+        XCTAssertNil(plain["LOKALBOT_LLM_REASONING_EFFORT_TEMPLATE"])
     }
 
     func testEnvironmentNamesTheWireAPIAndWhoServesAPlan() {

@@ -424,7 +424,7 @@ struct ChatContinuationEngine: TextEngine {
         do {
             return try await base.generate(
                 system: PromptTemplates.autocompleteSystem, prompt: request.prompt, context: [],
-                options: TextGenerationOptions(maxTokens: maxTokens, reasoningBudgetTokens: 0,
+                options: TextGenerationOptions(maxTokens: maxTokens, reasoning: .off,
                                                temperature: request.temperature, keepsTruncatedReply: true))
         } catch TextEngineError.badResponse(let detail) where detail.contains("contained no text") {
             return ""

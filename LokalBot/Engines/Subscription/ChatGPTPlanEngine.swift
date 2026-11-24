@@ -59,7 +59,7 @@ struct ChatGPTPlanEngine: TextEngine {
     }
 
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
-        reasoningSupport.requestLevel(reasoningLevel, taskBudget: options?.reasoningBudgetTokens)
+        reasoningSupport.requestLevel(reasoningLevel, reasoning: options?.reasoning ?? .modelDefault)
     }
 
     func optionalFields(schema: [String: Any]?, options: TextGenerationOptions?) -> Set<OptionalField> {

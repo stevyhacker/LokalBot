@@ -207,6 +207,10 @@ struct GatedTextEngine: TextEngine {
     var handlesTransientRetries: Bool { true }
     var structuredOutputEnumLimit: Int? { base.structuredOutputEnumLimit }
 
+    func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+        base.reasoningAllowance(for: options)
+    }
+
     func tokenCount(_ text: String) async throws -> Int? {
         try await base.tokenCount(text)
     }

@@ -26,7 +26,7 @@ use crate::json::{extract_json_object, strip_reasoning};
 use crate::language::DailySummaryLanguage;
 use crate::prompts;
 use crate::sanitize::sanitize;
-use crate::think::{ChatRequest, ThinkClient};
+use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 
 pub const EVIDENCE_CHARACTER_LIMIT: usize = 24_000;
 pub const DIGEST_CHARACTER_LIMIT: usize = 12_000;
@@ -34,7 +34,6 @@ pub const MAX_OPEN_ACTIONS: usize = 30;
 pub const EMPTY_DAY_TRACKED_SECONDS_FLOOR: f64 = 300.0;
 
 const MAX_OUTPUT_TOKENS: u32 = 4_096;
-const REASONING_BUDGET_TOKENS: u32 = 1_024;
 const TRUNCATION_RETRY_OUTPUT_TOKENS: u32 = 6_144;
 const MAX_LIST_ITEMS: usize = 8;
 const MAX_TOP_ACTIONS: usize = 3;
@@ -757,7 +756,6 @@ fn generate_synthesis(
         .context(context(evidence, memory))
         .json_schema(schema())
         .max_tokens(MAX_OUTPUT_TOKENS)
-        .reasoning_budget(REASONING_BUDGET_TOKENS)
         .temperature(0.2);
     match think.complete(&first) {
         Ok(text) => Ok(text),
@@ -767,7 +765,7 @@ fn generate_synthesis(
                 .context(context(evidence, memory))
                 .json_schema(schema())
                 .max_tokens(TRUNCATION_RETRY_OUTPUT_TOKENS)
-                .reasoning_budget(0)
+                .reasoning(TaskReasoning::Off)
                 .temperature(0.0);
             think.complete(&retry)
         }

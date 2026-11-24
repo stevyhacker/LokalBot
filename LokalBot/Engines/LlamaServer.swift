@@ -6,7 +6,7 @@ enum MainLLMRuntimePolicy {
     static let highReasoningBudgetTokens = 8_192
     static let serverExtraArguments = [
         "--cache-ram", "2048",
-        "--reasoning", "on",
+        "--reasoning", "auto",
     ]
 
     static func requestOverrides(for modelID: String) -> [String: Any] {

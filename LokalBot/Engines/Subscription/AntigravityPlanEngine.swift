@@ -105,10 +105,10 @@ struct AntigravityPlanEngine: TextEngine {
     func effort(for options: TextGenerationOptions?) -> ThinkReasoningLevel? {
         let (support, thinksByDefault) = traits
         guard support.isAdjustable else { return nil }
-        let budget = options?.reasoningBudgetTokens
-        if let level = support.requestLevel(reasoningLevel, taskBudget: budget) { return level }
-        guard thinksByDefault, let budget else { return nil }
-        return support.clamp(.ceiling(forTaskBudget: budget))
+        let reasoning = options?.reasoning ?? .modelDefault
+        if let level = support.requestLevel(reasoningLevel, reasoning: reasoning) { return level }
+        guard thinksByDefault, reasoning == .off else { return nil }
+        return support.clamp(.off)
     }
 
     func generate(system: String, prompt: String, context: [String]) async throws -> String {

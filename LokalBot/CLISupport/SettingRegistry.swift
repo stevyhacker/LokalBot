@@ -660,7 +660,7 @@ enum SettingRegistry {
               summary: "Time and token budget for meeting notes."),
         entry("thinkReasoningLevel", .models, "Think reasoning level", reasoningLevels,
               aliases: "reasoning effort thinking budget think off low medium high",
-              summary: "How much the Think model reasons. automatic keeps per-task budgets."),
+              summary: "How much the Think model reasons. automatic uses the model's own default."),
         entry("agentReasoningLevel", .models, "Agent reasoning level", reasoningLevels,
               aliases: "agent mode reasoning effort",
               summary: "Agent Mode's reasoning level. Absent follows the Think reasoning level."),

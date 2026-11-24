@@ -60,6 +60,19 @@ final class ModelCatalogTests: XCTestCase {
         XCTAssertNotNil(ModelCatalog.entry(id: "ministral-3-3b-instruct-2512"))
     }
 
+    func testInklingIsAnIntegrityPinnedOptInThatNoTierDefaultsTo() throws {
+        let entry = try XCTUnwrap(ModelCatalog.entry(id: "inkling-2-mini"))
+        XCTAssertEqual(entry.fileName, "Inkling-2-Mini-IQ4_NL.gguf")
+        XCTAssertTrue(entry.url.hasPrefix("https://huggingface.co/ggml-org/Inkling-2-Mini-GGUF/resolve/"),
+                      "Unsloth's files use a pre-merge layout mainline llama.cpp refuses")
+        XCTAssertTrue(entry.url.contains("/e8a2cecf0e78914f07cc27b9be711a9b2c7561d9/"))
+        XCTAssertEqual(entry.expectedSHA256, "cbdf3fa9dc50a4124977980f37da4f1fa764b0cfe800d275cd43d26ce2a81af4")
+        XCTAssertEqual(entry.sizeBytes, 17_627_940_768)
+        XCTAssertNotEqual(ModelCatalog.defaultSummarizationID, entry.id)
+        XCTAssertNotEqual(ModelCatalog.recommendedSummarizationID, entry.id)
+        XCTAssertFalse(ModelCatalog.keystrokeScaleEntries(custom: []).map(\.id).contains(entry.id))
+    }
+
     func testExperimentalLFM26BArtifactIsIntegrityPinned() throws {
         let entry = try XCTUnwrap(ModelCatalog.entry(id: "lfm2.5-2.6b"))
         XCTAssertEqual(entry.fileName, "LFM2.5-2.6B-Q4_K_M.gguf")
