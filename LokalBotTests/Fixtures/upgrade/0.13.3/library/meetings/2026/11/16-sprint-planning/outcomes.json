@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-00000006-1",
+      "schemaVersion": 2,
+      "text": "Eviction-policy doc",
+      "citations": [
+        {
+          "meetingID": "00000006-0000-4000-8000-000000000006",
+          "segmentID": "segment-0000-0000000000-0000018000",
+          "start": 0,
+          "end": 18,
+          "speaker": "me",
+          "excerpt": "Committing three things this sprint: eviction-policy doc, the failover benchmark, and onboarding scoping."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    },
+    {
+      "id": "demo-action-00000006-2",
+      "schemaVersion": 2,
+      "text": "Failover benchmark with the search team's harness",
+      "citations": [
+        {
+          "meetingID": "00000006-0000-4000-8000-000000000006",
+          "segmentID": "segment-0001-0000018000-0000040000",
+          "start": 18,
+          "end": 40,
+          "speaker": "them",
+          "excerpt": "The Redis failover benchmark needs the load harness \u2014 search team said Thursday works."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}
