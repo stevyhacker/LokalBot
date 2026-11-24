@@ -128,7 +128,9 @@ final class TranscriptionModelStoreTests: XCTestCase {
     }
 
     func testQwenTiersAreTheirGGUFPairsAndDeletionAlsoRemovesTheOldMLXWeights() throws {
-        for (choice, weights) in [(TranscriptionModelChoice.qwenASR17B, QwenLlamaASR.accuracy),
+        for (choice, weights) in [(TranscriptionModelChoice.qwenASR17BLokalBotV3, QwenLlamaASR.accuracyLokalBotV3),
+                                  (.qwenASR17B, QwenLlamaASR.accuracy),
+                                  (.qwenASR06BLokalBotV1, QwenLlamaASR.compactLokalBotV1),
                                   (.qwenASR06B, QwenLlamaASR.compact)] {
             let (root, environment) = try makeEnvironment()
             defer { try? FileManager.default.removeItem(at: root) }
@@ -146,6 +148,24 @@ final class TranscriptionModelStoreTests: XCTestCase {
             XCTAssertFalse(FileManager.default.fileExists(
                 atPath: weights.legacyMLXDirectory(appSupport: environment.appSupport).path))
         }
+    }
+
+    func testDeletingOneQwenVariantKeepsItsSiblingAndSharedProjector() throws {
+        let (root, environment) = try makeEnvironment()
+        defer { try? FileManager.default.removeItem(at: root) }
+        for weights in QwenLlamaASR.allWeights {
+            for file in weights.files {
+                try writeGGUF(weights.url(for: file, appSupport: environment.appSupport))
+            }
+        }
+
+        try TranscriptionModelStore.delete(.qwenASR17B, environment: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR17B, environment: environment))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR17BLokalBotV3, environment: environment))
+
+        try TranscriptionModelStore.delete(.qwenASR06B, environment: environment)
+        XCTAssertFalse(TranscriptionModelStore.isDownloaded(.qwenASR06B, environment: environment))
+        XCTAssertTrue(TranscriptionModelStore.isDownloaded(.qwenASR06BLokalBotV1, environment: environment))
     }
 
     func testUltraRequiresItsOwnCompleteCacheAndDeletionPreservesV3() throws {

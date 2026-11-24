@@ -64,7 +64,6 @@ struct ModelSelectionPatch: Equatable {
     var cotypingThinkServerModel: String?
     var cotypingServerRequestStyle: CotypingServerRequestStyle?
     var dictationModelID: String?
-    var upgradeTranscriptionWeights: Bool = false
 
     var transcriptionToPrepare: TranscriptionModelChoice? {
         if let transcription { return transcription }
@@ -120,19 +119,10 @@ struct ModelSelectionPatch: Equatable {
             cotypingServerModel: cotypingServerModel.map { _ in settings.cotypingServerModel },
             cotypingThinkServerModel: cotypingThinkServerModel.map { _ in settings.cotypingThinkServerModel },
             cotypingServerRequestStyle: cotypingServerRequestStyle.map { _ in settings.cotypingServerRequestStyle },
-            dictationModelID: dictationModelID.map { _ in settings.dictationCompositionBuiltInModelID },
-            upgradeTranscriptionWeights: false)
+            dictationModelID: dictationModelID.map { _ in settings.dictationCompositionBuiltInModelID })
     }
 
-    var withoutTransientUpgradeFlag: Self {
-        var copy = self
-        copy.upgradeTranscriptionWeights = false
-        return copy
-    }
-
-    func matches(_ settings: AppSettings) -> Bool {
-        !upgradeTranscriptionWeights && inverse(in: settings) == self
-    }
+    func matches(_ settings: AppSettings) -> Bool { inverse(in: settings) == self }
 
     func preparationContextMatches(_ latest: AppSettings, original: AppSettings) -> Bool {
         for id in localModelIDs(in: original) {
@@ -178,7 +168,7 @@ enum ModelStackPreset: String, CaseIterable, Identifiable {
             : "Smaller downloads and a lighter memory footprint."
     }
     var transcription: TranscriptionModelChoice {
-        self == .recommended ? .recommended : .qwenASR06B
+        self == .recommended ? .recommended : .qwenASR06BLokalBotV1
     }
     var mainModelID: String {
         self == .recommended ? ModelCatalog.defaultSummarizationID : ModelCatalog.compactFallbackID
@@ -303,8 +293,8 @@ enum ModelSettingsPresentation {
         granite: GraniteSpeechModelConfiguration
     ) -> Int64? {
         switch choice {
-        case .qwenASR17B: 2_520_000_000
-        case .qwenASR06B: 1_020_000_000
+        case .qwenASR17BLokalBotV3, .qwenASR17B: 2_520_000_000
+        case .qwenASR06BLokalBotV1, .qwenASR06B: 1_020_000_000
         case .parakeetUltra: 630_000_000
         case .parakeetV2, .parakeetV3: 600_000_000
         case .whisperLarge: 1_600_000_000
@@ -342,8 +332,7 @@ struct DefaultModelUpgradeOffer: Equatable {
         var hasLegacyAutocompleteModel = false
         var hasDefaultThinkModel = false
         var hasDefaultAutocompleteModel = false
-        var legacyQwenASRChoices: Set<TranscriptionModelChoice> = []
-        var legacyQwenASRMissingBytes: [TranscriptionModelChoice: Int64] = [:]
+        var qwenASRUpgradeMissingBytes: [TranscriptionModelChoice: Int64] = [:]
     }
 
     struct Item: Equatable, Identifiable, Sendable {
@@ -389,19 +378,17 @@ struct DefaultModelUpgradeOffer: Equatable {
         var items: [Item] = []
         var patch = ModelSelectionPatch()
 
-        if settings.transcriptionModel == .qwenASR17B || settings.transcriptionModel == .qwenASR06B,
-           availability.legacyQwenASRChoices.contains(settings.transcriptionModel) {
+        if settings.transcriptionModel == .qwenASR17B || settings.transcriptionModel == .qwenASR06B {
             let isAccuracy = settings.transcriptionModel == .qwenASR17B
-            let token = isAccuracy ? "transcribe:qwen3-asr-1.7b-lokalbot-v3" : "transcribe:qwen3-asr-0.6b-lokalbot-v1"
+            let target: TranscriptionModelChoice = isAccuracy ? .qwenASR17BLokalBotV3 : .qwenASR06BLokalBotV1
+            let token = "transcribe:\(target.id)"
             if !dismissed.contains(token) {
                 let fallbackBytes = isAccuracy
-                    ? QwenLlamaASR.accuracy.files.reduce(Int64(0)) { $0 + $1.bytes }
-                    : QwenLlamaASR.compact.files.reduce(Int64(0)) { $0 + $1.bytes }
-                let bytes = availability.legacyQwenASRMissingBytes[settings.transcriptionModel] ?? fallbackBytes
-                let name = isAccuracy ? "Qwen3-ASR 1.7B (LokalBot v3)" : "Qwen3-ASR 0.6B (LokalBot v1)"
-                items.append(Item(role: .transcribe, token: token, targetName: name, downloadBytes: bytes))
-                patch.transcription = settings.transcriptionModel
-                patch.upgradeTranscriptionWeights = true
+                    ? QwenLlamaASR.accuracyLokalBotV3.totalBytes
+                    : QwenLlamaASR.compactLokalBotV1.totalBytes
+                let bytes = availability.qwenASRUpgradeMissingBytes[target] ?? fallbackBytes
+                items.append(Item(role: .transcribe, token: token, targetName: target.displayName, downloadBytes: bytes))
+                patch.transcription = target
             }
         }
 

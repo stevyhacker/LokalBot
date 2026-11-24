@@ -381,45 +381,36 @@ final class ModelRolesTests: XCTestCase {
         XCTAssertTrue(roles.transcriptionPreparations.isEmpty)
     }
 
-    func testUpgradeWaitsForOrdinaryPreparationThenRunsUpgradeWhileCoalescingDuplicateUpgrades() async throws {
+    func testDuplicatePreparationCoalescesOntoTheActiveTask() async throws {
         let storage = temporaryStorage()
         defer { try? FileManager.default.removeItem(at: storage.rootURL) }
         let settings = isolatedSettings(transcription: .qwenASR17B)
-        let ordinaryGate = PreparationGate()
-        let upgradeGate = PreparationGate()
+        let gate = PreparationGate()
         var invocations = 0
+        var downloaded = false
         let roles = ModelRoles(
             settings: { settings }, storage: storage, downloads: ModelDownloadManager(),
             prepareTranscription: { _, _, _ in
                 invocations += 1
-                if invocations == 1 {
-                    await ordinaryGate.run()
-                } else {
-                    await upgradeGate.run()
-                }
+                await gate.run()
+                downloaded = true
             },
-            downloadedTranscriptionModels: { _ in [TranscriptionModelChoice.qwenASR17B.id] },
+            downloadedTranscriptionModels: { _ in downloaded ? [TranscriptionModelChoice.qwenASR17BLokalBotV3.id] : [] },
             onReadinessChanged: {})
 
-        roles.prepareTranscriptionModel(.qwenASR17B, configuration: settings)
-        await ordinaryGate.waitUntilStarted()
-
-        let firstUpgrade = Task {
-            try await roles.ensureTranscriptionAvailable(.qwenASR17B, configuration: settings, upgradeLegacy: true)
+        let first = Task {
+            try await roles.ensureTranscriptionAvailable(.qwenASR17BLokalBotV3, configuration: settings)
         }
-        let secondUpgrade = Task {
-            try await roles.ensureTranscriptionAvailable(.qwenASR17B, configuration: settings, upgradeLegacy: true)
+        await gate.waitUntilStarted()
+        let second = Task {
+            try await roles.ensureTranscriptionAvailable(.qwenASR17BLokalBotV3, configuration: settings)
         }
         await Task.yield()
-        await ordinaryGate.release()
+        await gate.release()
 
-        await upgradeGate.waitUntilStarted()
-        XCTAssertEqual(invocations, 2)
-        await upgradeGate.release()
-
-        try await firstUpgrade.value
-        try await secondUpgrade.value
-        XCTAssertEqual(invocations, 2)
+        try await first.value
+        try await second.value
+        XCTAssertEqual(invocations, 1)
         XCTAssertFalse(roles.isPreparingTranscription)
     }
 

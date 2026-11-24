@@ -377,7 +377,7 @@ final class ModelSettingsTests: XCTestCase {
         XCTAssertEqual(thinkOnly.items.map(\.role), [.think])
         XCTAssertEqual(thinkOnly.patch.assistantModelID, ModelCatalog.defaultSummarizationID)
         XCTAssertNil(thinkOnly.patch.autocompleteModelID)
-        XCTAssertFalse(thinkOnly.patch.upgradeTranscriptionWeights)
+        XCTAssertNil(thinkOnly.patch.transcription)
 
         let withStockAutoOnDisk = try XCTUnwrap(DefaultModelUpgradeOffer.current(
             settings: legacy,
@@ -385,22 +385,34 @@ final class ModelSettingsTests: XCTestCase {
         XCTAssertEqual(withStockAutoOnDisk.items.map(\.role), [.think, .autocomplete])
         XCTAssertEqual(withStockAutoOnDisk.patch.autocompleteModelID, ModelCatalog.qualityCotypingID)
 
+        legacy.transcriptionModel = .qwenASR17B
         legacy.cotypingEnabled = true
         let allThree = try XCTUnwrap(DefaultModelUpgradeOffer.current(
             settings: legacy,
             availability: .init(
-                legacyQwenASRChoices: [.qwenASR17B],
-                legacyQwenASRMissingBytes: [.qwenASR17B: 2_520_744_416])))
+                qwenASRUpgradeMissingBytes: [.qwenASR17BLokalBotV3: 2_520_744_416])))
         XCTAssertEqual(allThree.items.map(\.role), [.transcribe, .think, .autocomplete])
-        XCTAssertEqual(allThree.patch.transcription, .qwenASR17B)
-        XCTAssertTrue(allThree.patch.upgradeTranscriptionWeights)
+        XCTAssertEqual(allThree.patch.transcription, .qwenASR17BLokalBotV3)
         XCTAssertGreaterThan(allThree.totalDownloadBytes, 8_000_000_000)
 
         let alreadyDownloaded = try XCTUnwrap(DefaultModelUpgradeOffer.current(
             settings: legacy,
-            availability: .init(hasDefaultThinkModel: true, hasDefaultAutocompleteModel: true)))
+            availability: .init(
+                hasDefaultThinkModel: true,
+                hasDefaultAutocompleteModel: true,
+                qwenASRUpgradeMissingBytes: [.qwenASR17BLokalBotV3: 0])))
         XCTAssertEqual(alreadyDownloaded.totalDownloadBytes, 0)
 
+        var compactLegacy = AppSettings()
+        compactLegacy.transcriptionModel = .qwenASR06B
+        let compactOffer = try XCTUnwrap(DefaultModelUpgradeOffer.current(
+            settings: compactLegacy,
+            availability: .init(qwenASRUpgradeMissingBytes: [.qwenASR06BLokalBotV1: QwenLlamaASR.compactLokalBotV1.model.bytes])))
+        XCTAssertEqual(compactOffer.items.map(\.role), [.transcribe])
+        XCTAssertEqual(compactOffer.patch.transcription, .qwenASR06BLokalBotV1)
+        XCTAssertEqual(compactOffer.totalDownloadBytes, QwenLlamaASR.compactLokalBotV1.model.bytes)
+
+        legacy.transcriptionModel = .qwenASR17BLokalBotV3
         legacy.dismissedDefaultModelUpgradeKey = DefaultModelUpgradeOffer.mergedDismissalKey(
             existing: "", dismissing: thinkOnly)
         let afterPartialDismiss = try XCTUnwrap(DefaultModelUpgradeOffer.current(settings: legacy, availability: .init()))

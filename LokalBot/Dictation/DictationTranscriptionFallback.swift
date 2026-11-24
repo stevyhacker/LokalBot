@@ -12,7 +12,8 @@ enum DictationTranscriptionFallback {
     }
 
     static let multilingual: [TranscriptionModelChoice] = [
-        .qwenASR17B, .whisperLarge, .qwenASR06B, .parakeetV3, .parakeetUltra, .graniteSpeech5, .graniteSpeech,
+        .qwenASR17BLokalBotV3, .qwenASR17B, .whisperLarge, .qwenASR06BLokalBotV1, .qwenASR06B,
+        .parakeetV3, .parakeetUltra, .graniteSpeech5, .graniteSpeech,
     ]
     static let englishOnly: [TranscriptionModelChoice] = [.parakeetV2]
 

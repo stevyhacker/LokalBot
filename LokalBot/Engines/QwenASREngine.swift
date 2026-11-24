@@ -3,28 +3,188 @@ import FluidAudio
 
 actor QwenASREngine: TranscriptionEngine {
     enum Variant: Sendable {
+        case accuracyLokalBotV3
         case accuracy
+        case compactLokalBotV1
         case compact
 
         var weights: QwenLlamaASR.Weights {
             switch self {
+            case .accuracyLokalBotV3: QwenLlamaASR.accuracyLokalBotV3
             case .accuracy: QwenLlamaASR.accuracy
+            case .compactLokalBotV1: QwenLlamaASR.compactLokalBotV1
             case .compact: QwenLlamaASR.compact
             }
         }
 
         var displayName: String {
             switch self {
+            case .accuracyLokalBotV3: "Qwen3-ASR 1.7B (LokalBot v3)"
             case .accuracy: "Qwen3-ASR 1.7B"
+            case .compactLokalBotV1: "Qwen3-ASR 0.6B (LokalBot v1)"
             case .compact: "Qwen3-ASR 0.6B"
+            }
+        }
+
+        var choice: TranscriptionModelChoice {
+            switch self {
+            case .accuracyLokalBotV3: .qwenASR17BLokalBotV3
+            case .accuracy: .qwenASR17B
+            case .compactLokalBotV1: .qwenASR06BLokalBotV1
+            case .compact: .qwenASR06B
             }
         }
 
         var modelID: String { "\(weights.repository):\(weights.model.name)" }
     }
 
-    static let accuracy = QwenASREngine(variant: .accuracy)
-    static let compact = QwenASREngine(variant: .compact)
+    private actor TierRuntime {
+        static let accuracy = TierRuntime()
+        static let compact = TierRuntime()
+
+        private var server: LlamaServer?
+        private var serverModelPath: String?
+        private var serverProjectorPath: String?
+        private var pendingServerReset = false
+        private let preparation = AsyncSingleFlight()
+        private var activeUses = 0
+        private var activeServerUses = 0
+        private var idleWaiters: [CheckedContinuation<Void, Never>] = []
+        private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
+
+        func prepare(weights: QwenLlamaASR.Weights, progress: ModelPreparationProgressHandler?) async throws {
+            report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
+            try await preparation.run { [weak self] in
+                guard let self else { return }
+                try await self.prepareServer(weights: weights, progress: progress)
+            }
+            if !weights.isDownloaded(appSupport: AppDirectories.applicationSupport) {
+                try await preparation.run { [weak self] in
+                    guard let self else { return }
+                    try await self.prepareServer(weights: weights, progress: progress)
+                }
+            }
+            await idle.bump()
+            report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
+        }
+
+        func acquireServer(weights: QwenLlamaASR.Weights) async throws -> LlamaServer {
+            activeUses += 1
+            do {
+                let paths = try await weights.prepareFiles(
+                    appSupport: AppDirectories.applicationSupport,
+                    progress: nil)
+                while activeServerUses > 0,
+                      serverModelPath != paths.model.path || serverProjectorPath != paths.projector.path {
+                    await withCheckedContinuation { idleWaiters.append($0) }
+                }
+                try await prepareServer(weights: weights, paths: paths, progress: nil)
+                guard let server else { throw EngineError.notLoaded }
+                activeServerUses += 1
+                return server
+            } catch {
+                finishUse()
+                throw error
+            }
+        }
+
+        func releaseServer() {
+            activeServerUses -= 1
+            if activeServerUses == 0 {
+                let waiters = idleWaiters
+                idleWaiters.removeAll()
+                for waiter in waiters { waiter.resume() }
+                if pendingServerReset {
+                    pendingServerReset = false
+                    Task { await resetDeferredServer() }
+                }
+            }
+            finishUse()
+        }
+
+        func shutdown() async {
+            pendingServerReset = false
+            await stopServerIfCurrent(server)
+        }
+
+        private func prepareServer(weights: QwenLlamaASR.Weights,
+                                   paths preloadedPaths: (model: URL, projector: URL)? = nil,
+                                   progress: ModelPreparationProgressHandler?) async throws {
+            let paths: (model: URL, projector: URL)
+            if let preloadedPaths {
+                paths = preloadedPaths
+            } else {
+                paths = try await weights.prepareFiles(
+                    appSupport: AppDirectories.applicationSupport,
+                    progress: progress)
+            }
+            switch QwenASREngine.serverTransition(
+                hasServer: server != nil,
+                loadedModelPath: serverModelPath,
+                loadedProjectorPath: serverProjectorPath,
+                nextModelPath: paths.model.path,
+                nextProjectorPath: paths.projector.path,
+                activeServerUses: activeServerUses
+            ) {
+            case .deferReplacement:
+                pendingServerReset = true
+                return
+            case .replaceNow:
+                await stopServerIfCurrent(server)
+            case .reuse:
+                break
+            }
+            report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
+            let server = self.server ?? weights.makeServer(projector: paths.projector)
+            self.server = server
+            self.serverModelPath = paths.model.path
+            self.serverProjectorPath = paths.projector.path
+            pendingServerReset = false
+            try await server.ensureRunning(modelAt: paths.model)
+        }
+
+        private func unload() async {
+            guard activeUses == 0, activeServerUses == 0, !(await preparation.isRunning) else { return }
+            guard activeUses == 0, activeServerUses == 0 else { return }
+            pendingServerReset = false
+            await stopServerIfCurrent(server)
+        }
+
+        private func finishUse() {
+            activeUses -= 1
+            guard activeUses == 0 else { return }
+            Task { await idle.bump() }
+        }
+
+        private func resetDeferredServer() async {
+            guard activeServerUses == 0 else {
+                pendingServerReset = true
+                return
+            }
+            await stopServerIfCurrent(server)
+        }
+
+        private func stopServerIfCurrent(_ existing: LlamaServer?) async {
+            guard let existing else { return }
+            await existing.stop()
+            if server === existing {
+                server = nil
+                serverModelPath = nil
+                serverProjectorPath = nil
+            }
+        }
+
+        private nonisolated func report(_ update: ModelPreparationUpdate,
+                                        to handler: ModelPreparationProgressHandler?) {
+            guard let handler else { return }
+            Task { @MainActor in handler(update) }
+        }
+    }
+
+    static let accuracyLokalBotV3 = QwenASREngine(variant: .accuracyLokalBotV3, runtime: .accuracy)
+    static let accuracy = QwenASREngine(variant: .accuracy, runtime: .accuracy)
+    static let compactLokalBotV1 = QwenASREngine(variant: .compactLokalBotV1, runtime: .compact)
+    static let compact = QwenASREngine(variant: .compact, runtime: .compact)
 
     nonisolated var displayName: String { variant.displayName }
     nonisolated let supportsStreaming = false
@@ -40,8 +200,8 @@ actor QwenASREngine: TranscriptionEngine {
 
     nonisolated static func wordAttributionWindows(for variant: Variant) -> WordAttributionWindows {
         switch variant {
-        case .accuracy: .init(maxSeconds: QwenWordAligner.maxSegmentSeconds, maxGapSeconds: 5)
-        case .compact: .init(maxSeconds: 15, maxGapSeconds: 5)
+        case .accuracyLokalBotV3, .accuracy: .init(maxSeconds: QwenWordAligner.maxSegmentSeconds, maxGapSeconds: 5)
+        case .compactLokalBotV1, .compact: .init(maxSeconds: 15, maxGapSeconds: 5)
         }
     }
 
@@ -67,77 +227,15 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     private let variant: Variant
-    private var server: LlamaServer?
-    private var serverModelPath: String?
-    private var serverProjectorPath: String?
-    private var pendingServerReset = false
-    private let preparation = AsyncSingleFlight()
-    private var activeUses = 0
-    private var activeServerUses = 0
-    private lazy var idle = IdleTimer(seconds: 120) { [weak self] in await self?.unload() }
+    private let runtime: TierRuntime
 
-    private init(variant: Variant) {
+    private init(variant: Variant, runtime: TierRuntime) {
         self.variant = variant
+        self.runtime = runtime
     }
 
     func prepare(progress: ModelPreparationProgressHandler? = nil) async throws {
-        try await prepare(upgradingLegacyWeights: false, progress: progress)
-    }
-
-    func upgradeWeights(progress: ModelPreparationProgressHandler? = nil) async throws {
-        try await prepare(upgradingLegacyWeights: true, progress: progress)
-    }
-
-    private func prepare(upgradingLegacyWeights: Bool, progress: ModelPreparationProgressHandler?) async throws {
-        report(.init(fractionCompleted: 0, status: "Checking..."), to: progress)
-        try await preparation.run { [weak self] in
-            guard let self else { return }
-            try await self.performPreparation(upgradingLegacyWeights: upgradingLegacyWeights, progress: progress)
-        }
-        if upgradingLegacyWeights, !variant.weights.hasCurrentWeights(appSupport: AppDirectories.applicationSupport) {
-            try await preparation.run { [weak self] in
-                guard let self else { return }
-                try await self.performPreparation(upgradingLegacyWeights: true, progress: progress)
-            }
-        }
-        await idle.bump()
-        report(.init(fractionCompleted: 1, status: "Ready"), to: progress)
-    }
-
-    private func performPreparation(upgradingLegacyWeights: Bool,
-                                    progress: ModelPreparationProgressHandler?) async throws {
-        try await prepareServer(upgradingLegacyWeights: upgradingLegacyWeights, progress: progress)
-    }
-
-    private func prepareServer(upgradingLegacyWeights: Bool,
-                               progress: ModelPreparationProgressHandler?) async throws {
-        let paths = try await variant.weights.prepareFiles(
-            appSupport: AppDirectories.applicationSupport,
-            upgradingLegacyWeights: upgradingLegacyWeights,
-            progress: progress)
-        switch Self.serverTransition(
-            hasServer: server != nil,
-            loadedModelPath: serverModelPath,
-            loadedProjectorPath: serverProjectorPath,
-            nextModelPath: paths.model.path,
-            nextProjectorPath: paths.projector.path,
-            activeServerUses: activeServerUses
-        ) {
-        case .deferReplacement:
-            pendingServerReset = true
-            return
-        case .replaceNow:
-            await stopServerIfCurrent(server)
-        case .reuse:
-            break
-        }
-        report(.init(fractionCompleted: nil, status: "Starting local server..."), to: progress)
-        let server = self.server ?? variant.weights.makeServer(projector: paths.projector)
-        self.server = server
-        self.serverModelPath = paths.model.path
-        self.serverProjectorPath = paths.projector.path
-        pendingServerReset = false
-        try await server.ensureRunning(modelAt: paths.model)
+        try await runtime.prepare(weights: variant.weights, progress: progress)
     }
 
     func transcribe(audio url: URL, language: String?) async throws -> Transcript {
@@ -158,16 +256,11 @@ actor QwenASREngine: TranscriptionEngine {
 
     private func transcribe(audio url: URL, language: String?, prompt: String?,
                             windows: WordAttributionWindows?) async throws -> (transcript: Transcript, decision: AutoLanguageDecision) {
-        let choice: TranscriptionModelChoice = variant == .accuracy ? .qwenASR17B : .qwenASR06B
-        try choice.validateLanguage(language)
-        activeUses += 1
-        defer { finishUse() }
+        try variant.choice.validateLanguage(language)
         let pin = await ModelResidency.shared.pin(id: variant.weights.role.residencyID)
         defer { Task { @MainActor in ModelResidency.shared.unpin(pin) } }
-        try await prepare()
-        guard let server = self.server else { throw EngineError.notLoaded }
-        activeServerUses += 1
-        defer { finishServerUse() }
+        let server = try await runtime.acquireServer(weights: variant.weights)
+        defer { Task { await runtime.releaseServer() } }
 
         let started = Date()
         var spans = try await SpeechActivity.shared.spans(
@@ -273,52 +366,7 @@ actor QwenASREngine: TranscriptionEngine {
     }
 
     func shutdown() async {
-        pendingServerReset = false
-        await stopServerIfCurrent(server)
-    }
-
-    private func unload() async {
-        guard activeUses == 0, activeServerUses == 0, !(await preparation.isRunning) else { return }
-        guard activeUses == 0, activeServerUses == 0 else { return }
-        pendingServerReset = false
-        await stopServerIfCurrent(server)
-    }
-
-    private func finishUse() {
-        activeUses -= 1
-        guard activeUses == 0 else { return }
-        Task { await idle.bump() }
-    }
-
-    private func finishServerUse() {
-        activeServerUses -= 1
-        guard activeServerUses == 0, pendingServerReset else { return }
-        pendingServerReset = false
-        Task { await resetDeferredServer() }
-    }
-
-    private func resetDeferredServer() async {
-        guard activeServerUses == 0 else {
-            pendingServerReset = true
-            return
-        }
-        await stopServerIfCurrent(server)
-    }
-
-    private func stopServerIfCurrent(_ existing: LlamaServer?) async {
-        guard let existing else { return }
-        await existing.stop()
-        if server === existing {
-            server = nil
-            serverModelPath = nil
-            serverProjectorPath = nil
-        }
-    }
-
-    private nonisolated func report(_ update: ModelPreparationUpdate,
-                                    to handler: ModelPreparationProgressHandler?) {
-        guard let handler else { return }
-        Task { @MainActor in handler(update) }
+        await runtime.shutdown()
     }
 
     nonisolated static func hubStyleCacheDir(base: URL, modelID: String) -> URL {

@@ -3,8 +3,7 @@ import Foundation
 struct ModelReadinessSnapshot: Equatable, Sendable {
     struct DiskState: Sendable {
         var downloadedTranscriptionIDs: Set<String> = []
-        var legacyQwenASRChoices: Set<TranscriptionModelChoice> = []
-        var legacyQwenASRMissingBytes: [TranscriptionModelChoice: Int64] = [:]
+        var qwenASRUpgradeMissingBytes: [TranscriptionModelChoice: Int64] = [:]
         var hasLegacyAutocompleteModel = false
         var hasDefaultThinkModel = false
         var hasDefaultAutocompleteModel = false
@@ -18,10 +17,10 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
             let models = root.appendingPathComponent("models", isDirectory: true)
             let appleSpeechAssetInstalled = settings.transcriptionModel == .appleSpeech
                 ? await AppleSpeechAvailability.refreshAssetReadiness(for: settings.transcriptionLanguage) : false
-            let legacyQwen = TranscriptionModelStore.legacyQwenASRChoices()
-            let legacyQwenBytes = Dictionary(uniqueKeysWithValues: legacyQwen.map {
-                ($0, TranscriptionModelStore.legacyQwenASRMissingBytes($0))
-            })
+            let qwenUpgradeBytes: [TranscriptionModelChoice: Int64] = [
+                .qwenASR17BLokalBotV3: TranscriptionModelStore.qwenASRMissingBytes(.qwenASR17BLokalBotV3),
+                .qwenASR06BLokalBotV1: TranscriptionModelStore.qwenASRMissingBytes(.qwenASR06BLokalBotV1),
+            ]
             let hasLegacyAutocomplete = ModelCatalog.entry(id: ModelCatalog.previousQualityCotypingID)
                 .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil
             let hasDefaultThink = ModelCatalog.entry(id: ModelCatalog.defaultSummarizationID)
@@ -34,8 +33,7 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
                     funASRNanoDirectory: settings.funASRNanoModelDirectory,
                     remoteTranscriptionReady: settings.remoteTranscription.isReady,
                     appleSpeechAssetInstalled: appleSpeechAssetInstalled),
-                legacyQwenASRChoices: legacyQwen,
-                legacyQwenASRMissingBytes: legacyQwenBytes,
+                qwenASRUpgradeMissingBytes: qwenUpgradeBytes,
                 hasLegacyAutocompleteModel: hasLegacyAutocomplete,
                 hasDefaultThinkModel: hasDefaultThink,
                 hasDefaultAutocompleteModel: hasDefaultAutocomplete,

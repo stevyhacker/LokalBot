@@ -46,84 +46,100 @@ final class QwenLlamaASRTests: XCTestCase {
 
     func testPinnedFilesLiveUnderTheQwenCacheAndPointAtTheRevision() {
         let appSupport = URL(fileURLWithPath: "/tmp/app", isDirectory: true)
-        let accuracy = QwenLlamaASR.accuracy, compact = QwenLlamaASR.compact
-        XCTAssertEqual(accuracy.url(for: accuracy.model, appSupport: appSupport).path,
+        let v3 = QwenLlamaASR.accuracyLokalBotV3, stock17 = QwenLlamaASR.accuracy
+        let v1 = QwenLlamaASR.compactLokalBotV1, stock06 = QwenLlamaASR.compact
+        XCTAssertEqual(v3.url(for: v3.model, appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-1.7B-Q8_0/Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf")
         XCTAssertEqual(
-            accuracy.downloadURL(for: accuracy.model).absoluteString,
+            v3.downloadURL(for: v3.model).absoluteString,
             "https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF/resolve/"
                 + "33ca434ce773d56914f609cec80e843d085b5645/Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf")
         XCTAssertEqual(
-            accuracy.downloadURL(for: accuracy.projector).absoluteString,
+            v3.downloadURL(for: v3.projector).absoluteString,
             "https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF/resolve/"
                 + "33ca434ce773d56914f609cec80e843d085b5645/mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf")
-        XCTAssertEqual(compact.url(for: compact.model, appSupport: appSupport).path,
+        XCTAssertEqual(stock17.url(for: stock17.model, appSupport: appSupport).path,
+                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-1.7B-Q8_0/Qwen3-ASR-1.7B-Q8_0.gguf")
+        XCTAssertEqual(
+            stock17.downloadURL(for: stock17.model).absoluteString,
+            "https://huggingface.co/ggml-org/Qwen3-ASR-1.7B-GGUF/resolve/"
+                + "36a678687ba7d07a74ca70ccb0e36902e005fb80/Qwen3-ASR-1.7B-Q8_0.gguf")
+        XCTAssertEqual(v1.url(for: v1.model, appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-0.6B-Q8_0/Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf")
         XCTAssertEqual(
-            compact.downloadURL(for: compact.model).absoluteString,
+            v1.downloadURL(for: v1.model).absoluteString,
             "https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF/resolve/"
                 + "4f9e435248343b208223ce33fa1a8b0b2f2e6bc6/Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf")
         XCTAssertEqual(
-            compact.downloadURL(for: compact.projector).absoluteString,
+            v1.downloadURL(for: v1.projector).absoluteString,
             "https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF/resolve/"
                 + "4f9e435248343b208223ce33fa1a8b0b2f2e6bc6/mmproj-Qwen3-ASR-0.6B-Q8_0.gguf")
-        for file in accuracy.files + compact.files {
+        XCTAssertEqual(stock06.url(for: stock06.model, appSupport: appSupport).path,
+                       "/tmp/app/qwen3-asr-models/gguf/Qwen3-ASR-0.6B-Q8_0/Qwen3-ASR-0.6B-Q8_0.gguf")
+        XCTAssertEqual(
+            stock06.downloadURL(for: stock06.model).absoluteString,
+            "https://huggingface.co/ggml-org/Qwen3-ASR-0.6B-GGUF/resolve/"
+                + "928ab958557df9aa2ef1c93e0e83c7ad0933fae2/Qwen3-ASR-0.6B-Q8_0.gguf")
+        for file in QwenLlamaASR.allWeights.flatMap(\.files) {
             XCTAssertEqual(file.sha256.count, 64, file.name)
         }
-        XCTAssertEqual(accuracy.legacyMLXDirectory(appSupport: appSupport).path,
+        XCTAssertEqual(v3.legacyMLXDirectory(appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/models/aufklarer/Qwen3-ASR-1.7B-MLX-8bit")
-        XCTAssertEqual(compact.legacyMLXDirectory(appSupport: appSupport).path,
+        XCTAssertEqual(v1.legacyMLXDirectory(appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/models/aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
         XCTAssertTrue(QwenLlamaASR.serverArguments.contains("--cache-ram"))
     }
 
-    func testLegacyStockGGUFWeightsRemainUsableAndCleanUpAfterUpgrade() throws {
+    func testFineTunedAndStockGGUFWeightsCoexistAndRemoveIndependently() throws {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("qwen-legacy-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("qwen-coexist-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
         func writeGGUF(_ url: URL) throws {
             try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
             try Data("GGUF".utf8).write(to: url)
         }
 
-        let accuracy = QwenLlamaASR.accuracy
-        try writeGGUF(accuracy.url(for: try XCTUnwrap(accuracy.legacyModel), appSupport: root))
-        try writeGGUF(accuracy.url(for: try XCTUnwrap(accuracy.legacyProjector), appSupport: root))
-        XCTAssertTrue(accuracy.isDownloaded(appSupport: root))
-        XCTAssertTrue(accuracy.hasLegacyGGUFWeights(appSupport: root))
-        XCTAssertFalse(accuracy.hasCurrentWeights(appSupport: root))
-        XCTAssertEqual(accuracy.missingCurrentBytes(appSupport: root),
-                       accuracy.model.bytes + accuracy.projector.bytes)
+        let v3 = QwenLlamaASR.accuracyLokalBotV3
+        let stock17 = QwenLlamaASR.accuracy
+        for file in stock17.files { try writeGGUF(stock17.url(for: file, appSupport: root)) }
+        XCTAssertTrue(stock17.isDownloaded(appSupport: root))
+        XCTAssertFalse(v3.isDownloaded(appSupport: root))
+        XCTAssertEqual(v3.missingBytes(appSupport: root), v3.totalBytes)
 
-        try writeGGUF(accuracy.url(for: accuracy.model, appSupport: root))
-        try writeGGUF(accuracy.url(for: accuracy.projector, appSupport: root))
-        accuracy.removeSupersededGGUFWeights(appSupport: root)
-        XCTAssertTrue(accuracy.hasCurrentWeights(appSupport: root))
-        XCTAssertFalse(accuracy.hasLegacyGGUFWeights(appSupport: root))
-        XCTAssertFalse(FileManager.default.fileExists(
-            atPath: accuracy.url(for: try XCTUnwrap(accuracy.legacyModel), appSupport: root).path))
-        XCTAssertFalse(FileManager.default.fileExists(
-            atPath: accuracy.url(for: try XCTUnwrap(accuracy.legacyProjector), appSupport: root).path))
+        for file in v3.files { try writeGGUF(v3.url(for: file, appSupport: root)) }
+        XCTAssertTrue(stock17.isDownloaded(appSupport: root))
+        XCTAssertTrue(v3.isDownloaded(appSupport: root))
+        XCTAssertEqual(v3.missingBytes(appSupport: root), 0)
 
-        let compact = QwenLlamaASR.compact
-        try writeGGUF(compact.url(for: try XCTUnwrap(compact.legacyModel), appSupport: root))
-        try writeGGUF(compact.url(for: try XCTUnwrap(compact.legacyProjector), appSupport: root))
-        XCTAssertTrue(compact.hasLegacyGGUFWeights(appSupport: root))
-        XCTAssertEqual(compact.missingCurrentBytes(appSupport: root), compact.model.bytes)
+        try stock17.removeFiles(appSupport: root)
+        XCTAssertFalse(stock17.isDownloaded(appSupport: root))
+        XCTAssertTrue(v3.isDownloaded(appSupport: root))
 
-        try writeGGUF(compact.url(for: compact.model, appSupport: root))
-        compact.removeSupersededGGUFWeights(appSupport: root)
-        XCTAssertTrue(compact.hasCurrentWeights(appSupport: root))
-        XCTAssertTrue(FileManager.default.fileExists(
-            atPath: compact.url(for: compact.projector, appSupport: root).path))
-        XCTAssertFalse(FileManager.default.fileExists(
-            atPath: compact.url(for: try XCTUnwrap(compact.legacyModel), appSupport: root).path))
+        let v1 = QwenLlamaASR.compactLokalBotV1
+        let stock06 = QwenLlamaASR.compact
+        for file in stock06.files { try writeGGUF(stock06.url(for: file, appSupport: root)) }
+        XCTAssertTrue(stock06.isDownloaded(appSupport: root))
+        XCTAssertFalse(v1.isDownloaded(appSupport: root))
+        XCTAssertEqual(v1.missingBytes(appSupport: root), v1.model.bytes)
+
+        try writeGGUF(v1.url(for: v1.model, appSupport: root))
+        XCTAssertTrue(v1.isDownloaded(appSupport: root))
+        try stock06.removeFiles(appSupport: root)
+        XCTAssertFalse(stock06.isDownloaded(appSupport: root))
+        XCTAssertTrue(v1.isDownloaded(appSupport: root))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: v1.url(for: v1.projector, appSupport: root).path))
+
+        try v1.removeFiles(appSupport: root)
+        XCTAssertFalse(v1.isDownloaded(appSupport: root))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: v1.modelRoot(appSupport: root).path))
     }
 
     func testQwenServersHaveTheirOwnPortsAndTranscribeRows() {
         XCTAssertEqual(LlamaServerRole.qwenASR.releasePort, 17_877)
         XCTAssertEqual(LlamaServerRole.qwenASRCompact.releasePort, 17_878)
+        XCTAssertEqual(QwenLlamaASR.accuracyLokalBotV3.role, .qwenASR)
         XCTAssertEqual(QwenLlamaASR.accuracy.role, .qwenASR)
+        XCTAssertEqual(QwenLlamaASR.compactLokalBotV1.role, .qwenASRCompact)
         XCTAssertEqual(QwenLlamaASR.compact.role, .qwenASRCompact)
         XCTAssertEqual(Set(LlamaServerRole.allCases.map(\.releasePort)).count, LlamaServerRole.allCases.count)
         for role in [LlamaServerRole.qwenASR, .qwenASRCompact] {

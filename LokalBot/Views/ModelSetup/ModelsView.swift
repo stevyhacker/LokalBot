@@ -195,7 +195,7 @@ struct ModelSetupFeedback: View {
                     Label("Using \(completed.title)", systemImage: "checkmark.circle").font(.scaled(.body))
                 }
                 Spacer()
-                if completed.patch.withoutTransientUpgradeFlag != completed.previous {
+                if completed.patch != completed.previous {
                     Button("Undo") { controller.undo() }.accessibilityIdentifier("models.undo")
                 }
                 Button { controller.dismissFeedback() } label: { Image(systemName: "xmark") }

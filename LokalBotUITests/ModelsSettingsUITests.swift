@@ -22,7 +22,7 @@ final class ModelsSettingsUITests: XCTestCase {
         let change = app.buttons["models.stack.change.transcribe"]
         XCTAssertTrue(change.waitForExistence(timeout: 8))
         change.click()
-        let currentDetails = app.staticTexts["2.52 GB · llama.cpp, 52 languages/dialects, best Qwen accuracy tier"]
+        let currentDetails = app.staticTexts["2.52 GB · llama.cpp, 52 languages/dialects, default LokalBot fine-tune"]
         XCTAssertTrue(currentDetails.waitForExistence(timeout: 5), "Qwen remains the initial selection")
 
         let search = app.textFields["models.picker.search"]
