@@ -1304,11 +1304,13 @@ final class RecordingController: ObservableObject {
         excluding excludedPIDs: Set<pid_t>
     ) -> AudioProcess? {
         guard mayRecoverSource(target) else { return nil }
-        return MeetingDetector.currentOutputAudioProcess(
+        return MeetingDetector.emittingCaptureAlternative(
             for: MeetingDetector.DetectedApp(
                 name: target.bundleID,
                 bundleID: target.bundleID,
                 pid: target.pid),
+            tapping: target.pid,
+            in: MeetingDetector.currentAudioProcesses(),
             excluding: excludedPIDs)
     }
 

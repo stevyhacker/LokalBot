@@ -165,7 +165,8 @@ final class AudioSourceMonitorTests: XCTestCase {
             quietModuleHost.id)
     }
 
-    func testCaptureTargetPrefersTheProcessThatIsActuallyEmitting() {
+    func testCaptureTargetPrefersTeamsCallStreamOverAnEmittingHelper() {
+        MeetingDetector.resetCaptureTargetMemory()
         let alwaysOpen = AudioProcess(id: 300,
                                       name: "Microsoft Teams ModuleHost",
                                       bundleID: "com.microsoft.teams2.modulehost",
@@ -182,7 +183,75 @@ final class AudioSourceMonitorTests: XCTestCase {
 
         XCTAssertEqual(
             MeetingDetector.captureTargetProcess(for: app, in: [alwaysOpen, emitting])?.id,
+            alwaysOpen.id)
+        XCTAssertEqual(
+            MeetingDetector.captureTargetProcess(for: app, in: [alwaysOpen, emitting],
+                                                 excluding: [alwaysOpen.id])?.id,
+            emitting.id, "a call stream already found empty gives way to the helper")
+    }
+
+    func testCaptureTargetTakesAnEmittingHelperWhenTheCallStreamIsClosed() {
+        MeetingDetector.resetCaptureTargetMemory()
+        let closed = AudioProcess(id: 300,
+                                  name: "Microsoft Teams ModuleHost",
+                                  bundleID: "com.microsoft.teams2.modulehost",
+                                  objectID: AudioObjectID(300),
+                                  isRunningOutput: false)
+        let emitting = AudioProcess(id: 400,
+                                    name: "Microsoft Teams WebView",
+                                    bundleID: "com.microsoft.teams2.helper",
+                                    objectID: AudioObjectID(400),
+                                    isRunningOutput: true)
+        let app = MeetingDetector.DetectedApp(name: "Teams",
+                                              bundleID: "com.microsoft.teams2",
+                                              pid: 100)
+
+        XCTAssertEqual(
+            MeetingDetector.captureTargetProcess(for: app, in: [closed, emitting])?.id,
             emitting.id)
+    }
+
+    func testAnEmittingHelperIsNoAlternativeToATapOnTheCallStream() {
+        let moduleHost = AudioProcess(id: 300,
+                                      name: "Microsoft Teams ModuleHost",
+                                      bundleID: "com.microsoft.teams2.modulehost",
+                                      objectID: AudioObjectID(300),
+                                      isRunningOutput: true)
+        let helper = AudioProcess(id: 400,
+                                  name: "Microsoft Teams WebView",
+                                  bundleID: "com.microsoft.teams2.helper",
+                                  objectID: AudioObjectID(400),
+                                  isRunningOutput: true)
+        let otherHelper = AudioProcess(id: 500,
+                                       name: "Microsoft Teams WebView",
+                                       bundleID: "com.microsoft.teams2.helper",
+                                       objectID: AudioObjectID(500),
+                                       isRunningOutput: true)
+        let app = MeetingDetector.DetectedApp(name: "Teams",
+                                              bundleID: "com.microsoft.teams2",
+                                              pid: 100)
+        let processes = [moduleHost, helper, otherHelper]
+
+        XCTAssertNil(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: moduleHost.id, in: processes, excluding: [moduleHost.id]))
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: helper.id, in: processes, excluding: [helper.id])?.id,
+            moduleHost.id, "a silent helper gives way to an open call stream")
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: helper.id, in: processes, excluding: [helper.id, moduleHost.id])?.id,
+            otherHelper.id, "a silent helper gives way to an emitting one when the call stream is retired")
+        let closedModuleHost = AudioProcess(id: 300,
+                                            name: "Microsoft Teams ModuleHost",
+                                            bundleID: "com.microsoft.teams2.modulehost",
+                                            objectID: AudioObjectID(300),
+                                            isRunningOutput: false)
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: helper.id, in: [closedModuleHost, helper, otherHelper],
+            excluding: [helper.id])?.id,
+            otherHelper.id, "a silent helper gives way to an emitting one when the call stream is closed")
+        XCTAssertEqual(MeetingDetector.emittingCaptureAlternative(
+            for: app, tapping: 299, in: processes, excluding: [299])?.id,
+            moduleHost.id, "a vanished tap prefers an open call stream over an emitting helper")
     }
 
     func testCaptureTargetIgnoresUnrelatedProcesses() {

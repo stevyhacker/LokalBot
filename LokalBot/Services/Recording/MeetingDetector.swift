@@ -989,6 +989,23 @@ final class MeetingDetector {
             })
     }
 
+    nonisolated static func emittingCaptureAlternative(
+        for app: DetectedApp,
+        tapping tappedPID: pid_t,
+        in processes: [AudioProcess],
+        excluding excludedPIDs: Set<pid_t> = []
+    ) -> AudioProcess? {
+        if let tapped = processes.first(where: { $0.id == tappedPID }),
+           !carriesMeetingSignal(bundleID: tapped.bundleID) {
+            return nil
+        }
+        let available = processes.filter { !excludedPIDs.contains($0.id) }
+        if let callStream = bestAlwaysOpenAudioProcess(for: app, in: available) {
+            return callStream
+        }
+        return bestOutputAudioProcess(for: app, in: available)
+    }
+
     nonisolated static func currentOutputAudioProcess(
         for app: DetectedApp,
         excluding excludedPIDs: Set<pid_t> = []
@@ -1005,13 +1022,13 @@ final class MeetingDetector {
             guard let bundleID = process.bundleID else { return false }
             return audioBundleID(bundleID, belongsTo: app.bundleID)
         }
+        if let callStream = bestAlwaysOpenAudioProcess(for: app, in: available) {
+            rememberCaptureTarget(callStream.id, for: app.bundleID)
+            return callStream
+        }
         if let emitting = bestOutputAudioProcess(for: app, in: available) {
             rememberCaptureTarget(emitting.id, for: app.bundleID)
             return emitting
-        }
-        if let openStream = namespace.filter(\.isRunningOutput).min(by: { $0.id < $1.id }) {
-            rememberCaptureTarget(openStream.id, for: app.bundleID)
-            return openStream
         }
         if let remembered = rememberedCaptureTarget(for: app.bundleID),
            let process = namespace.first(where: { $0.id == remembered }) {
