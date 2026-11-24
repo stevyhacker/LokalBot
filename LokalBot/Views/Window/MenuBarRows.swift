@@ -42,8 +42,9 @@ private struct MenuBarRowChrome: View {
                 ? AnyShapeStyle(Color(nsColor: .selectedMenuItemTextColor))
                 : isEnabled ? AnyShapeStyle(.primary) : AnyShapeStyle(.tertiary))
             .padding(.horizontal, MenuBarMetric.rowPadding)
-            .padding(.vertical, 3)
+            .padding(.vertical, 5)
             .frame(maxWidth: .infinity, minHeight: MenuBarMetric.rowHeight, alignment: .leading)
+            .fixedSize(horizontal: false, vertical: true)
             .background(
                 highlighted ? LBTokens.Palette.accentFill : Color.clear,
                 in: RoundedRectangle(cornerRadius: MenuBarMetric.rowRadius, style: .continuous))
@@ -75,7 +76,7 @@ struct MenuBarRowLabel<Trailing: View>: View {
         HStack(alignment: detail == nil ? .center : .top, spacing: MenuBarMetric.iconSpacing) {
             MenuBarRowIcon(name: icon)
                 .padding(.top, detail == nil ? 0 : 1)
-            VStack(alignment: .leading, spacing: 0) {
+            VStack(alignment: .leading, spacing: 2) {
                 title
                     .font(AppFont.scaled(.body))
                     .lineLimit(1)
@@ -182,7 +183,9 @@ struct MenuBarSwitchRow: View {
                 .help(help)
         }
         .padding(.horizontal, MenuBarMetric.rowInset + MenuBarMetric.rowPadding)
+        .padding(.vertical, 4)
         .frame(maxWidth: .infinity, minHeight: MenuBarMetric.rowHeight, alignment: .leading)
+        .fixedSize(horizontal: false, vertical: true)
     }
 }
 

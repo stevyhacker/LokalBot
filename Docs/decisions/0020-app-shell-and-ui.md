@@ -45,6 +45,12 @@ The menu bar extra keeps its panel's views after the panel closes, so appearing 
 
 Where: `LokalBot/Views/Window/MenuBarRows.swift` (`WindowVisibilityReader`).
 
+### Menu bar rows fix their vertical size after `frame(minHeight:)`
+
+SwiftUI's `.frame(minHeight:)` reports `minHeight` as the view's minimum height even when its child is taller, and a `.window`-style `MenuBarExtra` sizes its panel to its minimum height. Without `.fixedSize(horizontal: false, vertical: true)` outside `.frame(minHeight:)` on the rows and panel, a two-line row such as **Copy last dictation** (or a single-line row at larger text sizes) shrinks to `MenuBarMetric.rowHeight` (26 pt) and clips its text against the highlight pill.
+
+Where: `LokalBot/Views/Window/MenuBarRows.swift` (`MenuBarRowChrome`, `MenuBarSwitchRow`), `LokalBot/Views/Window/MenuBarView.swift` (`MenuBarPanel`), `LokalBotTests/Views/Window/MenuBarRowLayoutTests.swift` (`MenuBarRowLayoutTests`).
+
 ## Redraws and observation
 
 ### Published state is assigned only when it changes

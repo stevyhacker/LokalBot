@@ -190,6 +190,7 @@ private struct MenuBarPanel: View {
         }
         .padding(.vertical, MenuBarMetric.rowInset)
         .frame(width: (MenuBarMetric.panelWidth * textScale).rounded())
+        .fixedSize(horizontal: false, vertical: true)
         .onAppear {
             WindowAccess.shared.register { openWindow(id: $0) }
             permissions.startPolling()
@@ -344,6 +345,7 @@ private struct MenuBarPanel: View {
                 .foregroundStyle(.tertiary)
                 .padding(.horizontal, MenuBarMetric.rowInset + MenuBarMetric.rowPadding)
                 .frame(minHeight: MenuBarMetric.rowHeight)
+                .fixedSize(horizontal: false, vertical: true)
         }
         ForEach(recent) { item in
             Button {
