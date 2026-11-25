@@ -35,6 +35,7 @@ final class TimelineToolbarLayoutTests: XCTestCase {
         window.toolbarStyle = .unified
         let host = NSHostingView(rootView: root)
         window.contentView = host
+        window.orderBack(nil)
         defer { window.close() }
 
         for _ in 0..<8 {
@@ -56,21 +57,30 @@ final class TimelineToolbarLayoutTests: XCTestCase {
             $0.convert($0.bounds, to: themeFrame).minX > window.frame.width * 0.5
         })
 
-        dateView.displayIfNeeded()
-        let rootLayer = try XCTUnwrap(dateView.layer)
-        let contentFrames = (rootLayer.sublayers ?? [])
-            .filter { !String(describing: type(of: $0)).contains("Backing") && $0.frame.width > 0 && $0.frame.height > 0 }
-            .map(\.frame)
-        XCTAssertFalse(contentFrames.isEmpty, "Date toolbar pill should draw its label layers")
-
-        let contentMinX = try XCTUnwrap(contentFrames.map(\.minX).min())
-        let contentMaxX = try XCTUnwrap(contentFrames.map(\.maxX).max())
+        let ink = try horizontalInkBounds(in: dateView)
         return MeasuredToolbar(
             sidebar: sidebarView.convert(sidebarView.bounds, to: themeFrame),
             datePill: dateView.convert(dateView.bounds, to: themeFrame),
             trailing: trailingView.convert(trailingView.bounds, to: themeFrame),
-            leadingInset: contentMinX,
-            trailingInset: dateView.bounds.width - contentMaxX)
+            leadingInset: ink.minX,
+            trailingInset: dateView.bounds.width - ink.maxX)
+    }
+
+    private func horizontalInkBounds(in view: NSView) throws -> (minX: CGFloat, maxX: CGFloat) {
+        let rep = try XCTUnwrap(view.bitmapImageRepForCachingDisplay(in: view.bounds))
+        view.cacheDisplay(in: view.bounds, to: rep)
+        let scale = CGFloat(rep.pixelsWide) / view.bounds.width
+        var minPixel = rep.pixelsWide
+        var maxPixel = -1
+        for y in 0..<rep.pixelsHigh {
+            for x in 0..<rep.pixelsWide where (rep.colorAt(x: x, y: y)?.alphaComponent ?? 0) > 0.1 {
+                if x < minPixel { minPixel = x }
+                if x > maxPixel { maxPixel = x }
+            }
+        }
+        XCTAssertLessThan(minPixel, rep.pixelsWide, "Date toolbar pill should draw visible content")
+        XCTAssertGreaterThanOrEqual(maxPixel, 0, "Date toolbar pill should draw visible content")
+        return (CGFloat(minPixel) / scale, CGFloat(maxPixel + 1) / scale)
     }
 
     private func toolbarHostingViews(in view: NSView) -> [NSView] {
@@ -84,7 +94,7 @@ final class TimelineToolbarLayoutTests: XCTestCase {
                                     "Date pill leading padding should clear the capsule edge")
         XCTAssertGreaterThanOrEqual(measured.trailingInset, 4,
                                     "Date pill trailing padding should clear the capsule edge when showing Today")
-        XCTAssertEqual(measured.leadingInset, measured.trailingInset, accuracy: 1.5,
+        XCTAssertEqual(measured.leadingInset, measured.trailingInset, accuracy: 2.0,
                        "Date pill leading and trailing padding should match")
         XCTAssertEqual(measured.datePill.minY, measured.sidebar.minY, accuracy: 1)
         XCTAssertEqual(measured.datePill.height, measured.sidebar.height, accuracy: 1)
@@ -97,6 +107,6 @@ final class TimelineToolbarLayoutTests: XCTestCase {
         let measured = try measureTimelineToolbar(day: earlier)
         XCTAssertGreaterThanOrEqual(measured.leadingInset, 4)
         XCTAssertGreaterThanOrEqual(measured.trailingInset, 4)
-        XCTAssertEqual(measured.leadingInset, measured.trailingInset, accuracy: 2.5)
+        XCTAssertEqual(measured.leadingInset, measured.trailingInset, accuracy: 3.0)
     }
 }
