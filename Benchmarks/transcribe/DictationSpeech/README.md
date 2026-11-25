@@ -36,4 +36,5 @@ nothing in the real library is read or written; a model that isn't there is down
 is Qwen3-ASR on automatic language, Parakeet v3, Parakeet Ultra, Qwen3-ASR with English set, and Qwen3-ASR on automatic again
 as a drift check.
 Each manifest's `commit` is this checkout's HEAD; when the app was built from another checkout, pass `--app-commit` with
-its commit and the manifest records it as `appCommit`.
+its commit and the manifest records it as `appCommit`. `appSHA256` is the SHA-256 of the app's executable, so a run can always be
+tied to the build that made it.

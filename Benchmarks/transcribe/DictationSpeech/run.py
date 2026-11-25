@@ -1,5 +1,6 @@
 """Run LokalBot's dictation transcription on the prepared recordings, one model configuration at a time."""
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -20,6 +21,14 @@ MODEL_FOLDERS = ['me.dotenv.LokalBot.dev/qwen3-asr-models', 'FluidAudio/Models']
 
 def output(command):
     return subprocess.run(command, capture_output=True, text=True).stdout.strip()
+
+
+def digest(path):
+    h = hashlib.sha256()
+    with Path(path).open('rb') as source:
+        for chunk in iter(lambda: source.read(1024 * 1024), b''):
+            h.update(chunk)
+    return h.hexdigest()
 
 
 def passes_argument(value):
@@ -47,6 +56,7 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(['cp', '-cR', str(source), str(target)], check=True)
     binary = args.app / 'Contents' / 'MacOS' / args.app.stem
+    app_digest = digest(binary)
     failed = []
     for name in args.configs:
         model, language = CONFIGS[name.removesuffix('-last')]
@@ -64,6 +74,7 @@ def main():
             'wallSeconds': round(time.time() - started, 1),
             'command': ['LokalBot Dev'] + command[1:2] + ['cases.json'] + command[3:],
             'commit': output(['git', '-C', str(Path(__file__).parent), 'rev-parse', 'HEAD']),
+            'appSHA256': app_digest,
             **({'appCommit': args.app_commit} if args.app_commit else {}),
             'machine': {'model': output(['sysctl', '-n', 'hw.model']), 'chip': output(['sysctl', '-n', 'machdep.cpu.brand_string']),
                         'memoryBytes': int(output(['sysctl', '-n', 'hw.memsize']) or 0), 'macOS': platform.mac_ver()[0]},
