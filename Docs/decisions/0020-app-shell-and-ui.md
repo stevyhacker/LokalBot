@@ -123,6 +123,12 @@ SwiftUI's native macOS `DisclosureGroup` can expose a large accessibility frame 
 
 Where: `LokalBot/Support/DesignSystem.swift` (`WorkspaceDisclosure`).
 
+### Timeline's day picker keeps its relative-day label inside the toolbar button
+
+Putting a bare `Text` (`Today` / `Yesterday`) beside the day-picker `Button` inside a single `.navigation` `ToolbarItem` `HStack` lets AppKit wrap the stack in a Liquid Glass pill with zero trailing inset, pushing the relative-day label flush against the pill edge while the leading side gets the button's native inset. Hosting the relative-day label inside the `Button` label itself gives the pill symmetric toolbar-button padding and one full-pill hit target aligned with the other toolbar items in the row.
+
+Where: `LokalBot/Views/ScreenMemory/CaptureView.swift` (`TimelineContentView.toolbar`), `LokalBotTests/Views/Window/TimelineToolbarLayoutTests.swift` (`TimelineToolbarLayoutTests`).
+
 ### Workspace menus are native pull-down menus with explicit accessibility actions
 
 SwiftUI's macOS 15 `Menu` proxy omits Press/Show Menu on these workspace controls.
