@@ -22,7 +22,8 @@ class ReplayTests(unittest.TestCase):
         command = server_command('server', 'model.gguf', 8080, ['--spec-type', 'ngram-mod'])
         self.assertEqual(command[-2:], ['--spec-type', 'ngram-mod'])
         self.assertEqual(command[command.index('--host') + 1], '127.0.0.1')
-        for moved in (['--host', '0.0.0.0'], ['--port=9'], ['-m', 'other.gguf'], ['--seed', '1']):
+        for moved in (['--host', '0.0.0.0'], ['--port=9'], ['-m', 'other.gguf'], ['--seed', '1'],
+                      ['--api-key-file', 'key'], ['--api-key-file=key']):
             with self.assertRaises(ValueError):
                 server_command('server', 'model.gguf', 8080, moved)
 

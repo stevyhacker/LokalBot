@@ -41,6 +41,9 @@ notes were not re-measured on the new model (the first look in the 11-21 report 
   by the baseline's for the same case and condition. Baseline: round 1 `none (first)`; round 2 `none`.
 - Order: round 1 on the long set, then the short set (baseline first and last); then the stock-model pair on each set; then
   round 2 on each set. 30 runs, about 34 minutes in all, one after another.
+  Only round 1 brackets its runs with a baseline at both ends (the closing baseline's paired ratio to the opening one is 0.99 on the long set and 1.00 on the short set). In the stock-model pair and in
+  round 2 the baseline always ran before `ngram-cache`, with no closing baseline, so a drift in machine state during
+  those runs would sit inside their ratios unseen; read them as agreeing with round 1, not as independent checks of it.
 - Whether another app was running: the owner's trial copy of LokalBot Dev was open and idle throughout (before, during and
   after); it was not touched. Nothing else heavy was started; the rest of the work during the runs was reading files and
   writing this report.

@@ -127,7 +127,7 @@ def score(cases, runs, variants=None):
 
 
 RESERVED_SERVER_ARGUMENTS = {'-m', '--model', '--host', '--port', '-c', '--ctx-size', '--seed', '-s', '--parallel', '-np',
-                             '--api-key', '--webui', '--no-webui'}
+                             '--api-key', '--api-key-file', '--webui', '--no-webui'}
 
 
 def server_command(server, model, port, extra=()):
