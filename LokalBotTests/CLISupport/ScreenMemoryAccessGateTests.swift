@@ -69,11 +69,16 @@ final class ScreenMemoryAccessGateTests: XCTestCase {
     }
 
     func testDefaultRootFollowsStorageRootOverride() {
+        let previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("screen-memory-env-\(UUID().uuidString)", isDirectory: true)
         setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
         defer {
-            unsetenv("LOKALBOT_STORAGE_ROOT")
+            if let previousStorageRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
             try? FileManager.default.removeItem(at: root)
         }
         XCTAssertEqual(ScreenMemoryAccessGate().root.path, root.path)

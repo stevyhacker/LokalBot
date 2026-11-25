@@ -9,7 +9,7 @@ final class UpgradeMigrationTests: XCTestCase {
             forResource: "upgrade", withExtension: nil, subdirectory: "Fixtures"))
         let versions = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             .filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("manifest.json").path) }
-        guard !versions.isEmpty else { throw XCTSkip("no upgrade fixtures committed yet") }
+        XCTAssertFalse(versions.isEmpty, "no upgrade fixtures committed")
         return versions.sorted { $0.lastPathComponent < $1.lastPathComponent }
     }
 
@@ -88,9 +88,7 @@ final class UpgradeMigrationTests: XCTestCase {
             XCTAssertTrue(controller.suggestions.allSatisfy { $0.status == .proposed }, version)
             checked += 1
         }
-        if checked == 0 {
-            throw XCTSkip("No release fixture has Personal Context data yet; the first is the release after 0.10.7.")
-        }
+        XCTAssertGreaterThan(checked, 0, "Expected at least one upgrade fixture with Personal Context data")
     }
 
     @MainActor
@@ -146,7 +144,10 @@ final class UpgradeMigrationTests: XCTestCase {
     private func relocateScreenshotPaths(in library: URL) throws {
         var database: OpaquePointer?
         let url = library.appendingPathComponent("lokalbotv3.sqlite")
-        guard sqlite3_open(url.path, &database) == SQLITE_OK else { throw XCTSkip("no database in \(url.path)") }
+        guard sqlite3_open(url.path, &database) == SQLITE_OK else {
+            XCTFail("no database in \(url.path)")
+            return
+        }
         defer { sqlite3_close(database) }
         var statement: OpaquePointer?
         sqlite3_prepare_v2(database, "SELECT path FROM screenshots WHERE path != '' LIMIT 1", -1, &statement, nil)

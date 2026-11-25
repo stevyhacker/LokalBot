@@ -196,6 +196,19 @@ fn search_finds_demo_content() {
     assert_eq!(screen[0].app, "Microsoft Edge");
 }
 
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
 #[test]
 fn macos_fixture_actions_project() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -203,7 +216,9 @@ fn macos_fixture_actions_project() {
     if !root.is_dir() {
         return;
     }
-    let library = Library::open_read_only(LibraryPaths::new(root)).unwrap();
+    let copy = tempfile::tempdir().unwrap();
+    copy_tree(&root, copy.path());
+    let library = Library::open_read_only(LibraryPaths::new(copy.path())).unwrap();
     let references = library.action_references(None).unwrap();
     assert!(references.len() >= 10, "{}", references.len());
     assert!(references.iter().any(|r| r.is_for_user));

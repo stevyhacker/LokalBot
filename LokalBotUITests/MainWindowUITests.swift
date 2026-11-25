@@ -10,10 +10,22 @@ final class MainWindowUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         fixture = try SyntheticFixture.plant()
+        let customLaunch = [
+            "testMultiMeetingThreadCompletionRequiresConfirmation",
+            "testActionThreadSourceCanBeSeparatedAndRestored",
+            "testPartialMeetingShowsSavedRecapAndActions",
+            "testMeetingSwitchKeepsReadingAnchorsAndSelectionStable",
+        ]
+        if !customLaunch.contains(where: { name.contains($0) }) {
+            try launchMainWindow()
+        }
+    }
+
+    private func launchMainWindow(environment: [String: String] = ["LOKALBOT_UI_TEST_DIAGNOSTICS": "1"]) throws {
         let launch = try UITestHarness.launch(
             storageRoot: fixture.root,
             suitePrefix: "MainWindow",
-            environment: ["LOKALBOT_UI_TEST_DIAGNOSTICS": "1"])
+            environment: environment)
         app = launch.app
         defaultsSuiteName = launch.defaultsSuiteName
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
@@ -716,7 +728,6 @@ final class MainWindowUITests: XCTestCase {
     }
 
     private func relaunchWithMatchingActions() throws {
-        app.terminate()
         let source = fixture.folder(for: fixture.designReview).appendingPathComponent("outcomes.json")
         let target = fixture.folder(for: fixture.standup).appendingPathComponent("outcomes.json")
         var outcomes = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(contentsOf: source)) as? [String: Any])
@@ -725,9 +736,7 @@ final class MainWindowUITests: XCTestCase {
         outcomes["decisionRecords"] = []
         outcomes["openQuestions"] = []
         try JSONSerialization.data(withJSONObject: outcomes).write(to: target, options: .atomic)
-        app = try UITestHarness.relaunch(storageRoot: fixture.root,
-                                        defaultsSuiteName: XCTUnwrap(defaultsSuiteName))
-        XCTAssertTrue(identified("today.header").waitForExistence(timeout: 10))
+        try launchMainWindow()
     }
 
     func testMeetingDetailLeadsWithActionsAndHasFullSummaryTab() {
@@ -766,10 +775,8 @@ final class MainWindowUITests: XCTestCase {
     }
 
     func testPartialMeetingShowsSavedRecapAndActions() throws {
-        app.terminate()
         try SyntheticFixture.makeNotesPartial(for: fixture.designReview, in: fixture)
-        app = try UITestHarness.relaunch(storageRoot: fixture.root,
-                                        defaultsSuiteName: XCTUnwrap(defaultsSuiteName))
+        try launchMainWindow()
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("meeting.notes.partial").waitForExistence(timeout: 5))
@@ -1073,9 +1080,10 @@ final class MainWindowUITests: XCTestCase {
             let path = fixture.folder(for: fixture.standup).appendingPathComponent(name)
             if FileManager.default.fileExists(atPath: path.path) { try FileManager.default.removeItem(at: path) }
         }
-        app.terminate()
-        app = try UITestHarness.relaunch(storageRoot: fixture.root, defaultsSuiteName: defaultsSuiteName!,
-            environment: ["LOKALBOT_SLOW_MEETING_LOAD": "1", "LOKALBOT_UI_TEST_DIAGNOSTICS": "1"])
+        try launchMainWindow(environment: [
+            "LOKALBOT_SLOW_MEETING_LOAD": "1",
+            "LOKALBOT_UI_TEST_DIAGNOSTICS": "1",
+        ])
         openLibrary()
         selectMeeting(fixture.designReview)
         XCTAssertTrue(identified("meeting.audioPlayer").waitForExistence(timeout: 5))

@@ -10,7 +10,9 @@ final class MCPServerIntegrationTests: XCTestCase {
 
     override func setUpWithError() throws {
         guard FileManager.default.isExecutableFile(atPath: helperURL.path) else {
-            throw XCTSkip("no embedded lokalbot-cli in this build")
+            XCTFail("embedded lokalbot-cli missing at \(helperURL.path)")
+            throw NSError(domain: "MCPServerIntegrationTests", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: "embedded lokalbot-cli missing at \(helperURL.path)"])
         }
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("mcpserver-\(UUID().uuidString)")

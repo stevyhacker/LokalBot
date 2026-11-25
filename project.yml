@@ -400,6 +400,32 @@ targets:
           - "@executable_path/../Resources/llama-cpp"
           - "@loader_path/../../../../Resources/llama-cpp"
 
+  LokalBotBenchmarks:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - path: LokalBotBenchmarks
+      - path: LokalBotTests/TestSupport/SyntheticWindowImage.swift
+    dependencies:
+      - target: LokalBot
+    settings:
+      base:
+        BUNDLE_LOADER: "$(TEST_HOST)"
+        TEST_HOST: "$(BUILT_PRODUCTS_DIR)/LokalBot.app/Contents/MacOS/LokalBot"
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_MODULE_NAME: LokalBotBenchmarks
+        PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBotBenchmarks
+        LIBRARY_SEARCH_PATHS:
+          - $(inherited)
+          - $(SRCROOT)/Vendor/llama-cpp
+        OTHER_LDFLAGS:
+          - $(inherited)
+          - -lllama
+        LD_RUNPATH_SEARCH_PATHS:
+          - $(inherited)
+          - "@executable_path/../Resources/llama-cpp"
+          - "@loader_path/../../../../Resources/llama-cpp"
+
   # Synthetic-data UI tests. Drives the UI-test host app via
   # XCUITest with `LOKALBOT_UI_TEST=1` so the app skips Core Audio polling,
   # the accessibility-trusted meeting detector, Sparkle and screenshots —

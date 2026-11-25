@@ -20,9 +20,22 @@ ARGS=(
   -skip-testing:LokalBotUITests
 )
 
+TARGET="LokalBotTests"
 if [ "${1:-}" != "" ]; then
-  FILTER="${1#LokalBotTests/}"
-  ARGS+=(-only-testing:"LokalBotTests/$FILTER")
+  FILTER="$1"
+  if [[ "$FILTER" == LokalBotBenchmarks/* ]]; then
+    TARGET="LokalBotBenchmarks"
+    FILTER="${FILTER#LokalBotBenchmarks/}"
+  else
+    FILTER="${FILTER#LokalBotTests/}"
+    CLASS="${FILTER%%/*}"
+    if find "$ROOT/LokalBotBenchmarks" -name "$CLASS.swift" -print -quit 2>/dev/null | grep -q .; then
+      TARGET="LokalBotBenchmarks"
+    fi
+  fi
+  ARGS+=(-only-testing:"$TARGET/$FILTER")
+else
+  ARGS+=(-skip-testing:LokalBotBenchmarks)
 fi
 
 "$ROOT/Scripts/build/build-sync-xcframework.sh"
@@ -31,7 +44,7 @@ RESULTS="$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-unit-results.XXXXXX")"
 trap 'rm -rf "$RESULTS"' EXIT
 STATUS=0
 xcodebuild "${ARGS[@]}" -resultBundlePath "$RESULTS/unit.xcresult" test || STATUS=$?
-if [ -d "$RESULTS/unit.xcresult" ]; then
+if [ "$TARGET" = "LokalBotTests" ] && [ -d "$RESULTS/unit.xcresult" ]; then
   python3 "$ROOT/Scripts/ci/unit-skips.py" check "$RESULTS/unit.xcresult" || [ "$STATUS" -ne 0 ] || STATUS=1
 fi
 exit "$STATUS"

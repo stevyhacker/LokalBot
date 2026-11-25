@@ -55,22 +55,28 @@ enum RecordingPausedNotification {
 final class AppLock {
     private static let enabledKey = "companion.appLock"
 
-    var isEnabled: Bool = UserDefaults.standard.bool(forKey: AppLock.enabledKey) {
+    private var policy: AppLockPolicy {
         didSet {
-            UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey)
+            if policy.isEnabled != oldValue.isEnabled {
+                UserDefaults.standard.set(policy.isEnabled, forKey: Self.enabledKey)
+            }
             covers.refresh()
         }
     }
-    private(set) var isLocked: Bool = UserDefaults.standard.bool(forKey: AppLock.enabledKey) {
-        didSet { covers.refresh() }
+
+    var isEnabled: Bool {
+        get { policy.isEnabled }
+        set {
+            policy.applyEnableChange(enabled: newValue, authenticated: true)
+        }
     }
-    private(set) var isObscured = false {
-        didSet { covers.refresh() }
-    }
+    var isLocked: Bool { policy.isLocked }
+    var isObscured: Bool { policy.isObscured }
     private var authenticating = false
     @ObservationIgnored private let covers = LockCoverWindows()
 
     init() {
+        policy = AppLockPolicy(isEnabled: UserDefaults.standard.bool(forKey: Self.enabledKey))
         covers.attach(to: self)
     }
 
@@ -90,21 +96,15 @@ final class AppLock {
     }
 
     func scenePhaseChanged(_ phase: ScenePhase) {
-        guard isEnabled else {
-            isObscured = false
-            return
-        }
+        let mapped: AppLockPolicy.Phase
         switch phase {
-        case .background:
-            isLocked = true
-            isObscured = true
-        case .inactive:
-            isObscured = true
-        case .active:
-            isObscured = false
-            if isLocked { Task { await unlock() } }
-        @unknown default:
-            break
+        case .background: mapped = .background
+        case .inactive: mapped = .inactive
+        case .active: mapped = .active
+        @unknown default: return
+        }
+        if policy.transition(to: mapped) {
+            Task { await unlock() }
         }
     }
 
@@ -114,20 +114,17 @@ final class AppLock {
         defer { authenticating = false }
         let context = LAContext()
         let reason = "Unlock your LokalBot library"
-        if (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) == true {
-            isLocked = false
-        }
+        let ok = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)) == true
+        policy.finishUnlock(succeeded: ok)
     }
 
     func setEnabled(_ enabled: Bool) async {
         guard enabled else {
-            guard !isLocked else { return }
-            isEnabled = false
+            policy.applyEnableChange(enabled: false, authenticated: false)
             return
         }
         let context = LAContext()
-        if (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Turn on App Lock")) == true {
-            isEnabled = true
-        }
+        let ok = (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Turn on App Lock")) == true
+        policy.applyEnableChange(enabled: true, authenticated: ok)
     }
 }

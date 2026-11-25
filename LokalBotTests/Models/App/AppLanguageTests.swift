@@ -88,8 +88,9 @@ final class AppLanguageTests: XCTestCase {
     }
 
     func testLanguagePreferencePersistsWithoutChangingContentLanguages() throws {
-        let defaults = try XCTUnwrap(UserDefaults(suiteName: "AppLanguageTests.\(UUID().uuidString)"))
-        defer { defaults.removeObject(forKey: AppSettings.key) }
+        let suiteName = "AppLanguageTests.\(UUID().uuidString)"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suiteName))
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         for language in AppLanguage.allCases {
             var settings = AppSettings()
             settings.appLanguage = language

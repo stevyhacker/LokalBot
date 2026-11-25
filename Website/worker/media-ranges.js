@@ -7,7 +7,9 @@ export default {
     if (res.status !== 200 || !MEDIA.test(new URL(request.url).pathname)) return res;
 
     const range = /^bytes=(\d*)-(\d*)$/.exec((request.headers.get('Range') || '').trim());
-    if (request.method !== 'GET' || !range || (range[1] === '' && range[2] === '') || Number(res.headers.get('Content-Length')) > MAX_BYTES) {
+    const rawLength = res.headers.get('Content-Length');
+    const length = rawLength === null ? NaN : Number(rawLength);
+    if (request.method !== 'GET' || !range || (range[1] === '' && range[2] === '') || !Number.isFinite(length) || length < 0 || length > MAX_BYTES) {
       const whole = new Response(res.body, res);
       whole.headers.set('Accept-Ranges', 'bytes');
       return whole;

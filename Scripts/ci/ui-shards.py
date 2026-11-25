@@ -59,7 +59,11 @@ def inventory(root=Path('.')):
     return sorted(result)
 
 
-def plan():
+def include_visual(flag=None):
+    return os.environ.get('UI_INCLUDE_VISUAL') == 'true' if flag is None else bool(flag)
+
+
+def plan(include_visual_matrix=None):
     tests = inventory()
     smoke = [test for test in tests if any(test == item or test.startswith(item + '/') for item in SMOKE)]
     if not all(any(test == item or test.startswith(item + '/') for test in smoke) for item in SMOKE):
@@ -73,9 +77,11 @@ def plan():
         index = totals.index(min(totals))
         shards[index].append(test)
         totals[index] += timings.get(test, 30)
-    return dict(smoke=smoke, background=background, **{'reduced-motion': [REDUCED],
-                               'functional-1': shards[0], 'functional-2': shards[1]},
-                **{f'visual-{size}': [VISUAL] for size in SIZES})
+    phases = dict(smoke=smoke, background=background, **{'reduced-motion': [REDUCED],
+                  'functional-1': shards[0], 'functional-2': shards[1]})
+    if include_visual(include_visual_matrix):
+        phases.update({f'visual-{size}': [VISUAL] for size in SIZES})
+    return phases
 
 
 def timings(logs):
@@ -125,10 +131,17 @@ def gate(build, first, second, selector=''):
         raise ValueError('Every phase on both runners must succeed')
 
 
-def grouped_phases():
-    """Every planned phase the runner groups execute, `visual` standing for its sizes."""
-    return [phase for members in GROUPS.values() for member in members
-            for phase in ([f'visual-{size}' for size in SIZES] if member == 'visual' else [member])]
+def grouped_phases(include_visual_matrix=None):
+    with_visual = include_visual(include_visual_matrix)
+    result = []
+    for members in GROUPS.values():
+        for member in members:
+            if member == 'visual':
+                if with_visual:
+                    result.extend(f'visual-{size}' for size in SIZES)
+            else:
+                result.append(member)
+    return result
 
 
 def reduce_motion(enabled):
@@ -138,7 +151,8 @@ def reduce_motion(enabled):
 
 def execute(phase, selected=None):
     if phase in GROUPS:
-        codes = [execute(member) for member in GROUPS[phase]]
+        members = [member for member in GROUPS[phase] if member != 'visual' or include_visual()]
+        codes = [execute(member) for member in members]
         return next((code for code in codes if code), 0)
     if phase == 'visual':
         codes = [execute(f'visual-{size}') for size in SIZES]
@@ -158,7 +172,7 @@ def execute(phase, selected=None):
 
 
 def run_phase(phase, selected):
-    phases = plan()
+    phases = plan(include_visual_matrix=True if phase.startswith('visual-') else None)
     tests = selected_tests(selected) if phase == 'single' else phases[phase]
     folder = Path('.build/ui-results')
     folder.mkdir(parents=True, exist_ok=True)
@@ -227,17 +241,21 @@ def verify(root, phases=None):
             raise ValueError(f'Test inventory mismatch: {phase}: expected {required}, got {actual}')
         if any(status != 'Passed' for test, status in report['tests']):
             raise ValueError(f'Failed or skipped required test: {phase}')
-    expected = {f'{size}-{appearance}-{route}.png' for size in SIZES
-                for appearance in ['light', 'dark'] for route in ROUTES}
-    captures = list(root.rglob('captures/*.png'))
-    if collections.Counter(p.name for p in captures) != collections.Counter(expected):
-        raise ValueError(f'Missing, duplicate or unexpected matrix captures ({len(expected)} required)')
-    for path in captures:
-        data = path.read_bytes()
-        size = tuple(map(int, path.name.split('-')[0].split('x')))
-        if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != size:
-            raise ValueError(f'Invalid capture dimensions: {path}')
-    print(f'Complete UI coverage: {len(inventory())} unique tests and {len(expected)} correctly sized captures.')
+    if any(phase.startswith('visual-') for phase in phases):
+        expected = {f'{size}-{appearance}-{route}.png' for size in SIZES
+                    for appearance in ['light', 'dark'] for route in ROUTES}
+        captures = list(root.rglob('captures/*.png'))
+        if collections.Counter(p.name for p in captures) != collections.Counter(expected):
+            raise ValueError(f'Missing, duplicate or unexpected matrix captures ({len(expected)} required)')
+        for path in captures:
+            data = path.read_bytes()
+            size = tuple(map(int, path.name.split('-')[0].split('x')))
+            if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != size:
+                raise ValueError(f'Invalid capture dimensions: {path}')
+        print(f'Complete UI coverage: {len(inventory())} unique tests and {len(expected)} correctly sized captures.')
+    else:
+        covered = sum(len(tests) for tests in phases.values())
+        print(f'Complete PR UI coverage: {covered} tests verified (visual matrix deferred to scheduled/manual runs).')
 
 
 if __name__ == '__main__':

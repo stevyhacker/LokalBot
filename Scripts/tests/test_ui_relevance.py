@@ -18,11 +18,21 @@ class UIRelevanceTests(unittest.TestCase):
 
     def test_app_ui_test_and_ci_changes_need_the_ui_suite(self):
         for path in ["LokalBot/AppState.swift", "LokalBotUITests/MainWindowUITests.swift",
-                     "project.yml", "Scripts/ci/ui-shards.py", "Scripts/test/ui-tests.sh",
-                     ".github/workflows/ui-tests.yml", "Scripts/build/fetch-llama.sh",
+                     "CLI/LokalBotCLI.swift", "project.yml", "Scripts/ci/ui-shards.py",
+                     "Scripts/test/ui-tests.sh", ".github/workflows/ui-tests.yml",
+                     "Scripts/build/fetch-llama.sh", "Scripts/build/build-sync-xcframework.sh",
+                     "Scripts/build/sign-bundled-native-code.sh",
+                     "LinuxWindows/crates/lokalbot-sync/src/lib.rs",
+                     ".github/actions/lokalbot-sync/action.yml",
+                     "LokalBotTests/Fixtures/stub-openai.ts",
+                     ".agents/skills/lokalbot-cli/SKILL.md",
+                     "PRIVACY.md", "LICENSE", "THIRD_PARTY_NOTICES.md", "LICENSES/AGPL-3.0.txt",
                      "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved"]:
             with self.subTest(path=path):
                 self.assertTrue(relevance.relevant([path]))
+
+    def test_empty_path_list_fails_closed(self):
+        self.assertTrue(relevance.relevant([]))
 
     def test_prefix_patterns_do_not_match_sibling_names(self):
         self.assertFalse(relevance.relevant(["LokalBotTests/Foo.swift"]))

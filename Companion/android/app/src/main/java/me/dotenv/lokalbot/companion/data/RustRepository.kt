@@ -95,44 +95,48 @@ class RustRepository(
 
     private fun <T> String.decode(serializer: KSerializer<T>): T = RecordJson.decodeFromString(serializer, this)
 
-    override suspend fun manifest(): Manifest? = core { client.manifest()?.decode(Manifest.serializer()) }
+    override suspend fun manifest(): Manifest? = core { client.manifest()?.let { decodeOrNull(it, Manifest.serializer()) } }
 
     override suspend fun meetings(fromDay: String?, toDay: String?, limit: Int): List<Meeting> = core {
-        client.meetings(fromDay, toDay, limit.toUInt()).map { it.decode(Meeting.serializer()) }.filter { it.mergedInto == null }
+        decodeAll(client.meetings(fromDay, toDay, limit.toUInt()), Meeting.serializer()).filter { it.mergedInto == null }
     }
 
     override suspend fun newestMeetings(limit: Int): MeetingsPage = core {
-        val rows = client.meetings(null, null, (limit + 1).toUInt())
-        MeetingsPage(rows.take(limit).map { it.decode(Meeting.serializer()) }, hasMore = rows.size > limit)
+        newestMeetingsPage(client.meetings(null, null, (limit + 1).toUInt()), limit)
     }
 
-    override suspend fun meeting(id: String): Meeting? = core { client.meeting(id)?.decode(Meeting.serializer()) }
+    override suspend fun meeting(id: String): Meeting? = core { client.meeting(id)?.let { decodeOrNull(it, Meeting.serializer()) } }
 
-    override suspend fun transcript(meetingId: String): Transcript? = core { client.transcript(meetingId)?.decode(Transcript.serializer()) }
+    override suspend fun transcript(meetingId: String): Transcript? = core {
+        client.transcript(meetingId)?.let { decodeOrNull(it, Transcript.serializer()) }
+    }
 
     override suspend fun days(limit: Int): List<String> = core { client.days(limit.toUInt()) }
 
-    override suspend fun day(date: String): DayRecord? = core { client.day(date)?.decode(DayRecord.serializer()) }
+    override suspend fun day(date: String): DayRecord? = core { client.day(date)?.let { decodeOrNull(it, DayRecord.serializer()) } }
 
     override suspend fun actions(filter: ActionFilter): List<ActionRow> = core {
-        val rows = client.actions(
-            RustActionFilter(
-                mineOnly = filter.mineOnly,
-                status = filter.status?.wireName,
-                ownerUnclearOnly = filter.ownerUnclearOnly,
-                dueBefore = filter.dueBefore,
+        val rows = decodeAll(
+            client.actions(
+                RustActionFilter(
+                    mineOnly = filter.mineOnly,
+                    status = filter.status?.wireName,
+                    ownerUnclearOnly = filter.ownerUnclearOnly,
+                    dueBefore = filter.dueBefore,
+                ),
             ),
-        ).map { it.decode(ActionRow.serializer()) }
+            ActionRow.serializer(),
+        )
         if (filter.othersOnly) rows.filter { ActionOrdering.matches(it, filter) } else rows
     }
 
-    override suspend fun people(): List<Person> = core { client.people().map { it.decode(Person.serializer()) } }
+    override suspend fun people(): List<Person> = core { decodeAll(client.people(), Person.serializer()) }
 
-    override suspend fun person(id: String): Person? = core { client.person(id)?.decode(Person.serializer()) }
+    override suspend fun person(id: String): Person? = core { client.person(id)?.let { decodeOrNull(it, Person.serializer()) } }
 
-    override suspend fun projects(): List<Project> = core { client.projects().map { it.decode(Project.serializer()) } }
+    override suspend fun projects(): List<Project> = core { decodeAll(client.projects(), Project.serializer()) }
 
-    override suspend fun project(id: String): Project? = core { client.project(id)?.decode(Project.serializer()) }
+    override suspend fun project(id: String): Project? = core { client.project(id)?.let { decodeOrNull(it, Project.serializer()) } }
 
     override suspend fun search(query: String, limit: Int): List<SearchHit> = core {
         client.search(query, limit.toUInt()).map { hit ->
@@ -191,11 +195,11 @@ class RustRepository(
     }
 
     override suspend fun queuedQuestions(): List<AskRequest> = core {
-        client.queuedQuestions().map { it.decode(AskRequest.serializer()) }
+        decodeAll(client.queuedQuestions(), AskRequest.serializer())
     }
 
     override suspend fun askHistory(limit: Int): List<AskExchange> = core {
-        client.askHistory(limit.toUInt()).map { it.decode(AskExchange.serializer()) }
+        decodeAll(client.askHistory(limit.toUInt()), AskExchange.serializer())
     }
 
     override suspend fun sync(): SyncOutcome {
@@ -400,5 +404,14 @@ class RustRepository(
         fun decodeKey(value: String): ByteArray? =
             runCatching { Base64.getUrlDecoder().decode(value) }.getOrNull()
                 ?: runCatching { Base64.getDecoder().decode(value) }.getOrNull()
+
+        internal fun <T> decodeOrNull(json: String, serializer: KSerializer<T>): T? =
+            runCatching { RecordJson.decodeFromString(serializer, json) }.getOrNull()
+
+        internal fun <T> decodeAll(rows: List<String>, serializer: KSerializer<T>): List<T> =
+            rows.mapNotNull { decodeOrNull(it, serializer) }
+
+        internal fun newestMeetingsPage(rows: List<String>, limit: Int): MeetingsPage =
+            MeetingsPage(decodeAll(rows.take(limit), Meeting.serializer()), hasMore = rows.size > limit)
     }
 }

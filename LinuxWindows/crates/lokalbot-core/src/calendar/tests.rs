@@ -535,6 +535,19 @@ fn manual_meeting_omits_calendar_keys() {
     }
 }
 
+fn copy_tree(from: &std::path::Path, to: &std::path::Path) {
+    std::fs::create_dir_all(to).unwrap();
+    for entry in std::fs::read_dir(from).unwrap() {
+        let entry = entry.unwrap();
+        let target = to.join(entry.file_name());
+        if entry.file_type().unwrap().is_dir() {
+            copy_tree(&entry.path(), &target);
+        } else {
+            std::fs::copy(entry.path(), target).unwrap();
+        }
+    }
+}
+
 #[test]
 fn stamping_a_macos_fixture_meeting_keeps_its_other_fields() {
     let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -543,7 +556,10 @@ fn stamping_a_macos_fixture_meeting_keeps_its_other_fields() {
         eprintln!("fixture missing at {}", root.display());
         return;
     }
-    let source = crate::Library::open_read_only(crate::LibraryPaths::new(root)).unwrap();
+    let fixture_copy = tempfile::tempdir().unwrap();
+    copy_tree(&root, fixture_copy.path());
+    let source =
+        crate::Library::open_read_only(crate::LibraryPaths::new(fixture_copy.path())).unwrap();
     let original = source
         .list_meetings()
         .unwrap()

@@ -421,14 +421,21 @@ mod tests {
 
     static LANGUAGE: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    struct LanguageReset;
+
+    impl Drop for LanguageReset {
+        fn drop(&mut self) {
+            set_language("en");
+        }
+    }
+
     fn in_language<T>(code: &str, check: impl FnOnce() -> T) -> T {
         let _guard = LANGUAGE
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let _reset = LanguageReset;
         set_language(code);
-        let result = check();
-        set_language("en");
-        result
+        check()
     }
 
     #[test]
@@ -446,7 +453,9 @@ mod tests {
         assert_eq!(directional("\u{200f}2 متأخرة"), "\u{200f}2 متأخرة");
         assert_eq!(directional("2 overdue"), "2 overdue");
         assert_eq!(directional("10:48"), "10:48");
-        assert_eq!(interface_directional("3"), "3");
+        in_language("en", || {
+            assert_eq!(interface_directional("3"), "3");
+        });
     }
 
     #[test]
@@ -674,7 +683,9 @@ mod tests {
             date.format_localized("%x", date_locale_for("en"))
                 .to_string()
         );
-        assert_eq!(date_pattern("%Y-%m-%d"), "%Y-%m-%d");
+        in_language("en", || {
+            assert_eq!(date_pattern("%Y-%m-%d"), "%Y-%m-%d");
+        });
         assert_eq!(
             first_weekday_in(chrono::Locale::de_DE),
             chrono::Weekday::Mon
