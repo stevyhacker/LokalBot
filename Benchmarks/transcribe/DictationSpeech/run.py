@@ -56,7 +56,6 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(['cp', '-cR', str(source), str(target)], check=True)
     binary = args.app / 'Contents' / 'MacOS' / args.app.stem
-    app_digest = digest(binary)
     failed = []
     for name in args.configs:
         model, language = CONFIGS[name.removesuffix('-last')]
@@ -66,20 +65,23 @@ def main():
                    '--language', language, '--passes', str(args.passes)]
         env = dict(os.environ, CFFIXED_USER_HOME=str(home), LOKALBOT_STORAGE_ROOT=str(args.root / 'storage'),
                    LOKALBOT_DEFAULTS_SUITE='me.dotenv.LokalBot.speech-replay.' + uuid.uuid4().hex)
+        app_digest = digest(binary)
         started = time.time()
         with open(folder / 'replay.jsonl', 'w') as stdout, open(folder / 'stderr.log', 'w') as stderr:
             status = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
+        app_changed = digest(binary) != app_digest
         (folder / 'manifest.json').write_text(json.dumps({
             'config': name, 'model': model, 'language': language, 'passes': args.passes, 'exit': status,
             'wallSeconds': round(time.time() - started, 1),
             'command': ['LokalBot Dev'] + command[1:2] + ['cases.json'] + command[3:],
             'commit': output(['git', '-C', str(Path(__file__).parent), 'rev-parse', 'HEAD']),
             'appSHA256': app_digest,
+            **({'appChangedDuringReplay': True} if app_changed else {}),
             **({'appCommit': args.app_commit} if args.app_commit else {}),
             'machine': {'model': output(['sysctl', '-n', 'hw.model']), 'chip': output(['sysctl', '-n', 'machdep.cpu.brand_string']),
                         'memoryBytes': int(output(['sysctl', '-n', 'hw.memsize']) or 0), 'macOS': platform.mac_ver()[0]},
         }, indent=1) + '\n')
-        if status:
+        if status or app_changed:
             failed.append(name)
         print(f'{name}: exit {status}, {time.time() - started:.0f} s', flush=True)
     if failed:
