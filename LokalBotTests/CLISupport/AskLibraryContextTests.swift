@@ -3,9 +3,11 @@ import XCTest
 
 final class AskLibraryContextTests: XCTestCase {
     private var root: URL!
+    private var previousStorageRoot: String?
     private let utc = TimeZone(identifier: "UTC")!
 
     override func setUpWithError() throws {
+        previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("askcontext-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -31,7 +33,11 @@ final class AskLibraryContextTests: XCTestCase {
     }
 
     override func tearDown() {
-        unsetenv("LOKALBOT_STORAGE_ROOT")
+        if let previousStorageRoot {
+            setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+        } else {
+            unsetenv("LOKALBOT_STORAGE_ROOT")
+        }
         try? FileManager.default.removeItem(at: root)
         super.tearDown()
     }

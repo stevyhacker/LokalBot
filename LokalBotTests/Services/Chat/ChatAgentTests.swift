@@ -602,11 +602,16 @@ final class ChatAgentTests: XCTestCase {
 
 
     func testToolsListSearchAndGetAgainstPlantedLibrary() async throws {
+        let previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-chat-\(UUID().uuidString)", isDirectory: true)
         setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
         defer {
-            unsetenv("LOKALBOT_STORAGE_ROOT")
+            if let previousStorageRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
             try? FileManager.default.removeItem(at: root)
         }
 
@@ -686,11 +691,16 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testMeetingDayFilterIsAppliedBeforeResultLimit() async throws {
+        let previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-chat-day-\(UUID().uuidString)", isDirectory: true)
         setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
         defer {
-            unsetenv("LOKALBOT_STORAGE_ROOT")
+            if let previousStorageRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
             try? FileManager.default.removeItem(at: root)
         }
         let storage = StorageManager()
@@ -752,11 +762,16 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testSearchScreenAndActivitySummaryAgainstPlantedStore() async throws {
+        let previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-screen-\(UUID().uuidString)", isDirectory: true)
         setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
         defer {
-            unsetenv("LOKALBOT_STORAGE_ROOT")
+            if let previousStorageRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
             try? FileManager.default.removeItem(at: root)
         }
 
@@ -907,11 +922,16 @@ final class ChatAgentTests: XCTestCase {
     }
 
     func testSearchRescuesNaturalLanguageQuery() async throws {
+        let previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("lokalbot-nlsearch-\(UUID().uuidString)", isDirectory: true)
         setenv("LOKALBOT_STORAGE_ROOT", root.path, 1)
         defer {
-            unsetenv("LOKALBOT_STORAGE_ROOT")
+            if let previousStorageRoot {
+                setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+            } else {
+                unsetenv("LOKALBOT_STORAGE_ROOT")
+            }
             try? FileManager.default.removeItem(at: root)
         }
 

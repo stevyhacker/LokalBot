@@ -875,6 +875,19 @@ mod tests {
             .join("../../../LokalBotTests/Fixtures/upgrade/0.10.9/library")
     }
 
+    fn copy_tree(from: &Path, to: &Path) {
+        fs::create_dir_all(to).unwrap();
+        for entry in fs::read_dir(from).unwrap() {
+            let entry = entry.unwrap();
+            let target = to.join(entry.file_name());
+            if entry.file_type().unwrap().is_dir() {
+                copy_tree(&entry.path(), &target);
+            } else {
+                fs::copy(entry.path(), target).unwrap();
+            }
+        }
+    }
+
     #[test]
     fn reads_the_macos_upgrade_fixture() {
         let root = fixture_root();
@@ -882,7 +895,9 @@ mod tests {
             eprintln!("fixture missing at {}", root.display());
             return;
         }
-        let library = Library::open_read_only(LibraryPaths::new(root)).unwrap();
+        let copy = tempfile::tempdir().unwrap();
+        copy_tree(&root, copy.path());
+        let library = Library::open_read_only(LibraryPaths::new(copy.path())).unwrap();
         let meetings = library.list_meetings().unwrap();
         assert!(meetings.len() >= 10, "found {} meetings", meetings.len());
         let northwind = meetings

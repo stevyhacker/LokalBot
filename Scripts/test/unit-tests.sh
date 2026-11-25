@@ -21,8 +21,21 @@ ARGS=(
 )
 
 if [ "${1:-}" != "" ]; then
-  FILTER="${1#LokalBotTests/}"
-  ARGS+=(-only-testing:"LokalBotTests/$FILTER")
+  TARGET="LokalBotTests"
+  FILTER="$1"
+  if [[ "$FILTER" == LokalBotBenchmarks/* ]]; then
+    TARGET="LokalBotBenchmarks"
+    FILTER="${FILTER#LokalBotBenchmarks/}"
+  else
+    FILTER="${FILTER#LokalBotTests/}"
+    CLASS="${FILTER%%/*}"
+    if find "$ROOT/LokalBotBenchmarks" -name "$CLASS.swift" -print -quit 2>/dev/null | grep -q .; then
+      TARGET="LokalBotBenchmarks"
+    fi
+  fi
+  ARGS+=(-only-testing:"$TARGET/$FILTER")
+else
+  ARGS+=(-skip-testing:LokalBotBenchmarks)
 fi
 
 "$ROOT/Scripts/build/build-sync-xcframework.sh"

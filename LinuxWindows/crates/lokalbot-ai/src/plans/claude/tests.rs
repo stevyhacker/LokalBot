@@ -374,9 +374,14 @@ fn runs_claude_in_a_private_empty_folder_with_content_on_stdin() {
         .reasoning(TaskReasoning::Off)
         .json_schema(json!({"type": "object"}));
     request.context = vec!["Secret transcript".into()];
-    unsafe { std::env::set_var("CLAUDECODE", "1") };
+    let command = Launch::for_executable(dir.path().join("claude").as_path()).command(&[]);
+    assert!(
+        command
+            .get_envs()
+            .any(|(key, value)| key == "CLAUDECODE" && value.is_none()),
+        "Launch::command must explicitly strip CLAUDECODE from child env"
+    );
     let completion = engine.respond(&request, None, None).unwrap();
-    unsafe { std::env::remove_var("CLAUDECODE") };
     assert_eq!(completion.text, r#"{"ok":true}"#);
     let record = dir.path().join("record");
     let read = |name: &str| std::fs::read_to_string(record.join(name)).unwrap();

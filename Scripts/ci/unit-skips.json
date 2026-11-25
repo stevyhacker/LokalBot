@@ -2,32 +2,9 @@
   "about": "Unit tests that may skip, each with what it needs. Scripts/ci/unit-skips.py fails a run in which any other test skips, and hosted CI also fails when a test listed here runs or is gone. Variables reach the test host with a TEST_RUNNER_ prefix on xcodebuild.",
   "groups": [
     {
-      "reason": "Calls Anthropic's API with a key the unit job does not hold (TEST_RUNNER_ANTHROPIC_API_KEY). Run by hand after changing the Anthropic engine.",
+      "reason": "Needs installed Apple Speech / Dictation assets on macOS 26+ (LOKALBOT_APPLE_SPEECH_LIVE=1). Run by hand after changing AppleSpeechEngine.",
       "tests": [
-        "AnthropicLiveTests/testMeetingNotesSchemaIsAccepted",
-        "AnthropicLiveTests/testSharedContextIsReadFromThePromptCache",
-        "AnthropicLiveTests/testStreamingAnswer"
-      ]
-    },
-    {
-      "reason": "Calls OpenRouter's transcription API with a key the unit job does not hold (TEST_RUNNER_OPENROUTER_API_KEY). Run by hand after changing server word times.",
-      "tests": [
-        "RemoteTranscriptionLiveTests/testServerWordTimesSplitTwoVoicesOnTheTrackTimeline"
-      ]
-    },
-    {
-      "reason": "Sends requests on the developer's signed-in ChatGPT plan (TEST_RUNNER_LOKALBOT_CHATGPT_PLAN_LIVE=1). Run by hand after changing the plan relay.",
-      "tests": [
-        "ChatGPTPlanLiveTests/testFunctionToolRoundTrip",
-        "ChatGPTPlanLiveTests/testPiRunsAToolTurnOnThePlanThroughTheRelay"
-      ]
-    },
-    {
-      "reason": "Runs the developer's signed-in Claude Code on its plan (TEST_RUNNER_LOKALBOT_CLAUDE_PLAN_LIVE=1). Run by hand after changing the Claude plan engine.",
-      "tests": [
-        "ClaudePlanLiveTests/testMeetingNotesSchemaIsAccepted",
-        "ClaudePlanLiveTests/testSignInIsReported",
-        "ClaudePlanLiveTests/testStreamingCompletes"
+        "AppleSpeechEngineTests/testEmptyAudioFileProducesEmptyTranscriptWithLiveAnalyzerWhenAvailable"
       ]
     },
     {
@@ -54,30 +31,9 @@
       ]
     },
     {
-      "reason": "Latency benchmarks over a downloaded GGUF (LOKALBOT_COTYPING_LATENCY_MODEL, with _CASES, _LIBRARY and _OUT; the pause benchmark also needs LOKALBOT_COTYPING_IDLE_GAPS). Measurements, run by hand.",
-      "tests": [
-        "CotypingTypingLatencyBenchmarkTests/testFirstSuggestionAfterIdle",
-        "CotypingTypingLatencyBenchmarkTests/testTypingLatency"
-      ]
-    },
-    {
-      "reason": "Live transcript timing over downloaded speech models and recordings (LOKALBOT_LIVE_TURN_BENCH and LOKALBOT_LIVE_TURN_AUDIO, with LOKALBOT_LIVE_STREAM_MODEL for the streaming recognizer and LOKALBOT_LIVE_REPLAY_SECONDS for the real-time replay; Benchmarks/transcribe/LiveTurns). Measurements, run by hand.",
-      "tests": [
-        "LiveTurnLatencyBenchmarkTests/testPreviewReplayInRealTime",
-        "LiveTurnLatencyBenchmarkTests/testStreamingRecognizerDelay",
-        "LiveTurnLatencyBenchmarkTests/testTurnByTurnDelay"
-      ]
-    },
-    {
       "reason": "Needs a pinned Qwen3-ASR GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR; LOKALBOT_QWEN_LLAMA_TEST_TIER=0.6b for the compact pair) and a public speech clip (LOKALBOT_QWEN_LLAMA_TEST_AUDIO). Run for a llama.cpp or Qwen3-ASR update.",
       "tests": [
         "QwenLlamaASRTests/testCachedModelsTranscribeAWindowOnTheAppServer"
-      ]
-    },
-    {
-      "reason": "Benchmarks Qwen3-ASR's language sampling on benchmark tracks (LOKALBOT_QWEN_SAMPLE_MANIFEST) with the pinned 1.7B GGUF pair (LOKALBOT_QWEN_LLAMA_TEST_MODEL_DIR). Downloaded audio and models, run by hand; see Benchmarks/transcribe/QwenLanguageSample.",
-      "tests": [
-        "QwenLanguageSampleReplayTests/testReplayBenchmarkTracks"
       ]
     },
     {
@@ -100,12 +56,6 @@
       ]
     },
     {
-      "reason": "Memory measurement on a copy of the Nemotron diarization folder (LOKALBOT_NEMOTRON_MODEL_DIR). A measurement, run by hand.",
-      "tests": [
-        "LibraryPerformanceBenchmarkTests/testDiarizationModelMemoryIsReleasedWhenIdle"
-      ]
-    },
-    {
       "reason": "Needs the Files text model and projector (LOKALBOT_MEDIA_EMBEDDER_MODELS). Run for every llama.cpp update: it guards FileMediaEmbedder.vectorVersion.",
       "tests": [
         "FileMediaEmbedderReferenceTests/testATextLongerThanTheBatchIsCutLikeDigUpCutsIt",
@@ -125,52 +75,9 @@
       ]
     },
     {
-      "reason": "Timings over a copy of a real library database (LOKALBOT_PERF_DB). A measurement on private data, run by hand.",
-      "tests": [
-        "LibraryPerformanceBenchmarkTests/testCaptureProcessingTimings",
-        "LibraryPerformanceBenchmarkTests/testKeywordScreenSearchTimings",
-        "LibraryPerformanceBenchmarkTests/testLaunchDatabaseOpenTimings",
-        "LibraryPerformanceBenchmarkTests/testRetentionPathClearTimings",
-        "LibraryPerformanceBenchmarkTests/testSemanticRetrievalTimings",
-        "LibraryPerformanceBenchmarkTests/testWindowTextFingerprintTimings",
-        "LibraryPerformanceBenchmarkTests/testWindowTextRereadTimings"
-      ]
-    },
-    {
-      "reason": "Day digest benchmark (LOKALBOT_DIGEST_BENCH=1 and its variables; Benchmarks/think/DayDigest/run.sh sets them). A measurement, run by hand.",
-      "tests": [
-        "DayDigestBenchmarkTests/testDigestBenchmark"
-      ]
-    },
-    {
-      "reason": "Replays copied meeting folders through the action-ownership rules (LOKALBOT_OWNERSHIP_AUDIT). Private data, run by hand.",
-      "tests": [
-        "ActionOwnershipAuditTests/testSavedActionsThroughCurrentOwnershipRules"
-      ]
-    },
-    {
       "reason": "Replays saved transcripts through the integrity checks (LOKALBOT_INTEGRITY_REPLAY). Private data, run by hand.",
       "tests": [
         "MeetingIntegrityTests/testLocalSavedTranscriptReplay"
-      ]
-    },
-    {
-      "reason": "Meeting-notes replays over a local manifest (LOKALBOT_NOTES_PLAN_MANIFEST, LOKALBOT_NOTES_REPLAY_MANIFEST). Private data and a local model, run by hand.",
-      "tests": [
-        "MeetingNotesReplayTests/testLocalCloudPlanningAndTranscriptCleanup",
-        "MeetingNotesReplayTests/testLocalQwenReplay"
-      ]
-    },
-    {
-      "reason": "Replays call-voice naming on saved meetings (LOKALBOT_SPEAKER_REPLAY_MANIFEST). Private data, run by hand.",
-      "tests": [
-        "SpeakerVoiceReplayTests/testCallVoicesAcrossSavedMeetings"
-      ]
-    },
-    {
-      "reason": "Replays track transcription per engine and language on saved audio (LOKALBOT_TRANSCRIPTION_REPLAY_MANIFEST). Private audio and downloaded speech models, run by hand.",
-      "tests": [
-        "TranscriptionLanguageReplayTests/testTracksAcrossEnginesAndLanguages"
       ]
     },
     {

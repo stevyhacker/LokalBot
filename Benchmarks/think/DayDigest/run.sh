@@ -41,6 +41,6 @@ TEST_RUNNER_LOKALBOT_DIGEST_BENCH_KEY="$KEY" \
 TEST_RUNNER_LOKALBOT_DIGEST_BENCH_RUNS="$RUNS" \
 xcodebuild -project "$ROOT/LokalBot.xcodeproj" -scheme LokalBot -destination 'platform=macOS' \
   -derivedDataPath "$ROOT/.build/dd" -skip-testing:LokalBotUITests \
-  -only-testing:LokalBotTests/DayDigestBenchmarkTests test > "$OUT.xcodebuild.log" 2>&1
+  -only-testing:LokalBotBenchmarks/DayDigestBenchmarkTests test > "$OUT.xcodebuild.log" 2>&1
 
 echo "wrote $OUT"

@@ -17,16 +17,18 @@ final class ModelStubServer {
             return URL(fileURLWithPath: found)
         }
         if environment["CI"] == "true" {
-            XCTFail("Bun is required in CI; set LOKALBOT_TEST_BUN (Scripts/ci/fetch-bun.sh)")
+            let message = "Bun is required in CI; set LOKALBOT_TEST_BUN (Scripts/ci/fetch-bun.sh)"
+            XCTFail(message)
+            throw NSError(domain: "ModelStubServer", code: 2, userInfo: [NSLocalizedDescriptionKey: message])
         }
         throw XCTSkip("Bun not found; set LOKALBOT_TEST_BUN or install the agent runtime")
     }
 
     init() throws {
-        guard let script = Bundle(for: ModelStubServer.self).url(
-            forResource: "stub-openai", withExtension: "ts", subdirectory: "Fixtures") else {
-            throw XCTSkip("stub-openai.ts missing from the test bundle")
-        }
+        let script = try XCTUnwrap(
+            Bundle(for: ModelStubServer.self).url(
+                forResource: "stub-openai", withExtension: "ts", subdirectory: "Fixtures"),
+            "stub-openai.ts missing from the test bundle")
         let process = Process()
         process.executableURL = try Self.bunURL()
         process.arguments = ["run", script.path]

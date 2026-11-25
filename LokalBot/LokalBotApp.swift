@@ -12,6 +12,11 @@ enum LokalBotMain {
     @MainActor
     static func main() {
         configureDependencyLogging()
+        if UITestRuntime.isUnitTesting {
+            NSApplication.shared.setActivationPolicy(.prohibited)
+            NSApplication.shared.run()
+            return
+        }
         if case .cotypingReplay(let input, let engine)? = HeadlessCommand.parse(CommandLine.arguments) {
             Task { @MainActor in exit(await CotypingQualityReplay.run(input: input, engine: engine)) }
             RunLoop.main.run()

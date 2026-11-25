@@ -31,8 +31,10 @@ private final class MockChatClient: LlamaChatClient {
 final class AskLibraryEngineTests: XCTestCase {
     private var root: URL!
     private var gate: AgentAccessGate!
+    private var previousStorageRoot: String?
 
     override func setUpWithError() throws {
+        previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("askengine-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -51,7 +53,11 @@ final class AskLibraryEngineTests: XCTestCase {
     }
 
     override func tearDown() {
-        unsetenv("LOKALBOT_STORAGE_ROOT")
+        if let previousStorageRoot {
+            setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+        } else {
+            unsetenv("LOKALBOT_STORAGE_ROOT")
+        }
         try? FileManager.default.removeItem(at: root)
         super.tearDown()
     }
