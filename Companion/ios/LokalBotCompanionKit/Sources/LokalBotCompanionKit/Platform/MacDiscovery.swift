@@ -21,6 +21,10 @@ public final class MacDiscovery: @unchecked Sendable {
 
     public func addresses(preferringFingerprint fingerprint: String?, browseSeconds: Double = 1.5) async -> [String] {
         guard case .found(let instances) = await discover(browseSeconds: browseSeconds) else { return [] }
+        return Self.orderedAddresses(from: instances, preferringFingerprint: fingerprint)
+    }
+
+    public static func orderedAddresses(from instances: [Instance], preferringFingerprint fingerprint: String?) -> [String] {
         guard let fingerprint else { return instances.map(\.address) }
         let matching = instances.filter { $0.fingerprint == fingerprint }.map(\.address)
         let unlabeled = instances.filter { $0.fingerprint == nil }.map(\.address)
