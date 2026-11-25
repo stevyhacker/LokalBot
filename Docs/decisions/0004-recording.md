@@ -117,6 +117,12 @@ Where: `LokalBot/Services/Audio/RealtimeBufferRing.swift` (`RealtimeBufferRing`)
 
 ## Call audio on macOS
 
+### Calendar-linked desktop Telemost capture binds to the app
+
+The desktop Telemost detector confirms a call from the app's own audio and has no room URL. When a calendar event supplies a Telemost room, that link stays on the meeting metadata and the audio intent binds to the detected app's bundle identifier. Initial attachment and recovery can then use the app's Core Audio process. A start with only a room link still needs the matching call document, and a verified document call keeps its room binding.
+
+Where: `LokalBot/Services/Recording/RecordingController.swift` (`RecordingSystemAudioPolicy.captureIntent`), `LokalBotTests/Integration/CaptureReplayTests.swift` (`testCalendarBackedNativeTelemostAttachesSystemAudio`).
+
 ### Reattaching the process tap keeps `system.m4a` open
 
 Browser meetings often move output between helper processes, and closing and reopening the file would discard the audio captured before the handoff. The Core Audio process tap switches to the new PID while the existing `system.m4a` writer stays open.

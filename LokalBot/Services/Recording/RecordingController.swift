@@ -28,6 +28,17 @@ enum RecordingSystemAudioPolicy: Equatable {
     case microphoneOnly
     case meetingAppWhenAvailable
 
+    func captureIntent(detectedApp: MeetingDetector.DetectedApp?, meetingURL: URL?) -> Meeting.CaptureIntent {
+        let room = meetingURL.flatMap { ConferenceRoom($0.absoluteString) }
+        let detectedDesktopTelemost = room?.service == .telemost
+            && detectedApp?.bundleID == MeetingDetector.telemostBundleID
+            && detectedApp?.meetingURL == nil
+        return .init(
+            systemAudioRequested: self == .meetingAppWhenAvailable,
+            appBundleID: detectedApp?.bundleID,
+            meetingURL: detectedDesktopTelemost ? nil : room.flatMap { URL(string: $0.url) })
+    }
+
     func captureApp(
         detectedApp: MeetingDetector.DetectedApp?,
         fallback: () -> MeetingDetector.DetectedApp?
@@ -467,12 +478,8 @@ final class RecordingController: ObservableObject {
                     meeting.meetingURL = url
                     try storage.saveMeta(meeting)
                 }
-                meeting.captureIntent = .init(
-                    systemAudioRequested: systemAudioPolicy == .meetingAppWhenAvailable,
-                    appBundleID: detectedApp?.bundleID,
-                    meetingURL: meeting.meetingURL.flatMap { url in
-                        BrowserMeetingSession.roomURL(url.absoluteString).flatMap(URL.init(string:))
-                    })
+                meeting.captureIntent = systemAudioPolicy.captureIntent(
+                    detectedApp: detectedApp, meetingURL: meeting.meetingURL)
                 try storage.saveMeta(meeting)
                 healthReport = RecordingHealthReport()
                 captureNotifications = CaptureWarningNotifications()

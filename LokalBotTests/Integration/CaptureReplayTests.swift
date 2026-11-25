@@ -241,6 +241,10 @@ final class CaptureReplayTests: XCTestCase {
             XCTAssertEqual(call.meetingURL?.absoluteString, room, trace)
             XCTAssertEqual(RecordingSystemAudioSource.find(for: intent), .verified(call), trace)
             XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: call)?.id, 802, trace)
+            let boundIntent = RecordingSystemAudioPolicy.meetingAppWhenAvailable.captureIntent(
+                detectedApp: call, meetingURL: call.meetingURL)
+            XCTAssertEqual(boundIntent.meetingURL?.absoluteString, room, trace)
+            XCTAssertFalse(boundIntent.accepts(appBundleID: call.bundleID, meetingURL: nil), trace)
             for second in stride(from: 26.0, through: 170, by: 2) {
                 await replay.clock.advance(to: second)
                 await detector.tickForTesting()
@@ -363,6 +367,41 @@ final class CaptureReplayTests: XCTestCase {
         }
         XCTAssertEqual(ended.count, 1)
         XCTAssertGreaterThanOrEqual(ended.first ?? 0, 72)
+    }
+
+    func testCalendarBackedNativeTelemostAttachesSystemAudio() async throws {
+        let replay = try replay("telemost-desktop-call")
+        let detector = MeetingDetector()
+        let room = try XCTUnwrap(URL(string: "https://telemost.yandex.ru/j/12345678901"))
+        let event = CalendarMeetingCandidate(
+            provider: "eventkit", externalID: "telemost", title: "Telemost",
+            startDate: replay.clock.now().addingTimeInterval(18),
+            endDate: replay.clock.now().addingTimeInterval(72),
+            meetingURL: room, sourceCalendarTitle: nil)
+        detector.calendar = ReplayCalendar(candidates: [event])
+        detector.calendarEnabled = true
+        var context: MeetingDetectionContext?
+        detector.onMeetingStarted = { context = $0 }
+        await replay.clock.advance(to: 20)
+        await detector.tickForTesting()
+
+        let call = try XCTUnwrap(context?.detectedApp)
+        XCTAssertEqual(context?.calendarEvent, event)
+        XCTAssertEqual(call.bundleID, "ru.yandex.desktop.telemost")
+        XCTAssertNil(call.meetingURL)
+
+        let policy = RecordingSystemAudioPolicy.meetingAppWhenAvailable
+        let intent = policy.captureIntent(detectedApp: call, meetingURL: context?.calendarEvent?.meetingURL)
+        XCTAssertTrue(intent.accepts(appBundleID: call.bundleID, meetingURL: call.meetingURL))
+        XCTAssertEqual(RecordingSystemAudioSource.find(for: intent), .verified(call))
+        XCTAssertEqual(MeetingDetector.currentCaptureTargetProcess(for: call)?.id, call.pid)
+        XCTAssertFalse(intent.accepts(appBundleID: "com.google.Chrome", meetingURL: room))
+
+        let calendarOnlyIntent = policy.captureIntent(detectedApp: nil, meetingURL: room)
+        XCTAssertNil(RecordingSystemAudioSource.find(for: calendarOnlyIntent))
+        let meetRoom = try XCTUnwrap(URL(string: "https://meet.google.com/abc-defg-hij"))
+        let otherServiceIntent = policy.captureIntent(detectedApp: call, meetingURL: meetRoom)
+        XCTAssertFalse(otherServiceIntent.accepts(appBundleID: call.bundleID, meetingURL: nil))
     }
 
     func testCallInAnotherRoomReplacesAnUnverifiedCall() async throws {
