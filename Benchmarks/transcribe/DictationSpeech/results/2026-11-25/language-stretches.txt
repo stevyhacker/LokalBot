@@ -1,0 +1,67 @@
+== 1. whole one-language tracks (plain layout): WER/CER pinned | all auto | rule at its largest exposure
+track        pin  windows agree  differ-among-agreeing   pinned    auto     rule
+fleurs-bs    hr     46    46     13                 27.84%  28.08%  27.84%
+fleurs-de    de     48    46      0                  3.24%   3.24%   3.24%
+fleurs-en    en     39    38      3                  6.17%   6.30%   6.30%
+fleurs-es    es     47    47      3                  3.60%   3.60%   3.60%
+fleurs-fr    fr     43    41      2                  5.25%   5.25%   5.25%
+fleurs-hr    hr     43    43     10                 21.94%  23.23%  21.94%
+fleurs-ja    ja     44     0      0                 11.85%  11.85%  11.85%
+fleurs-ru    ru     43    42      6                  6.51%   7.06%   7.06%
+fleurs-sr    hr     41    40     11                 17.83%  17.27%  17.83%
+
+== 2. every run of 2..12 consecutive windows as a short track (both layouts)
+track                      layout runs  old-twice  rule-skips  skipped-with-other-text  skips-on-a-language-switch-track
+fleurs-bs                  plain   440      440          0           0           -
+fleurs-bs                  word    154      154          0           0           -
+fleurs-de                  plain   462      462        462         133           -
+fleurs-de                  word    154      154        154          62           -
+fleurs-en                  plain   363      363        363         204           -
+fleurs-en                  word     88       88         88          22           -
+fleurs-es                  plain   451      451        451         218           -
+fleurs-es                  word    154      154        154         117           -
+fleurs-fr                  plain   407      407        407          93           -
+fleurs-fr                  word    110      110        110           0           -
+fleurs-hr                  plain   407      407          0           0           -
+fleurs-hr                  word    121      121          0           0           -
+fleurs-ja                  plain   418      115          0           0           -
+fleurs-ja                  word    231      103          0           0           -
+fleurs-ru                  plain   407      399        336         199           -
+fleurs-ru                  word    132      132        132          83           -
+fleurs-sr                  plain   385      385          0           0           -
+fleurs-sr                  word    121      121          0           0           -
+fleurs-zh                  plain   451        0          0           0           -
+fleurs-zh                  word    209       67          0           0           -
+switch-en-de-alternating   plain   451      177        134           0         134
+switch-en-de-alternating   word    143       20         15           0          15
+switch-en-de-late15        plain   363      319        312         198         312
+switch-en-de-late15        word     99       84         69           0          69
+switch-en-de-late30        plain   374      326        308           0         308
+switch-en-de-late30        word     99       68         55           0          55
+switch-en-sr-late20        plain   363      317        275         189         275
+switch-en-sr-late20        word     88       72         55           0          55
+switch-sr-en-blocks        plain   385      268          1           0           1
+switch-sr-en-blocks        word     99       82          0           0           0
+switch-sr-en-late15        plain   385      346         15           0          15
+switch-sr-en-late15        word    121      109          1           0           1
+switch-sr-en-late30        plain   385      339         66           0          66
+switch-sr-en-late30        word    110       78          6           0           6
+total {'runs': 9130, 'twice': 7238, 'skip': 3969, 'other': 1518}
+
+== 3. runs that really cross a language change (code-switched tracks; true language from the utterance times)
+track                      layout  crossing-runs  old-pins  rule-skips
+switch-en-de-alternating   plain      331        57        14
+switch-en-de-alternating   word       127         6         1
+switch-en-de-late15        plain       51         7         0
+switch-en-de-late15        word        30        15         0
+switch-en-de-late30        plain       66        18         0
+switch-en-de-late30        word        44        13         0
+switch-en-sr-late20        plain       60        14         0
+switch-en-sr-late20        word        30        14         0
+switch-sr-en-blocks        plain      316       199         0
+switch-sr-en-blocks        word        54        37         0
+switch-sr-en-late15        plain       51        12         0
+switch-sr-en-late15        word        21         9         0
+switch-sr-en-late30        plain       66        20         0
+switch-sr-en-late30        word        38         6         0
+

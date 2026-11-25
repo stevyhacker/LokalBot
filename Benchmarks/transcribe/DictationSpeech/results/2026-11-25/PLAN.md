@@ -37,3 +37,31 @@ English runs on the after build, as on 2026-11-23. The language is the only diff
 - A repeat that disagrees with its first run by more than 2% on median time is reported as noise, not averaged away.
 - Not re-run on the new weights: the language benchmark (FLEURS, code-switched tracks, word layout).
 - Machine idle: the first row starts when no process other than the window server is above 25% of a core.
+
+## Addendum: the language benchmark on the v3 weights (written before any inference)
+
+`Benchmarks/transcribe/QwenLanguageSample`, as on 2026-11-23: 10 FLEURS languages and 7 code-switched tracks (40 dev
+utterances each, 6 to 9 minutes), both layouts (`plain`, `word`), 34 runs per path, run through
+`QwenLanguageSampleReplayTests` (the app's VAD, window merging and `QwenASREngine.decodeOnAuto`, one llama-server with
+the app's flags). The same audio and references as 2026-11-23 (`items.json` from `fetch_tracks.py`, unchanged).
+
+- **Weights:** the replay test gained an environment switch (`LOKALBOT_QWEN_SAMPLE_WEIGHTS=lokalbot-v3`) that selects
+  `QwenLlamaASR.accuracyLokalBotV3` instead of `QwenLlamaASR.accuracy`; the model folder holds the v3 pair (size and
+  SHA-256 checked before the runs). Each run is checked from the server's command line (sampled from the process list)
+  and the test's own printed weights name.
+- **Paths measured:**
+  1. `old`: the replayed pre-sampling path (`decodeAsBefore`: every window on auto, vote, every window again pinned),
+     which is what 2026-11-23 called "before";
+  2. `master`: `decodeOnAuto` of upstream master `e06d7968` (the 12-window sample), the "before" of the dictation
+     benchmark, built from the detached worktree at that commit;
+  3. `branch`: `decodeOnAuto` of this branch (both rules).
+  The text of a window decoded in the same language is the same in every path (greedy), so accuracy does not depend on run
+  order; time is from single, unpaired runs and is reported as indicative only.
+- **Comparisons:** branch against old (the 2026-11-23 table: same pinned language and text, in how many of 34),
+  branch against master (what the PR changes), WER or CER per one-language track for old, master and branch, the
+  code-switched tracks, and the decode counts. The 2026-11-23 stretch analysis (every run of 2 to 12 windows, 9,130
+  stretches) is rerun on the v3 `old` records.
+- **Order:** the master worktree runs `old` and `master` modes in one test run; then the branch runs the `branch` mode.
+  Nothing else heavy runs while a test runs. Builds with credentials off (`Local/build-dev.sh`), one xcodebuild at a time.
+- **What counts as weakening the case:** any track whose text or word errors get worse after the change, any change in
+  the pinned language, any track where the rule fires on a stretch that crosses a language change.

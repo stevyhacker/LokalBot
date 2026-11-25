@@ -5,7 +5,9 @@
 The 2026-11-23 measurements used the earlier Qwen3-ASR 1.7B weights. The app's default is now Qwen3-ASR-1.7B-LokalBot-v3,
 so the same before/after was repeated on it: same 32 recordings (30 to 134 seconds, 43.1 minutes), same runner, Release
 builds of master and of this branch alternating in one session. **The speed-up is the same as before; the accuracy
-difference is now slightly in the wrong direction and within noise.**
+difference is now slightly in the wrong direction and within noise.** The language benchmark (ten languages, code-switched
+tracks, word layout) was repeated too: `LANGUAGE.md`; plain-layout and code-switched text is unchanged, and the word layout
+trades +3 word errors in German for −2 in Spanish.
 
 | Qwen3-ASR 1.7B, LokalBot v3 | Word error rate | Median time | Paired time vs. the first row | Total for the 32 | × real time |
 |---|---:|---:|---:|---:|---:|
@@ -84,7 +86,6 @@ Median seconds per recording by length:
 
 ## Not covered
 
-- **The language benchmark** (FLEURS in ten languages, the code-switched tracks and the word layout, `QwenLanguageSample`) was
-  **not re-run on the v3 weights**; the 2026-11-23 findings on those sets are for the earlier weights.
+- **The language benchmark** was re-run on the v3 weights: see `LANGUAGE.md`. AMI was not part of it.
 - **Meetings:** tracks of more than 24 spans take the unchanged path; AMI and the real-meeting sets were not re-run.
 - **Read speech, not dictation**, as in the earlier reports. English was not run on the before build.
