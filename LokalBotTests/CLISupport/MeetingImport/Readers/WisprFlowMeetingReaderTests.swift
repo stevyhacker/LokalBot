@@ -10,7 +10,8 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
 
         let scan = try WisprFlowMeetingReader.read(folder)
 
-        XCTAssertEqual(scan.problems, [])
+        XCTAssertEqual(scan.problems.count, 1, "the malformed line is reported")
+        XCTAssertTrue(scan.problems[0].reason.hasPrefix("1 transcript line"))
         XCTAssertEqual(scan.meetings.map(\.sourceID), ["m1", "m4"], "deleted and tour meetings are skipped")
         let call = try XCTUnwrap(scan.meetings.first)
         XCTAssertEqual(call.source, .wisprFlow)
@@ -23,7 +24,7 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
             .init(start: 5, end: 9, speaker: "Ana Example", text: "Hello there.", isMe: true),
             .init(start: 9, end: 3_723, speaker: "Mila Novak", text: "Hi Ana."),
             .init(start: 3_723, speaker: "Speaker 3", text: "One more thing."),
-        ], "a malformed line and an empty turn are skipped; ends come from the next turn")
+        ], "a malformed line is reported, an empty turn is skipped; ends come from the next turn")
         let notesOnly = scan.meetings[1]
         XCTAssertEqual(notesOnly.lines, [])
         XCTAssertEqual(notesOnly.notes, "Short sync.")
@@ -45,6 +46,52 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
         XCTAssertTrue(fileManager.fileExists(atPath: inner.path))
         XCTAssertTrue(WisprFlowMeetingReader.recognizes(inner))
         XCTAssertEqual(try WisprFlowMeetingReader.read(inner).meetings, try WisprFlowMeetingReader.read(folder).meetings)
+    }
+
+    func testAnUnreadableTranscriptIsReportedAndTheMeetingSkipped() throws {
+        let folder = try makeWisprFolder("wispr-meetings-unreadable")
+        let transcript = folder.appendingPathComponent("meetings/m1/refined.ndjson")
+        try Data([0xFF, 0xFE, 0xFD]).write(to: transcript)
+
+        let scan = try WisprFlowMeetingReader.read(folder)
+
+        XCTAssertEqual(scan.meetings.map(\.sourceID), ["m4"])
+        XCTAssertEqual(scan.problems.map(\.path), [transcript.path])
+    }
+
+    func testATranscriptWithNoReadableLineIsReportedAndTheMeetingSkipped() throws {
+        let folder = try makeWisprFolder("wispr-meetings-garbled")
+        let transcript = folder.appendingPathComponent("meetings/m1/refined.ndjson")
+        try Data("not json\n{broken\n".utf8).write(to: transcript)
+
+        let scan = try WisprFlowMeetingReader.read(folder)
+
+        XCTAssertEqual(scan.meetings.map(\.sourceID), ["m4"])
+        XCTAssertEqual(scan.problems.map(\.path), [transcript.path])
+    }
+
+    func testAMissingTranscriptIsAnEmptyTranscript() throws {
+        let folder = try makeWisprFolder("wispr-meetings-missing")
+        try fileManager.removeItem(at: folder.appendingPathComponent("meetings/m1/refined.ndjson"))
+
+        let scan = try WisprFlowMeetingReader.read(folder)
+
+        XCTAssertEqual(scan.problems, [])
+        XCTAssertEqual(scan.meetings.map(\.sourceID), ["m1", "m4"])
+        XCTAssertEqual(scan.meetings[0].lines, [])
+    }
+
+    func testMeetingIDsThatCouldLeaveTheMeetingsFolderAreRejected() {
+        let folder = URL(fileURLWithPath: "/tmp/wispr/meetings", isDirectory: true)
+        for id in ["", ".", "..", "../x", "a/b", "/etc"] {
+            XCTAssertNil(WisprFlowMeetingReader.transcriptURL(id: id, folder: folder), "id \(id)")
+        }
+        XCTAssertEqual(WisprFlowMeetingReader.transcriptURL(id: "m1", folder: folder)?.path,
+                       "/tmp/wispr/meetings/m1/refined.ndjson")
+        let record = WisprFlowLibrary.MeetingRecord(id: "../x", summary: "notes")
+        var problems: [ExternalImportScan.Problem] = []
+        XCTAssertNil(WisprFlowMeetingReader.meeting(record, folder: folder, origin: folder, problems: &problems))
+        XCTAssertEqual(problems.count, 1)
     }
 
     func testASpeakerMapWithoutAConsensusStillNamesTheSpeaker() {

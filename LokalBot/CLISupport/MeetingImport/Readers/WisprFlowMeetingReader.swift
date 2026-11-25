@@ -26,15 +26,41 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
         }
         let folder = database.deletingLastPathComponent().appendingPathComponent(meetingsFolderName, isDirectory: true)
         let records = try WisprFlowLibrary.meetings(at: database)
-        return ExternalImportScan(meetings: records
-            .filter { !$0.isDeleted && !$0.isTourDemo }
-            .map { meeting($0, folder: folder, origin: database) })
+        var scan = ExternalImportScan()
+        for record in records where !record.isDeleted && !record.isTourDemo {
+            if let meeting = meeting(record, folder: folder, origin: database, problems: &scan.problems) {
+                scan.meetings.append(meeting)
+            }
+        }
+        return scan
     }
 
-    static func meeting(_ record: WisprFlowLibrary.MeetingRecord, folder: URL, origin: URL) -> ExternalMeeting {
-        let speakers = speakers(record.speakerMap)
-        let transcript = folder.appendingPathComponent(record.id, isDirectory: true)
+    static func transcriptURL(id: String, folder: URL) -> URL? {
+        guard !id.isEmpty, !id.contains("/"), id != ".", id != ".." else { return nil }
+        let transcript = folder.appendingPathComponent(id, isDirectory: true)
             .appendingPathComponent(transcriptFileName)
+        guard transcript.standardizedFileURL.path.hasPrefix(folder.standardizedFileURL.path + "/") else { return nil }
+        return transcript
+    }
+
+    static func meeting(_ record: WisprFlowLibrary.MeetingRecord, folder: URL, origin: URL,
+                        problems: inout [ExternalImportScan.Problem]) -> ExternalMeeting? {
+        guard let transcript = transcriptURL(id: record.id, folder: folder) else {
+            problems.append(.init(path: origin.path, reason: "A meeting has an id that isn't a valid folder name, so it was skipped."))
+            return nil
+        }
+        let speakers = speakers(record.speakerMap)
+        let transcriptLines: (lines: [ExternalMeeting.Line], badRows: Int)
+        do {
+            transcriptLines = try lines(transcript, speakers: speakers)
+            if transcriptLines.lines.isEmpty, transcriptLines.badRows > 0 { throw CocoaError(.fileReadCorruptFile) }
+        } catch {
+            problems.append(.init(path: transcript.path, reason: "The transcript exists but couldn't be read, so this meeting was skipped. Import again once it can be read."))
+            return nil
+        }
+        if transcriptLines.badRows > 0 {
+            problems.append(.init(path: transcript.path, reason: "\(transcriptLines.badRows) transcript line(s) couldn't be read and were left out."))
+        }
         let startedAt = record.createdAt.flatMap(date)
         var duration = record.recordedMs.map { $0 / 1000 }
         if duration == nil, let startedAt, let endedAt = record.endedAt {
@@ -47,18 +73,23 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
             startedAt: startedAt,
             duration: duration,
             participants: participants(record.participantNames, speakers: speakers),
-            lines: lines(transcript, speakers: speakers),
+            lines: transcriptLines.lines,
             notes: record.summary.flatMap { $0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : $0 },
             origin: origin)
     }
 
-    static func lines(_ url: URL, speakers: [Int: Speaker]) -> [ExternalMeeting.Line] {
-        guard let text = try? String(contentsOf: url, encoding: .utf8) else { return [] }
+    static func lines(_ url: URL, speakers: [Int: Speaker]) throws -> (lines: [ExternalMeeting.Line], badRows: Int) {
+        guard FileManager.default.fileExists(atPath: url.path) else { return ([], 0) }
+        let text = try String(contentsOf: url, encoding: .utf8)
         var lines: [ExternalMeeting.Line] = []
+        var badRows = 0
         for row in text.split(whereSeparator: \.isNewline) {
             guard let data = row.data(using: .utf8),
-                  let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any],
-                  let words = (object["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let object = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] else {
+                badRows += 1
+                continue
+            }
+            guard let words = (object["text"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !words.isEmpty else { continue }
             let speakerID = ((object["speaker"] as? [String: Any])?["id"] as? NSNumber)?.intValue
             let speaker = speakerID.flatMap { speakers[$0] }
@@ -73,7 +104,7 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
                 lines[index].end = next
             }
         }
-        return lines
+        return (lines, badRows)
     }
 
     static let assignmentSources = ["user", "consensus", "dom", "mic", "llm"]

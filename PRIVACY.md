@@ -97,7 +97,10 @@ with your current Transcribe choice; Voice Memos recordings count as your own
 microphone, like a paired phone's. A recording or archive that has to be
 unpacked to be read is put in a private temporary folder and deleted when the
 import ends. From Wispr Flow it reads only the meetings table and each meeting's
-transcript file, not your dictation history, audio, screenshots or notes. Screen
+transcript file, not your dictation history, audio, screenshots or notes. When
+the database has a non-empty write-ahead log, the import first copies the
+database file and that log to a private, owner-only temporary folder, reads the
+copy, and deletes it when the import ends. Screen
 memory is not attached to imported meetings. The log records only how many
 meetings were imported, never their titles or contents. Deleting your account or
 data at the other app is up to you.
