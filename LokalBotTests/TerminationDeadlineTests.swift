@@ -40,6 +40,44 @@ final class TerminationDeadlineTests: XCTestCase {
         XCTAssertTrue(proceed)
     }
 
+    func testSaveThatRefusesAfterOutlastingTheLimitStillRefuses() async {
+        var timedOut = false
+        var cleaned = false
+
+        let proceed = await TerminationDeadline.run(
+            within: .milliseconds(50),
+            saved: {
+                Thread.sleep(forTimeInterval: 0.2)
+                return false
+            },
+            onTimeout: { timedOut = true },
+            cleanup: {
+                cleaned = true
+                return true
+            })
+        try? await Task.sleep(for: .milliseconds(150))
+
+        XCTAssertFalse(proceed)
+        XCTAssertFalse(timedOut)
+        XCTAssertFalse(cleaned)
+    }
+
+    func testSlowSaveThatSucceedsLeavesCleanupItsFullLimit() async {
+        var timedOut = false
+
+        let proceed = await TerminationDeadline.run(
+            within: .milliseconds(150),
+            saved: {
+                Thread.sleep(forTimeInterval: 0.3)
+                return true
+            },
+            onTimeout: { timedOut = true },
+            cleanup: { true })
+
+        XCTAssertTrue(proceed)
+        XCTAssertFalse(timedOut)
+    }
+
     func testFastCleanupDoesNotReportATimeout() async {
         var timedOut = false
 

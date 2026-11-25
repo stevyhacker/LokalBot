@@ -109,6 +109,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         Task { @MainActor [weak self, weak sender] in
             let proceed = await TerminationDeadline.run(
                 within: TerminationDeadline.cleanupLimit,
+                saved: { Self.appState?.recording.prepareForTermination() ?? true },
                 onTimeout: { lokalbotLog("quit: shutdown exceeded its time limit, quitting anyway") },
                 cleanup: { await Self.runTerminationCleanup() })
             guard proceed else {

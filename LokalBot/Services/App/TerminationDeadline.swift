@@ -23,10 +23,12 @@ enum TerminationDeadline {
 
     static func run(
         within limit: Duration,
+        saved: @MainActor () -> Bool = { true },
         onTimeout: @escaping @MainActor () -> Void = {},
         cleanup: @escaping @MainActor () async -> Bool
     ) async -> Bool {
-        await withCheckedContinuation { continuation in
+        guard saved() else { return false }
+        return await withCheckedContinuation { continuation in
             let gate = Gate(continuation)
             Task { @MainActor in
                 gate.finish(await cleanup())
