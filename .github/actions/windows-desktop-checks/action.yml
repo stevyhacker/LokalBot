@@ -34,7 +34,7 @@ runs:
         # A release build is a GUI-subsystem program; wait for it explicitly.
         Start-Process -FilePath $exe -ArgumentList "--seed-demo" -Wait -NoNewWindow
         $out = Join-Path $env:RUNNER_TEMP "screenshots"
-        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,actions,meetings,timeline,people,projects,ask,agent,settings,settings-models,settings-files,settings-devices,settings-personal-context,palette -WaitSeconds 8
+        ./scripts/ci/capture-windows.ps1 -Exe $exe -Root $root -OutDir $out -Pages today,actions,meetings,timeline,people,projects,ask,agent,settings,settings-models,settings-files,settings-devices,settings-personal-context,quick-recall -WaitSeconds 8
         $settingsPath = Join-Path $root "settings.json"
         $settings = if (Test-Path $settingsPath) { Get-Content $settingsPath -Raw | ConvertFrom-Json } else { [pscustomobject]@{} }
         $settings | Add-Member -NotePropertyName appTheme -NotePropertyValue "dark" -Force
@@ -70,15 +70,20 @@ runs:
         $out = Join-Path $env:RUNNER_TEMP "screenshots"
         New-Item -ItemType Directory -Force $out | Out-Null
         Get-Process notepad -ErrorAction SilentlyContinue | Stop-Process -Force
+        $checkFile = Join-Path $out "screen-check.txt"
         & (Join-Path $env:BIN "examples\screen_capture.exe") --download-ocr `
           --notepad "LokalBot screen check: the Zephyr invoice is 4821 euros." --delay 4 `
-          --save (Join-Path $out "screen-check.jpg") 2>&1 | Tee-Object (Join-Path $out "screen-check.txt")
+          --save (Join-Path $out "screen-check.jpg") 2>&1 | Tee-Object $checkFile
         if ($LASTEXITCODE -ne 0) { throw "screen_capture failed with $LASTEXITCODE" }
-        if (-not (Select-String -Path (Join-Path $out "screen-check.txt") -Pattern "4821" -Quiet)) {
-          throw "the known sentence was not read back"
+        if (-not (Select-String -Path $checkFile -Pattern '^\s+\|.*4821' -Quiet)) {
+          throw "UI Automation did not read the known sentence back"
+        }
+        if (-not (Select-String -Path $checkFile -Pattern '^\s+>.*4821' -Quiet)) {
+          throw "OCR did not read the known sentence back"
         }
         & (Join-Path $env:BIN "examples\screen_text.exe") --delay 3 2>&1 |
           Tee-Object (Join-Path $out "screen-text.txt")
+        if ($LASTEXITCODE -ne 0) { throw "screen_text failed with $LASTEXITCODE" }
 
     # Runs the extracted archive with lokalbot-cli serving MCP, then has it
     # update itself from a signed feed on 127.0.0.1 and relaunch.

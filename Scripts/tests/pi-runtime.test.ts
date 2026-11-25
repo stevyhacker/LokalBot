@@ -1,5 +1,4 @@
 import { expect, test } from "bun:test";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readdir, readFile, realpath, rm, stat, symlink, writeFile } from "node:fs/promises";
 import { homedir, tmpdir } from "node:os";
@@ -122,7 +121,7 @@ async function withExtensionFixture(run: (fixture: {
 }
 
 for (const status of [307, 308]) {
-  test(`registered pinned Agent provider rejects ${status} without replaying context`, async () => {
+  test.skipIf(!runtime)(`registered pinned Agent provider rejects ${status} without replaying context`, async () => {
     let targetRequests = 0;
     const target = Bun.serve({ hostname: "127.0.0.1", port: 0,
       fetch() { targetRequests++; return new Response("unexpected"); },
@@ -682,7 +681,8 @@ test.skipIf(!runtime)("a task saved with Pi's coding prompt resumes with LokalBo
   }
 }, 50_000);
 
-test("Pi resumes append-only context edits without overwriting visible history", async () => {
+test.skipIf(!runtime)("Pi resumes append-only context edits without overwriting visible history", async () => {
+  const { SessionManager } = await import("@earendil-works/pi-coding-agent");
   const workspace = await mkdtemp(join(tmpdir(), "lokalbot-pi-context-upgrade-"));
   try {
     const sessions = join(workspace, "sessions");
@@ -798,7 +798,7 @@ test("a rejected reasoning level is retried once without blocking the request", 
   expect(bodies).toHaveLength(1);
 });
 
-test("the registered provider sends the level LokalBot writes, and follows a change", async () => {
+test.skipIf(!runtime)("the registered provider sends the level LokalBot writes, and follows a change", async () => {
   const bodies: any[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     async fetch(request) {
@@ -837,7 +837,7 @@ test("the registered provider sends the level LokalBot writes, and follows a cha
   }
 });
 
-test("the registered provider turns thinking on for a model that thinks only when asked", async () => {
+test.skipIf(!runtime)("the registered provider turns thinking on for a model that thinks only when asked", async () => {
   const bodies: any[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     async fetch(request) {
@@ -880,7 +880,7 @@ test("the registered provider turns thinking on for a model that thinks only whe
   }
 });
 
-test("the registered provider tells a template that takes an effort the level", async () => {
+test.skipIf(!runtime)("the registered provider tells a template that takes an effort the level", async () => {
   const bodies: any[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     async fetch(request) {
@@ -919,7 +919,7 @@ test("the registered provider tells a template that takes an effort the level", 
   }
 });
 
-test("missing reasoning file keeps launch model capabilities and accepts later level updates", async () => {
+test.skipIf(!runtime)("missing reasoning file keeps launch model capabilities and accepts later level updates", async () => {
   const bodies: any[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     async fetch(request) {
@@ -984,7 +984,7 @@ test("the Responses API takes a level as reasoning.effort", () => {
   expect(applyResponsesReasoningLevel({ model: "m" }, "low").reasoning).toEqual({ effort: "low" });
 });
 
-test("the Responses provider sends developer instructions and LokalBot's level, without an output cap", async () => {
+test.skipIf(!runtime)("the Responses provider sends developer instructions and LokalBot's level, without an output cap", async () => {
   const bodies: any[] = [];
   const server = Bun.serve({ hostname: "127.0.0.1", port: 0,
     async fetch(request) {

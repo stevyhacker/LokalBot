@@ -205,6 +205,23 @@ def view_literal_problems():
     return scan_view_literals(sources, set(read_strings("en")))
 
 
+def format_arguments(text):
+    placeholders = re.compile(r"%(?:(\d+)\$)?(lld|ld|[diufgs@%])")
+    positional = []
+    sequential = []
+    literals = 0
+    for position, spec in placeholders.findall(text):
+        if spec == "%":
+            literals += 1
+        elif position:
+            positional.append((int(position), spec))
+        else:
+            sequential.append((len(sequential) + 1, spec))
+    if positional and sequential:
+        raise ValueError(f"mixed positional and sequential format specifiers: {text!r}")
+    return (literals, sorted(positional or sequential))
+
+
 class LocalizationTests(unittest.TestCase):
     def test_supported_languages_and_catalogs_stay_in_sync(self):
         declared = set(re.findall(r'case \w+ = "([^"]+)"', (APP / "Models/App/AppLanguage.swift").read_text()))
@@ -225,12 +242,18 @@ class LocalizationTests(unittest.TestCase):
 
     def test_format_arguments_survive_translation(self):
         english = read_strings("en")
-        placeholders = re.compile(r"%(?:\d+\$)?(?:lld|ld|[diufgs@%])")
         for language in LANGUAGES:
             translated = read_strings(language)
             for key, source in english.items():
                 with self.subTest(language=language, key=key):
-                    self.assertEqual(placeholders.findall(source), placeholders.findall(translated[key]))
+                    self.assertEqual(format_arguments(source), format_arguments(translated[key]))
+
+    def test_format_arguments_allow_positional_reordering_and_reject_mismatches(self):
+        self.assertEqual(format_arguments("%@ in %lld min"), format_arguments("%2$lld 分前に %1$@"))
+        self.assertNotEqual(format_arguments("%@ in %lld min"), format_arguments("%2$@ 分前に %1$lld"))
+        self.assertNotEqual(format_arguments("%@ and %@"), format_arguments("%1$@ and %1$@"))
+        with self.assertRaises(ValueError):
+            format_arguments("%2$@ and %@")
 
     def test_view_literals_have_catalog_entries(self):
         missing, verbatim = view_literal_problems()

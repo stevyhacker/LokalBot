@@ -99,23 +99,26 @@ for page in "${PAGES[@]}"; do
     echo "LokalBot exited early on page $page:"; cat "/tmp/lokalbot-$page.log"; exit 1
   fi
   WID=$(DISPLAY="$DISPLAY_NUM" xdotool search --sync --onlyvisible --name "$TITLE" | head -1 || true)
-  if [ -n "$WID" ]; then
-    eval "$(DISPLAY="$DISPLAY_NUM" xdotool getwindowgeometry --shell "$WID")"
-    DISPLAY="$DISPLAY_NUM" xdotool windowmove "$WID" $(( (${SIZE%x*} - WIDTH) / 2 )) \
-      $(( (${SIZE#*x} - 36 - HEIGHT) / 2 )) 2>/dev/null || true
+  if [ -z "$WID" ]; then
+    echo "capture-linux.sh: no visible '$TITLE' window found for page $page:" >&2
+    cat "/tmp/lokalbot-$page.log" >&2 || true
+    kill "$APP" 2>/dev/null || true
+    wait "$APP" 2>/dev/null || true
+    exit 1
   fi
+  eval "$(DISPLAY="$DISPLAY_NUM" xdotool getwindowgeometry --shell "$WID")"
+  DISPLAY="$DISPLAY_NUM" xdotool windowmove "$WID" $(( (${SIZE%x*} - WIDTH) / 2 )) \
+    $(( (${SIZE#*x} - 36 - HEIGHT) / 2 )) 2>/dev/null || true
   DISPLAY="$DISPLAY_NUM" xdotool mousemove 2 2 2>/dev/null || true
   sleep 1
   DISPLAY="$DISPLAY_NUM" ffmpeg -loglevel error -y -f x11grab -draw_mouse 0 -video_size "$SIZE" \
     -i "$DISPLAY_NUM" -frames:v 1 "$OUT/linux-desktop-$page$SUFFIX.png"
-  if [ -n "$WID" ]; then
-    eval "$(DISPLAY="$DISPLAY_NUM" xdotool getwindowgeometry --shell "$WID")"
-    extents=$(DISPLAY="$DISPLAY_NUM" xprop -id "$WID" _GTK_FRAME_EXTENTS 2>/dev/null \
-      | sed -n 's/.*= *//p' | tr -d ',') || true
-    read -r L R T B <<<"${extents:-0 0 0 0}"
-    ffmpeg -loglevel error -y -i "$OUT/linux-desktop-$page$SUFFIX.png" \
-      -vf "crop=$((WIDTH - L - R)):$((HEIGHT - T - B)):$((X + L)):$((Y + T))" "$OUT/linux-$page$SUFFIX.png"
-  fi
+  eval "$(DISPLAY="$DISPLAY_NUM" xdotool getwindowgeometry --shell "$WID")"
+  extents=$(DISPLAY="$DISPLAY_NUM" xprop -id "$WID" _GTK_FRAME_EXTENTS 2>/dev/null \
+    | sed -n 's/.*= *//p' | tr -d ',') || true
+  read -r L R T B <<<"${extents:-0 0 0 0}"
+  ffmpeg -loglevel error -y -i "$OUT/linux-desktop-$page$SUFFIX.png" \
+    -vf "crop=$((WIDTH - L - R)):$((HEIGHT - T - B)):$((X + L)):$((Y + T))" "$OUT/linux-$page$SUFFIX.png"
   kill "$APP" 2>/dev/null || true
   wait "$APP" 2>/dev/null || true
   echo "captured $page"

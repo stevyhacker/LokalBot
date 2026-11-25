@@ -371,8 +371,8 @@ class CompleteCoverageTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.plan = shards.plan()
-        self.env = patch.dict(os.environ, GITHUB_RUN_ID='42', GITHUB_RUN_ATTEMPT='1')
+        self.plan = shards.plan(include_visual_matrix=True)
+        self.env = patch.dict(os.environ, GITHUB_RUN_ID='42', GITHUB_RUN_ATTEMPT='1', UI_INCLUDE_VISUAL='true')
         self.env.start()
         self.addCleanup(self.env.stop)
         self.sha = patch.object(shards.subprocess, 'check_output', return_value='candidate')
@@ -397,6 +397,17 @@ class CompleteCoverageTests(unittest.TestCase):
         self.assertEqual(len(tests), len(set(tests)))
         self.assertEqual(set(tests) | {shards.VISUAL}, set(shards.inventory()))
         self.verify()
+
+    def test_pr_mode_skips_visual_matrix_and_verifies_without_captures(self):
+        pr_plan = shards.plan(include_visual_matrix=False)
+        self.assertFalse(any(phase.startswith('visual-') for phase in pr_plan))
+        self.assertNotIn(shards.VISUAL, [t for tests in pr_plan.values() for t in tests])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for phase, tests in pr_plan.items():
+                (root / f'{phase}.json').write_text(json.dumps(dict(
+                    commit='candidate', run='42', attempt='1', exit=0, tests=[[t, 'Passed'] for t in tests])))
+            shards.verify(root, pr_plan)
 
     def test_missing_failed_skipped_stale_or_duplicate_test_rejected(self):
         path = self.root / 'smoke.json'
@@ -666,7 +677,7 @@ class WorkdayBesideUnitTestsTests(unittest.TestCase):
         workday = tests.split('id: workday\n', 1)[1].split('      - name:', 1)[0]
         for setting in ['background: true', 'continue-on-error: true', 'timeout-minutes:']:
             self.assertIn(setting, workday)
-        wait = tests.index('wait: [workday, audio-recovery, macos-helpers]')
+        wait = tests.index('wait: [workday, audio-recovery, macos-helpers, pi-runtime]')
         self.assertLess(tests.index('Run unit tests without rebuilding'), wait)
         self.assertLess(wait, tests.index('Keep the failed library'))
         report = build.split('\n  day-in-the-life:\n', 1)[1]

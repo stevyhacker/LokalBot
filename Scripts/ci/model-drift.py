@@ -18,7 +18,7 @@ import os
 from pathlib import Path
 import sys
 
-JSON_PURPOSES = {"digestFocus", "digestAggregate", "notes"}
+JSON_PURPOSES = {"digestFocus", "digestAggregate", "notes", "notesRepair"}
 REASONING_SHARE = 0.6
 MIN_LATENCY_SAMPLES = 5
 
@@ -41,7 +41,12 @@ def p95(values):
 def parsed(content):
     text = content.strip()
     if text.startswith("```"):
-        text = text.strip("`").removeprefix("json").strip()
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
     try:
         return json.loads(text)
     except ValueError:
@@ -49,16 +54,21 @@ def parsed(content):
 
 
 def parses(content):
-    return parsed(content) is not None
+    return isinstance(parsed(content), dict)
 
 
 def emptied_lists(committed, fresh):
-    """Top-level lists the committed answer filled and the fresh one left empty."""
     old, new = parsed(committed), parsed(fresh)
     if not isinstance(old, dict) or not isinstance(new, dict):
         return []
-    return [(key, len(value)) for key, value in old.items()
-            if isinstance(value, list) and value and new.get(key) == []]
+    result = []
+    for key, value in old.items():
+        if isinstance(value, list) and value:
+            if key not in new or new.get(key) is None:
+                result.append((key, len(value), "missing"))
+            elif new.get(key) == []:
+                result.append((key, len(value), "empty"))
+    return result
 
 
 def compare(committed_root, fresh_root):
@@ -87,8 +97,8 @@ def compare(committed_root, fresh_root):
             previous = recorded.get(call["purpose"], [])
             if call["purpose"] in JSON_PURPOSES and nth < len(previous) and "length" not in (
                     call["finishReason"], previous[nth]["finishReason"]):
-                for name, count in emptied_lists(previous[nth]["content"], call["content"]):
-                    messages.append(f"{label}: `{name}` is empty; the committed answer had {count}")
+                for name, count, reason in emptied_lists(previous[nth]["content"], call["content"]):
+                    messages.append(f"{label}: `{name}` is {reason}; the committed answer had {count}")
         if key in committed:
             old, new = latencies.setdefault(model, ([], []))
             old.extend(c["latencyMilliseconds"] for c in committed[key]["calls"])
@@ -103,11 +113,17 @@ def compare(committed_root, fresh_root):
 
 
 def unrecorded(committed_root, fresh_root):
-    """Cases this run was meant to record and made no call for: a committed
-    case with no fresh file or an empty one, or an empty fresh file."""
     committed, fresh = load(committed_root), load(fresh_root)
-    empty = {key for key, recording in fresh.items() if not recording["calls"]}
-    return sorted(empty | {key for key in committed if key not in fresh})
+    missing = {key for key, recording in fresh.items() if not recording["calls"]}
+    for key, recording in committed.items():
+        if key not in fresh:
+            missing.add(key)
+            continue
+        expected_purposes = {call["purpose"] for call in recording["calls"]}
+        actual_purposes = {call["purpose"] for call in fresh[key]["calls"]}
+        if not expected_purposes.issubset(actual_purposes):
+            missing.add(key)
+    return sorted(missing)
 
 
 def report(messages, missing, recorded_any):

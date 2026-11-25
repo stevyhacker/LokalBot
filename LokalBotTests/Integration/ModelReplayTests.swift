@@ -18,7 +18,7 @@ final class ModelReplayTests: XCTestCase {
 
     private func recordings(_ caseName: String) throws -> [ModelRecording] {
         let all = try ModelRecording.committed().filter { $0.caseName == caseName }
-        guard !all.isEmpty else { throw XCTSkip("no committed \(caseName) recordings") }
+        XCTAssertFalse(all.isEmpty, "no committed \(caseName) recordings")
         return all
     }
 
@@ -42,6 +42,7 @@ final class ModelReplayTests: XCTestCase {
             let folder = FileManager.default.temporaryDirectory
                 .appendingPathComponent("replay-\(UUID().uuidString)", isDirectory: true)
             try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            addTeardownBlock { try? FileManager.default.removeItem(at: folder) }
             let result = try await MeetingNotesGenerator.generate(
                 transcript: SyntheticModelPrompts.standupTranscript(), engine: engine(recording.model),
                 template: .meeting, language: .matchTranscript, context: [], contextTokens: 32_768,
@@ -72,6 +73,18 @@ final class ModelReplayTests: XCTestCase {
                 XCTAssertTrue(action.citations.contains { MeetingOutcomes.isMicrophoneSpeaker($0.speaker) },
                               "\(recording.model): \(action.text) is not something I said")
             }
+        }
+    }
+
+    func testRecordedAskAnswersStartWithSearchMeetingsToolCall() throws {
+        for recording in try recordings("ask-answer") {
+            let first = try XCTUnwrap(recording.calls.first, "\(recording.model): missing ask-answer call")
+            guard case .call(let call) = ChatPrompt.parse(first.content, tools: ["search_meetings"]) else {
+                XCTFail("\(recording.model): first ask-answer call did not parse as search_meetings: \(first.content)")
+                continue
+            }
+            XCTAssertEqual(call.name, "search_meetings", recording.model)
+            XCTAssertNotNil(call.string("query"), "\(recording.model): search_meetings call missing query")
         }
     }
 }

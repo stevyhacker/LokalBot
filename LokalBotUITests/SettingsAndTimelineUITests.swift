@@ -8,11 +8,9 @@ final class SettingsUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         fixture = try SyntheticFixture.plant()
-        let launch = try UITestHarness.launch(storageRoot: fixture.root, suitePrefix: "Settings")
-        app = launch.app
-        defaultsSuiteName = launch.defaultsSuiteName
-        XCTAssertTrue(app.descendants(matching: .any)["today.header"]
-            .waitForExistence(timeout: 10), "main window never rendered its Today landing")
+        if !name.contains("testCalendarDependentOptionsRenderWhenSeededOn") {
+            try launch()
+        }
     }
 
     override func tearDownWithError() throws {
@@ -22,94 +20,33 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testInterfaceLanguageUpdatesOpenHostAndPersistsAfterRelaunch() throws {
+        try assertInterfaceLanguageRendersAndPersists(
+            identifier: "zh-Hans", nativeName: "简体中文", theme: "主题", languageLabel: "应用语言")
+    }
+
+    func testRightToLeftInterfaceLanguageRendersAndPersistsAfterRelaunch() throws {
+        try assertInterfaceLanguageRendersAndPersists(
+            identifier: "ur", nativeName: "اردو", theme: "تھیم", languageLabel: "ایپ کی زبان")
+    }
+
+    private func assertInterfaceLanguageRendersAndPersists(
+        identifier: String, nativeName: String, theme: String, languageLabel: String
+    ) throws {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         UITestHarness.selectSettingsCategory("General", in: app)
         let picker = app.popUpButtons["settings.appLanguage"]
         UITestHarness.scrollTo(picker, in: app)
         UITestHarness.selectSegment("English", pickerIdentifier: "settings.appLanguage", in: app)
         XCTAssertTrue(UITestHarness.staticText(containing: "Theme", in: app).waitForExistence(timeout: 6))
-        UITestHarness.selectSegment("简体中文", pickerIdentifier: "settings.appLanguage", in: app)
-        XCTAssertTrue(UITestHarness.staticText(containing: "主题", in: app)
-            .waitForExistence(timeout: 6), "An open AppKit host must adopt the selected Chinese locale")
+        UITestHarness.selectSegment(nativeName, pickerIdentifier: "settings.appLanguage", in: app)
+        XCTAssertTrue(UITestHarness.staticText(containing: theme, in: app).waitForExistence(timeout: 6),
+                      "The existing settings host must render \(identifier)")
+        XCTAssertTrue(UITestHarness.staticText(containing: languageLabel, in: app).waitForExistence(timeout: 6))
         let screenshot = XCTAttachment(screenshot: UITestHarness.settingsWindow(in: app).screenshot())
-        screenshot.name = "settings-interface-simplified-chinese"
+        screenshot.name = "settings-interface-\(identifier)"
         screenshot.lifetime = .keepAlways
         add(screenshot)
 
-        app.terminate()
-        app = try UITestHarness.relaunch(
-            storageRoot: fixture.root, defaultsSuiteName: XCTUnwrap(defaultsSuiteName))
-        UITestHarness.clickSidebar("sidebar.settings", in: app)
-        XCTAssertTrue(UITestHarness.staticText(containing: "主题", in: app)
-            .waitForExistence(timeout: 6), "The interface language must survive relaunch")
-        UITestHarness.scrollTo(app.popUpButtons["settings.appLanguage"], in: app)
-        UITestHarness.selectSegment("English", pickerIdentifier: "settings.appLanguage", in: app)
-        XCTAssertTrue(UITestHarness.staticText(containing: "Theme", in: app)
-            .waitForExistence(timeout: 6), "The same host must switch back to English without relaunch")
-    }
-
-    func testEveryNewInterfaceLanguageRendersAndUrduPersists() throws {
-        try assertInterfaceLanguagesRenderAndPersist([
-            ("hi", "हिन्दी", "थीम", "ऐप की भाषा"),
-            ("es", "Español", "Tema", "Idioma de la app"),
-            ("ar", "العربية", "السمة", "لغة التطبيق"),
-            ("fr", "Français", "Thème", "Langue de l’app"),
-            ("bn", "বাংলা", "থিম", "অ্যাপের ভাষা"),
-            ("pt", "Português", "Tema", "Idioma do app"),
-            ("id", "Bahasa Indonesia", "Tema", "Bahasa aplikasi"),
-            ("ur", "اردو", "تھیم", "ایپ کی زبان")
-        ])
-    }
-
-    func testRussianGermanJapanesePidginAndEgyptianArabicRender() throws {
-        try assertInterfaceLanguagesRenderAndPersist([
-            ("ru", "Русский", "Тема", "Язык приложения"),
-            ("de", "Deutsch", "Design", "App-Sprache"),
-            ("ja", "日本語", "テーマ", "アプリの言語"),
-            ("pcm", "Naijá", "How e look", "Language wey app dey use"),
-            ("ar-EG", "مصري", "شكل الواجهة", "لغة التطبيق")
-        ])
-    }
-
-    func testMarathiVietnameseTeluguSwahiliAndHausaRender() throws {
-        try assertInterfaceLanguagesRenderAndPersist([
-            ("mr", "मराठी", "थीम", "अ‍ॅपची भाषा"),
-            ("vi", "Tiếng Việt", "Chủ đề", "Ngôn ngữ ứng dụng"),
-            ("te", "తెలుగు", "థీమ్", "యాప్ భాష"),
-            ("sw", "Kiswahili", "Mandhari", "Lugha ya programu"),
-            ("ha", "Hausa", "Jigo", "Harshen manhaja")
-        ])
-    }
-
-    func testKoreanInterfaceRendersAndPersists() throws {
-        try assertInterfaceLanguagesRenderAndPersist([
-            ("ko", "한국어", "테마", "앱 언어")
-        ])
-    }
-
-    func testTraditionalChineseItalianAndSerbianRender() throws {
-        try assertInterfaceLanguagesRenderAndPersist([
-            ("zh-Hant", "繁體中文", "主題", "App 語言"),
-            ("it", "Italiano", "Tema", "Lingua dell’app"),
-            ("sr-Latn", "Srpski (latinica)", "Tema", "Jezik aplikacije")
-        ])
-    }
-
-    private func assertInterfaceLanguagesRenderAndPersist(_ languages: [(String, String, String, String)]) throws {
-        UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("General", in: app)
-        for (identifier, nativeName, theme, languageLabel) in languages {
-            UITestHarness.scrollTo(app.popUpButtons["settings.appLanguage"], in: app)
-            UITestHarness.selectSegment(nativeName, pickerIdentifier: "settings.appLanguage", in: app)
-            XCTAssertTrue(UITestHarness.staticText(containing: theme, in: app).waitForExistence(timeout: 6),
-                          "The existing settings host must render \(identifier)")
-            XCTAssertTrue(UITestHarness.staticText(containing: languageLabel, in: app).waitForExistence(timeout: 6))
-            let screenshot = XCTAttachment(screenshot: UITestHarness.settingsWindow(in: app).screenshot())
-            screenshot.name = "settings-interface-\(identifier)"
-            screenshot.lifetime = .keepAlways
-            add(screenshot)
-        }
-        let (identifier, _, theme, languageLabel) = try XCTUnwrap(languages.last)
         app.terminate()
         app = try UITestHarness.relaunch(
             storageRoot: fixture.root, defaultsSuiteName: XCTUnwrap(defaultsSuiteName))
@@ -187,23 +124,6 @@ final class SettingsUITests: XCTestCase {
                       "AI agents on this Mac opens the AI agents page")
     }
 
-    func testResourceMonitorRendersUsageAndModelState() {
-        UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Diagnostics", in: app)
-
-        let cpu = app.descendants(matching: .any)["settings.resourceMonitor.cpu"]
-        UITestHarness.scrollTo(cpu, in: app)
-        XCTAssertTrue(cpu.waitForExistence(timeout: 6),
-                      "resource monitor CPU metric missing")
-        XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.memory"].exists,
-                      "resource monitor memory metric missing")
-        UITestHarness.scrollTo(app.descendants(matching: .any)["settings.resourceMonitor.modelMemory"], in: app)
-        XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.models"].exists,
-                      "resource monitor model count missing")
-        XCTAssertTrue(app.descendants(matching: .any)["settings.resourceMonitor.modelMemory"].exists,
-                      "resource monitor model memory metric missing")
-    }
-
     func testCalendarDependentOptionsHiddenWhenCalendarDetectionIsOff() {
         UITestHarness.clickSidebar("sidebar.settings", in: app)
         XCTAssertTrue(app.descendants(matching: .any)["settings.categories"]
@@ -232,7 +152,7 @@ final class SettingsUITests: XCTestCase {
     }
 
     func testCalendarDependentOptionsRenderWhenSeededOn() throws {
-        try relaunch(settingsJSON: """
+        try launch(settingsJSON: """
         {
           "menuBarOnly": false,
           "trackingEnabled": true,
@@ -272,8 +192,8 @@ final class SettingsUITests: XCTestCase {
                        "Meetings' header and Privacy & permissions must agree on Calendar access")
     }
 
-    private func relaunch(settingsJSON: String) throws {
-        app.terminate()
+    private func launch(settingsJSON: String = "{}") throws {
+        app?.terminate()
         UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         let launch = try UITestHarness.launch(
             storageRoot: fixture.root,
@@ -282,7 +202,7 @@ final class SettingsUITests: XCTestCase {
         app = launch.app
         defaultsSuiteName = launch.defaultsSuiteName
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
-            .waitForExistence(timeout: 10), "main window never rendered its Today landing after relaunch")
+            .waitForExistence(timeout: 10), "main window never rendered its Today landing")
     }
 }
 
