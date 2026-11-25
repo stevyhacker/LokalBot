@@ -1,0 +1,76 @@
+{
+  "appSHA256": "dd873bd26649a20e546857ec02f37f3ddd0f4dadbdc91b574b4e0535bf773b39",
+  "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
+  "modelSHA256": "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+  "modelFile": "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+  "corpusSHA256": "bdced6d436ff6ceeb58121a7a55a85e85707888d0e4fa4638a0819e339b07c39",
+  "scriptSHA256": "cdac61afc524933814545ae05441ae31b43f605fb7138b6c007e8b43d03b9825",
+  "split": "heldout",
+  "caseIDs": [
+    "f4-digits-small",
+    "f4-digits-list",
+    "f4-time",
+    "f4-help-question",
+    "f4-status-question",
+    "f4-who-question",
+    "f4-tell-relay",
+    "f4-ask-team",
+    "f4-please-review",
+    "f4-negation",
+    "f4-plain-time",
+    "f4-filler",
+    "f4-sr-digits",
+    "f4-sr-question",
+    "f4-sr-send",
+    "f4-sr-plain",
+    "f4-request",
+    "f4-transcribe"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/app-speed3/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "/private/tmp/lokalbot-bench/models3/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "58223",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430",
+    "--spec-type",
+    "ngram-simple",
+    "--spec-ngram-simple-size-n",
+    "3",
+    "--spec-ngram-simple-size-m",
+    "16"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "freshServerPerCondition": true,
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}
