@@ -38,4 +38,5 @@ as a drift check. `qwen-v3-auto` and `qwen-v3-en` are the same two settings on t
 the app's current default; they are not in the default order.
 Each manifest's `commit` is this checkout's HEAD; when the app was built from another checkout, pass `--app-commit` with
 its commit and the manifest records it as `appCommit`. `appSHA256` is the SHA-256 of the app's executable, so a run can always be
-tied to the build that made it.
+tied to the build that made it. `score.py` stops on a run whose manifest records a failed replay (a nonzero `exit` or
+`appChangedDuringReplay`).
