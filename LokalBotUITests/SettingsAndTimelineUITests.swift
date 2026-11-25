@@ -21,7 +21,7 @@ final class SettingsUITests: XCTestCase {
 
     func testInterfaceLanguageUpdatesOpenHostAndPersistsAfterRelaunch() throws {
         try assertInterfaceLanguageRendersAndPersists(
-            identifier: "zh-Hans", nativeName: "简体中文", theme: "主题", languageLabel: "应用语言")
+            identifier: "zh-Hans", nativeName: "简体中文", theme: "主题", languageLabel: "界面语言")
     }
 
     func testRightToLeftInterfaceLanguageRendersAndPersistsAfterRelaunch() throws {
