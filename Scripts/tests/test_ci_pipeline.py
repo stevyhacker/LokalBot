@@ -415,12 +415,18 @@ class CompleteCoverageTests(unittest.TestCase):
                 patch.object(shards, 'run_phase', side_effect=lambda phase, selected: (seen.append(phase), 0)[1]):
             self.assertEqual(shards.execute('visual'), 0)
         self.assertEqual(seen, [f'visual-{size}' for size in shards.SIZES])
-        with patch.dict(os.environ, {'UI_INCLUDE_VISUAL': ''}), \
-                patch.object(shards, 'plan', wraps=shards.plan) as wrapped, \
-                patch.object(shards.subprocess, 'Popen', side_effect=RuntimeError('stop-after-plan')):
-            with self.assertRaisesRegex(RuntimeError, 'stop-after-plan'):
-                shards.run_phase('visual-1000x700', None)
-        wrapped.assert_called_once_with(include_visual_matrix=True)
+        with tempfile.TemporaryDirectory() as folder:
+            previous = os.getcwd()
+            os.chdir(folder)
+            try:
+                with patch.dict(os.environ, {'UI_INCLUDE_VISUAL': ''}), \
+                        patch.object(shards, 'plan', return_value=self.plan) as mocked, \
+                        patch.object(shards.subprocess, 'Popen', side_effect=RuntimeError('stop-after-plan')):
+                    with self.assertRaisesRegex(RuntimeError, 'stop-after-plan'):
+                        shards.run_phase('visual-1000x700', None)
+            finally:
+                os.chdir(previous)
+        mocked.assert_called_once_with(include_visual_matrix=True)
 
     def test_missing_failed_skipped_stale_or_duplicate_test_rejected(self):
         path = self.root / 'smoke.json'
