@@ -40,6 +40,7 @@ final class RecordingControllerTests: XCTestCase {
 
         XCTAssertFalse(controller.finalize(meeting, process: true, deferProcessing: true))
         XCTAssertFalse(controller.prepareForTermination())
+        XCTAssertFalse(controller.isTerminating)
         XCTAssertTrue(errors.contains { $0.contains("details could not be saved") })
         XCTAssertNil(jobs.job(meetingID: meeting.id))
         XCTAssertFalse(pipeline.hasActiveWork)
@@ -128,6 +129,17 @@ final class RecordingControllerTests: XCTestCase {
         XCTAssertTrue(controller.prepareForTermination())
         XCTAssertFalse(FileManager.default.fileExists(atPath: folder.path))
         XCTAssertNil(jobs.job(meetingID: meeting.id))
+    }
+
+    func testNoRecordingStartsOnceTheSaveForQuitHasSucceeded() {
+        let controller = makeController()
+
+        XCTAssertTrue(controller.prepareForTermination())
+        controller.start(systemAudioPolicy: .microphoneOnly)
+
+        XCTAssertTrue(controller.isTerminating)
+        XCTAssertEqual(controller.status, .idle)
+        XCTAssertTrue(controller.prepareForTermination())
     }
 
     private func makeFinalizationFixture() throws -> (StorageManager, Meeting) {

@@ -216,6 +216,7 @@ final class RecordingController: ObservableObject {
         var stopNotice: String?
     }
     private var pendingFinalizations: [UUID: PendingFinalization] = [:]
+    private(set) var isTerminating = false
     static let silentSystemAudioMessage =
         "System audio capture is silent; LokalBot is keeping the microphone "
         + "recording and will reattach if the meeting audio process changes."
@@ -354,7 +355,8 @@ final class RecordingController: ObservableObject {
         systemAudioRecovery.cancel()
         if isRecording || isStarting { stop(process: false, deferProcessing: true) }
         for pending in retryable { _ = persistFinalization(pending, deferProcessing: true) }
-        return pendingFinalizations.isEmpty
+        isTerminating = pendingFinalizations.isEmpty
+        return isTerminating
     }
 
     func forgetFinalization(meetingIDs: Set<UUID>) {
@@ -383,7 +385,7 @@ final class RecordingController: ObservableObject {
         source: String = "ui",
         systemAudioPolicy: RecordingSystemAudioPolicy
     ) {
-        guard case .idle = status, startTask == nil else { return }
+        guard case .idle = status, startTask == nil, !isTerminating else { return }
         let detectedApp = context?.detectedApp
         let calendarEvent = context?.calendarEvent
         if Self.shouldSuppressCalendarRepeat(
