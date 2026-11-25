@@ -19,6 +19,7 @@ from pathlib import Path
 import sys
 
 JSON_PURPOSES = {"digestFocus", "digestAggregate", "notes", "notesRepair"}
+CONDITIONAL_PURPOSES = {"notesRepair"}
 REASONING_SHARE = 0.6
 MIN_LATENCY_SAMPLES = 5
 
@@ -119,9 +120,9 @@ def unrecorded(committed_root, fresh_root):
         if key not in fresh:
             missing.add(key)
             continue
-        expected_purposes = {call["purpose"] for call in recording["calls"]}
+        expected_purposes = {call["purpose"] for call in recording["calls"]} - CONDITIONAL_PURPOSES
         actual_purposes = {call["purpose"] for call in fresh[key]["calls"]}
-        if not expected_purposes.issubset(actual_purposes):
+        if not fresh[key]["calls"] or not expected_purposes.issubset(actual_purposes):
             missing.add(key)
     return sorted(missing)
 

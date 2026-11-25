@@ -303,11 +303,11 @@ jobs:
         background: true
         timeout-minutes: 10
         run: python3 -m unittest discover -s Scripts/tests -v -k SeedProfileTests -k CotypingProbeContractTests
-      - name: Verify Agent Mode extension boundaries
+      - name: Verify Agent Mode extension boundaries (standalone)
         id: pi-runtime
         background: true
         timeout-minutes: 5
-        run: LOKALBOT_TEST_BUN="$TEST_RUNNER_LOKALBOT_TEST_BUN" bash Scripts/tests/run-pi-runtime-tests.sh
+        run: LOKALBOT_TEST_BUN="$TEST_RUNNER_LOKALBOT_TEST_BUN" bash Scripts/tests/run-pi-runtime-tests.sh --standalone
       - name: Run unit tests without rebuilding
         env:
           TEST_RUNNER_CI: "true"

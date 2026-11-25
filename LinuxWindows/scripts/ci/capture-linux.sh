@@ -98,7 +98,7 @@ for page in "${PAGES[@]}"; do
   if ! kill -0 "$APP" 2>/dev/null; then
     echo "LokalBot exited early on page $page:"; cat "/tmp/lokalbot-$page.log"; exit 1
   fi
-  WID=$(DISPLAY="$DISPLAY_NUM" xdotool search --sync --onlyvisible --name "$TITLE" | head -1 || true)
+  WID=$(DISPLAY="$DISPLAY_NUM" timeout "${CAPTURE_SEARCH_TIMEOUT:-30}" xdotool search --sync --onlyvisible --name "$TITLE" 2>/dev/null | head -1 || true)
   if [ -z "$WID" ]; then
     echo "capture-linux.sh: no visible '$TITLE' window found for page $page:" >&2
     cat "/tmp/lokalbot-$page.log" >&2 || true

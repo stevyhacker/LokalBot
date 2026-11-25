@@ -409,6 +409,19 @@ class CompleteCoverageTests(unittest.TestCase):
                     commit='candidate', run='42', attempt='1', exit=0, tests=[[t, 'Passed'] for t in tests])))
             shards.verify(root, pr_plan)
 
+    def test_explicit_visual_phase_enables_visual_plan_without_env(self):
+        seen = []
+        with patch.dict(os.environ, {'CI': 'true', 'UI_INCLUDE_VISUAL': ''}), \
+                patch.object(shards, 'run_phase', side_effect=lambda phase, selected: (seen.append(phase), 0)[1]):
+            self.assertEqual(shards.execute('visual'), 0)
+        self.assertEqual(seen, [f'visual-{size}' for size in shards.SIZES])
+        with patch.dict(os.environ, {'UI_INCLUDE_VISUAL': ''}), \
+                patch.object(shards, 'plan', wraps=shards.plan) as wrapped, \
+                patch.object(shards.subprocess, 'Popen', side_effect=RuntimeError('stop-after-plan')):
+            with self.assertRaisesRegex(RuntimeError, 'stop-after-plan'):
+                shards.run_phase('visual-1000x700', None)
+        wrapped.assert_called_once_with(include_visual_matrix=True)
+
     def test_missing_failed_skipped_stale_or_duplicate_test_rejected(self):
         path = self.root / 'smoke.json'
         original = json.loads(path.read_text())

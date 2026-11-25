@@ -172,7 +172,7 @@ def execute(phase, selected=None):
 
 
 def run_phase(phase, selected):
-    phases = plan()
+    phases = plan(include_visual_matrix=True if phase.startswith('visual-') else None)
     tests = selected_tests(selected) if phase == 'single' else phases[phase]
     folder = Path('.build/ui-results')
     folder.mkdir(parents=True, exist_ok=True)

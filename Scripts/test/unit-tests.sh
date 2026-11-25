@@ -20,8 +20,8 @@ ARGS=(
   -skip-testing:LokalBotUITests
 )
 
+TARGET="LokalBotTests"
 if [ "${1:-}" != "" ]; then
-  TARGET="LokalBotTests"
   FILTER="$1"
   if [[ "$FILTER" == LokalBotBenchmarks/* ]]; then
     TARGET="LokalBotBenchmarks"
@@ -44,7 +44,7 @@ RESULTS="$(mktemp -d "${TMPDIR:-/tmp}/lokalbot-unit-results.XXXXXX")"
 trap 'rm -rf "$RESULTS"' EXIT
 STATUS=0
 xcodebuild "${ARGS[@]}" -resultBundlePath "$RESULTS/unit.xcresult" test || STATUS=$?
-if [ -d "$RESULTS/unit.xcresult" ]; then
+if [ "$TARGET" = "LokalBotTests" ] && [ -d "$RESULTS/unit.xcresult" ]; then
   python3 "$ROOT/Scripts/ci/unit-skips.py" check "$RESULTS/unit.xcresult" || [ "$STATUS" -ne 0 ] || STATUS=1
 fi
 exit "$STATUS"

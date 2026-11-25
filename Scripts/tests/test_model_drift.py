@@ -85,6 +85,14 @@ class ModelDriftTests(unittest.TestCase):
             self.write(new, "m/x", "digest-day", [call("digestFocus")])
             self.assertEqual(drift.unrecorded(Path(old), Path(new)), [("m/x", "digest-day")])
 
+    def test_conditional_notes_repair_is_optional_in_fresh_recordings(self):
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
+            self.write(old, "m/x", "notes-design-review", [call("notes"), call("notesRepair")])
+            self.write(new, "m/x", "notes-design-review", [call("notes")])
+            self.assertEqual(drift.unrecorded(Path(old), Path(new)), [])
+            self.write(new, "m/x", "notes-design-review", [])
+            self.assertEqual(drift.unrecorded(Path(old), Path(new)), [("m/x", "notes-design-review")])
+
     def test_a_truncated_answer_is_not_compared_for_emptied_lists(self):
         recorded = json.dumps({"notes": [{"text": "Fact."}], "actions": []})
         with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
