@@ -25,9 +25,12 @@ def output(command):
 
 def digest(path):
     h = hashlib.sha256()
-    with Path(path).open('rb') as source:
-        for chunk in iter(lambda: source.read(1024 * 1024), b''):
-            h.update(chunk)
+    try:
+        with Path(path).open('rb') as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                h.update(chunk)
+    except OSError:
+        return None
     return h.hexdigest()
 
 
@@ -65,11 +68,15 @@ def main():
                    '--language', language, '--passes', str(args.passes)]
         env = dict(os.environ, CFFIXED_USER_HOME=str(home), LOKALBOT_STORAGE_ROOT=str(args.root / 'storage'),
                    LOKALBOT_DEFAULTS_SUITE='me.dotenv.LokalBot.speech-replay.' + uuid.uuid4().hex)
+        (folder / 'manifest.json').unlink(missing_ok=True)
         app_digest = digest(binary)
         started = time.time()
         with open(folder / 'replay.jsonl', 'w') as stdout, open(folder / 'stderr.log', 'w') as stderr:
-            status = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
-        app_changed = digest(binary) != app_digest
+            try:
+                status = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
+            except OSError:
+                status = 127
+        app_changed = app_digest is None or digest(binary) != app_digest
         (folder / 'manifest.json').write_text(json.dumps({
             'config': name, 'model': model, 'language': language, 'passes': args.passes, 'exit': status,
             'wallSeconds': round(time.time() - started, 1),
