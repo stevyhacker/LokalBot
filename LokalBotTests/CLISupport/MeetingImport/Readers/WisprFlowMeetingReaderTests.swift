@@ -81,6 +81,29 @@ final class WisprFlowMeetingReaderTests: XCTestCase {
         XCTAssertEqual(scan.meetings[0].lines, [])
     }
 
+    func testAMeetingFolderThatCannotBeEnteredIsReportedAndTheMeetingSkipped() throws {
+        let folder = try makeWisprFolder("wispr-meetings-locked")
+        let meetingFolder = folder.appendingPathComponent("meetings/m1", isDirectory: true)
+        try fileManager.setAttributes([.posixPermissions: 0o000], ofItemAtPath: meetingFolder.path)
+        addTeardownBlock { try? FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: meetingFolder.path) }
+
+        let scan = try WisprFlowMeetingReader.read(folder)
+
+        XCTAssertEqual(scan.meetings.map(\.sourceID), ["m4"])
+        XCTAssertEqual(scan.problems.map(\.path), [meetingFolder.appendingPathComponent("refined.ndjson").path])
+    }
+
+    func testAMissingMeetingFolderIsAnEmptyTranscript() throws {
+        let folder = try makeWisprFolder("wispr-meetings-no-folder")
+        try fileManager.removeItem(at: folder.appendingPathComponent("meetings/m1"))
+
+        let scan = try WisprFlowMeetingReader.read(folder)
+
+        XCTAssertEqual(scan.problems, [])
+        XCTAssertEqual(scan.meetings.map(\.sourceID), ["m1", "m4"])
+        XCTAssertEqual(scan.meetings[0].lines, [])
+    }
+
     func testMeetingIDsThatCouldLeaveTheMeetingsFolderAreRejected() {
         let folder = URL(fileURLWithPath: "/tmp/wispr/meetings", isDirectory: true)
         for id in ["", ".", "..", "../x", "a/b", "/etc"] {
