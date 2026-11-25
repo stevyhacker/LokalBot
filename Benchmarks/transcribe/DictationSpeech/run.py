@@ -12,6 +12,8 @@ from pathlib import Path
 CONFIGS = {
     'qwen-auto': ('qwen3-asr-1.7b', 'auto'),
     'qwen-en': ('qwen3-asr-1.7b', 'en'),
+    'qwen-v3-auto': ('qwen3-asr-1.7b-lokalbot-v3', 'auto'),
+    'qwen-v3-en': ('qwen3-asr-1.7b-lokalbot-v3', 'en'),
     'parakeet-v3': ('parakeet-v3', 'auto'),
     'parakeet-ultra': ('parakeet-ultra', 'auto'),
 }
