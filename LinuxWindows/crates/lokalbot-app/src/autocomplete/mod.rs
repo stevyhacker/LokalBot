@@ -374,6 +374,28 @@ pub struct Autocomplete {
     pub rehearsal: Option<lokalbot_engine::AutocompleteRehearsal>,
 }
 
+#[cfg_attr(not(all(windows, debug_assertions)), allow(dead_code))]
+const FILM_GHOST_ARG: &str = "--lokalbot-film-ghost";
+#[cfg_attr(not(all(windows, debug_assertions)), allow(dead_code))]
+const FILM_GHOST_ENV: &str = "LOKALBOT_TEST_FILM_GHOST";
+
+#[cfg_attr(not(all(windows, debug_assertions)), allow(dead_code))]
+fn film_ghost_requested(env: Option<&str>, args: &[String]) -> bool {
+    env == Some("1") || args.iter().any(|arg| arg == FILM_GHOST_ARG)
+}
+
+fn film_ghost_enabled() -> bool {
+    #[cfg(all(windows, debug_assertions))]
+    {
+        let args: Vec<String> = std::env::args().collect();
+        film_ghost_requested(std::env::var(FILM_GHOST_ENV).ok().as_deref(), &args)
+    }
+    #[cfg(not(all(windows, debug_assertions)))]
+    {
+        false
+    }
+}
+
 pub fn start(data: &Entity<AppData>, cx: &mut App) {
     let (events, receiver) = smol::channel::unbounded::<Event>();
     let fake = std::env::var("LOKALBOT_FAKE_AUTOCOMPLETE")
@@ -382,6 +404,12 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
     if fake.is_some() {
         log::warn!(
             "autocomplete: LOKALBOT_FAKE_AUTOCOMPLETE is set; suggestions come from it, not the engine"
+        );
+    }
+    let film_ghost = film_ghost_enabled();
+    if film_ghost {
+        log::warn!(
+            "autocomplete: {FILM_GHOST_ARG} / {FILM_GHOST_ENV}=1 is set; screen recordings include the autocomplete overlay"
         );
     }
     let data = data.clone();
@@ -413,7 +441,7 @@ pub fn start(data: &Entity<AppData>, cx: &mut App) {
             sent: SentContexts::default(),
             last_context: None,
             escape: EscapePause::default(),
-            overlay: overlay::Overlay::new(true),
+            overlay: overlay::Overlay::new(!film_ghost),
             keys_active: false,
             accept_keys: AcceptKeys::default(),
             last_key: None,
@@ -1822,5 +1850,18 @@ mod tests {
             t0 + AWAITING_INSERT_TIMEOUT
         ));
         assert!(slot.is_none());
+    }
+
+    #[test]
+    fn film_ghost_matches_flag_or_env_one() {
+        let none: Vec<String> = vec!["lokalbot".into()];
+        let flag: Vec<String> = vec!["lokalbot".into(), FILM_GHOST_ARG.into()];
+        assert!(!film_ghost_requested(None, &none));
+        assert!(!film_ghost_requested(Some(""), &none));
+        assert!(!film_ghost_requested(Some("0"), &none));
+        assert!(!film_ghost_requested(Some("true"), &none));
+        assert!(!film_ghost_requested(Some(" 1"), &none));
+        assert!(film_ghost_requested(Some("1"), &none));
+        assert!(film_ghost_requested(None, &flag));
     }
 }
