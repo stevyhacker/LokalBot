@@ -9,6 +9,7 @@ enum ExternalMeetingSource: String, CaseIterable, Codable, Sendable {
     case zoom
     case voiceMemos = "voice-memos"
     case macWhisper = "macwhisper"
+    case wisprFlow = "wispr-flow"
 
     var title: String {
         switch self {
@@ -20,6 +21,7 @@ enum ExternalMeetingSource: String, CaseIterable, Codable, Sendable {
         case .zoom: "Zoom"
         case .voiceMemos: "Voice Memos"
         case .macWhisper: "MacWhisper"
+        case .wisprFlow: "Wispr Flow"
         }
     }
 
@@ -160,6 +162,7 @@ enum ExternalMeetingReaders {
         case .zoom: ZoomMeetingReader.self
         case .voiceMemos: VoiceMemosMeetingReader.self
         case .macWhisper: MacWhisperMeetingReader.self
+        case .wisprFlow: WisprFlowMeetingReader.self
         }
     }
 

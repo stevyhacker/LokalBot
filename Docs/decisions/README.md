@@ -22,7 +22,7 @@ the bar a decision has to clear.
 | [0003](0003-dictation.md) | Dictation | 38 |
 | [0004](0004-recording.md) | Recording | 48 |
 | [0005](0005-transcription-and-speakers.md) | Transcription and speakers | 82 |
-| [0006](0006-meetings-and-notes.md) | Meetings and notes | 57 |
+| [0006](0006-meetings-and-notes.md) | Meetings and notes | 58 |
 | [0007](0007-meeting-detection-and-calendar-matching.md) | Meeting detection and calendar matching | 35 |
 | [0008](0008-screen-memory.md) | Screen memory | 57 |
 | [0009](0009-timeline-today-and-the-dream-review.md) | Timeline, Today and the Dream review | 48 |

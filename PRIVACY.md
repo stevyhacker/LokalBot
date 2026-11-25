@@ -84,21 +84,26 @@ because the recording was not made on this Mac.
 
 **Meetings imported from other apps.** **Recording → Import Meetings From**
 reads another app's notes, transcripts, action items, and recordings — Granola,
-Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, or MacWhisper — from the
-export files or folder you choose, or from the app's own data folder on this Mac
-when it keeps one LokalBot can read. LokalBot only reads them: it never changes,
-moves, or deletes them, opens another app's database read-only, and contacts no
-account or server, so nothing is downloaded and no sign-in is used. Each meeting
-is saved in your library like a recorded one, with its source's name and its id
-there, so importing the same export again adds nothing twice; the source's notes
-are kept unchanged in `imported-notes.md` beside LokalBot's `summary.md`. A
-recording without a transcript is transcribed with your current Transcribe
-choice; Voice Memos recordings count as your own microphone, like a paired
-phone's. A recording or archive that has to be unpacked to be read is put in a
-private temporary folder and deleted when the import ends. Screen memory is not
-attached to imported meetings. The log records only
-how many meetings were imported, never their titles or contents. Deleting your
-account or data at the other app is up to you.
+Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, MacWhisper, or Wispr
+Flow — from the export files or folder you choose, or from the app's own data
+folder on this Mac when it keeps one LokalBot can read. LokalBot only reads
+them: it never changes, moves, or deletes them, opens another app's database
+read-only, and contacts no account or server, so nothing is downloaded and no
+sign-in is used. Each meeting is saved in your library like a recorded one, with
+its source's name and its id there, so importing the same export again adds
+nothing twice; the source's notes are kept unchanged in `imported-notes.md`
+beside LokalBot's `summary.md`. A recording without a transcript is transcribed
+with your current Transcribe choice; Voice Memos recordings count as your own
+microphone, like a paired phone's. A recording or archive that has to be
+unpacked to be read is put in a private temporary folder and deleted when the
+import ends. From Wispr Flow it reads only the meetings table and each meeting's
+transcript file, not your dictation history, audio, screenshots or notes. When
+the database has a non-empty write-ahead log, the import first copies the
+database file and that log to a private, owner-only temporary folder, reads the
+copy, and deletes it when the import ends. Screen
+memory is not attached to imported meetings. The log records only how many
+meetings were imported, never their titles or contents. Deleting your account or
+data at the other app is up to you.
 
 **Words imported from Wispr Flow.** **Settings → Models → Transcribe → Advanced
 → Language & vocabulary → Import from Wispr Flow** reads the dictionary in the
