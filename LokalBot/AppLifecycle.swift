@@ -107,25 +107,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         guard !terminationCleanupStarted else { return .terminateLater }
         terminationCleanupStarted = true
         Task { @MainActor [weak self, weak sender] in
-            if let app = Self.appState {
-                guard await app.prepareForTermination() else {
-                    self?.terminationCleanupStarted = false
-                    sender?.reply(toApplicationShouldTerminate: false)
-                    WindowAccess.shared.open("main")
-                    return
-                }
-            } else {
-                await LlamaServer.shared.stop()
-                await LlamaServer.embedder.stop()
-                await LlamaServer.cotyping.stop()
-                await GraniteSpeechEngine.shared.shutdown()
-                await QwenASREngine.accuracy.shutdown()
-                await FileMediaEmbedderRuntime.shared.shutdown()
+            let proceed = await TerminationDeadline.run(
+                within: TerminationDeadline.cleanupLimit,
+                onTimeout: { lokalbotLog("quit: shutdown exceeded its time limit, quitting anyway") },
+                cleanup: { await Self.runTerminationCleanup() })
+            guard proceed else {
+                self?.terminationCleanupStarted = false
+                sender?.reply(toApplicationShouldTerminate: false)
+                WindowAccess.shared.open("main")
+                return
             }
             self?.terminationCleanupFinished = true
             sender?.reply(toApplicationShouldTerminate: true)
         }
         return .terminateLater
+    }
+
+    @MainActor
+    private static func runTerminationCleanup() async -> Bool {
+        if let app = appState {
+            return await app.prepareForTermination()
+        }
+        await LlamaServer.shared.stop()
+        await LlamaServer.embedder.stop()
+        await LlamaServer.cotyping.stop()
+        await GraniteSpeechEngine.shared.shutdown()
+        await QwenASREngine.accuracy.shutdown()
+        await FileMediaEmbedderRuntime.shared.shutdown()
+        return true
     }
 
     @MainActor
