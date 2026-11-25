@@ -35,6 +35,7 @@ def main():
     parser.add_argument('--cases', type=Path, required=True, help="prepare.py's cases.json")
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--root', type=Path, required=True, help='a disposable home for the app')
+    parser.add_argument('--app-commit', help="the commit the app was built from, when it is not this checkout's HEAD")
     parser.add_argument('--configs', nargs='+', default=DEFAULT_ORDER)
     parser.add_argument('--passes', type=passes_argument, default=3)
     args = parser.parse_args()
@@ -63,6 +64,7 @@ def main():
             'wallSeconds': round(time.time() - started, 1),
             'command': ['LokalBot Dev'] + command[1:2] + ['cases.json'] + command[3:],
             'commit': output(['git', '-C', str(Path(__file__).parent), 'rev-parse', 'HEAD']),
+            **({'appCommit': args.app_commit} if args.app_commit else {}),
             'machine': {'model': output(['sysctl', '-n', 'hw.model']), 'chip': output(['sysctl', '-n', 'machdep.cpu.brand_string']),
                         'memoryBytes': int(output(['sysctl', '-n', 'hw.memsize']) or 0), 'macOS': platform.mac_ver()[0]},
         }, indent=1) + '\n')

@@ -263,6 +263,18 @@ final class QwenLanguageSampleTests: XCTestCase {
         XCTAssertEqual(decision.segments[1].text, "Okay.")
     }
 
+    func testLongTrackWhoseSampleCannotVoteStillDecodesAgainPinned() async throws {
+        let spans = spans(25)
+        let sample = Set(QwenASREngine.languageSample(spans, count: 8))
+        let decoder = Decoder { sample.contains($0) ? "Okay." : self.english[$0 % self.english.count] }
+        let decision = try await decide(spans, decoder: decoder)
+
+        XCTAssertEqual(decoder.calls.map(\.language), [nil, nil, "en"])
+        XCTAssertEqual(decoder.calls[2].spans, Array(0..<25))
+        XCTAssertEqual(decision.pinned, "en")
+        XCTAssertTrue(decision.decodedTwice)
+    }
+
     func testSingleWindowIsNeverPinned() async throws {
         let decoder = Decoder { self.english[$0 % self.english.count] }
         let decision = try await decide(spans(1), decoder: decoder)

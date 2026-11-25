@@ -557,7 +557,7 @@ actor QwenASREngine: TranscriptionEngine {
             return AutoLanguageDecision(segments: all, pinned: nil, sampled: sample.count,
                                         decodedTwice: false, needsSpeakerRegions: false)
         }
-        if agrees(all, on: vote) {
+        if sample.count == spans.count, agrees(all, on: vote) {
             return AutoLanguageDecision(segments: all, pinned: vote, sampled: sample.count, decodedTwice: false,
                                         needsSpeakerRegions: wordAttribution && !QwenWordAligner.supports(vote))
         }
