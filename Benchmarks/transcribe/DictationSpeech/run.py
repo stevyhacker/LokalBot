@@ -22,6 +22,13 @@ def output(command):
     return subprocess.run(command, capture_output=True, text=True).stdout.strip()
 
 
+def passes_argument(value):
+    count = int(value)
+    if not 1 <= count <= 10:
+        raise argparse.ArgumentTypeError('must be between 1 and 10')
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--app', type=Path, required=True, help='a Debug build of LokalBot Dev.app')
@@ -29,7 +36,7 @@ def main():
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--root', type=Path, required=True, help='a disposable home for the app')
     parser.add_argument('--configs', nargs='+', default=DEFAULT_ORDER)
-    parser.add_argument('--passes', type=int, default=3)
+    parser.add_argument('--passes', type=passes_argument, default=3)
     args = parser.parse_args()
     home = args.root / 'home'
     support = home / 'Library' / 'Application Support'
@@ -39,6 +46,7 @@ def main():
             target.parent.mkdir(parents=True, exist_ok=True)
             subprocess.run(['cp', '-cR', str(source), str(target)], check=True)
     binary = args.app / 'Contents' / 'MacOS' / args.app.stem
+    failed = []
     for name in args.configs:
         model, language = CONFIGS[name.removesuffix('-last')]
         folder = args.out / name
@@ -58,7 +66,11 @@ def main():
             'machine': {'model': output(['sysctl', '-n', 'hw.model']), 'chip': output(['sysctl', '-n', 'machdep.cpu.brand_string']),
                         'memoryBytes': int(output(['sysctl', '-n', 'hw.memsize']) or 0), 'macOS': platform.mac_ver()[0]},
         }, indent=1) + '\n')
+        if status:
+            failed.append(name)
         print(f'{name}: exit {status}, {time.time() - started:.0f} s', flush=True)
+    if failed:
+        raise SystemExit(f'replay failed: {", ".join(failed)}')
 
 
 if __name__ == '__main__':

@@ -21,6 +21,17 @@ final class DictationSpeechReplayTests: XCTestCase {
         XCTAssertNil(DictationSpeechReplay.parse(["LokalBot", "--dictation-speech-replay", "/tmp/c.json"]))
     }
 
+    func testUnparsableArgumentsAreStillRecognisedAsAReplayRequest() {
+        XCTAssertTrue(DictationSpeechReplay.isRequested(["LokalBot", "--dictation-speech-replay"]))
+        XCTAssertFalse(DictationSpeechReplay.isRequested(["LokalBot"]))
+        XCTAssertNil(DictationSpeechReplay.parse(["LokalBot", "--dictation-speech-replay", "/tmp/c.json",
+                                                  "--model", "parakeet-v3", "--language", "xx"]))
+        XCTAssertNil(DictationSpeechReplay.parse(["LokalBot", "--dictation-speech-replay", "/tmp/c.json",
+                                                  "--model", "parakeet-v3", "--passes", "many"]))
+        XCTAssertNil(DictationSpeechReplay.parse(["LokalBot", "--dictation-speech-replay", "/tmp/c.json",
+                                                  "--model"]))
+    }
+
     func testTheMiddlePassRunsBackwardsAndNoVocabularyIsSent() {
         XCTAssertEqual(DictationSpeechReplay.order(count: 3, pass: 0), [0, 1, 2])
         XCTAssertEqual(DictationSpeechReplay.order(count: 3, pass: 1), [2, 1, 0])

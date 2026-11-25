@@ -15,7 +15,7 @@ makes after the shortcut is released:
 - **On Automatic, Qwen3-ASR transcribes a dictation twice.** `QwenASREngine.decodeOnAuto` first decodes a language sample
   without a language; with up to 12 speech spans the sample is every span, and after the vote all spans are decoded again with
   the voted language. 18 of the 32 recordings were decoded fully twice, and the other 14 (more than 12 spans) decoded 12 extra.
-  With English set, the text was identical in all 32 recordings and the time was 0.58 of Automatic's (0.54 to 0.62). The
+  With English set, the text was identical in all 32 recordings and the time was 0.58 of Automatic's (0.57 to 0.60). The
   language-free pass is thrown away when the vote is English.
 - **Parakeet was about 26 times faster than Qwen3-ASR on Automatic (15 times faster than with English set), with no
   accuracy difference this sample can detect** on read speech: the paired intervals include zero. Qwen3-ASR was ahead on
@@ -25,7 +25,7 @@ makes after the shortcut is released:
   case for changing the default model, only for offering Parakeet for dictation.
 - **Parakeet ignores the vocabulary hint** (`acceptsVocabularyPrompt`), so names a person has added don't help it; this run
   sent no vocabulary to any model.
-- A repeat of the first row at the end gave identical text and a paired time of 1.01 (0.98 to 1.03).
+- A repeat of the first row at the end gave identical text and a paired time of 1.01 (1.01 to 1.02).
 
 ## By length and subset
 

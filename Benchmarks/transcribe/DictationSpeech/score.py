@@ -1,4 +1,4 @@
-"""Score the runs: English word error rate on the first pass, latency from the median of each recording's passes."""
+"""Score the runs: English word error rate on the first pass, latency from the median of each recording's passes, and the paired time ratio to the baseline with a bootstrap interval."""
 import argparse
 import json
 import random
@@ -72,6 +72,19 @@ def paired_interval(a, b, keys, draws=2000, seed=7):
     return round(diffs[int(0.025 * draws)], 2), round(diffs[int(0.975 * draws)], 2)
 
 
+def time_ratio(a, b, keys):
+    return statistics.median(a[k]['seconds'] / b[k]['seconds'] for k in keys)
+
+
+def paired_time_interval(a, b, keys, draws=2000, seed=7):
+    rng = random.Random(seed)
+    ratios = []
+    for _ in range(draws):
+        ratios.append(time_ratio(a, b, [rng.choice(keys) for _ in keys]))
+    ratios.sort()
+    return round(ratios[int(0.025 * draws)], 3), round(ratios[int(0.975 * draws)], 3)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cases', type=Path, required=True)
@@ -98,6 +111,8 @@ def main():
         if name != args.baseline:
             entry['werMinusBaseline'] = round(entry['all']['wer'] - wer([configs[args.baseline][k] for k in keys]), 2)
             entry['werMinusBaselineInterval'] = paired_interval(per_case, configs[args.baseline], keys)
+            entry['timeRatioToBaseline'] = round(time_ratio(per_case, configs[args.baseline], keys), 3)
+            entry['timeRatioToBaselineInterval'] = paired_time_interval(per_case, configs[args.baseline], keys)
             entry['identicalTextToBaseline'] = sum(per_case[k]['text'] == configs[args.baseline][k]['text'] for k in keys)
         summary[name] = entry
     text = json.dumps({'recordings': len(keys), 'audioMinutes': round(sum(c['seconds'] for c in cases) / 60, 1),

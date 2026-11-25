@@ -24,15 +24,28 @@ enum DictationSpeechReplay {
         var text: String
     }
 
+    static let argument = "--dictation-speech-replay"
+    static let usage = "usage: --dictation-speech-replay CASES.json --model ID [--language auto|CODE] [--passes 1-10]"
+
+    static func isRequested(_ args: [String]) -> Bool {
+        args.contains(argument)
+    }
+
     static func parse(_ args: [String]) -> Request? {
-        guard let flag = args.firstIndex(of: "--dictation-speech-replay"), args.count > flag + 1,
+        guard let flag = args.firstIndex(of: argument), args.count > flag + 1,
               let modelFlag = args.firstIndex(of: "--model"), args.count > modelFlag + 1,
               let model = TranscriptionModelChoice(rawValue: args[modelFlag + 1]), !model.isRemote,
               model != .appleSpeech else { return nil }
-        let language = args.firstIndex(of: "--language")
-            .flatMap { args.count > $0 + 1 ? TranscriptionLanguage(rawValue: args[$0 + 1]) : nil } ?? .auto
-        let passes = args.firstIndex(of: "--passes")
-            .flatMap { args.count > $0 + 1 ? Int(args[$0 + 1]) : nil } ?? 3
+        var language = TranscriptionLanguage.auto
+        if let index = args.firstIndex(of: "--language") {
+            guard args.count > index + 1, let value = TranscriptionLanguage(rawValue: args[index + 1]) else { return nil }
+            language = value
+        }
+        var passes = 3
+        if let index = args.firstIndex(of: "--passes") {
+            guard args.count > index + 1, let value = Int(args[index + 1]) else { return nil }
+            passes = value
+        }
         return Request(input: URL(fileURLWithPath: args[flag + 1]), model: model, language: language,
                        passes: min(max(passes, 1), 10))
     }

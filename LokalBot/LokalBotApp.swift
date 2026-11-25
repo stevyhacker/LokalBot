@@ -27,7 +27,11 @@ enum LokalBotMain {
             RunLoop.main.run()
             return
         }
-        if let replay = DictationSpeechReplay.parse(CommandLine.arguments) {
+        if DictationSpeechReplay.isRequested(CommandLine.arguments) {
+            guard let replay = DictationSpeechReplay.parse(CommandLine.arguments) else {
+                FileHandle.standardError.write(Data((DictationSpeechReplay.usage + "\n").utf8))
+                exit(2)
+            }
             Task { @MainActor in exit(await DictationSpeechReplay.run(replay)) }
             RunLoop.main.run()
             return

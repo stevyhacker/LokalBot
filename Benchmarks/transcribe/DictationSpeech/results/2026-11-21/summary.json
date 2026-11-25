@@ -51,6 +51,11 @@
     -0.5,
     0.85
    ],
+   "timeRatioToBaseline": 0.039,
+   "timeRatioToBaselineInterval": [
+    0.038,
+    0.04
+   ],
    "identicalTextToBaseline": 0
   },
   "parakeet-v3": {
@@ -100,6 +105,11 @@
    "werMinusBaselineInterval": [
     -0.42,
     1.79
+   ],
+   "timeRatioToBaseline": 0.04,
+   "timeRatioToBaselineInterval": [
+    0.039,
+    0.043
    ],
    "identicalTextToBaseline": 0
   },
@@ -195,6 +205,11 @@
     0.0,
     0.0
    ],
+   "timeRatioToBaseline": 1.013,
+   "timeRatioToBaselineInterval": [
+    1.007,
+    1.019
+   ],
    "identicalTextToBaseline": 32
   },
   "qwen-en": {
@@ -244,6 +259,11 @@
    "werMinusBaselineInterval": [
     0.0,
     0.0
+   ],
+   "timeRatioToBaseline": 0.579,
+   "timeRatioToBaselineInterval": [
+    0.568,
+    0.597
    ],
    "identicalTextToBaseline": 32
   }

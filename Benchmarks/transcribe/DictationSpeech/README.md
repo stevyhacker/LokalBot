@@ -23,6 +23,7 @@ recordings of dictation length with human transcripts.
 export BENCH=/private/tmp/lokalbot-bench/dictation-speech
 mkdir -p $BENCH/download
 for s in test-clean test-other; do curl -fL -o $BENCH/download/$s.tar.gz https://www.openslr.org/resources/12/$s.tar.gz; done
+brew install flac     # prepare.py decodes the FLAC files with the flac executable
 uv venv --python 3.12 $BENCH/.venv && uv pip install --python $BENCH/.venv/bin/python numpy rapidfuzz "transformers<5"
 
 $BENCH/.venv/bin/python prepare.py --downloads $BENCH/download --out $BENCH/data     # checks the archives' MD5
