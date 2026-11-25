@@ -1,0 +1,26 @@
+{
+ "config": "parakeet-ultra",
+ "model": "parakeet-ultra",
+ "language": "auto",
+ "passes": 3,
+ "exit": 0,
+ "wallSeconds": 38.9,
+ "command": [
+  "LokalBot Dev",
+  "--dictation-speech-replay",
+  "cases.json",
+  "--model",
+  "parakeet-ultra",
+  "--language",
+  "auto",
+  "--passes",
+  "3"
+ ],
+ "commit": "f19ee48b355fb50366835de56c363c8e18a412a6",
+ "machine": {
+  "model": "Mac16,8",
+  "chip": "Apple M4 Pro",
+  "memoryBytes": 51539607552,
+  "macOS": "26.7.3"
+ }
+}

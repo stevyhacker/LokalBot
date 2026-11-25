@@ -1,0 +1,271 @@
+{
+ "recordings": 32,
+ "audioMinutes": 43.1,
+ "baseline": "qwen-auto",
+ "configs": {
+  "parakeet-ultra": {
+   "all": {
+    "wer": 3.59,
+    "refWords": 6356,
+    "medianSeconds": 0.294,
+    "speedX": 260.5
+   },
+   "test-clean": {
+    "wer": 2.4,
+    "refWords": 3249,
+    "medianSeconds": 0.271,
+    "speedX": 243.5
+   },
+   "test-other": {
+    "wer": 4.83,
+    "refWords": 3107,
+    "medianSeconds": 0.297,
+    "speedX": 280.4
+   },
+   "30 s": {
+    "wer": 2.56,
+    "refWords": 703,
+    "medianSeconds": 0.153,
+    "speedX": 213.2
+   },
+   "60 s": {
+    "wer": 3.18,
+    "refWords": 1099,
+    "medianSeconds": 0.229,
+    "speedX": 272.5
+   },
+   "90 s": {
+    "wer": 4.57,
+    "refWords": 1619,
+    "medianSeconds": 0.324,
+    "speedX": 207.6
+   },
+   "120 s": {
+    "wer": 3.44,
+    "refWords": 2935,
+    "medianSeconds": 0.388,
+    "speedX": 314.2
+   },
+   "werMinusBaseline": 0.19,
+   "werMinusBaselineInterval": [
+    -0.5,
+    0.85
+   ],
+   "timeRatioToBaseline": 0.039,
+   "timeRatioToBaselineInterval": [
+    0.038,
+    0.04
+   ],
+   "identicalTextToBaseline": 0
+  },
+  "parakeet-v3": {
+   "all": {
+    "wer": 3.95,
+    "refWords": 6356,
+    "medianSeconds": 0.296,
+    "speedX": 231.5
+   },
+   "test-clean": {
+    "wer": 2.92,
+    "refWords": 3249,
+    "medianSeconds": 0.286,
+    "speedX": 204.1
+   },
+   "test-other": {
+    "wer": 5.02,
+    "refWords": 3107,
+    "medianSeconds": 0.296,
+    "speedX": 267.9
+   },
+   "30 s": {
+    "wer": 2.7,
+    "refWords": 703,
+    "medianSeconds": 0.154,
+    "speedX": 196.8
+   },
+   "60 s": {
+    "wer": 3.18,
+    "refWords": 1099,
+    "medianSeconds": 0.227,
+    "speedX": 272.9
+   },
+   "90 s": {
+    "wer": 6.24,
+    "refWords": 1619,
+    "medianSeconds": 0.324,
+    "speedX": 185.8
+   },
+   "120 s": {
+    "wer": 3.27,
+    "refWords": 2935,
+    "medianSeconds": 0.391,
+    "speedX": 262.4
+   },
+   "werMinusBaseline": 0.55,
+   "werMinusBaselineInterval": [
+    -0.42,
+    1.79
+   ],
+   "timeRatioToBaseline": 0.04,
+   "timeRatioToBaselineInterval": [
+    0.039,
+    0.043
+   ],
+   "identicalTextToBaseline": 0
+  },
+  "qwen-auto": {
+   "all": {
+    "wer": 3.4,
+    "refWords": 6356,
+    "medianSeconds": 7.641,
+    "speedX": 10.9
+   },
+   "test-clean": {
+    "wer": 1.72,
+    "refWords": 3249,
+    "medianSeconds": 7.555,
+    "speedX": 10.8
+   },
+   "test-other": {
+    "wer": 5.15,
+    "refWords": 3107,
+    "medianSeconds": 7.641,
+    "speedX": 11.1
+   },
+   "30 s": {
+    "wer": 3.56,
+    "refWords": 703,
+    "medianSeconds": 3.64,
+    "speedX": 8.9
+   },
+   "60 s": {
+    "wer": 4.46,
+    "refWords": 1099,
+    "medianSeconds": 6.227,
+    "speedX": 10.0
+   },
+   "90 s": {
+    "wer": 3.71,
+    "refWords": 1619,
+    "medianSeconds": 8.429,
+    "speedX": 10.8
+   },
+   "120 s": {
+    "wer": 2.79,
+    "refWords": 2935,
+    "medianSeconds": 10.089,
+    "speedX": 12.0
+   }
+  },
+  "qwen-auto-last": {
+   "all": {
+    "wer": 3.4,
+    "refWords": 6356,
+    "medianSeconds": 7.759,
+    "speedX": 10.8
+   },
+   "test-clean": {
+    "wer": 1.72,
+    "refWords": 3249,
+    "medianSeconds": 7.646,
+    "speedX": 10.8
+   },
+   "test-other": {
+    "wer": 5.15,
+    "refWords": 3107,
+    "medianSeconds": 7.759,
+    "speedX": 10.9
+   },
+   "30 s": {
+    "wer": 3.56,
+    "refWords": 703,
+    "medianSeconds": 3.682,
+    "speedX": 8.8
+   },
+   "60 s": {
+    "wer": 4.46,
+    "refWords": 1099,
+    "medianSeconds": 6.298,
+    "speedX": 9.9
+   },
+   "90 s": {
+    "wer": 3.71,
+    "refWords": 1619,
+    "medianSeconds": 8.567,
+    "speedX": 10.7
+   },
+   "120 s": {
+    "wer": 2.79,
+    "refWords": 2935,
+    "medianSeconds": 10.309,
+    "speedX": 11.9
+   },
+   "werMinusBaseline": 0.0,
+   "werMinusBaselineInterval": [
+    0.0,
+    0.0
+   ],
+   "timeRatioToBaseline": 1.013,
+   "timeRatioToBaselineInterval": [
+    1.007,
+    1.019
+   ],
+   "identicalTextToBaseline": 32
+  },
+  "qwen-en": {
+   "all": {
+    "wer": 3.4,
+    "refWords": 6356,
+    "medianSeconds": 4.471,
+    "speedX": 18.9
+   },
+   "test-clean": {
+    "wer": 1.72,
+    "refWords": 3249,
+    "medianSeconds": 4.126,
+    "speedX": 19.0
+   },
+   "test-other": {
+    "wer": 5.15,
+    "refWords": 3107,
+    "medianSeconds": 4.589,
+    "speedX": 18.9
+   },
+   "30 s": {
+    "wer": 3.56,
+    "refWords": 703,
+    "medianSeconds": 2.188,
+    "speedX": 14.8
+   },
+   "60 s": {
+    "wer": 4.46,
+    "refWords": 1099,
+    "medianSeconds": 3.486,
+    "speedX": 17.7
+   },
+   "90 s": {
+    "wer": 3.71,
+    "refWords": 1619,
+    "medianSeconds": 4.899,
+    "speedX": 19.2
+   },
+   "120 s": {
+    "wer": 2.79,
+    "refWords": 2935,
+    "medianSeconds": 5.974,
+    "speedX": 20.5
+   },
+   "werMinusBaseline": 0.0,
+   "werMinusBaselineInterval": [
+    0.0,
+    0.0
+   ],
+   "timeRatioToBaseline": 0.579,
+   "timeRatioToBaselineInterval": [
+    0.568,
+    0.597
+   ],
+   "identicalTextToBaseline": 32
+  }
+ }
+}

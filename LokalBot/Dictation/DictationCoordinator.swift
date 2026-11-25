@@ -1201,7 +1201,7 @@ final class DictationCoordinator: ObservableObject {
         refreshOverlay()
     }
 
-    private static func transcribe(
+    static func transcribe(
         _ audioURL: URL,
         config: AppSettings,
         retriesWithoutVocabulary: Bool
