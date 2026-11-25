@@ -8,7 +8,16 @@ final class AgentModeUITests: XCTestCase {
     override func setUpWithError() throws {
         continueAfterFailure = false
         fixture = try SyntheticFixture.plant()
-        try launch()
+        let customLaunch = [
+            "testLegacyPrivateLibraryTaskKeepsHistoryAndDraftWithoutStartingRuntime",
+            "testFindAndResultsKeyboardCommands",
+            "testQueuedFollowUpCanBeCanceledWhileApprovalRemainsDocked",
+            "testResponseSelectionCopiesAcrossHeadingsListsAndCode",
+            "testLongSavedConversationCanShrinkWithoutClippingActions",
+        ]
+        if !customLaunch.contains(where: { name.contains($0) }) {
+            try launch()
+        }
     }
     override func tearDownWithError() throws {
         app?.terminate(); fixture?.cleanUp()
@@ -97,7 +106,6 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testLegacyPrivateLibraryTaskKeepsHistoryAndDraftWithoutStartingRuntime() throws {
-        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         let directory = fixture.root.appendingPathComponent("agent/sessions")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let records: [[String: Any]] = [
@@ -125,7 +133,6 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testFindAndResultsKeyboardCommands() throws {
-        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         try launch(approval: true)
         composer.click(); composer.typeText("Draft a follow-up")
         app.buttons["agent.send"].click()
@@ -152,7 +159,6 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testQueuedFollowUpCanBeCanceledWhileApprovalRemainsDocked() throws {
-        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         try launch(approval: true)
         composer.click(); composer.typeText("Draft a follow-up")
         app.buttons["agent.send"].click()
@@ -176,7 +182,6 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testResponseSelectionCopiesAcrossHeadingsListsAndCode() throws {
-        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         try launch(approval: true)
         composer.click(); composer.typeText("Draft a follow-up")
         app.buttons["agent.send"].click()
@@ -212,7 +217,6 @@ final class AgentModeUITests: XCTestCase {
     }
 
     func testLongSavedConversationCanShrinkWithoutClippingActions() throws {
-        app.terminate(); UITestHarness.cleanUp(defaultsSuiteName: defaultsSuiteName)
         let directory = fixture.root.appendingPathComponent("agent/sessions")
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let paragraph = "A compact window should wrap this saved response while keeping its message actions and composer reachable. "

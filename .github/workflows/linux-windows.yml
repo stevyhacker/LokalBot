@@ -212,7 +212,7 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libxkbcommon-x11-dev libwayland-dev libvulkan1 mesa-vulkan-drivers libfontconfig-dev \
             libasound2-dev libxcb1-dev libx11-xcb-dev pkg-config clang \
-            xvfb xfwm4 x11-xserver-utils xdotool ffmpeg
+            xvfb xfwm4 x11-xserver-utils xdotool ffmpeg dbus-daemon
 
       - name: Cache cargo
         if: runner.environment == 'github-hosted'
@@ -236,6 +236,9 @@ jobs:
 
       - name: Test
         run: cargo test --workspace --locked
+
+      - name: Test D-Bus notifications and tray
+        run: dbus-run-session -- cargo test --locked -p lokalbot-platform --test live_dbus -- --ignored --test-threads=1
 
       - name: Build release
         run: cargo build --release --locked -p lokalbot-app -p lokalbot-cli

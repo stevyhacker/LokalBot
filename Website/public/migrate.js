@@ -628,17 +628,20 @@
     const localParts = [];
     const centralParts = [];
     let offset = 0;
-    const usedNames = new Map();
+    const usedNames = new Set();
 
     for (let i = 0; i < entries.length; i++) {
-      let name = entries[i].filename;
+      const original = entries[i].filename;
+      let name = original;
       if (usedNames.has(name)) {
-        const count = usedNames.get(name) + 1;
-        usedNames.set(name, count);
-        name = name.replace(/\.md$/i, "") + " (" + count + ").md";
-      } else {
-        usedNames.set(name, 1);
+        const stem = original.replace(/\.md$/i, "");
+        let count = 2;
+        do {
+          name = stem + " (" + count + ").md";
+          count += 1;
+        } while (usedNames.has(name));
       }
+      usedNames.add(name);
       const nameBytes = encoder.encode(name);
       const dataBytes = encoder.encode(entries[i].markdown);
       const sum = crc32(dataBytes);

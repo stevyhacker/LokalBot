@@ -51,8 +51,8 @@ cat > "$FIX/meta.json" <<'EOF'
  "relativePath":"meetings/2026/06/e2e-fixture","hasSystemTrack":true}
 EOF
 "$BIN" --process "$FIX" >/dev/null 2>&1
-grep -q '"speaker" : "me"' "$FIX/transcript.json" 2>/dev/null \
-  && grep -q '"speaker" : "them"' "$FIX/transcript.json" \
+grep -qE '"speaker" : "(me|local( [0-9]+)?)"' "$FIX/transcript.json" 2>/dev/null \
+  && grep -qE '"speaker" : "(them|them [0-9]+)"' "$FIX/transcript.json" \
   && pass "transcript.json has both speakers" || fail "speaker attribution"
 grep -qi "redis" "$FIX/transcript.md" 2>/dev/null \
   && pass "transcription accurate ('Redis' survived)" || fail "transcript content"
@@ -113,10 +113,14 @@ else fail "digest: $OUT"; fi
 
 echo "== T8: digest folds in screenshot OCR, not just window titles =="
 NOW=$(date +%s)
-sqlite3 -cmd ".timeout 5000" "$ROOT/lokalbotv3.sqlite" \
-  "INSERT INTO ocr_fts (text, ts, app) VALUES ('Working through the Project Zephyrus migration runbook: rollback steps, feature flags, and the on-call rota for the cutover.', $NOW, 'Safari');" 2>/dev/null
-sqlite3 -cmd ".timeout 5000" "$ROOT/lokalbotv3.sqlite" \
-  "INSERT INTO activity_blocks (app, title, start, end) VALUES ('Safari', 'Internal wiki', $((NOW-600)), $NOW);" 2>/dev/null
+sqlite3 -cmd ".timeout 5000" "$ROOT/lokalbotv3.sqlite" <<SQL 2>/dev/null
+INSERT INTO screenshots (ts, path, app, window_title, capture_trigger, perceptual_hash, similarity_group, source_url, document_name, meeting_id, privacy_redactions)
+VALUES ($NOW, '', 'Safari', 'Internal wiki', 'window_change', '', 0, '', 'Internal wiki', '', 0);
+INSERT INTO ocr_fts (text, window_title, ts, app, text_source, snapshot_id)
+VALUES ('Working through the Project Zephyrus migration runbook: rollback steps, feature flags, and the on-call rota for the cutover.', 'Internal wiki', $NOW, 'Safari', 'accessibility', last_insert_rowid());
+INSERT INTO activity_blocks (app, title, start, end)
+VALUES ('Safari', 'Internal wiki', $((NOW-600)), $NOW);
+SQL
 OUT=$("$BIN" --digest 2>/dev/null | tail -1)
 JOURNAL="${OUT#*: }"; JOURNAL="${JOURNAL%% (*}"
 if [[ "$OUT" == *"--digest: /"* && -s "$JOURNAL" ]]; then

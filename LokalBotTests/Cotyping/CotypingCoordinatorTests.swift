@@ -43,6 +43,7 @@ final class CotypingCoordinatorTests: XCTestCase {
     private var tempDir: URL!
     private var engine: ScriptedCotypingEngine!
     private var settings = AppSettings()
+    private var statsSuiteName: String!
     private var stats: CotypingStatsStore!
 
     override func setUpWithError() throws {
@@ -52,11 +53,15 @@ final class CotypingCoordinatorTests: XCTestCase {
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
         engine = ScriptedCotypingEngine()
         settings = AppSettings()
-        let suite = try XCTUnwrap(UserDefaults(suiteName: "cotyping-coordinator-stats-\(UUID().uuidString)"))
+        statsSuiteName = "cotyping-coordinator-stats-\(UUID().uuidString)"
+        let suite = try XCTUnwrap(UserDefaults(suiteName: statsSuiteName))
         stats = CotypingStatsStore(defaults: suite, persistence: DiscardingCotypingStatsPersistence())
     }
 
     override func tearDownWithError() throws {
+        if let statsSuiteName {
+            UserDefaults(suiteName: statsSuiteName)?.removePersistentDomain(forName: statsSuiteName)
+        }
         try? FileManager.default.removeItem(at: tempDir)
     }
 

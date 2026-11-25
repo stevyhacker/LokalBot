@@ -40,7 +40,7 @@ final class CaptureReplayTests: XCTestCase {
         settings.screenContextCaptureMode = .accessibleText
         settings.screenshotsEnabled = false
         let service = ScreenshotService(
-            store: store, storage: StorageManager(), sampler: ActivitySampler(store: store),
+            store: store, storage: StorageManager(rootURL: root), sampler: ActivitySampler(store: store),
             now: { replay.clock.now() }, settings: { settings })
         await service.captureIfAppropriate(trigger: .appSwitch)
         let captures = store.screenshots(in: nil, includingMissingFiles: true)
@@ -122,7 +122,7 @@ final class CaptureReplayTests: XCTestCase {
         settings.screenContextCaptureMode = .accessibleText
         settings.screenshotsEnabled = false
         let service = ScreenshotService(
-            store: store, storage: StorageManager(), sampler: ActivitySampler(store: store),
+            store: store, storage: StorageManager(rootURL: root), sampler: ActivitySampler(store: store),
             now: { replay.clock.now() }, settings: { settings })
         service.onTextStored = { index.screenTextDidArrive() }
         await service.captureIfAppropriate(trigger: .appSwitch)
@@ -149,7 +149,7 @@ final class CaptureReplayTests: XCTestCase {
         settings.screenshotsEnabled = false
         settings.excludedScreenDomains = domains
         let service = ScreenshotService(
-            store: store, storage: StorageManager(), sampler: ActivitySampler(store: store),
+            store: store, storage: StorageManager(rootURL: root), sampler: ActivitySampler(store: store),
             now: { replay.clock.now() }, settings: { settings })
         await service.captureIfAppropriate(trigger: .appSwitch)
         return store.screenshots(in: nil, includingMissingFiles: true).filter { $0.app == "Google Chrome" }
@@ -592,7 +592,7 @@ final class CaptureReplayTests: XCTestCase {
             var settings = AppSettings()
             settings.trackingEnabled = true
             settings.screenContextCaptureMode = .accessibleText
-            let service = ScreenshotService(store: store, storage: StorageManager(),
+            let service = ScreenshotService(store: store, storage: StorageManager(rootURL: root),
                                             sampler: ActivitySampler(store: store),
                                             now: { replay.clock.now() }, settings: { settings })
             for second in stride(from: 5.0, through: replay.trace.events.last?.t ?? 5, by: 5) {

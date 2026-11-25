@@ -3,8 +3,10 @@ import XCTest
 
 final class LibrarySearchTests: XCTestCase {
     private var root: URL!
+    private var previousStorageRoot: String?
 
     override func setUpWithError() throws {
+        previousStorageRoot = ProcessInfo.processInfo.environment["LOKALBOT_STORAGE_ROOT"]
         root = FileManager.default.temporaryDirectory
             .appendingPathComponent("librarysearch-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -27,7 +29,11 @@ final class LibrarySearchTests: XCTestCase {
     }
 
     override func tearDown() {
-        unsetenv("LOKALBOT_STORAGE_ROOT")
+        if let previousStorageRoot {
+            setenv("LOKALBOT_STORAGE_ROOT", previousStorageRoot, 1)
+        } else {
+            unsetenv("LOKALBOT_STORAGE_ROOT")
+        }
         try? FileManager.default.removeItem(at: root)
         super.tearDown()
     }

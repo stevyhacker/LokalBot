@@ -26,9 +26,8 @@ final class HelperVersionTests: XCTestCase {
 
     func testEmbeddedHelperPrintsVersionThroughPATHSymlink() throws {
         let helper = Bundle.main.bundleURL.appendingPathComponent("Contents/Helpers/lokalbot-cli")
-        guard FileManager.default.isExecutableFile(atPath: helper.path) else {
-            throw XCTSkip("no embedded lokalbot-cli in this build")
-        }
+        XCTAssertTrue(FileManager.default.isExecutableFile(atPath: helper.path),
+                      "embedded lokalbot-cli missing at \(helper.path)")
         let version = try XCTUnwrap(
             Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String)
         let root = FileManager.default.temporaryDirectory

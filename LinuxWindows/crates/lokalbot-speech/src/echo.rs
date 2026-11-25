@@ -449,22 +449,29 @@ mod tests {
     #[test]
     fn the_users_own_voice_survives_while_the_far_side_is_quiet() {
         let mut remote = voice(7, 20.0, 0);
-        let start = 10 * SAMPLE_RATE;
+        let start = 15 * SAMPLE_RATE;
         remote[start..].fill(0.0);
         let mut local = vec![0f32; remote.len()];
-        let own = voice(99, 6.0, 40);
+        let own: Vec<f32> = voice(99, 2.5, 40).into_iter().map(|s| s * 0.5).collect();
         local[start + 8_000..start + 8_000 + own.len()].copy_from_slice(&own);
-        let mic = with_echo(&remote, &local, 800, 0.3);
+        let mic = with_echo(&remote, &local, 800, 0.5);
         let clean = remove_echo(&mic, &remote, &TrackClock::SharedTimeline, &|| false).unwrap();
-        if let Some(output) = clean.cleaned {
-            let range = start + 8_000..start + 8_000 + own.len();
-            assert!(
-                rms(&output[range.clone()]) > rms(&own) * 0.8,
-                "{} of {}",
-                rms(&output[range]),
-                rms(&own)
-            );
-        }
+        assert_eq!(
+            clean.report.status,
+            EchoStatus::Applied,
+            "{:?}",
+            clean.report
+        );
+        let output = clean
+            .cleaned
+            .expect("echo removal should clean the synthetic echo track");
+        let range = start + 8_000..start + 8_000 + own.len();
+        assert!(
+            rms(&output[range.clone()]) > rms(&own) * 0.8,
+            "{} of {}",
+            rms(&output[range]),
+            rms(&own)
+        );
     }
 
     #[test]

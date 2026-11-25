@@ -2446,6 +2446,7 @@ mod tests {
         events: Sender<AutocompleteUpdate>,
         recording: AtomicBool,
         ready: AtomicBool,
+        fail_runs: AtomicBool,
         replies: Mutex<VecDeque<String>>,
         delay: Duration,
         requests: Mutex<Vec<(String, String)>>,
@@ -2510,6 +2511,9 @@ mod tests {
             std::thread::sleep(self.delay);
             if cancel.load(Ordering::Relaxed) {
                 return Outcome::Cancelled;
+            }
+            if self.fail_runs.load(Ordering::Relaxed) {
+                return Outcome::Failed;
             }
             let raw = self.replies.lock().pop_front().unwrap_or_default();
             Outcome::Completion(Box::new(Completion {
@@ -2585,6 +2589,7 @@ mod tests {
             events: events_tx,
             recording: AtomicBool::new(false),
             ready: AtomicBool::new(true),
+            fail_runs: AtomicBool::new(false),
             replies: Mutex::new(replies.iter().map(|r| r.to_string()).collect()),
             delay: Duration::from_millis(delay_ms),
             requests: Mutex::new(Vec::new()),
@@ -3504,36 +3509,55 @@ mod tests {
 
     #[test]
     fn a_failed_request_counts_as_an_error_and_clearing_leaves_the_other_counters() {
-        let h = harness(&[], 0);
-        *h.host.measures_file.lock() = {
-            let mut stats = CotypingStats::default();
-            stats.record_generation(5);
-            let mut usage = UsageHistory::default();
-            usage.record_typo_fixed(chrono::NaiveDate::from_ymd_opt(2026, 1, 1).unwrap());
-            (stats, usage)
-        };
-        let fresh = Autocomplete::with_host(h.host.clone());
-        std::thread::sleep(Duration::from_millis(20));
-        let last = |h: &Harness| {
-            h.host
-                .others
-                .lock()
-                .iter()
-                .rev()
-                .find_map(|update| match update {
-                    AutocompleteUpdate::Measures(measures) => Some(measures.clone()),
-                    _ => None,
-                })
-                .unwrap()
-        };
-        assert_eq!(last(&h).stats.generations, 1);
-        fresh.handle(AutocompleteCommand::ClearUsage);
-        std::thread::sleep(Duration::from_millis(20));
-        assert!(last(&h).usage.is_empty());
-        assert_eq!(last(&h).stats.generations, 1);
-        fresh.handle(AutocompleteCommand::ResetMeasures);
-        std::thread::sleep(Duration::from_millis(20));
-        assert_eq!(last(&h).stats, CotypingStats::default());
+        let h = harness(&[" up on the plan"], 0);
+        h.type_text(1, "I wanted to");
+        h.type_text(1, "I wanted to follow");
+        assert_eq!(h.suggestion(), " up on the plan");
+        h.autocomplete.handle(accepted(1, " up"));
+        h.host.fail_runs.store(true, Ordering::Relaxed);
+        h.type_text(1, "I wanted to follow up ");
+        h.type_text(1, "I wanted to follow up soon");
+        let wait_for_measures =
+            |predicate: &dyn Fn(&AutocompleteMeasures) -> bool| -> AutocompleteMeasures {
+                let deadline = Instant::now() + Duration::from_secs(2);
+                loop {
+                    if let Some(found) =
+                        h.host
+                            .others
+                            .lock()
+                            .iter()
+                            .rev()
+                            .find_map(|update| match update {
+                                AutocompleteUpdate::Measures(measures) => {
+                                    Some(measures.as_ref().clone())
+                                }
+                                _ => None,
+                            })
+                        && predicate(&found)
+                    {
+                        return found;
+                    }
+                    assert!(
+                        Instant::now() < deadline,
+                        "measures did not reach expected state"
+                    );
+                    std::thread::sleep(Duration::from_millis(10));
+                }
+            };
+        let after_error = wait_for_measures(&|m| m.stats.generations >= 1 && m.stats.errors == 1);
+        assert_eq!(after_error.stats.errors, 1);
+        assert_eq!(after_error.stats.generations, 1);
+        assert!(!after_error.usage.is_empty());
+
+        h.autocomplete.handle(AutocompleteCommand::ClearUsage);
+        let after_clear = wait_for_measures(&|m| m.usage.is_empty());
+        assert_eq!(after_clear.stats.generations, 1);
+        assert_eq!(after_clear.stats.errors, 1);
+
+        h.autocomplete.handle(AutocompleteCommand::ResetMeasures);
+        let after_reset = wait_for_measures(&|m| m.stats == CotypingStats::default());
+        assert_eq!(after_reset.stats, CotypingStats::default());
+        assert!(after_reset.usage.is_empty());
     }
 
     #[test]
