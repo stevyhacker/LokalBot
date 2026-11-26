@@ -97,6 +97,8 @@ def main():
     configs = {}
     for folder in sorted(p for p in args.runs.iterdir() if (p / 'replay.jsonl').exists()):
         manifest = json.loads((folder / 'manifest.json').read_text())
+        if manifest.get('exit') or manifest.get('appChangedDuringReplay'):
+            raise SystemExit(f'{folder.name}: the runner marked this replay as failed; re-run it or move it out of --runs')
         configs[folder.name] = summarize(cases, load(folder), manifest['passes'])
     keys = sorted(configs[args.baseline])
     summary = {}
