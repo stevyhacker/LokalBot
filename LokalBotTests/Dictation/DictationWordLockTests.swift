@@ -96,6 +96,28 @@ final class DictationWordLockTests: XCTestCase {
                        "a real self-correction is left as cleaned")
     }
 
+    func testASpokenNumberWordIsNotMistakenForTheDigitToRestore() {
+        let lock = DictationWordLock.production
+        XCTAssertEqual(lock.kept(spoken: "one of us needs 1 ticket", cleaned: "One of us needs one ticket.").text,
+                       "One of us needs 1 ticket.", "the spoken \"one\" stays a word; the spoken digit comes back")
+        XCTAssertEqual(lock.kept(spoken: "book 2 rooms for two nights", cleaned: "Book two rooms for two nights.").text,
+                       "Book 2 rooms for two nights.")
+        let dropped = lock.kept(spoken: "one one of us needs 1 ticket", cleaned: "Of us needs one ticket.")
+        XCTAssertEqual(dropped.text, "one one of us needs 1 ticket", "when the words don't line up the transcript is kept")
+        XCTAssertEqual(dropped.broken, [.digits])
+    }
+
+    func testAddedDigitsMustComeFromTheSpokenNumberWords() {
+        let lock = DictationWordLock.production
+        let invented = lock.kept(spoken: "we need 3 slides and one summary", cleaned: "We need 34 slides and one summary.")
+        XCTAssertEqual(invented.broken, [.digits], "a number word elsewhere doesn't excuse an invented digit")
+        XCTAssertEqual(invented.text, "we need 3 slides and one summary")
+        XCTAssertEqual(lock.kept(spoken: "twelve of them arrive at 3", cleaned: "12 of them arrive at 3.").broken, [])
+        XCTAssertEqual(lock.kept(spoken: "it was twenty twenty six by then", cleaned: "It was 2026 by then.").broken, [])
+        XCTAssertEqual(lock.kept(spoken: "about twelve hundred dollars", cleaned: "About 1200 dollars.").broken, [],
+                       "hundreds and thousands are not converted, so they stay allowed")
+    }
+
     func testTheLockKeepsTheTranscriptOnlyWhenOn() {
         let spoken = "Can you send me the 4 slides?"
         let cleaned = "Can you send me the 4 or 5 slides?"

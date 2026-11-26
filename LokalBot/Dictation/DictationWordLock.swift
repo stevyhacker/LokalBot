@@ -28,33 +28,74 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90,
     ]
 
-    static func restoringDigits(spoken: String, cleaned: String) -> String? {
-        var remaining = Substring(digitSequence(spoken))
+    private static let numberTokens: NSRegularExpression? = {
         let tens = "twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety"
         let units = "one|two|three|four|five|six|seven|eight|nine"
-        guard !remaining.isEmpty, let expression = try? NSRegularExpression(
-            pattern: "[0-9]+|\\b(?:\(tens))[- ](?:\(units))\\b|\\p{L}+", options: [.caseInsensitive]) else { return nil }
+        return try? NSRegularExpression(
+            pattern: "[0-9]+|\\b(?:\(tens))[- ](?:\(units))\\b|\\p{L}+", options: [.caseInsensitive])
+    }()
+
+    private static func tokens(_ text: String) -> [(range: Range<String.Index>, text: String)] {
+        guard let expression = numberTokens else { return [] }
+        return expression.matches(in: text, range: NSRange(text.startIndex..., in: text)).compactMap { match in
+            Range(match.range, in: text).map { ($0, String(text[$0])) }
+        }
+    }
+
+    private struct SpokenNumbers {
+        var runEnds: [Int] = []
+        var wordsBeforeRun: [[Int]] = [[]]
+
+        init(_ spoken: String) {
+            var digits = 0
+            for token in DictationWordLock.tokens(spoken) {
+                if token.text.first?.isNumber == true {
+                    digits += token.text.count
+                    runEnds.append(digits)
+                    wordsBeforeRun.append([])
+                } else if let value = DictationWordLock.numberValue(token.text) {
+                    wordsBeforeRun[wordsBeforeRun.count - 1].append(value)
+                }
+            }
+        }
+    }
+
+    static func restoringDigits(spoken: String, cleaned: String) -> String? {
+        var remaining = Substring(digitSequence(spoken))
+        guard !remaining.isEmpty else { return nil }
         let joined = joinedDigits(spoken)
+        let layout = SpokenNumbers(spoken)
+        var run = 0
+        var spokenWords = layout.wordsBeforeRun[0]
         var consumed = 0
         var result = ""
         var last = cleaned.startIndex
         var changed = false
-        for match in expression.matches(in: cleaned, range: NSRange(cleaned.startIndex..., in: cleaned)) {
-            guard let range = Range(match.range, in: cleaned) else { continue }
-            let token = String(cleaned[range])
-            if token.first?.isNumber == true {
-                guard remaining.hasPrefix(token) else { return nil }
-                remaining = remaining.dropFirst(token.count)
-                consumed += token.count
+        func consume(_ count: Int) {
+            remaining = remaining.dropFirst(count)
+            consumed += count
+            while run < layout.runEnds.count, consumed >= layout.runEnds[run] {
+                run += 1
+                spokenWords = layout.wordsBeforeRun[run]
+            }
+        }
+        for token in tokens(cleaned) {
+            if token.text.first?.isNumber == true {
+                guard remaining.hasPrefix(token.text) else { return nil }
+                consume(token.text.count)
                 continue
             }
-            guard let value = numberValue(token), remaining.hasPrefix(String(value)) else { continue }
+            guard let value = numberValue(token.text) else { continue }
+            if let said = spokenWords.firstIndex(of: value) {
+                spokenWords.remove(at: said)
+                continue
+            }
+            guard remaining.hasPrefix(String(value)) else { continue }
             let digits = String(value).count
             guard !joined[consumed..<(consumed + digits)].contains(true) else { return nil }
-            result += cleaned[last..<range.lowerBound] + String(value)
-            last = range.upperBound
-            remaining = remaining.dropFirst(digits)
-            consumed += digits
+            result += cleaned[last..<token.range.lowerBound] + String(value)
+            last = token.range.upperBound
+            consume(digits)
             changed = true
         }
         guard changed, remaining.isEmpty else { return nil }
@@ -87,7 +128,7 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         let heard = digitSequence(spoken)
         let written = digitSequence(cleaned)
         if heard != written {
-            let added = isSubsequence(heard, of: written) && saysNumberWords(spoken)
+            let added = isSubsequence(heard, of: written) && numberWordsAccount(for: written, spoken: spoken)
             let dropped = isSubsequence(written, of: heard) && corrects
             if !added && !dropped { reasons.append(.digits) }
         }
@@ -150,6 +191,18 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
 
     static func saysNumberWords(_ text: String) -> Bool {
         words(text.lowercased()).contains { numberWords.contains($0) }
+    }
+
+    static let magnitudeWords: Set<String> = ["hundred", "thousand", "million", "billion", "half", "quarter"]
+
+    static func numberWordsAccount(for written: String, spoken: String) -> Bool {
+        guard saysNumberWords(spoken) else { return false }
+        if words(spoken.lowercased()).contains(where: magnitudeWords.contains) { return true }
+        let sayable = tokens(spoken).map { token -> String in
+            if token.text.first?.isNumber == true { return token.text }
+            return numberValue(token.text).map(String.init) ?? ""
+        }.joined()
+        return isSubsequence(written, of: sayable)
     }
 
     static func names(_ text: String) -> [String] {
