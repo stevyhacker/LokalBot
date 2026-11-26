@@ -123,15 +123,56 @@ INTERACTIVE_TOOLS = [
     ),
 ]
 
+NAV_ITEMS = [
+    ("demo", "/#demo"),
+    ("compare", "/#compare"),
+    ("benchmarks", "/benchmarks"),
+    ("guides", "/guides"),
+    ("blog", "/blog"),
+    ("migrate", "/migrate"),
+    ("hardware", "/hardware"),
+    ("calculator", "/calculator"),
+    ("wrapped", "/wrapped"),
+]
+
+NAV_LABELS = {
+    "aria": "Primary",
+    "demo": "Demo",
+    "compare": "Compare",
+    "benchmarks": "Benchmarks",
+    "guides": "Guides",
+    "blog": "Blog",
+    "migrate": "Migrate",
+    "hardware": "Hardware",
+    "calculator": "Calculator",
+    "wrapped": "Wrapped",
+}
+
+HAND_WRITTEN_PAGES = {
+    "404": None,
+    "about": None,
+    "benchmarks": "benchmarks",
+    "calculator": "calculator",
+    "enshittification-proof": None,
+    "hardware": "hardware",
+    "migrate": "migrate",
+    "privacy": None,
+    "support": None,
+    "terms": None,
+    "wrapped": "wrapped",
+}
+
+PRIMARY_NAV = re.compile(r'<nav class="nav__links"[^>]*>.*?</nav>', re.S)
+
 STATIC_PAGES = {
     "": "2026-11-26",
     "wrapped": "2026-11-26",
     "migrate": "2026-11-26",
     "calculator": "2026-11-26",
-    "privacy": "2026-11-20",
-    "terms": "2026-11-20",
-    "support": "2026-11-20",
-    "enshittification-proof": "2026-11-20",
+    "privacy": "2026-11-26",
+    "terms": "2026-11-26",
+    "support": "2026-11-26",
+    "enshittification-proof": "2026-11-26",
 }
 
 
@@ -207,6 +248,30 @@ def fill_template(template: str, replacements: dict[str, str], label: str) -> st
         line = next(line for line in rendered.splitlines() if TOKEN_OPEN in line)
         raise SystemExit(f"Unreplaced placeholder in {label.lower()} output: {line.strip()}")
     return rendered
+
+
+def primary_nav(active: str | None = None, labels: dict[str, str] | None = None) -> str:
+    """The one top navigation every page shows, in the page's language."""
+
+    labels = labels or NAV_LABELS
+    links = []
+    for key, href in NAV_ITEMS:
+        current = ' aria-current="page"' if key == active else ""
+        links.append(f'<a href="{href}"{current}>{html.escape(labels[key])}</a>')
+    return f'<nav class="nav__links" aria-label="{html.escape(labels["aria"])}">{"".join(links)}</nav>'
+
+
+def with_primary_nav(page: str, label: str, active: str | None = None) -> str:
+    """A hand-written page with its top navigation replaced by the shared one."""
+
+    found = len(PRIMARY_NAV.findall(page))
+    if found != 1:
+        raise SystemExit(f"{label} needs exactly one <nav class=\"nav__links\">, found {found}.")
+    return PRIMARY_NAV.sub(lambda _: primary_nav(active), page, count=1)
+
+
+def locale_nav_labels(loc: dict) -> dict[str, str]:
+    return {"aria": loc["nav_aria"], **{key: loc[f"nav_{key}"] for key, _ in NAV_ITEMS}}
 
 
 def render_footer(partial: str) -> str:
@@ -461,6 +526,7 @@ def render_guide_page(template: str, page: dict, footer: str) -> str:
         "{{FAQ_ITEMS}}": render_faq_items(page["faq"]),
         "{{RELATED_LINKS}}": render_related_links(page),
         "{{STRUCTURED_DATA}}": guide_structured_data(page),
+        "{{PRIMARY_NAV}}": primary_nav("guides"),
         "{{FOOTER}}": footer,
     }
     return fill_template(template, replacements, "Guide")
@@ -499,6 +565,7 @@ def render_guides_index(template: str, footer: str) -> str:
                 for loc in LOCALE_PAGES
             ]
         ),
+        "{{PRIMARY_NAV}}": primary_nav("guides"),
         "{{FOOTER}}": footer,
     }
     return fill_template(template, replacements, "Guides")
@@ -601,6 +668,7 @@ def render_blog_index(template: str, footer: str) -> str:
         "{{H1}}": BLOG_INDEX["h1"],
         "{{LEAD}}": BLOG_INDEX["lead"],
         "{{POST_CARDS}}": render_post_cards(POSTS),
+        "{{PRIMARY_NAV}}": primary_nav("blog"),
         "{{FOOTER}}": footer,
     }
     return fill_template(template, replacements, "Blog")
@@ -621,6 +689,7 @@ def render_blog_post(template: str, post: dict, footer: str) -> str:
         "{{BODY}}": post["body"].strip(),
         "{{MORE_POSTS}}": render_post_cards(others),
         "{{STRUCTURED_DATA}}": post_structured_data(post),
+        "{{PRIMARY_NAV}}": primary_nav("blog"),
         "{{FOOTER}}": footer,
     }
     return fill_template(template, replacements, "Blog post")
@@ -836,11 +905,7 @@ def render_locale_page(template: str, loc: dict, footer: str) -> str:
         "{{OG_IMAGE_ALT}}": html.escape(loc["og_image_alt"]),
         "{{SKIP_LINK}}": html.escape(loc["skip_link"]),
         "{{HOME_ARIA}}": html.escape(loc["home_aria"]),
-        "{{NAV_ARIA}}": html.escape(loc["nav_aria"]),
-        "{{NAV_FEATURES}}": html.escape(loc["nav_features"]),
-        "{{NAV_GUIDES}}": html.escape(loc["nav_guides"]),
-        "{{NAV_BENCHMARKS}}": html.escape(loc["nav_benchmarks"]),
-        "{{NAV_BLOG}}": html.escape(loc["nav_blog"]),
+        "{{PRIMARY_NAV}}": primary_nav(labels=locale_nav_labels(loc)),
         "{{LANGS_ARIA}}": html.escape(loc["langs_aria"]),
         "{{FAQ_EYEBROW}}": html.escape(loc["faq_eyebrow"]),
         "{{HREFLANG_LINKS}}": render_hreflang_links(),
@@ -939,6 +1004,7 @@ def render_page(template: str, page: dict, footer: str) -> str:
         "{{RELATED_GUIDES}}": render_compare_related_guides(page),
         "{{MORE_LINKS}}": render_more_links(page),
         "{{DISCLAIMER}}": page["disclaimer"],
+        "{{PRIMARY_NAV}}": primary_nav(),
         "{{FOOTER}}": footer,
     }
     return fill_template(template, replacements, "Comparison")
@@ -997,10 +1063,20 @@ def main() -> int:
             (web_dir / "guides.html", render_guides_index(templates["guides"], footer)),
             (web_dir / "blog.html", render_blog_index(templates["blog"], footer)),
             (web_dir / "blog" / "feed.xml", render_feed()),
-            (web_dir / "index.html", render_home((web_dir / "index.html").read_text(encoding="utf-8"))),
+            (
+                web_dir / "index.html",
+                with_primary_nav(render_home((web_dir / "index.html").read_text(encoding="utf-8")), "index.html"),
+            ),
             (web_dir / "llms-full.txt", render_llms_full(web_dir)),
             (web_dir / "sitemap.xml", render_sitemap()),
         ]
+    )
+    generated_pages.extend(
+        (
+            web_dir / f"{slug}.html",
+            with_primary_nav((web_dir / f"{slug}.html").read_text(encoding="utf-8"), f"{slug}.html", active),
+        )
+        for slug, active in HAND_WRITTEN_PAGES.items()
     )
     generated_pages.extend(
         (web_dir / f"{loc['slug']}.html", render_locale_page(templates["locale"], loc, footer))
