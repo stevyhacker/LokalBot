@@ -12,6 +12,8 @@ npx lokalbot
 
 It prints a card in your terminal and opens a local, offline page in your browser where you can switch between **Portrait (4:5)** and **Wide (16:9)** layouts, toggle **Dark / Light** mode and options, copy or save a 2× PNG, or copy a post caption. Pass `--no-share` for terminal output only. (`npx lokalbot wrapped` also works.)
 
+No Node.js installed or reading on a phone? Preview sample cards or drop local `stats-cache.json` and `.jsonl` logs offline in your browser at [lokalbot.com/wrapped](https://www.lokalbot.com/wrapped).
+
 ## Supported coding agents
 
 Agent Wrapped automatically reads local session logs from all of these agents when present:

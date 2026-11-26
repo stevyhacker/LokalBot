@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { renderCard, renderPage } from '../src/card.mjs';
+import { cardShareCaption } from '../src/card-renderer.mjs';
 import { demoYear } from '../src/demo.mjs';
 import { compact, dayLabel, duration, hours } from '../src/format.mjs';
 import { coverageNote, renderTerminal } from '../src/terminal.mjs';
@@ -51,7 +52,7 @@ test('the image leaves project names out unless asked', () => {
   assert.ok(quiet.trimEnd().endsWith('</svg>'));
   assert.equal(quiet.includes('harbor-app'), false);
   assert.ok(quiet.includes('npx lokalbot'));
-  assert.ok(quiet.includes('lokalbot.com'));
+  assert.ok(quiet.includes('>lokalbot.com/wrapped</text>'));
   assert.ok(quiet.includes('Nothing was uploaded.'));
   assert.equal((quiet.match(/<text /g) ?? []).length, (quiet.match(/<\/text>/g) ?? []).length);
   assert.ok(renderCard(result, { showProjects: true }).includes('Most hours went to harbor-app, tide-api and northwind-site.'));
@@ -59,6 +60,7 @@ test('the image leaves project names out unless asked', () => {
   const wide = renderCard(result, { layout: 'wide' });
   assert.ok(wide.startsWith('<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900"'));
   assert.ok(wide.includes('npx lokalbot'));
+  assert.ok(wide.includes('>lokalbot.com/wrapped</text>'));
   assert.ok(wide.includes('>Mon</text>'));
   assert.ok(wide.includes('>Less</text>'));
   assert.ok(wide.includes('>More</text>'));
@@ -168,4 +170,54 @@ test('the terminal card says when compressed Codex logs were left out', () => {
   assert.ok(!renderTerminal(result).includes('compressed Codex'));
   result.stats.sources = { ...result.stats.sources, compressedSkipped: 3 };
   assert.match(renderTerminal(result), /3 compressed Codex logs left out: reading them needs Node\.js 22\.15 or later\./);
+});
+
+test('share caption includes both npx lokalbot and the wrapped URL', () => {
+  const { stats } = demoYear(2026);
+  const withValue = cardShareCaption(stats, { showApiValue: true });
+  assert.ok(withValue.includes('npx lokalbot'));
+  assert.ok(withValue.includes('https://www.lokalbot.com/wrapped'));
+  assert.ok(withValue.includes('API value'));
+
+  const withoutValue = cardShareCaption(stats, { showApiValue: false });
+  assert.ok(withoutValue.includes('npx lokalbot'));
+  assert.ok(withoutValue.includes('https://www.lokalbot.com/wrapped'));
+  assert.equal(withoutValue.includes('API value'), false);
+});
+
+test('local share page renders OS-aware install tabs and MCP bridge commands', () => {
+  const result = demoYear(2026);
+
+  const macPage = renderPage(result, { platform: 'darwin' });
+  assert.ok(macPage.includes('data-os="darwin" aria-pressed="true"'));
+  assert.ok(macPage.includes('data-os="win32" aria-pressed="false"'));
+  assert.ok(macPage.includes('data-os="linux" aria-pressed="false"'));
+  assert.ok(macPage.includes('<div data-os-panel="darwin">'));
+  assert.ok(macPage.includes('<div data-os-panel="win32" hidden>'));
+  assert.ok(macPage.includes('<div data-os-panel="linux" hidden>'));
+  assert.ok(macPage.includes('brew install --cask stevyhacker/tap/lokalbot'));
+
+  const winPage = renderPage(result, { platform: 'win32' });
+  assert.ok(winPage.includes('data-os="win32" aria-pressed="true"'));
+  assert.ok(winPage.includes('<div data-os-panel="win32">'));
+  assert.ok(winPage.includes('<div data-os-panel="darwin" hidden>'));
+  assert.ok(winPage.includes('<div data-os-panel="linux" hidden>'));
+  assert.ok(winPage.includes('scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket'));
+  assert.ok(winPage.includes('scoop install lokalbot/lokalbot'));
+
+  const linuxPage = renderPage(result, { platform: 'linux' });
+  assert.ok(linuxPage.includes('data-os="linux" aria-pressed="true"'));
+  assert.ok(linuxPage.includes('<div data-os-panel="linux">'));
+  assert.ok(linuxPage.includes('<div data-os-panel="darwin" hidden>'));
+  assert.ok(linuxPage.includes('<div data-os-panel="win32" hidden>'));
+  assert.ok(linuxPage.includes('pkg.lokalbot.com'));
+  assert.ok(linuxPage.includes('.deb'));
+  assert.ok(linuxPage.includes('.rpm'));
+  assert.ok(linuxPage.includes('https://github.com/stevyhacker/LokalBot/releases/latest'));
+
+  assert.ok(macPage.includes('/plugin marketplace add stevyhacker/lokalbot'));
+  assert.ok(macPage.includes('/plugin install lokalbot@lokalbot'));
+  assert.ok(macPage.includes('claude mcp add lokalbot -- lokalbot-cli mcp'));
+  assert.ok(macPage.includes('codex plugin marketplace add stevyhacker/lokalbot'));
+  assert.ok(macPage.includes('codex mcp add lokalbot -- lokalbot-cli mcp'));
 });
