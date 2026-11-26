@@ -1,66 +1,73 @@
 # LokalBot
 
-> Your personal context engine. LokalBot is a free, open-source (GPLv3) app for macOS, with Windows and Linux in alpha, that records meetings without a bot, transcribes and summarizes them on-device, and searches your meetings and, if you turn it on, what you saw on screen. Processing runs locally by default, with no account, analytics, or hosted AI service. Full benchmark tables, comparisons, and FAQs in one file: https://www.lokalbot.com/llms-full.txt
+> Local AI meeting notes, screen recall, dictation, autocomplete, and read-only MCP. LokalBot is a free, open-source (GPLv3) app for macOS (Apple Silicon), Windows and Linux (native Rust + GPUI alpha), plus iOS and Android companion apps, that records meetings without a bot, transcribes and summarizes them on-device using Apache-2.0 fine-tuned models, and searches your meetings and opt-in screen memory. No account, no analytics, no hosted AI backend. Full benchmark tables, comparisons, and FAQs in one file: https://www.lokalbot.com/llms-full.txt
 
-Key facts:
+Key facts (v0.14.0, updated 2026-11-26):
 
-- Platforms: macOS 15.0 or later on Apple Silicon (M1 or later). In alpha: Windows 10 or 11 (x64) and Linux (x86_64, glibc 2.39 or later), a separate native app that reads the same library format. Companion apps are on the App Store for iPhone and iPad (iOS/iPadOS 18 or later): https://apps.apple.com/app/id6836773709 and on Google Play for Android (Android 10 or later): https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion. No Intel Mac or web version.
-- Price and license: free, GNU GPL v3; code in the Autocomplete engine that was ported from Cotabby stays under AGPLv3. Source: https://github.com/stevyhacker/lokalbot
-- Install: from https://github.com/stevyhacker/lokalbot/releases/latest download LokalBot-<version>-macos-arm64.dmg (or run `brew install --cask stevyhacker/tap/lokalbot`) on a Mac, LokalBot-<version>-windows-x86_64-setup.exe (a per-user installer) or the portable LokalBot-<version>-windows-x86_64.zip on Windows (neither code-signed yet), or LokalBot-<version>-linux-x86_64.tar.gz (or the .deb, .rpm or Arch package from the same release) on Linux (for the archive, run ./install.sh). The .deb, and the .rpm on Fedora, add the LokalBot repository at pkg.lokalbot.com, so apt or dnf keeps it updated.
-- Phones and tablets: the iPhone, iPad, and Android apps pair by QR code with LokalBot on a Mac, Windows, or Linux computer (Settings → Phones & tablets, off by default). They keep an end-to-end encrypted copy of the meetings, actions, Timeline, Day Digests, people, and projects the user chooses to share, sync directly over the local network or Tailscale with no LokalBot server, search that copy offline, record meetings for the computer to transcribe, and send Ask questions to the computer, which answers with its own AI settings.
-- Meetings: records the microphone and the meeting app's audio on separate tracks without joining the call (on Windows and Linux, the meeting app where it can be separated, and otherwise everything the computer plays). On a fresh install it asks through a notification before recording a detected meeting.
-- Local models: on Mac, Qwen3-ASR 1.7B is the default speech model (since 0.8.1); Parakeet, IBM Granite Speech, and Whisper large-v3 turbo are alternatives. On Windows and Linux the default is Qwen3-ASR 0.6B, with Parakeet, SenseVoice, GigaAM for Russian, and Whisper turbo. Summaries use Qwen3.5 4B on llama.cpp and search uses EmbeddingGemma 2 embeddings everywhere. On Windows and Linux, llama.cpp runs on a Vulkan GPU, the CPU, or an NVIDIA GPU with CUDA (experimental). Speakers you name are recognized in later meetings; on Windows and Linux the name is only offered for the user to apply.
-- Optional backends: Ollama, OpenAI-compatible servers, and the user's ChatGPT or Claude plan on every platform, plus Apple Intelligence on Mac (macOS 26+). A non-local server or plan must be explicitly approved before it receives meeting or workday context.
-- Languages: Qwen3-ASR transcribes 52 languages and dialects; meeting notes follow the meeting's language unless the user picks another; the interface is translated into 24 languages.
-- Workday memory: day tracking starts with app names and window titles only. Saved screen text and encrypted screenshots are opt-in; screenshots are deleted after 14 days by default.
-- Also includes: hold-to-talk dictation (⌥ Space on Mac, Alt+Space on Windows and Linux) with recent dictations kept to copy again, optional local autocomplete that can use the message being answered and the user's meetings, a sample meeting to try before recording, import of audio and video files as meetings, a morning look back at yesterday from the overnight review, a Raycast extension (https://www.raycast.com/stevan_bogosavljevic/lokalbot), an open-source Obsidian plugin (https://github.com/stevyhacker/obsidian-lokalbot), selection actions for rewriting selected text, spoken summaries, search across folders the user chooses, Markdown/Obsidian/Logseq export, a read-only CLI and MCP server that stay off until the user turns them on in Settings, opening a meeting's action item in Claude Code or Codex, and opt-in Agent Mode, which works on files with approval and can run on a ChatGPT plan.
-- Projects: tracks a project by name and gathers the meetings, actions, and decisions that name it, writes a short "Where it stands" note with links back to its meetings, and suggests names that keep coming up.
-- Mainland China: records Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, and WeCom calls; keyword search matches Chinese, Japanese, and Korean anywhere in a phrase; models can download from HF-Mirror or ModelScope instead of Hugging Face (Settings → Models).
-- Personal Context: an encrypted list of facts, preferences, goals, and principles about the user, from "Remember …" in Ask, items added in Settings, and what it learns overnight from the user's own words in meetings and typed requests. Ask uses it; agents can read only items the user shares, under a separate permission.
-- Mac only for now: Gmail in meeting briefs, Apple Intelligence, Granite Speech transcription, and Nemotron speaker separation.
-- Limits on Windows and Linux: on Linux, autocomplete in other apps works on X11 and, as an input method on Wayland, on Sway, Hyprland, GNOME, and KDE Plasma (lightly tested so far), but not yet on other compositors; dictation and selection actions on Wayland need a desktop shortcut; reading screen text in scripts other than Latin needs Tesseract on Linux; remembered speakers are only suggestions the user applies; Files doesn't read .doc, RAW, or some scanned PDF pages, and video frames, HEIC, and AVIF need ffmpeg.
-- Not supported: syncing a library between computers or through a cloud service.
+- Platforms: macOS 15.0 or later on Apple Silicon (M1 or later). In alpha: Windows 10 or 11 (x64) and Linux (x86_64, glibc 2.39 or later), a native Rust + GPUI app reading the exact same SQLite library format. Companion apps are on the App Store for iPhone and iPad (iOS/iPadOS 18+, https://apps.apple.com/app/id6836773709) and on Google Play for Android (Android 10+, https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion). No Intel Mac or web version.
+- Price and license: free, GNU GPL v3 (Autocomplete files ported from Cotabby stay under AGPLv3). Source: https://github.com/stevyhacker/LokalBot (124 GitHub stars as of November 26, 2026).
+- Install: from https://github.com/stevyhacker/lokalbot/releases/latest download `LokalBot-<version>-macos-arm64.dmg` (or run `brew install --cask stevyhacker/tap/lokalbot`) on Mac, `LokalBot-<version>-windows-x86_64-setup.exe` (per-user, no admin rights) or portable `.zip` on Windows (not code-signed yet), or `.deb`, `.rpm`, Arch `.pkg.tar.zst`, or `.tar.gz` (`./install.sh`) on Linux. The `.deb` and Fedora `.rpm` register `pkg.lokalbot.com` for `apt` / `dnf` upgrades.
+- Phones and tablets: the iOS and Android apps pair by QR code with LokalBot on Mac, Windows, or Linux (`Settings > Phones & tablets`, off by default). They keep an end-to-end encrypted copy of shared meetings, actions, Timeline, Day Digests, people, and projects, sync directly over local Wi-Fi or Tailscale with no LokalBot server, search offline, record in-person meetings for the computer to transcribe, and send Ask questions to the computer.
+- Meetings: records the microphone and meeting app audio on two synchronized local tracks without joining the call (on Windows and Linux, isolated per app where supported, otherwise system output). Detects Zoom, Teams, Meet, Slack, FaceTime, Discord, Webex, Tencent Meeting, Feishu, DingTalk, Yandex Telemost, MTS Link, eXpress, plus custom native call apps and opt-in browser sites. Fresh installs ask via notification before recording.
+- Local v0.14.0 Apache-2.0 fine-tuned default models:
+  - Think (notes, actions, Personal Context memory, Ask): `Qwen3.5 4B (LokalBot v4)` (`2.74 GB` Q4_K_M, https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF, `118/120` Memory120, `-60.6%` Blind21 Swift validator rejections, `1.78x` faster `13.64 s` latency).
+  - Transcription (Mac default): `Qwen3-ASR 1.7B (LokalBot v3)` (`2.52 GB` GGUF Q8_0 + fine-tuned top-4 `audio_tower` `mmproj`, https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF, `9.79%` AMI ihm WER, `12.81%` code-switch WER vs `37.12%` stock, `0` dictation silence hallucinations, `100%` custom vocab recall).
+  - Transcription (compact / fallback): `Qwen3-ASR 0.6B (LokalBot v1)` (`1.02 GB` Q8_0, https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF, `52.7x` RT on M4 Max), plus Parakeet, IBM Granite Speech (Mac), SenseVoice/GigaAM (Windows/Linux), and Whisper large-v3 turbo.
+  - Autocomplete (Cotyping): `Gemma 4 E2B (LokalBot v4)` (`3.85 GB` i1-Q6_K, https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF, `56/56` visible-window and saved-memory grounding, `80.0%` email precision, `20.2 ms` boundary / `56 ms` typing median on M4 Max), plus lightweight `LFM2.5 1.2B` (`0.73 GB`).
+  - Search & Diarization: `EmbeddingGemma 2` (`0.31 GB` Q8_0, `39 ms` / `50 MB` RAM on QMSum) + SQLite FTS5, and `Nemotron 3` Core ML (`0.20 GB`, `14.56%` DER on Mac; pyannote + TitaNet on Windows/Linux). Previous stock checkpoints remain selectable in `Settings > Models`.
+- Optional remote backends: Ollama, OpenAI-compatible servers, Anthropic Messages API, and the user's own ChatGPT, Claude, Antigravity (`agy`), or Gemini (`gemini`) plans on every platform, plus Apple Intelligence on Mac (macOS 26+). Every non-local server or plan requires explicit per-origin approval.
+- Imports & migration: built-in read-only importers for Granola, Otter, Fireflies, Fathom, Screenpipe, Zoom, Voice Memos, MacWhisper, and Wispr Flow (`flow.sqlite` meetings and personal dictionary, skipping snippets and deleted entries), plus offline browser converter at https://www.lokalbot.com/migrate.
+- Languages: Qwen3-ASR transcribes 52 languages and dialects; notes follow the detected meeting language; UI translated into 24 languages.
+- Workday memory & coding agents: day tracking starts with app names and window titles only; screen text and AES-GCM encrypted screenshots are opt-in (14-day default auto-delete). Includes hold-to-talk dictation, waveform zoom/trim/split (Mac), Obsidian/Logseq automatic Markdown export, open-source Obsidian plugin (https://github.com/stevyhacker/obsidian-lokalbot), Raycast extension (https://www.raycast.com/stevan_bogosavljevic/lokalbot), read-only stdio CLI/MCP (`lokalbot-cli mcp`) for Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity, local coding-agent session tracking (Claude Code, Codex, Antigravity, T3 Code), and `lokalbot-cli reprocess`.
+- Mainland China: supports Tencent Meeting, VooV Meeting, Feishu, Lark, DingTalk, WeCom, CJK substring search, and HF-Mirror / ModelScope downloads (`Settings > Models`).
+- Not supported: cloud syncing between desktop computers.
 
-## Product
+## Product & Browser Tools
 
-- [LokalBot home](https://www.lokalbot.com/): features, demo, and FAQ
+- [LokalBot home](https://www.lokalbot.com/): features, interactive demo, and FAQ
 - [Agent Wrapped](https://www.lokalbot.com/wrapped): local, zero-upload year in review for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI (`npx lokalbot`)
-- [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter that turns Granola, Otter.ai, Fireflies, Fathom, and Zoom meeting exports into Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, and a ZIP download
-- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware): interactive zero-upload browser calculator for Apple Silicon Macs, Windows, and Linux estimating exact disk downloads, resident RAM, KV-cache allowances, GPU VRAM offload, and LokalBot's 50% memory residency cap
+- [Meeting Migrator](https://www.lokalbot.com/migrate): offline, zero-upload browser converter turning Granola, Otter.ai, Fireflies, Fathom, Zoom, Teams, Screenpipe, Krisp, Tactiq, and Wispr Flow exports into Obsidian Markdown
+- [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware): interactive zero-upload estimator for Apple Silicon Macs, Windows, and Linux checking disk, resident RAM, KV-cache, GPU offload, and LokalBot's 50% memory residency cap
+- [SaaS AI Subscription & Cloud Audio Calculator](https://www.lokalbot.com/calculator): calculate 1-year and 3-year meeting/dictation SaaS costs and uploaded audio hours vs $0 and 0 bytes on-device
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
-- [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, and Linux requirements, memory, disk, permissions, and what each platform supports
-- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): interactive, reproducible benchmarks across 7 workloads and 17 suites (speech vs. cloud APIs, diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, extraction, OCR, TTS) with machine-readable JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
-- [Privacy policy](https://www.lokalbot.com/privacy): what stays on your computer and exactly when the app uses the network
+- [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, Linux, iOS, and Android requirements and feature parity
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): reproducible benchmarks across 7 roles and 17 suites with JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
+- [Privacy policy](https://www.lokalbot.com/privacy): complete data and network contract
 
 ## Blog
 
 - [LokalBot blog](https://www.lokalbot.com/blog): releases, local model benchmarks, and build notes ([Atom feed](https://www.lokalbot.com/blog/feed.xml))
-- [39 ms and 50 MB vs. 255 ms and 1 GB: QMSum local retrieval benchmark](https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark): LokalBot's SQLite FTS5 + EmbeddingGemma 2 retrieval vs. GBrain across 232 public meetings and 1,576 questions
-- [Local speech-to-text vs. cloud APIs on real meetings](https://www.lokalbot.com/blog/local-stt-vs-cloud-apis): Qwen3-ASR 1.7B and Parakeet local vs. Gemini 3.5/3.8, GPT-4o Transcribe, GPT Transcribe, and Qwen-Audio on AMI and two-track calls
-- [56 ms local system-wide autocomplete benchmark](https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark): headless keystroke benchmark of Gemma 4 E2B vs. LFM2.5 1.2B across 788 word positions
-- [Recall vs. restraint](https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark): a 120-case benchmark of local models deciding what to save as a memory and what to leave out
-- [LokalBot is on Windows and Linux, in alpha](https://www.lokalbot.com/blog/windows-and-linux-alpha): what works, what is missing, default models, and installation
-- [How the Windows and Linux port was built](https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents): specs first, how coding agents' work was checked, and a link to the full write-up
+- [Fine-Tuning Four Small Local Models Against a Swift Validator Loop](https://www.lokalbot.com/blog/fine-tuning-four-local-models-swift-validator): how we trained Qwen3.5 4B v4, Qwen3-ASR 1.7B v3 / 0.6B v1, and Gemma 4 E2B v4 on open datasets, including Blind21 recall tradeoffs and the Astra weight-space pilot
+- [39 ms and 50 MB vs. 255 ms and 1 GB: QMSum local retrieval benchmark](https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark): LokalBot SQLite FTS5 + EmbeddingGemma 2 vs GBrain across 232 public meetings and 1,576 questions
+- [Local speech-to-text vs. cloud APIs on real meetings](https://www.lokalbot.com/blog/local-stt-vs-cloud-apis): Qwen3-ASR 1.7B and Parakeet local vs Gemini, GPT-4o Transcribe, and Qwen-Audio cloud APIs
+- [56 ms local system-wide autocomplete benchmark](https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark): headless keystroke benchmark of Gemma 4 E2B vs LFM2.5 1.2B across 788 word positions
+- [Recall vs. restraint](https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark): 120-case benchmark of local models deciding what to save as a memory and what to skip
+- [LokalBot is on Windows and Linux, in alpha](https://www.lokalbot.com/blog/windows-and-linux-alpha): native Rust + GPUI port details and install instructions
+- [How the Windows and Linux port was built](https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents): specs first, automated verification, and link to the full write-up
 
 ## Guides
 
-- [Local AI meeting notes on Linux](https://www.lokalbot.com/local-ai-meeting-notes-linux): what works on X11 and Wayland, installing with apt, dnf, or pacman, models, and CUDA
-- [Granola and Otter alternatives for Linux and Windows](https://www.lokalbot.com/granola-otter-alternatives-linux-windows): which bot-free notetakers run there, where they transcribe, and their licenses
-- [Local AI meeting notes on Windows](https://www.lokalbot.com/local-ai-meeting-notes-windows): bot-free Teams, Zoom, and Meet recording, installing without admin rights, models, and CUDA
-- [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free capture, on-device transcription, private summaries, trade-offs, and setup
-- [Offline meeting transcription on Mac](https://www.lokalbot.com/offline-meeting-transcription-mac): local speech models, two-track audio, timestamps, and no cloud upload
+- [Best local and open-source AI meeting note takers (2026)](https://www.lokalbot.com/best-local-ai-meeting-notes): LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe compared on WER, RAM, MCP, and licenses
+- [The best open-source AI assistants you can run locally](https://www.lokalbot.com/best-open-source-ai-assistants): Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared
+- [Meeting notes MCP for Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity](https://www.lokalbot.com/claude-code-codex-meeting-notes): read-only local stdio MCP setup, tool list, and privacy boundary
+- [LokalBot plugins for Claude Code and Codex](https://www.lokalbot.com/claude-code-codex-plugins): catch-up brief, recall with citations, and guided setup skills
+- [Granola and Otter alternatives for Linux and Windows](https://www.lokalbot.com/granola-otter-alternatives-linux-windows): per-app breakdown of bot-free local note takers for Linux and Windows
+- [Best Rewind AI and Limitless Mac alternatives after the Meta shutdown](https://www.lokalbot.com/rewind-limitless-mac-alternatives): active local screen recall and meeting memory options on macOS
+- [An open-source Windows Recall alternative that is opt-in and encrypted](https://www.lokalbot.com/open-source-windows-recall-alternative): searchable screen and meeting memory on any Windows 10/11 x64 PC without Copilot+ NPU lock-in
+- [GDPR AI meeting notes with zero cloud subprocessors](https://www.lokalbot.com/gdpr-local-ai-meeting-notes): on-device vs EU cloud vs US cloud compliance architecture and DPO verification checklist
+- [Local AI meeting notes on Linux](https://www.lokalbot.com/local-ai-meeting-notes-linux): X11/Wayland support, apt/dnf/pacman install, Vulkan/CUDA
+- [Local AI meeting notes on Windows](https://www.lokalbot.com/local-ai-meeting-notes-windows): bot-free Teams, Zoom, and Meet capture, per-user install, Vulkan/CUDA
+- [Local AI meeting notes on your Mac](https://www.lokalbot.com/local-ai-meeting-notes-mac): bot-free two-track capture, on-device transcription, and setup
+- [Offline meeting transcription on Mac](https://www.lokalbot.com/offline-meeting-transcription-mac): local speech models, timestamps, and offline verification
 - [Record both sides of a Mac meeting without a bot](https://www.lokalbot.com/record-both-sides-mac-meeting-without-bot): microphone plus meeting-app audio as synchronized tracks
-- [Local transcription models for Mac](https://www.lokalbot.com/local-transcription-models-mac): Granite Speech, Parakeet, Qwen3-ASR, and Whisper compared
-- [Open-source AI meeting notes: what to verify](https://www.lokalbot.com/open-source-ai-meeting-notes): license, local processing, network boundaries, storage, builds, and updates
-- [How do I let Claude Code or Codex search my meeting notes?](https://www.lokalbot.com/claude-code-codex-meeting-notes): read-only local MCP access to a meeting library, setup, tools, and where the data goes
-- [LokalBot plugins for Claude Code and Codex](https://www.lokalbot.com/claude-code-codex-plugins): catch-up brief, recall with citations, and guided setup skills, install commands, permissions, and where the data goes
-- [My company blocks AI notetaker bots. What can I use?](https://www.lokalbot.com/ai-notetaker-bots-blocked-at-work): what a local recorder changes and an IT approval checklist
-- [Can a bot-free meeting recorder tell who said what?](https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels): speaker separation without a bot, naming, and measured accuracy
-- [How do I get meeting transcripts into Obsidian as Markdown?](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown): a note for every meeting, a one-off export, a daily Obsidian note, or a CLI script
+- [Local transcription models for Mac](https://www.lokalbot.com/local-transcription-models-mac): Qwen3-ASR, Parakeet, Granite Speech, and Whisper compared
+- [Open-source AI meeting notes: what to verify](https://www.lokalbot.com/open-source-ai-meeting-notes): license, local processing, network boundaries, storage, and builds
+- [My company blocks AI notetaker bots. What can I use?](https://www.lokalbot.com/ai-notetaker-bots-blocked-at-work): local capture tradeoffs and an IT security review checklist
+- [Can a bot-free meeting recorder tell who said what?](https://www.lokalbot.com/bot-free-meeting-recorder-speaker-labels): speaker separation without a bot and measured Nemotron 3 accuracy
+- [How do I get meeting transcripts into Obsidian as Markdown?](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown): automatic per-meeting notes, daily notes, CLI scripts, and the Obsidian plugin
 
 ## Comparisons
 
-- [The best open-source AI assistants you can run locally](https://www.lokalbot.com/best-open-source-ai-assistants): LokalBot, Ollama, LM Studio, Jan, AnythingLLM, and Open WebUI compared on memory, document chat, licenses, platforms, and installation, with our own screenshots; re-checked monthly. LM Studio's app is proprietary, and Open WebUI's license is not OSI open source since 0.6.6.
 - [LokalBot vs Granola](https://www.lokalbot.com/lokalbot-vs-granola)
 - [LokalBot vs Apple Notes](https://www.lokalbot.com/lokalbot-vs-apple-notes)
 - [LokalBot vs Otter.ai](https://www.lokalbot.com/lokalbot-vs-otter)
@@ -68,27 +75,38 @@ Key facts:
 - [LokalBot vs Fathom](https://www.lokalbot.com/lokalbot-vs-fathom)
 - [LokalBot vs Notion AI Meeting Notes](https://www.lokalbot.com/lokalbot-vs-notion-ai)
 - [LokalBot vs Read.ai](https://www.lokalbot.com/lokalbot-vs-read-ai)
+- [LokalBot vs Jamie](https://www.lokalbot.com/lokalbot-vs-jamie)
+- [LokalBot vs Krisp](https://www.lokalbot.com/lokalbot-vs-krisp)
+- [LokalBot vs tl;dv](https://www.lokalbot.com/lokalbot-vs-tldv)
+- [LokalBot vs Tactiq](https://www.lokalbot.com/lokalbot-vs-tactiq)
+- [LokalBot vs Plaud](https://www.lokalbot.com/lokalbot-vs-plaud)
 - [LokalBot vs Anarlog (Hyprnote)](https://www.lokalbot.com/lokalbot-vs-hyprnote)
 - [LokalBot vs Meetily](https://www.lokalbot.com/lokalbot-vs-meetily)
 - [LokalBot vs OpenWhispr](https://www.lokalbot.com/lokalbot-vs-openwhispr)
 - [LokalBot vs MacWhisper](https://www.lokalbot.com/lokalbot-vs-macwhisper)
 - [LokalBot vs Superwhisper](https://www.lokalbot.com/lokalbot-vs-superwhisper)
 - [LokalBot vs Wispr Flow](https://www.lokalbot.com/lokalbot-vs-wispr-flow)
+- [LokalBot vs Cotypist](https://www.lokalbot.com/lokalbot-vs-cotypist)
+- [LokalBot vs Handy, VoiceInk & Voicenotes](https://www.lokalbot.com/lokalbot-vs-handy)
 - [LokalBot vs Screenpipe](https://www.lokalbot.com/lokalbot-vs-screenpipe)
 - [LokalBot vs Rewind & Limitless](https://www.lokalbot.com/lokalbot-vs-rewind)
 
 ## Languages
 
-- [Deutsch (German)](https://www.lokalbot.com/de): DSGVO-freundliche lokale KI-Meeting-Notizen ohne Meeting-Bot
+- [Deutsch (German)](https://www.lokalbot.com/de): DSGVO-freundliche lokale KI-Meeting-Notizen ohne Bot (v0.14.0)
+- [Français (French)](https://www.lokalbot.com/fr): Notes de réunion IA locales sans bot et compatibles RGPD
+- [Español (Spanish)](https://www.lokalbot.com/es): Notas de reunión IA locales, gratuitas y sin bots (GPLv3)
+- [Português (Portuguese)](https://www.lokalbot.com/pt): Notas de reunião com IA local sem bot e compatíveis com LGPD/GDPR
 - [中文 (Simplified Chinese)](https://www.lokalbot.com/zh): 100% 本地开源会议纪要（支持腾讯会议/飞书/钉钉与 ModelScope）
 - [日本語 (Japanese)](https://www.lokalbot.com/ja): 完全ローカル・Bot不要の無料オープンソースAI議事録
-- [Русский (Russian)](https://www.lokalbot.com/ru): Локальные заметки встреч без облака (Яндекс Телемост, МТС Линк, GigaAM)
+- [한국어 (Korean)](https://www.lokalbot.com/ko): 봇 없는 100% 로컬 오픈소스 AI 회의록 및 작업 메모리
+- [Русский (Russian)](https://www.lokalbot.com/ru): Локальные заметки встреч без облака (Яндекс Телемост, МТС Линк, eXpress, GigaAM)
 
 ## Optional
 
-- [Source code and README](https://github.com/stevyhacker/lokalbot)
-- [Release notes](https://github.com/stevyhacker/lokalbot/releases)
-- [Benchmark data and scripts](https://github.com/stevyhacker/lokalbot/tree/master/Benchmarks)
+- [Source code and README](https://github.com/stevyhacker/LokalBot)
+- [Release notes](https://github.com/stevyhacker/LokalBot/releases)
+- [Benchmark data and scripts](https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks)
 - [Enshittification-proof](https://www.lokalbot.com/enshittification-proof): why the project cannot get worse on purpose
 - [Support](https://www.lokalbot.com/support) and [Terms](https://www.lokalbot.com/terms)
 
@@ -406,47 +424,47 @@ Caveat: Breeze TTS 2 uses a non-commercial research license requiring a separate
 
 ### LokalBot vs Granola (https://www.lokalbot.com/lokalbot-vs-granola · verified 2026-10-26)
 
-Granola is one of the most polished AI notepads around — bot-free capture, great templates, strong team features, and apps on desktop and phone. The trade-off is that your meetings are processed in the cloud, under an account. LokalBot keeps the bot-free workflow but transcribes and summarizes on your computer by default: no account, no LokalBot backend, and remote inference only when you approve the server.
+Granola is one of the most polished AI notepads around: bot-free capture, great templates, strong team features, and apps on desktop and phone. The trade-off is that your meetings are processed in the cloud, under an account. LokalBot keeps the bot-free workflow but transcribes and summarizes on your computer by default: no account, no LokalBot backend, and remote inference only when you approve the server.
 
 | Feature | LokalBot | Granola |
 | --- | --- | --- |
-| Where the AI runs | On your computer — Qwen3-ASR speech model by default and llama.cpp summaries | In the cloud, via third-party AI providers |
+| Where the AI runs | On your computer: Qwen3-ASR speech model by default and llama.cpp summaries | In the cloud, via third-party AI providers |
 | Account required | None | Yes |
 | Works offline | Fully, after a one-time model download | Needs a connection for AI notes |
-| Bot-free meeting capture | Microphone + system audio (just the selected app on Mac; on Windows and Linux, where it can be separated); labels show capture source, not identity | Yes — no bot joins your call |
+| Bot-free meeting capture | Microphone + system audio (just the selected app on Mac; on Windows and Linux, where it can be separated); labels show capture source, not identity | Yes: no bot joins your call |
 | Model training on your data | No LokalBot training pipeline or telemetry; approved remote servers have their own terms | Opt-out of model training on every plan |
 | Meeting history | Unlimited, stored on your computer | Basic: 30 days · Business and Enterprise: unlimited |
 | Compliance | No LokalBot server ever holds your meetings | SOC 2 Type II; HIPAA workspaces on Enterprise |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | MCP for Claude, ChatGPT, and others; API on paid plans |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Basic free · Business $14 per user/mo · Enterprise $35 per user/mo |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Desktop, iOS, Android, and Apple Watch apps |
 
-- **Q: Isn't bot-free capture the differentiator?** Not anymore — Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context.
+- **Q: Isn't bot-free capture the differentiator?** Not anymore: Granola and several others skip the meeting bot now. The differentiator is where processing happens. LokalBot transcribes and summarizes on your computer with its built-in default; if you opt into a remote inference server, it receives the request context.
 - **Q: Can I bring my existing Granola notes with me?** Yes. LokalBot imports Granola exports directly into your local library, or you can convert Granola exports into clean Obsidian Markdown offline in your browser with the free Meeting Migrator (zero uploads).
 - **Q: What does LokalBot send over the network?** Model downloads, update checks, optional Agent Mode setup, and remote inference origins you explicitly approve. Audio stays on your computer; built-in inference keeps transcript and workday context there too.
-- **Q: Can I try LokalBot next to Granola?** Yes. LokalBot is free — run it on your next few meetings and compare the notes. Neither app puts a bot in your call, so nobody on the call will notice either one.
+- **Q: Can I try LokalBot next to Granola?** Yes. LokalBot is free: run it on your next few meetings and compare the notes. Neither app puts a bot in your call, so nobody on the call will notice either one.
 
 ### LokalBot vs Apple Notes (https://www.lokalbot.com/lokalbot-vs-apple-notes · verified 2026-10-26)
 
-Why not just use Apple Notes? On macOS 27 it records audio into a note, transcribes it on your Mac, and Apple Intelligence writes a summary — free, with nothing to install. For a voice memo or a lecture, that may be all you need. For meetings, the gap is the other side of the call: Notes records your microphone, so with headphones on it doesn't hear Zoom, Teams, or Meet. LokalBot records the meeting app's audio too, turns each call into notes linked to the discussion, and keeps every meeting searchable on your Mac.
+Why not just use Apple Notes? On macOS 27 it records audio into a note, transcribes it on your Mac, and Apple Intelligence writes a summary: free, with nothing to install. For a voice memo or a lecture, that may be all you need. For meetings, the gap is the other side of the call: Notes records your microphone, so with headphones on it doesn't hear Zoom, Teams, or Meet. LokalBot records the meeting app's audio too, turns each call into notes linked to the discussion, and keeps every meeting searchable on your Mac.
 
 | Feature | LokalBot | Apple Notes |
 | --- | --- | --- |
-| Audio it records | Your microphone + the meeting app's audio, so both sides of a Zoom, Teams, or Meet call are captured | Your microphone only — Notes can't capture what other apps play |
+| Audio it records | Your microphone + the meeting app's audio, so both sides of a Zoom, Teams, or Meet call are captured | Your microphone only: Notes can't capture what other apps play |
 | Starting a recording | Detects meetings and, on a fresh install, asks before recording | You start each recording by hand inside a note |
-| Transcription | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your Mac, with Apple's speech model; needs M1 or later |
+| Transcription | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your Mac, with Apple's speech model; needs M1 or later |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | 10, including English, Spanish, French, German, Japanese, and Chinese |
 | Meeting notes | Recap, decisions, action items, and open questions, with citations back to the discussion | An Apple Intelligence summary of each recording |
-| Where summaries run | On your Mac — llama.cpp built in; remote servers only if you approve them | Apple Intelligence, on your Mac or on Apple's Private Cloud Compute servers |
+| Where summaries run | On your Mac: llama.cpp built in; remote servers only if you approve them | Apple Intelligence, on your Mac or on Apple's Private Cloud Compute servers |
 | Across meetings | Keyword and semantic search, cited answers, and a list of open action items | Each recording and its summary live in their own note |
-| Where recordings are kept | A local library on your Mac; nothing syncs | In Notes — synced through iCloud if you use iCloud notes, end-to-end encrypted only with Advanced Data Protection |
+| Where recordings are kept | A local library on your Mac; nothing syncs | In Notes: synced through iCloud if you use iCloud notes, end-to-end encrypted only with Advanced Data Protection |
 | Dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | macOS Dictation, built in |
 | Writing autocomplete | Cotyping: multi-word suggestions from a local model, in almost any app | Inline predictive text completes the word or phrase you're typing |
-| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No — Screen Time shows time per app |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No: Screen Time shows time per app |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Free with macOS |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Mac, iPhone, and iPad |
@@ -462,11 +480,11 @@ Otter is one of the best-known AI notetakers: its assistant joins Zoom, Microsof
 | Feature | LokalBot | Otter.ai |
 | --- | --- | --- |
 | How it captures a meeting | Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); source labels do not identify speakers | The Otter assistant joins Zoom, Teams, and Google Meet; its apps can also record directly |
-| Where transcription runs | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Otter's cloud |
+| Where transcription runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Otter's cloud |
 | Account required | None | Yes |
 | Works offline | After a one-time model download | Needs a connection |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | English, Spanish, French, German, Japanese, and Chinese |
-| Free plan limits | None — the whole app is free | 300 transcription minutes per month |
+| Free plan limits | None: the whole app is free | 300 transcription minutes per month |
 | Team features | Single-user; share by exporting Markdown | Shared notes, team workspaces, and integrations |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Otter MCP server |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
@@ -477,17 +495,17 @@ Otter is one of the best-known AI notetakers: its assistant joins Zoom, Microsof
 
 - **Q: Does LokalBot join my calls like Otter does?** No. Nothing joins the call and nothing appears in the participant list. LokalBot records your microphone and your computer's system audio, so it works with Zoom, Teams, Meet, Slack huddles, or any app that plays sound. You're still responsible for telling participants you're recording.
 - **Q: Can I move my existing Otter.ai transcripts out?** Yes. LokalBot imports Otter.ai exports directly, or you can convert Otter transcripts into Obsidian Markdown locally in your browser with the free Meeting Migrator without uploading anything.
-- **Q: Is on-device transcription accurate enough?** For most meetings, yes — but test it on your own audio. LokalBot defaults to Qwen3-ASR and lets you switch to Parakeet or Whisper in Settings, or to Granite Speech on Mac. The Local Desktop AI Leaderboard shows measured speed and word error rates against cloud STT APIs.
+- **Q: Is on-device transcription accurate enough?** For most meetings, yes: but test it on your own audio. LokalBot defaults to Qwen3-ASR and lets you switch to Parakeet or Whisper in Settings, or to Granite Speech on Mac. The Local Desktop AI Leaderboard shows measured speed and word error rates against cloud STT APIs.
 - **Q: What does LokalBot cost after the free tier?** There is no tier. LokalBot is free and open source under GPLv3, with no minute caps, no account, and no subscription.
 
 ### LokalBot vs Fireflies (https://www.lokalbot.com/lokalbot-vs-fireflies · verified 2026-10-26)
 
-Fireflies is built for teams: its notetaker joins your calls, transcribes in more than 100 languages, and pushes notes into CRMs and project tools. If your company runs on a shared call library, it's a strong choice. LokalBot is for the opposite need — notes that stay on your computer. It captures the call from your computer's audio with no bot, and runs transcription and summaries locally.
+Fireflies is built for teams: its notetaker joins your calls, transcribes in more than 100 languages, and pushes notes into CRMs and project tools. If your company runs on a shared call library, it's a strong choice. LokalBot is for the opposite need: notes that stay on your computer. It captures the call from your computer's audio with no bot, and runs transcription and summaries locally.
 
 | Feature | LokalBot | Fireflies.ai |
 | --- | --- | --- |
-| How it captures a meeting | Mic + system audio on your computer — nothing joins the call | A notetaker joins Zoom, Google Meet, Teams, and more; the Mac and Windows desktop app and the Chrome extension can capture without it |
-| Where transcription runs | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Fireflies' cloud |
+| How it captures a meeting | Mic + system audio on your computer: nothing joins the call | A notetaker joins Zoom, Google Meet, Teams, and more; the Mac and Windows desktop app and the Chrome extension can capture without it |
+| Where transcription runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Fireflies' cloud |
 | Account required | None | Yes |
 | Works offline | After a one-time model download | Needs a connection |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | 100+ |
@@ -503,7 +521,7 @@ Fireflies is built for teams: its notetaker joins your calls, transcribes in mor
 - **Q: Why not use Fireflies without the bot?** You can capture without the bot through Fireflies' desktop app for Mac and Windows or its Chrome extension, but Fireflies still creates the transcript and summary and keeps them in its cloud, under your account. LokalBot keeps the audio, transcript, and summary on your computer.
 - **Q: Can I migrate existing Fireflies transcripts?** Yes. LokalBot imports Fireflies exports into your local library, or you can convert them into plain Obsidian Markdown offline in your browser with the free Meeting Migrator.
 - **Q: Can LokalBot push notes into my CRM?** Not directly. LokalBot exposes a read-only CLI and MCP server so local tools and agents can read your library, and it also exports meetings as Markdown and can write a daily memory note to a folder. Anything beyond that is up to you.
-- **Q: Will people on the call know LokalBot is recording?** No — nothing appears in the call, which is why you need to tell participants yourself. On a fresh install, LokalBot asks through a notification before it records a detected meeting.
+- **Q: Will people on the call know LokalBot is recording?** No: nothing appears in the call, which is why you need to tell participants yourself. On a fresh install, LokalBot asks through a notification before it records a detected meeting.
 
 ### LokalBot vs Fathom (https://www.lokalbot.com/lokalbot-vs-fathom · verified 2026-11-20)
 
@@ -512,23 +530,23 @@ Fathom is popular for a reason: its free plan includes unlimited basic recording
 | Feature | LokalBot | Fathom |
 | --- | --- | --- |
 | How it captures a meeting | Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); source labels do not identify speakers | A Fathom bot joins Zoom, Google Meet, and Microsoft Teams; a bot-free capture beta is available on Mac |
-| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Fathom's cloud |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Fathom's cloud |
 | Account required | None | Yes |
 | Works offline | Fully, after a one-time model download | Needs a connection |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | 38 languages |
-| AI summary limits | Unlimited — runs on your own hardware | Free: 5 advanced AI summaries/month · Paid plans: unlimited |
+| AI summary limits | Unlimited: runs on your own hardware | Free: 5 advanced AI summaries/month · Paid plans: unlimited |
 | CRM and team features | Read-only local CLI and MCP server; Markdown/Obsidian export | Shared team folders, playlists, comments, and HubSpot/Salesforce CRM sync on Business |
 | Compliance | No LokalBot server ever holds your meetings | HIPAA available on Team and higher; SSO/SCIM on Enterprise |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Free · Premium $16/user/mo annually ($20 monthly) · Team $15/user/mo annually ($19 monthly, 2-seat min) · Business $25/user/mo annually ($34 monthly) |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Desktop and web for Zoom, Google Meet, and Microsoft Teams |
 
 - **Q: Can I bring my existing Fathom meetings into LokalBot?** Yes. LokalBot includes a built-in Fathom importer (transcripts, summaries, downloaded recordings, or Fathom API JSON), or you can convert Fathom exports into Obsidian Markdown offline in your browser with the free Meeting Migrator.
 - **Q: Does Fathom work without a bot?** Fathom offers a bot-free capture option in beta on Mac, while Zoom, Google Meet, and Teams otherwise use the Fathom notetaker bot. Even without the bot, Fathom uploads and stores recordings and transcripts in its cloud. LokalBot processes audio, transcripts, and summaries locally by default.
-- **Q: Why is LokalBot free when Fathom charges $15–$34 per seat?** LokalBot has no cloud transcription or LLM servers to pay for — the models run on your own Mac, Windows, or Linux computer. You pay for your own hardware and electricity, never a per-seat subscription.
+- **Q: Why is LokalBot free when Fathom charges $15–$34 per seat?** LokalBot has no cloud transcription or LLM servers to pay for: the models run on your own Mac, Windows, or Linux computer. You pay for your own hardware and electricity, never a per-seat subscription.
 - **Q: Will LokalBot work on apps besides Zoom, Meet, and Teams?** Yes. Because LokalBot captures local system audio rather than relying on platform bot APIs, it works with Slack huddles, Discord, Webex, FaceTime, WhatsApp, and any other call app on your computer.
 
 ### LokalBot vs Notion AI (https://www.lokalbot.com/lokalbot-vs-notion-ai · verified 2026-11-20)
@@ -537,20 +555,20 @@ Notion AI Meeting Notes brings bot-free transcription right inside your workspac
 
 | Feature | LokalBot | Notion AI Meeting Notes |
 | --- | --- | --- |
-| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | In the cloud via Notion and third-party AI subprocessors (such as OpenAI and Anthropic) |
-| Account & workspace lock-in | None — local library plus plain Markdown export | Notion account required; notes live in your Notion workspace |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | In the cloud via Notion and third-party AI subprocessors (such as OpenAI and Anthropic) |
+| Account & workspace lock-in | None: local library plus plain Markdown export | Notion account required; notes live in your Notion workspace |
 | Works offline | Fully, after a one-time model download | Needs a connection for AI transcription and summaries |
 | Bot-free meeting capture | Microphone + system audio on your computer (just the selected app on Mac; on Windows and Linux, where it can be separated); labels show capture source, not identity | Bot-free in the Mac and Windows desktop apps (browser captures mic only) |
 | Data retention & privacy | Audio, transcripts, and default summaries never leave your computer | No default model training; AI subprocessors may retain data up to 30 days on Business; zero retention requires Enterprise |
 | Connect coding agents & tools | Read-only CLI and MCP server, off until you turn them on in Settings | Notion AI connectors and API inside your workspace |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Free & Plus: limited lifetime trial · Business $20/user/mo annually ($24 monthly, per workspace member) · Enterprise custom |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS 13+ and Windows desktop apps for call audio; web and mobile (mic only); no Linux desktop app |
 
-- **Q: Can I still paste LokalBot summaries into Notion?** Yes. Open any meeting and choose Share → Copy as Markdown (or Export as Markdown), then paste straight into a Notion page — your audio and raw transcript still never touch a cloud server.
+- **Q: Can I still paste LokalBot summaries into Notion?** Yes. Open any meeting and choose Share > Copy as Markdown (or Export as Markdown), then paste straight into a Notion page: your audio and raw transcript still never touch a cloud server.
 - **Q: Is Notion AI Meeting Notes included in Notion Free or Plus?** No. Notion folded full AI Meeting Notes into the Business ($20/user/month billed annually) and Enterprise tiers; Free and Plus accounts only receive a limited trial. LokalBot has no trial limits or per-seat pricing.
 - **Q: Does Notion AI Meeting Notes run locally on my Mac?** No. While the Notion desktop app captures local system audio so no bot joins the call, it sends the audio to cloud AI subprocessors to transcribe and summarize. LokalBot runs both speech recognition and summarization on your own hardware by default.
 - **Q: How does LokalBot compare for local AI coding agents?** LokalBot exposes a read-only local CLI and MCP server (off until enabled in Settings) so Claude Code, Codex, and Cursor can search your meetings and action items directly on your machine without cloud tokens or workspace permissions.
@@ -561,48 +579,164 @@ Read.ai connects to your calendar and dispatches the Read Assistant bot into Zoo
 
 | Feature | LokalBot | Read.ai |
 | --- | --- | --- |
-| How it captures a meeting | Microphone + system audio on your computer — no bot ever enters the call or posts in meeting chat; labels show capture source, not identity | Read Assistant bot joins Zoom, Teams, and Google Meet as a visible participant and posts chat notices |
-| Works when IT blocks meeting bots | Captures local audio directly — no external participant for hosts to admit or block | Blocked in many Zoom and Teams environments that restrict third-party bots |
-| Where transcription and AI run | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Read.ai's cloud |
+| How it captures a meeting | Microphone + system audio on your computer: no bot ever enters the call or posts in meeting chat; labels show capture source, not identity | Read Assistant bot joins Zoom, Teams, and Google Meet as a visible participant and posts chat notices |
+| Works when IT blocks meeting bots | Captures local audio directly: no external participant for hosts to admit or block | Blocked in many Zoom and Teams environments that restrict third-party bots |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Read.ai's cloud |
 | Account required | None | Yes |
 | Works offline | Fully, after a one-time model download | Needs a connection |
-| Free plan limits | Unlimited — the entire app is free | 5 meeting transcripts per month |
+| Free plan limits | Unlimited: the entire app is free | 5 meeting transcripts per month |
 | Recording control | On a fresh install, asks via a local notification before recording; never auto-joins calendars | Calendar-connected bot can auto-join scheduled calls unless turned off per meeting or in settings |
 | Compliance | No LokalBot server ever holds your meetings | HIPAA (BAA), SSO/SAML, and custom retention require Enterprise+ |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Free (5/mo) · Pro $15/mo annually ($19.75 monthly) · Enterprise $22.50/mo annually ($29.75 monthly) · Enterprise+ $29.75/mo annually ($39.75 monthly) |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Cloud bot for Zoom, Teams, Meet; web, Slack, Outlook, iOS, and Android |
 
-- **Q: Why do companies block Read.ai, and how is LokalBot different?** Most IT policies block third-party meeting bots because they join as an external cloud participant and upload confidential audio to outside servers. LokalBot runs on your computer with local models and no cloud backend — see our guide My company blocks AI notetaker bots for an IT review checklist. Always follow your organization's recording and consent rules.
+- **Q: Why do companies block Read.ai, and how is LokalBot different?** Most IT policies block third-party meeting bots because they join as an external cloud participant and upload confidential audio to outside servers. LokalBot runs on your computer with local models and no cloud backend: see our guide My company blocks AI notetaker bots for an IT review checklist. Always follow your organization's recording and consent rules.
 - **Q: Will LokalBot ever auto-email meeting recaps to attendees?** No. LokalBot has no account, no email server, and no cloud sharing backend. Everything stays in your local library until you deliberately export or copy it.
-- **Q: Does LokalBot cap how many meetings I can record per month?** No. Unlike Read.ai's 5-meeting free tier, LokalBot has no minute or meeting caps — storage is limited only by your own disk.
+- **Q: Does LokalBot cap how many meetings I can record per month?** No. Unlike Read.ai's 5-meeting free tier, LokalBot has no minute or meeting caps: storage is limited only by your own disk.
 - **Q: How does speaker separation work without a bot?** LokalBot records your microphone and the meeting app's audio on separate tracks and runs local speaker diarization (Nemotron 3 Core ML on Mac, pyannote + TitaNet on Windows/Linux). Capture-track labels describe where audio came from rather than verified speaker identity, and you can name speakers locally.
+
+### LokalBot vs Jamie (https://www.lokalbot.com/lokalbot-vs-jamie · verified 2026-11-26)
+
+Jamie (meetjamie.ai) is a popular European bot-free AI meeting assistant. It captures device audio on Mac, Windows, iOS, and Android, deletes raw audio after transcription, and hosts notes on Frankfurt servers with ISO 27001 certification. Even with EU hosting, your audio and transcripts still cross third-party cloud servers under a paid account. LokalBot keeps bot-free capture, transcription, and summaries strictly on your computer with zero cloud subprocessors, unlimited meetings, Linux support, and GPLv3 source.
+
+| Feature | LokalBot | Jamie (meetjamie.ai) |
+| --- | --- | --- |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Jamie cloud servers in Frankfurt (EEA); raw audio deleted after transcription |
+| Account required | None | Yes |
+| Works offline | Fully, after a one-time model download | Records offline, needs cloud connection for transcription and summaries |
+| Bot-free meeting capture | Microphone + system audio on your computer (just the selected app on Mac; where separable on Windows/Linux) | Yes, captures system audio without joining as a bot |
+| GDPR & subprocessors | Zero cloud subprocessors when using built-in local models; consent still required from participants | EU data residency (Frankfurt), ISO 27001, no model training, cloud DPA |
+| Meeting limits | Unlimited, stored on your disk | Free: 10 notes/mo (30 min max) · Plus: 20 notes/mo (2 hr) · Pro: unlimited (5 hr) |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | API and MCP access on Pro; Notion, Google Docs, HubSpot, Salesforce integrations |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free (10/mo) · Plus ~EUR 24/mo (~$24 annual) · Team ~EUR 39/seat/mo · Pro ~EUR 47/mo · Enterprise custom |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS, Windows, iOS, and Android; no Linux app |
+
+- **Q: How is LokalBot different from Jamie for GDPR?** Jamie reduces transfer risk by using EU servers in Frankfurt and deleting raw audio after transcription, but Jamie remains a third-party cloud processor that receives your meeting audio and keeps transcripts in your cloud account. With LokalBot's built-in models, zero meeting data leaves your machine, removing cloud subprocessors entirely. With either tool, you still must inform participants and establish a valid legal basis before recording.
+- **Q: Does Jamie work on Linux?** No. Jamie offers macOS, Windows, iOS, and Android apps. LokalBot runs natively on Apple Silicon Macs plus Windows and Linux (alpha) in Rust + GPUI, alongside iOS and Android companion apps that sync over LAN or Tailscale.
+- **Q: Why is LokalBot free while Jamie Pro costs around EUR 47 a month?** Jamie pays for cloud GPU transcription, LLM inference, and EU server hosting. LokalBot runs Apache-2.0 fine-tuned speech and language models directly on your computer, so there is no cloud bill to pass on.
+
+### LokalBot vs Krisp (https://www.lokalbot.com/lokalbot-vs-krisp · verified 2026-11-26)
+
+Krisp started as a best-in-class real-time noise cancellation app and expanded into a bot-free AI meeting assistant with transcription, notes, accent conversion, and CRM sync. Krisp's noise suppression runs on-device, while its meeting transcription, storage, and AI notes run in Krisp's cloud behind a subscription after a 7-day trial. LokalBot focuses on keeping the entire meeting pipeline on your computer for free under GPLv3, and the two apps can even run side by side if you rely on Krisp for background noise removal.
+
+| Feature | LokalBot | Krisp |
+| --- | --- | --- |
+| Real-time noise cancellation | No (uses your mic and call app's own audio) | Yes, real-time bidirectional noise and echo removal |
+| Bot-free meeting capture | Microphone + system audio on your computer | Yes, virtual audio device and desktop capture |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Krisp cloud servers |
+| Account & cloud storage | No account; unlimited local disk storage | Account required; 10 GB storage on Core, 60 GB on Advanced |
+| Works offline | Fully, after a one-time model download | Noise cancellation works locally; AI notes require cloud |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Salesforce, HubSpot, ConnectWise, Slack, and Zapier integrations |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | 7-day trial · Core $8/user/mo annual ($16 monthly) · Advanced $15/user/mo annual ($30 monthly) · Enterprise custom |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS, Windows, and Chrome extension; no Linux app |
+
+- **Q: Does LokalBot replace Krisp's noise cancellation?** No. LokalBot does not act as a live virtual microphone filter for removing barking dogs or café noise during a call. If you rely on Krisp for real-time noise removal, you can keep using noise cancellation (or macOS Voice Isolation) and let LokalBot handle private on-device transcription and notes.
+- **Q: Does Krisp still have a permanent free plan for AI notes?** Krisp's current pricing centers on a 7-day free trial followed by paid Core ($8/user/mo annual, $16 monthly) and Advanced ($15/user/mo annual, $30 monthly) plans. LokalBot is free with no trial countdown or storage caps.
+- **Q: Can I migrate Krisp transcripts to Obsidian?** Yes. You can convert Krisp text or JSON exports offline in your browser with the free Meeting Migrator into clean Obsidian Markdown with zero uploads.
+
+### LokalBot vs tl;dv (https://www.lokalbot.com/lokalbot-vs-tldv · verified 2026-11-26)
+
+tl;dv is built for sales, customer success, and product teams that want recorded video reels, CRM auto-fill, and multi-call coaching dashboards. Its virtual bot joins Zoom, Google Meet, and Microsoft Teams calls, stores video in the cloud (with a 3-month storage cap and ~10 AI summaries/mo on Free), and scales up to $59-$98/user/mo for sales intelligence. LokalBot skips the bot completely, runs speech and summary models locally on your computer, keeps unlimited history on your disk, and costs nothing.
+
+| Feature | LokalBot | tl;dv |
+| --- | --- | --- |
+| How it captures a meeting | Microphone + system audio on your computer; nothing joins the call | Automated tl;dv recording bot joins Zoom, Google Meet, and Teams |
+| Works when IT blocks bots | Yes, captures local audio with no external call participant | Blocked when hosts or IT restrict third-party meeting bots |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | tl;dv cloud servers (EU hosting option available) |
+| History & AI limits on Free | Unlimited meetings, unlimited local summaries, stored forever on disk | Free: ~10 AI summaries/mo and 3-month recording storage limit |
+| Video clips & sales coaching | Audio playback with timestamped citations and Markdown export | Video highlight reels, CRM sync, rep scorecards, playbook tracking |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | API, webhooks, Zapier, and MCP on Pro ($18-$29/mo) and up |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free (3-mo storage, ~10 AI notes/mo) · Pro $18/user/mo annual ($29 monthly) · Business $59/user/mo annual ($98 monthly) · Enterprise custom |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Cloud bot for Zoom, Meet, Teams; web, iOS, and Android apps |
+
+- **Q: Does LokalBot record video like tl;dv?** No. LokalBot records two synchronized audio tracks (microphone and meeting app) plus optional opt-in screen text/screenshots on your timeline, keeping storage tiny compared to cloud video recordings.
+- **Q: Why do teams switch from tl;dv to a local recorder?** Two common reasons: clients or IT block visible meeting bots from joining calls, and individuals do not want to pay $18-$98 per seat per month or lose recordings after the 3-month free storage window.
+- **Q: Can LokalBot work completely offline?** Yes. After a one-time download of the open Apache-2.0 models, LokalBot records, transcribes, summarizes, and searches offline with zero cloud servers.
+
+### LokalBot vs Tactiq (https://www.lokalbot.com/lokalbot-vs-tactiq · verified 2026-11-26)
+
+Tactiq avoids meeting bots by running as a Chrome extension that captures live captions inside Google Meet, Zoom, and Microsoft Teams tabs, then sending that text to cloud AI APIs for summaries. That makes installation quick in Chrome, but it ties transcript quality to the call platform's built-in captions, struggles with native desktop apps outside the browser, and meters AI summaries behind monthly credit caps. LokalBot is a native app that records real two-track audio from any desktop call app and transcribes and summarizes locally with no credit meter.
+
+| Feature | LokalBot | Tactiq |
+| --- | --- | --- |
+| How it captures a meeting | Native two-track audio (mic + call app) in any desktop or browser call | Chrome extension reading live platform captions in Google Meet, Zoom, and Teams |
+| Audio replay & verification | Local audio replay linked directly to every transcript line and citation | Core Chrome extension does not store raw audio by default |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Meeting platform captions + Tactiq cloud AI APIs (Azure OpenAI) |
+| Account required | None | Yes |
+| AI summary limits | Unlimited, running on your computer | Free: 10 transcripts & 5 AI credits/mo · Pro: unlimited transcripts, 10 AI credits/mo · Team+: unlimited |
+| Works offline & non-browser apps | Works offline and with native Zoom, Teams, Slack, Discord, FaceTime | Requires Chrome and an active internet connection |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Beta Tactiq MCP / Claude connector on Business ($29.17-$40/user/mo) |
+| System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
+| Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free | Free · Pro $8/user/mo annual ($12 monthly) · Team $16.67/user/mo annual ($20 monthly) · Business $29.17/user/mo annual ($40 monthly) |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Chrome browser extension and web dashboard |
+
+- **Q: Why does capturing real audio matter compared to browser captions?** Live platform captions can drop technical terms, struggle with non-English or bilingual speech, and are disabled by some hosts. Recording two local audio tracks lets LokalBot run fine-tuned Qwen3-ASR locally, support custom vocabulary, replay the exact moment someone spoke, and re-transcribe later with a better model.
+- **Q: Does Tactiq include MCP on the free or Pro plan?** Tactiq's MCP and Claude connector sit on its Business plan ($29.17/user/mo annual, $40 monthly). LokalBot includes a free, read-only local stdio MCP server for Claude Code, Codex, Cursor, and Gemini CLI with no cloud account.
+- **Q: Can I bring existing Tactiq transcripts into Obsidian?** Yes. Drop Tactiq text or JSON exports into the free offline Meeting Migrator in your browser to convert them into Obsidian Markdown with zero uploads.
+
+### LokalBot vs Plaud (https://www.lokalbot.com/lokalbot-vs-plaud · verified 2026-11-26)
+
+Plaud combines dedicated recording hardware (Plaud Note at ~$159, NotePin at ~$159-$179, or Note Pro at ~$189) with Plaud Desktop and mobile apps backed by cloud transcription and 10,000+ summary templates. Plaud Desktop requires a bound hardware device, and heavy users pay $99.99/yr (Pro, 1,200 min/mo) or $239.99/yr (Unlimited) for cloud minutes. LokalBot requires zero extra hardware: your Mac, Windows, or Linux computer records virtual calls locally, and the free iOS and Android companion apps record in-person meetings and sync end-to-end encrypted over LAN or Tailscale to your computer for local transcription.
+
+| Feature | LokalBot | Plaud (Note &amp; Desktop) |
+| --- | --- | --- |
+| Hardware required | None (uses your existing computer and phone) | Plaud hardware required ($159-$189) to unlock Plaud Desktop and ecosystem |
+| Virtual call capture | Native two-track capture (Zoom, Teams, Meet, Slack, FaceTime) on desktop | Plaud Desktop + magnetic phone-call vibration recording on Plaud Note |
+| In-person & phone capture | Free iOS & Android companion records locally and syncs E2EE over LAN or Tailscale | Dedicated slim hardware recorder / clip-on wearable with physical button |
+| Where transcription and AI run | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Plaud cloud servers |
+| Monthly minute limits | Unlimited, runs on your own computer | Starter: 300 min/mo · Pro: 1,200 min/mo · Unlimited: up to 24 hr/day |
+| Account required | None | Yes |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Cloud app exports, Zapier/integrations, web templates |
+| System-wide dictation & autocomplete | Both built in locally | No |
+| Source code | Open source, GPLv3 | Proprietary |
+| Price | Free ($0 hardware, $0/mo) | $159-$189 hardware + Starter free (300 min/mo), Pro $99.99/yr ($17.99/mo), Unlimited $239.99/yr ($29.99/mo) |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Plaud hardware + macOS, Windows, iOS, and Android apps |
+
+- **Q: How does LokalBot's mobile companion work without a cloud server?** Pair the free iPhone, iPad, or Android companion app with LokalBot on your Mac, Windows, or Linux computer by scanning a QR code. Recordings, notes, actions, Timeline, and Day Digests sync directly over your local Wi-Fi or Tailscale using end-to-end encryption, with no LokalBot server in the middle.
+- **Q: Can LokalBot record regular cellular phone calls like Plaud Note?** On iPhone and Android, OS sandboxing prevents third-party apps from directly tapping cellular voice lines, which is where Plaud Note's hardware vibration sensor helps. LokalBot's mobile companion records in-person conversations and speakerphone audio, while the desktop app captures both sides of FaceTime, Zoom, Teams, Meet, and WhatsApp Desktop calls locally.
+- **Q: Does LokalBot cap transcription minutes per month?** No. Because transcription and summaries run on your own computer with local Apache-2.0 models, there are no minute allowances or subscription tiers.
 
 ### LokalBot vs Anarlog (Hyprnote) (https://www.lokalbot.com/lokalbot-vs-hyprnote · verified 2026-11-20)
 
-Hyprnote is the closest cousin on this list: open-source, local-first meeting notes — it helped prove the category. The app is now called anarlog, and hyprnote.com redirects to char.com, the team's newer product. The MIT-licensed anarlog app remains maintained, and it's good. Here's how LokalBot differs.
+Hyprnote is the closest cousin on this list: open-source, local-first meeting notes: it helped prove the category. The app is now called anarlog, and hyprnote.com redirects to char.com, the team's newer product. The MIT-licensed anarlog app remains maintained, and it's good. Here's how LokalBot differs.
 
 | Feature | LokalBot | Anarlog (Hyprnote) |
 | --- | --- | --- |
 | Scope | Meetings, dictation, day timeline, autocomplete, and chat in one app | Meeting notetaker |
-| Transcription | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On-device models on supported Macs, or a cloud provider you select |
-| Summaries and chat | llama.cpp built in — works with no keys and no setup | Your choice: a local server such as Ollama or LM Studio, your own API key, Apple Intelligence, or optional hosted AI |
-| Cloud features | None — no account and no sync service; a remote inference server needs your approval | Opt-in hosted AI, encrypted CloudSync, and sharing |
+| Transcription | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On-device models on supported Macs, or a cloud provider you select |
+| Summaries and chat | llama.cpp built in: works with no keys and no setup | Your choice: a local server such as Ollama or LM Studio, your own API key, Apple Intelligence, or optional hosted AI |
+| Cloud features | None: no account and no sync service; a remote inference server needs your approval | Opt-in hosted AI, encrypted CloudSync, and sharing |
 | Notes on disk | Local SQLite library with full-text and vector search; Markdown export | Local SQLite plus plain files; Markdown export |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Local CLI and MCP server |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
-| License | GPLv3 — every fork's improvements stay open | MIT for the community app; enterprise components are commercially licensed |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| License | GPLv3: every fork's improvements stay open | MIT for the community app; enterprise components are commercially licensed |
 | Direction | Independent, local by default | Maintained as the community notetaker; the team now builds Char |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS; Windows, Linux, iOS, and Android in beta |
 
-- **Q: Aren't you basically the same project?** We overlap on the part that matters — local, bot-free meeting notes — and that's a good thing; the category needs more of it. We differ on scope (a workspace vs a notetaker), on shipped local AI vs bring-your-own model, and on license.
+- **Q: Aren't you basically the same project?** We overlap on the part that matters: local, bot-free meeting notes: and that's a good thing; the category needs more of it. We differ on scope (a workspace vs a notetaker), on shipped local AI vs bring-your-own model, and on license.
 - **Q: What's Char?** The team's current product: an AI notepad in private beta at char.com, backed by Y Combinator. It's a separate codebase from the open-source anarlog app, which the team says remains maintained.
-- **Q: Why GPLv3 instead of MIT?** Copyleft. Anyone can fork LokalBot, but improvements have to stay open. For an app that hears your meetings and reads your screen, we want the audit path to survive every fork — the code you can read should always be the code you run.
+- **Q: Why GPLv3 instead of MIT?** Copyleft. Anyone can fork LokalBot, but improvements have to stay open. For an app that hears your meetings and reads your screen, we want the audit path to survive every fork: the code you can read should always be the code you run.
 
 ### LokalBot vs Meetily (https://www.lokalbot.com/lokalbot-vs-meetily · verified 2026-10-26)
 
@@ -611,17 +745,17 @@ Meetily is one of the most popular open-source meeting notetakers, with a large 
 | Feature | LokalBot | Meetily |
 | --- | --- | --- |
 | Meeting capture | Bot-free microphone + system audio; detects meetings and, on a fresh install, asks before recording | Bot-free microphone + system audio; automatic meeting detection is Pro only |
-| Transcription | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your device — Whisper or Parakeet |
-| Summaries | llama.cpp built in — works with no keys and no setup | Built-in Qwen 3.5 models, Ollama, or your own Claude, OpenAI, Groq, or OpenRouter key |
+| Transcription | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your device: Whisper or Parakeet |
+| Summaries | llama.cpp built in: works with no keys and no setup | Built-in Qwen 3.5 models, Ollama, or your own Claude, OpenAI, Groq, or OpenRouter key |
 | Speaker separation | On your computer, on by default | Pro only |
-| Ask across meetings | Cited answers that link back to the transcript and audio | Not yet — listed as coming soon for Pro |
-| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Pro only — MCP, webhooks, and a CLI |
+| Ask across meetings | Cited answers that link back to the transcript and audio | Not yet: listed as coming soon for Pro |
+| Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | Pro only: MCP, webhooks, and a CLI |
 | Transcribe existing files | Import audio and video recordings as meetings | Imports audio and video files, and can re-transcribe them |
-| Usage analytics | None — no analytics service or telemetry | Optional; off by default on new installs |
+| Usage analytics | None: no analytics service or telemetry | Optional; off by default on new installs |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
-| License | GPLv3 — every feature in one open repository | Community: MIT · Pro: a separate commercial codebase |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| License | GPLv3: every feature in one open repository | Community: MIT · Pro: a separate commercial codebase |
 | Price | Free | Community free · Pro $10 per user/mo, billed annually · Enterprise custom |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS on Apple Silicon and Windows; Linux builds from source |
 
@@ -637,17 +771,17 @@ OpenWhispr is a popular open-source app for dictation and meeting notes, under t
 | --- | --- | --- |
 | Meeting capture | Bot-free microphone + system audio; detects meetings and asks before recording | Bot-free microphone + system audio; suggests recording on microphone activity or a calendar event, and asks first |
 | Default processing | On your computer; a remote server gets context only after you approve it | Setup recommends OpenWhispr Cloud; on-device transcription is an option you choose |
-| Transcription | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your device with Orukeet (a Parakeet fine-tune), Whisper, and others, or cloud providers |
-| Summaries | llama.cpp built in — works with no keys and no setup | Built-in llama.cpp models, a local server such as Ollama, your own keys, or OpenWhispr Cloud |
+| Transcription | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your device with Orukeet (a Parakeet fine-tune), Whisper, and others, or cloud providers |
+| Summaries | llama.cpp built in: works with no keys and no setup | Built-in llama.cpp models, a local server such as Ollama, your own keys, or OpenWhispr Cloud |
 | Speaker separation | On your computer, on by default; names carry into later meetings | On your device, up to 8 speakers; names carry into later meetings |
 | Ask across meetings | Cited answers that link back to the transcript and audio | A chat agent that searches, reads, and edits your notes |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | A hosted MCP server on paid plans that sees notes synced to its cloud; a local CLI for free |
 | Transcribe existing files | Import audio and video recordings as meetings | Files, batch uploads, and YouTube links |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | Hotkeys for dictation, a voice assistant, translation, and meetings |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Where your notes live | A local library on your computer; there is no LokalBot cloud | Locally; cloud backup, sync, and sharing on paid plans |
-| License | GPLv3 — every feature in one open repository | MIT; its cloud and MCP server are hosted services |
+| License | GPLv3: every feature in one open repository | MIT; its cloud and MCP server are hosted services |
 | Price | Free | Free, with limits on cloud use · Pro $8/mo · Business $16 per user/mo · Enterprise custom |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS 12+ (Apple Silicon and Intel), Windows 10+ x64, and Linux x86-64; iPhone and iPad |
 
@@ -657,76 +791,118 @@ OpenWhispr is a popular open-source app for dictation and meeting notes, under t
 
 ### LokalBot vs MacWhisper (https://www.lokalbot.com/lokalbot-vs-macwhisper · verified 2026-10-26)
 
-MacWhisper is the go-to Mac app for transcribing files: drag in an interview, lecture, or podcast and get text back, on-device. It also records calls without a bot and offers dictation. LokalBot overlaps on meetings and dictation but is built around recall rather than files — meeting notes with local summaries, a searchable library, and a day timeline. LokalBot is free and open source; MacWhisper has a free version and a one-time Pro license.
+MacWhisper is the go-to Mac app for transcribing files: drag in an interview, lecture, or podcast and get text back, on-device. It also records calls without a bot and offers dictation. LokalBot overlaps on meetings and dictation but is built around recall rather than files: meeting notes with local summaries, a searchable library, and a day timeline. LokalBot is free and open source; MacWhisper has a free version and a one-time Pro license.
 
 | Feature | LokalBot | MacWhisper |
 | --- | --- | --- |
 | Transcribe existing files | Import audio and video recordings as meetings; no subtitle export | Drag and drop audio or video; export subtitles and documents |
 | Meeting capture | Auto-detected, bot-free microphone + system-audio tracks, summarized locally | Records Zoom, Teams, Webex, Skype, and Discord calls without a bot |
-| Where transcription runs | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your Mac, with a choice of local models |
+| Where transcription runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | On your Mac, with a choice of local models |
 | AI summaries | llama.cpp built in; Ollama or OpenAI-compatible servers only if you approve them | Connects to OpenAI, Anthropic, Google Gemini, xAI, Ollama, and other providers |
 | Dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | Real-time dictation in any app |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | 100+ |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Free version · Pro €64 one-time, with lifetime updates |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS, plus a separate iOS app |
 
-- **Q: Can LokalBot transcribe an existing audio file?** Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded. It has no subtitle export; for subtitle files or batch transcription, MacWhisper is the better tool — and the two apps run fine side by side.
+- **Q: Can LokalBot transcribe an existing audio file?** Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded. It has no subtitle export; for subtitle files or batch transcription, MacWhisper is the better tool: and the two apps run fine side by side.
 - **Q: Which one is more private?** Both can transcribe entirely on your Mac. The difference is in what surrounds it: LokalBot's summaries run on a built-in local model by default, and its source code is public under GPLv3, so you can check what it does with your audio.
 - **Q: Do they use the same speech models?** Partly. Both can run Whisper-family models on your Mac. LokalBot defaults to Qwen3-ASR and also offers Parakeet and Granite Speech; the benchmarks page compares several of them on the same test set.
 
 ### LokalBot vs Superwhisper (https://www.lokalbot.com/lokalbot-vs-superwhisper · verified 2026-10-26)
 
-Superwhisper started as a dictation app and is now a cross-platform voice tool: custom modes, AI rewrites, meeting recording, and apps for Mac, Windows, iOS, and Android. If voice-to-text is your main job, it goes deeper than LokalBot. LokalBot's dictation is simpler by design — hold ⌥ Space (Alt+Space on Windows and Linux), speak, it types — and it comes inside a free, open-source desktop app that also writes meeting notes, tracks your day, and autocompletes your writing.
+Superwhisper started as a dictation app and is now a cross-platform voice tool: custom modes, AI rewrites, meeting recording, and apps for Mac, Windows, iOS, and Android. If voice-to-text is your main job, it goes deeper than LokalBot. LokalBot's dictation is simpler by design: hold ⌥ Space (Alt+Space on Windows and Linux), speak, it types: and it comes inside a free, open-source desktop app that also writes meeting notes, tracks your day, and autocompletes your writing.
 
 | Feature | LokalBot | Superwhisper |
 | --- | --- | --- |
 | Dictation | Hold or toggle ⌥ Space (Alt+Space on Windows and Linux), live transcript pill, pastes at the cursor | Deeper: custom modes, AI text processing, per-app behavior |
-| Where speech runs | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Local models such as Whisper and Cohere Transcribe, with optional cloud models |
+| Where speech runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Local models such as Whisper and Cohere Transcribe, with optional cloud models |
 | Cloud path | None by default; remote inference only for servers you approve | Optional cloud models and AI processing |
 | Dictation audio | Scratch recording deleted after transcription by default | Kept by default; Settings sets how long recordings stay |
 | Meeting notes | Bot-free microphone + system-audio capture, local summaries, searchable library | On Mac: bot-free meeting recording with speaker labels and automatic summaries |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping ghost text as you type | No — AI modes transform what you dictate instead |
+| Writing autocomplete | Cotyping ghost text as you type | No: AI modes transform what you dictate instead |
 | Source code | Open source, GPLv3 | Proprietary |
-| Price | Free — dictation included, nothing gated | Free tier · Pro $8.49/mo, with yearly and lifetime options |
+| Price | Free: dictation included, nothing gated | Free tier · Pro $8.49/mo, with yearly and lifetime options |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS, Windows, iOS, and Android |
 
 - **Q: Which speech models does LokalBot use?** On Mac, Qwen3-ASR 1.7B by default, with Parakeet, Granite Speech, and Whisper large-v3 turbo as alternatives. On Windows and Linux, Qwen3-ASR 0.6B by default, with Parakeet, SenseVoice, GigaAM for Russian, and Whisper turbo. All of them run on your computer. Dictation reuses the engine and language you picked for meetings and keeps it warm, so transcription starts as soon as you hold the key.
 - **Q: Does LokalBot keep my dictation audio?** No. On Mac, by default it records to a scratch file, transcribes it on-device, pastes the text, deletes the recording, and even pauses your music before it starts listening. On Windows and Linux the audio stays in memory unless you turn on Keep dictation audio files.
-- **Q: Can I run both apps?** Sure — they use different shortcuts. Some people will want Superwhisper for heavy dictation workflows and LokalBot for meetings and everything else. LokalBot is free, so trying the combination costs nothing.
+- **Q: Can I run both apps?** Sure: they use different shortcuts. Some people will want Superwhisper for heavy dictation workflows and LokalBot for meetings and everything else. LokalBot is free, so trying the combination costs nothing.
 
-### LokalBot vs Wispr Flow (https://www.lokalbot.com/lokalbot-vs-wispr-flow · verified 2026-10-26)
+### LokalBot vs Wispr Flow (https://www.lokalbot.com/lokalbot-vs-wispr-flow · verified 2026-11-26)
 
-Wispr Flow is one of the most popular dictation apps: speak in any app and it writes polished text, on Mac, Windows, iPhone, and Android. In August 2026 it added Notetaker, which records meetings without a bot and answers questions across your meeting history. Both run in Wispr's cloud, under an account. LokalBot does the same two jobs on your computer by default, adds a day timeline and autocomplete, and is free and open source.
+Wispr Flow is a popular cloud dictation app across Mac, Windows, iPhone, and Android, and its Notetaker records calls without a bot. Both features run in Wispr's cloud under a paid account. LokalBot is a free, open-source (GPLv3) alternative that runs dictation and bot-free meeting notes on your computer by default, adds a day timeline and 56 ms autocomplete, and natively imports your existing Wispr Flow meetings and personal dictionary directly from flow.sqlite with zero network calls.
 
 | Feature | LokalBot | Wispr Flow |
 | --- | --- | --- |
-| Where speech runs | On your computer — Qwen3-ASR by default, with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Wispr's cloud; there is no on-device mode |
+| Where speech runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Wispr's cloud; there is no on-device mode |
 | Works offline | After a one-time model download | Needs a connection |
 | Account required | None | Yes |
-| Dictation | Hold or toggle ⌥ Space (Alt+Space on Windows and Linux), live transcript pill, pastes at the cursor | Deeper: AI cleanup, personal dictionary, snippets, per-app styles, and command mode |
+| Migration from Wispr Flow | Reads flow.sqlite read-only to import meetings and personal dictionary words (skipping snippets and deleted entries) | N/A |
+| Dictation | Hold or toggle ⌥ Space (Alt+Space on Windows/Linux), fine-tuned Qwen3-ASR with 100% vocab recall and 0 silence hallucinations | Deeper: AI cleanup, personal dictionary, snippets, per-app styles, and command mode |
 | Meeting capture | Bot-free microphone + system audio; detects meetings and, on a fresh install, asks before recording | Bot-free Notetaker for Zoom, Meet, Teams, Slack huddles, and more |
 | Ask across meetings | Cited answers from a local model that link back to the transcript and audio | Answers across your meeting history, linked to the moment they came from |
-| Where meetings are kept | On your computer — audio, transcripts, and notes | Transcripts in Wispr's cloud for cross-device sync, with configurable retention |
+| Where meetings are kept | On your computer: audio, transcripts, and notes | Transcripts in Wispr's cloud for cross-device sync, with configurable retention |
 | Transcription languages | On Mac: 52 languages and dialects with the default model; 99 with Whisper | Dictation: 100+ · Notetaker: 21 |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | MCP for Claude, ChatGPT, and Gemini |
 | Compliance | No LokalBot server ever holds your dictation or meetings | SOC 2 Type II, ISO 27001, and HIPAA-ready plans |
 | Day timeline | App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No — AI edits what you dictate instead |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No; AI edits what you dictate instead |
 | Source code | Open source, GPLv3 | Proprietary |
-| Price | Free — dictation and meeting notes included, nothing gated | Free: 2,000 dictated words a week and a weekly meeting cap · Pro $15/mo, or $12/mo billed annually · Growth $23/mo, or $18/mo billed annually · Enterprise custom |
+| Price | Free: dictation and meeting notes included, nothing gated | Free: 2,000 dictated words a week and a weekly meeting cap · Pro $15/mo ($12 annual) · Growth $23/mo ($18 annual) · Enterprise custom |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Dictation: Mac, Windows, iOS, and Android · Notetaker: Mac and Windows |
 
-- **Q: Does Wispr Flow have an offline or on-device mode?** No. Wispr's data-controls page says transcription always happens in its cloud, and Notetaker transcripts are stored there for cross-device sync. LokalBot transcribes dictation and meetings on your computer after a one-time model download, and keeps working without a connection.
-- **Q: Is LokalBot's dictation as good as Wispr Flow's?** For plain speech-to-text, test both on your own voice. Wispr Flow goes further on editing: it removes filler words, learns your vocabulary, and adapts its style to each app. LokalBot's dictation is simpler — hold ⌥ Space (Alt+Space on Windows and Linux), speak, and it types — and it uses the same local speech model as your meetings.
-- **Q: Can I use both?** Yes. They use different shortcuts, and LokalBot is free. Some people keep Wispr Flow for heavy dictation and use LokalBot for meetings they'd rather not upload, a searchable day timeline, and autocomplete.
+- **Q: Can I import my Wispr Flow meetings and personal dictionary into LokalBot?** Yes. On Mac, Recording > Import Meetings From reads Wispr Flow's meetings table and transcript files from your local flow.sqlite database read-only, without touching dictation history, audio, or screenshots. Settings > Models > Transcribe > Advanced > Language & vocabulary > Import from Wispr Flow imports your custom dictionary words (skipping snippets and deleted entries) with zero network requests.
+- **Q: Does Wispr Flow have an offline or on-device mode?** No. Wispr's data-controls page states that transcription always happens in its cloud, and Notetaker transcripts are stored there for cross-device sync. LokalBot transcribes dictation and meetings on your computer after a one-time model download, and keeps working without a connection.
+- **Q: Is LokalBot's dictation as good as Wispr Flow's?** Test both on your own voice. Wispr Flow goes further on cloud prose editing, snippets, and per-app tone rewrites. LokalBot 0.14.0 ships fine-tuned Qwen3-ASR 1.7B (v3) with 100% custom vocabulary recall, 0 silence hallucinations, and automatic spacing/capitalization cleanup before pasting, all running offline on the same speech model used for meetings.
+- **Q: Can I use both?** Yes. They use different shortcuts, and LokalBot is free. Some people keep Wispr Flow for heavy phone dictation and use LokalBot for meetings they prefer not to upload, offline dictation, a searchable day timeline, and autocomplete.
+
+### LokalBot vs Cotypist (https://www.lokalbot.com/lokalbot-vs-cotypist · verified 2026-11-26)
+
+Cotypist (cotypist.app) is a polished proprietary macOS app that brings local, offline ghost-text autocomplete to Apple Silicon using on-device Gemma and Qwen models, with a 100-word daily free cap and Plus/Pro subscriptions (~$72-$108/yr). LokalBot ships free, unlimited open-source inline autocomplete across macOS, Windows, and Linux (alpha) using our Apache-2.0 fine-tuned Gemma 4 E2B (LokalBot v4) model (56 ms typing median, 20.2 ms boundary median, 49-53 ms after a 5-minute pause, and 56/56 context grounding), plus optional grounding in your own meeting notes.
+
+| Feature | LokalBot | Cotypist |
+| --- | --- | --- |
+| Where autocomplete runs | 100% on-device via in-process llama.cpp (Gemma 4 E2B LokalBot v4 Q6_K or LFM2.5 1.2B) | 100% on-device on Apple Silicon (Gemma / Qwen local models) |
+| Measured latency (M4 Max) | 56 ms typing median (20.2 ms boundary, 49-53 ms after 5-min idle warm-up) | Advertised low-latency inline suggestions and fast resume |
+| Knows your meeting notes | Opt-in: pulls up to 2 relevant facts from your own meetings (56/56 grounding benchmark) | No meeting library |
+| Window context privacy | Reads accessibility text above the field; private browser windows and password fields excluded | Clipboard awareness and per-app custom instructions on Pro |
+| Free usage limits | Unlimited, free forever | Free: 100 accepted words/day (30-day Pro trial) |
+| Also included in the app | Bot-free meeting notes, dictation, semantic search, day timeline, read-only MCP | Autocomplete and autocorrect only |
+| Source code | Open source (GPLv3; Cotabby autocomplete files AGPLv3) | Proprietary |
+| Price | Free | Free (100 words/day) · Plus ~$6-$8/mo (~$72/yr, 1 Mac) · Pro ~$9-$12/mo (~$108/yr, 3 Macs, larger models) |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS 14+ on Apple Silicon only (no Windows or Linux) |
+
+- **Q: How fast is LokalBot's autocomplete compared to Cotypist?** In our reproducible headless keystroke benchmark on an Apple M4 Max, Gemma 4 E2B runs at 56 ms median while typing (20.2 ms median boundary latency and 80.0 ms p95 on LokalBot v4) and 49-53 ms on the first suggestion after a 5-minute idle pause. The Lightweight preset (LFM2.5 1.2B, 0.73 GB) hits 26 ms median. Full scripts and logs are on the benchmarks page.
+- **Q: Does LokalBot send keystrokes to a cloud server?** No. Built-in autocomplete runs entirely in-process via llama.cpp on your computer, never reads password or credential fields, ignores private browser windows, and lets you exclude any app in Settings.
+- **Q: Does LokalBot autocomplete work on Windows and Linux too?** Yes. The native Rust + GPUI app (alpha) runs the same Gemma 4 E2B and LFM2.5 1.2B models on Windows (via UI Automation) and Linux (X11, plus Wayland input-method support on Sway, Hyprland, GNOME, and KDE Plasma).
+
+### LokalBot vs Handy, VoiceInk &amp; Voicenotes (https://www.lokalbot.com/lokalbot-vs-handy · verified 2026-11-26)
+
+People searching for an open-source Wispr Flow replacement usually land on three distinct tools: Handy (MIT, free cross-platform Tauri push-to-talk dictation), VoiceInk (GPLv3 macOS and iOS dictation, free to compile or $25-$49 one-time for signed binaries), and Voicenotes (proprietary cloud voice-memo and meeting app at ~$99.99/yr). LokalBot sits beside Handy and VoiceInk as a free, open-source GPLv3 app with zero-hallucination local dictation, then adds bot-free two-track meeting notes, diarization, semantic search, 56 ms autocomplete, and local MCP in one memory budget.
+
+| Feature | LokalBot | Handy / VoiceInk / Voicenotes |
+| --- | --- | --- |
+| Where speech runs | On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac | Handy & VoiceInk: local Whisper / Parakeet (VoiceInk also supports cloud APIs) · Voicenotes: cloud |
+| Silence & vocab accuracy | Fine-tuned Qwen3-ASR 1.7B v3: 100% clean silence (0 ghosts), 100% custom vocab recall | Stock Whisper / Parakeet models (Handy uses Silero VAD; VoiceInk supports custom vocab/modes) |
+| Bot-free meeting notes | Two-track capture, speaker diarization, local Qwen3.5 4B v4 summaries, citations | Handy: no · VoiceInk: audio transcription focus · Voicenotes: cloud meeting notes & voice memos |
+| Search & Ask across history | 39 ms SQLite FTS5 + EmbeddingGemma 2 hybrid search, cited local Ask | Handy: no library · VoiceInk: transcript history · Voicenotes: cloud Ask AI second brain |
+| Connect AI tools (MCP) | Read-only CLI and MCP server, off until you turn them on in Settings | None built in as a local meeting-library MCP server |
+| Writing autocomplete & timeline | 56 ms Gemma 4 E2B autocomplete + opt-in day timeline | No |
+| Source code & license | Open source, GPLv3 (free signed binaries on Mac, Win/Linux alpha) | Handy: MIT (free) · VoiceInk: GPLv3 ($25-$49 prebuilt Mac app) · Voicenotes: proprietary |
+| Price | Free | Handy: Free · VoiceInk: $25-$49 one-time (free from source) · Voicenotes: Free (100 min/wk, 30d history) / ~$99.99/yr Pro |
+| Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | Handy: Mac (ARM/Intel), Win, Linux · VoiceInk: macOS, iOS · Voicenotes: Web, Mac, Win, iOS, Android, Watch |
+
+- **Q: How does LokalBot compare directly to Handy?** Handy (github.com/cjpais/Handy) is a great, minimal MIT-licensed push-to-talk dictation app that works on macOS (including Intel), Windows, and Linux. Handy stops at pasting dictated text. LokalBot adds bot-free two-track meeting recording, speaker diarization, local summaries, semantic search, Obsidian export, autocomplete, and a read-only MCP server.
+- **Q: Why use LokalBot instead of VoiceInk on Mac?** Both are GPLv3 and run local speech models on Apple Silicon. VoiceInk sells signed binaries ($25-$49) and focuses deeply on dictation modes and prompt rewrites. LokalBot ships free signed and notarized Mac builds, fine-tuned Qwen3-ASR models that eliminate silence prompt echoes, and full meeting memory and coding-agent MCP.
+- **Q: Can LokalBot replace Voicenotes for quick thoughts on a phone?** LokalBot's free iOS and Android companion apps record audio offline and sync end-to-end encrypted over LAN or Tailscale to your computer for local transcription and search. Voicenotes is better if you want standalone cloud transcription on a smartwatch without a home computer.
 
 ### LokalBot vs Screenpipe (https://www.lokalbot.com/lokalbot-vs-screenpipe · verified 2026-10-26)
 
-Screenpipe records your screen and audio continuously and turns that history into context for any AI, through a local API and MCP server. It runs on macOS, Windows, and Linux. LokalBot starts smaller: it logs app and window activity by default, adds screen text and encrypted screenshots only if you opt in, and pairs that with bot-free meeting notes. The licenses differ too — LokalBot is GPLv3 open source, while Screenpipe's source is available under a commercial license.
+Screenpipe records your screen and audio continuously and turns that history into context for any AI, through a local API and MCP server. It runs on macOS, Windows, and Linux. LokalBot starts smaller: it logs app and window activity by default, adds screen text and encrypted screenshots only if you opt in, and pairs that with bot-free meeting notes. The licenses differ too: LokalBot is GPLv3 open source, while Screenpipe's source is available under a commercial license.
 
 | Feature | LokalBot | Screenpipe |
 | --- | --- | --- |
@@ -743,28 +919,28 @@ Screenpipe records your screen and audio continuously and turns that history int
 
 - **Q: Isn't Screenpipe open source?** It used to be MIT-licensed. Current versions are source-available under the Screenpipe Commercial License: free for personal, non-profit, educational, and research use, while business use needs a paid license. LokalBot is GPLv3, so anyone can use it at work, study it, and share changes.
 - **Q: Does LokalBot record my screen all the time?** No. Out of the box it saves the app name and window title. Visible text and encrypted screenshots are separate opt-ins (on a Mac, they need Accessibility and Screen Recording permission), and captures are deleted after 14 days by default.
-- **Q: Can AI agents read my LokalBot history?** Yes, if you allow it. The bundled CLI and MCP server are read-only and stay off until you allow them in Settings → External Agents on a Mac, or Settings → Privacy & Data on Windows and Linux.
+- **Q: Can AI agents read my LokalBot history?** Yes, if you allow it. The bundled CLI and MCP server are read-only and stay off until you allow them in Settings > External Agents on a Mac, or Settings > Privacy & Data on Windows and Linux.
 
 ### LokalBot vs Rewind / Limitless (https://www.lokalbot.com/lokalbot-vs-rewind · verified 2026-11-20)
 
-Rewind pioneered “search everything you've seen on your Mac” before rebranding to Limitless. After Meta acquired Limitless in December 2025, the Mac app disabled screen and audio capture on December 19, 2025, Limitless stopped selling its Pendant, and rewind.ai now hosts an unrelated site. LokalBot's day timeline carries the local-recall idea forward — smaller, opt-in, GPLv3 open source, and processed on your Mac, Windows, or Linux computer with no cloud backend.
+Rewind pioneered “search everything you've seen on your Mac” before rebranding to Limitless. After Meta acquired Limitless in December 2025, the Mac app disabled screen and audio capture on December 19, 2025, Limitless stopped selling its Pendant, and rewind.ai now hosts an unrelated site. LokalBot's day timeline carries the local-recall idea forward: smaller, opt-in, GPLv3 open source, and processed on your Mac, Windows, or Linux computer with no cloud backend.
 
 | Feature | LokalBot | Rewind / Limitless (discontinued) |
 | --- | --- | --- |
-| Status | Actively developed | Discontinued — the team moved to Limitless, now part of Meta |
+| Status | Actively developed | Discontinued: the team moved to Limitless, now part of Meta |
 | Screen memory | App and window activity by default; opt-in screen text and encrypted screenshots, searchable by every word | Continuous compressed screen recording, always on |
 | Meeting notes | Bot-free microphone + system-audio tracks, summarized locally | Local capture; “Ask Rewind” answers were generated with cloud AI |
 | Retention | Deleted after 14 days by default; keeping longer is an explicit opt-in | Grew until you trimmed it yourself |
 | Encryption at rest | Screenshots are AES-GCM encrypted on disk | Stored locally on disk |
 | Connect AI tools | Read-only CLI and MCP server, off until you turn them on in Settings | None |
 | System-wide dictation | Hold ⌥ Space (Alt+Space on Windows and Linux) in any app | No |
-| Writing autocomplete | Cotyping, in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
+| Writing autocomplete | Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma) | No |
 | Source code | Open source, GPLv3 | Proprietary |
 | Price | Free | Was subscription-based; no longer purchasable |
 | Platforms | macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps | macOS (app no longer available) |
 
-- **Q: Is LokalBot a drop-in Rewind replacement?** Not entirely, and it doesn't try to be. Rewind recorded your screen continuously and let you scrub it like a video. LokalBot tracks app and window activity by default, and adds periodic screenshots with OCR only if you opt in — lighter on disk, easier to reason about, and combined with full meeting capture. You get the search and the timeline, not the video scrubber.
-- **Q: What actually happened to Rewind?** The company behind it shifted to Limitless, a wearable pendant with cloud-hosted memory, and stopped developing the Mac app. Meta acquired Limitless in December 2025. A final update turned off Rewind's screen and audio capture on December 19, 2025, and Limitless stopped selling its Pendant. The rewind.ai domain now hosts an unrelated service — the original app is simply gone.
+- **Q: Is LokalBot a drop-in Rewind replacement?** Not entirely, and it doesn't try to be. Rewind recorded your screen continuously and let you scrub it like a video. LokalBot tracks app and window activity by default, and adds periodic screenshots with OCR only if you opt in: lighter on disk, easier to reason about, and combined with full meeting capture. You get the search and the timeline, not the video scrubber.
+- **Q: What actually happened to Rewind?** The company behind it shifted to Limitless, a wearable pendant with cloud-hosted memory, and stopped developing the Mac app. Meta acquired Limitless in December 2025. A final update turned off Rewind's screen and audio capture on December 19, 2025, and Limitless stopped selling its Pendant. The rewind.ai domain now hosts an unrelated service: the original app is simply gone.
 - **Q: How is this different from Windows Recall?** Recall is Windows-only and drew heavy privacy scrutiny. LokalBot runs on the Mac and, in alpha, on Windows, where it's an open-source, opt-in alternative to Recall. Out of the box it logs only which app and window you had open; screen text and screenshots stay off until you turn them on. Screenshots are encrypted at rest, captures are deleted after 14 days by default, and the code that does all of that is open for you to audit.
 
 ---
@@ -778,13 +954,13 @@ How local AI meeting notes work on a Mac: bot-free capture, on-device transcript
 - **Q: Where are meetings stored?** In LokalBot's local Application Support data. They are not copied to a LokalBot account or cloud because neither exists.
 
 ### Local AI meeting notes on Linux (https://www.lokalbot.com/local-ai-meeting-notes-linux)
-Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.
+Record, transcribe, and summarize meetings on Linux without a bot or cloud: X11 and Wayland support, apt/dnf/pacman install, and local models.
 - **Q: Does LokalBot work on Wayland?** Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, and KDE Plasma, but not yet on other compositors.
 - **Q: Do I need an NVIDIA GPU?** No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs.
 - **Q: Can I move my library between Linux and a Mac?** Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you.
 
 ### Local AI meeting notes on Windows (https://www.lokalbot.com/local-ai-meeting-notes-windows)
-Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.
+Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10/11 without a bot or cloud: per-user install, Vulkan/CUDA, and local models.
 - **Q: Why does Windows warn me before LokalBot opens?** The Windows build isn't code-signed yet, so SmartScreen asks first. Choose More info, then Run anyway. The source is public on GitHub, and every update LokalBot installs is checked against its signature first.
 - **Q: Does a bot join my Teams or Zoom calls?** No. LokalBot records your microphone and the meeting app's audio, or everything your PC plays when it can't separate the app, on two tracks, so nothing joins the call and other participants don't see a notetaker. Tell them you're recording.
 - **Q: Do I need administrator rights?** No. The installer installs LokalBot for your user only. A portable zip that runs from any folder is also available.
@@ -809,7 +985,7 @@ How LokalBot captures your microphone and meeting-app audio as synchronized trac
 
 ### Local transcription models for Mac (https://www.lokalbot.com/local-transcription-models-mac)
 Compare Granite Speech, Parakeet, Qwen3-ASR, and Whisper for private on-device meeting transcription on Apple Silicon.
-- **Q: Which model does LokalBot recommend?** Qwen3-ASR 1.7B has been the default transcription model since LokalBot 0.8.1. You can change it in Settings → Models.
+- **Q: Which model does LokalBot recommend?** Qwen3-ASR 1.7B has been the default transcription model since LokalBot 0.8.1. You can change it in Settings > Models.
 - **Q: Which option covers the most languages?** Whisper large-v3 turbo has the broadest listed coverage at 99 languages. Language count alone does not guarantee the best result for a specific recording.
 - **Q: Can I keep several models installed?** Yes. That is useful when your meetings vary by language or audio quality, subject to disk space.
 
@@ -821,17 +997,17 @@ Check LokalBot's requirements on Mac, Windows and Linux (alpha): OS versions, ha
 - **Q: Does it run on Windows on ARM or ARM Linux?** No. The Windows and Linux versions are built only for x64 (x86_64) processors.
 - **Q: Can I move my library between a Mac and a PC?** Yes. The Mac, Windows, and Linux apps use the same library format, so a library recorded on one opens on the others. It lives in ~/Library/Application Support/me.dotenv.LokalBot on a Mac, %LOCALAPPDATA%\LokalBot on Windows, and ~/.local/share/LokalBot on Linux.
 
-### Granola for Linux and Windows: bot-free local alternatives (https://www.lokalbot.com/granola-otter-alternatives-linux-windows)
-Granola has no Linux app. Compare free, bot-free meeting notetakers for Linux and Windows (LokalBot, OpenWhispr, Anarlog, Meetily): local models and licenses.
-- **Q: Does Granola work on Linux?** No. Granola's apps are for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but can't record or transcribe a meeting.
-- **Q: Can I use Otter or Fireflies on Linux?** Only through their web apps and Chrome extensions. Their desktop apps are for Windows and Mac, their notetakers join calls as a bot unless you record from the desktop app or the extension, and transcription happens in their cloud.
-- **Q: Which open-source apps transcribe locally on Linux?** LokalBot and OpenWhispr both transcribe on a Linux computer; with OpenWhispr, choose on-device transcription during setup. Meetily transcribes locally too, but on Linux you build it from source. Anarlog's Linux beta transcribes in the cloud or on a server you run. Screenpipe transcribes locally by default, under a source-available license.
+### Granola and Otter alternatives for Linux and Windows (https://www.lokalbot.com/granola-otter-alternatives-linux-windows)
+Granola has no Linux app and caps free Windows history at 30 days. Compare bot-free local note takers for Linux and Windows: LokalBot, OpenWhispr, Meetily.
+- **Q: Does Granola work on Linux?** No. Granola ships apps for Mac, Windows, iPhone, and Android. Its web app can view and edit notes but cannot record or transcribe meetings on Linux.
+- **Q: What is the best free local Granola alternative for Windows with no 30-day history limit?** LokalBot (GPLv3, alpha) records Teams, Zoom, and Meet audio locally on Windows 10 and 11 with no bot, runs Qwen3-ASR and Qwen3.5 4B LokalBot v4 on Vulkan, CUDA, or CPU, and keeps unlimited meeting history on your disk with no 30-day cutoff.
+- **Q: Which open-source apps transcribe locally on Linux?** LokalBot (.deb, .rpm, Arch, .tar.gz) and OpenWhispr (select on-device models during setup) both transcribe locally on Linux. Meetily transcribes locally too, built from source on Linux. Anarlog's Linux beta uses a cloud provider or self-hosted server for transcription. Screenpipe transcribes locally under a source-available commercial license.
 
-### How do I let Claude Code or Codex search my meeting notes? (https://www.lokalbot.com/claude-code-codex-meeting-notes)
-Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.
-- **Q: Does the agent get my audio?** No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio.
-- **Q: Can the agent edit or delete meetings?** No. The CLI and MCP server only read your meetings; changes to them happen in the LokalBot app. Changing LokalBot's settings is a separate permission, off until you turn it on.
-- **Q: Does this work with other MCP clients?** Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies.
+### How do I connect meeting notes via MCP to Claude Code, Codex, and Cursor? (https://www.lokalbot.com/claude-code-codex-meeting-notes)
+Connect local meeting notes over stdio MCP to Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity. Read-only, zero cloud bots.
+- **Q: Does the MCP server work with Cursor, Windsurf, Gemini CLI, and Antigravity?** Yes. Any MCP client that launches a local stdio server works with command 'lokalbot-cli' and args ['mcp']. That covers Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity on Mac, Windows, and Linux.
+- **Q: Does the agent receive raw meeting audio or screenshots?** No. The MCP server returns text only: meeting metadata, summaries, transcripts, action items, names, cited answers, and (if explicitly enabled) extracted screen text. It never returns audio files or screenshot pixels.
+- **Q: Can the MCP server edit or delete my meetings?** No. The read-only MCP server cannot edit or delete meetings. Changing settings or reprocessing a meeting via CLI requires a separate opt-in toggle.
 
 ### LokalBot plugins for Claude Code and Codex (https://www.lokalbot.com/claude-code-codex-plugins)
 Add LokalBot to Claude Code or Codex to catch up on your work and find what was said in meetings, from a library that stays on your computer.
@@ -849,16 +1025,42 @@ Company or client policies blocking Otter, Read.ai, or Fireflies bots? Compare b
 How a recorder that never joins the call separates speakers, where the names come from, and measured speaker-separation accuracy for LokalBot on Mac.
 - **Q: Does LokalBot read participant names from Zoom, Meet, or Teams?** No. It doesn't read the meeting app's participant list or who is speaking. Names come from you, with calendar attendees offered as suggestions.
 - **Q: Does speaker separation upload audio?** No. It runs on your computer. The speaker model downloads once on first use. On a Mac with Qwen3-ASR, a word-timing model of about 1 GB downloads too.
-- **Q: Can I turn speaker separation off?** Yes. Turn off Separate voices by speaker in Settings → Meetings → Speaker names. Your microphone and the call audio stay on separate tracks either way.
+- **Q: Can I turn speaker separation off?** Yes. Turn off Separate voices by speaker in Settings > Meetings > Speaker names. Your microphone and the call audio stay on separate tracks either way.
 
 ### How do I get meeting transcripts into Obsidian as Markdown? (https://www.lokalbot.com/meeting-transcripts-obsidian-markdown)
 Put local meeting transcripts and summaries into an Obsidian vault as Markdown: a note for every meeting, a one-off export, a daily note, or your own script.
-- **Q: Is there an Obsidian plugin for LokalBot?** Yes—an open-source LokalBot plugin for Obsidian (github.com/stevyhacker/obsidian-lokalbot) lets you search meetings, sync notes, insert open action items into Daily Notes, and ask LokalBot's local model inside Obsidian. You still don't need a plugin if you only want automatic Markdown note export straight into your vault folder.
+- **Q: Is there an Obsidian plugin for LokalBot?** Yes: an open-source LokalBot plugin for Obsidian (github.com/stevyhacker/obsidian-lokalbot) lets you search meetings, sync notes, insert open action items into Daily Notes, and ask LokalBot's local model inside Obsidian. You still don't need a plugin if you only want automatic Markdown note export straight into your vault folder.
 - **Q: Do the exported transcripts include speaker names?** Yes. Each transcript line starts with a timestamp and the speaker's name, or a default label such as Me when you haven't named that speaker.
 - **Q: Can I use Logseq instead?** Yes, with Logseq OG, which keeps a graph as Markdown files. Meeting notes and the daily note both come in a Logseq format, with page properties and TODO and DONE actions; choose your graph's pages folder for meeting notes. Logseq's newer database version imports Markdown instead of reading a folder, so it won't pick up new notes on its own.
 
+### Best Rewind AI and Limitless Mac alternatives after the Meta shutdown (https://www.lokalbot.com/rewind-limitless-mac-alternatives)
+Rewind and Limitless stopped Mac capture after Meta's acquisition. Compare open-source and local Mac screen memory and meeting alternatives in 2026.
+- **Q: Is LokalBot an exact video-scrubber clone of Rewind?** No. Rewind recorded continuous compressed screen video so you could scrub frame by frame. LokalBot focuses on searchable activity, opt-in OCR text, AES-GCM encrypted periodic screenshots (14-day default retention), and full bot-free meeting notes. You get fast keyword and semantic search across what you saw and heard without massive video archives.
+- **Q: Can LokalBot run if I also switch between Mac and Windows or Linux?** Yes. LokalBot uses the same local SQLite library format across its Apple Silicon Mac app and its Windows and Linux (alpha) Rust + GPUI app.
+- **Q: What if I want to replace a Limitless Pendant for in-person meetings?** LokalBot offers free iOS and Android companion apps that record in-person audio and sync end-to-end encrypted over LAN or Tailscale straight to your computer for local transcription, with zero cloud subscription. See LokalBot vs Plaud for details.
+
+### An open-source Windows Recall alternative that is opt-in and encrypted (https://www.lokalbot.com/open-source-windows-recall-alternative)
+Want searchable screen and meeting memory on Windows without Microsoft Recall or Copilot+ NPU lock-in? Compare LokalBot's opt-in, encrypted Rust app.
+- **Q: Do I need a Copilot+ PC or an NPU to run LokalBot on Windows?** No. LokalBot runs on any Windows 10 or 11 x64 machine using any Vulkan GPU (AMD, Intel, or NVIDIA), experimental CUDA on NVIDIA GPUs, or the CPU.
+- **Q: Does LokalBot take screenshots immediately after install?** No. Fresh installs record app and window activity only. Reading screen text and saving AES-GCM encrypted screenshots are explicit opt-in toggles in Settings.
+- **Q: How does LokalBot compare to Screenpipe on Windows?** Screenpipe records screen and audio continuously (~30 GB/mo) under a source-available commercial license. LokalBot starts activity-only, deletes captures after 14 days by default, ships built-in local summary models, and is free under GPLv3. See LokalBot vs Screenpipe.
+
+### GDPR AI meeting notes with zero cloud subprocessors (https://www.lokalbot.com/gdpr-local-ai-meeting-notes)
+Run GDPR-friendly AI meeting notes with zero cloud subprocessors, no DPA chain, and no bots. Compare on-device tools and participant consent rules.
+- **Q: Do I need a Data Processing Agreement (DPA) to use LokalBot?** When you run LokalBot with its built-in local models, no meeting data is sent to the LokalBot project or any hosted service, so there is no LokalBot cloud processor handling your personal data. If you opt into an external API or cloud plan in Settings, you need a DPA with that provider.
+- **Q: Is bot-free local recording automatically legal under GDPR?** No. GDPR requires a lawful basis (often explicit consent) and clear notice to every participant before recording a call, regardless of whether a bot joins or the audio stays on your laptop.
+- **Q: How does LokalBot compare to European cloud notetakers like Jamie?** Jamie hosts notes on EU servers in Frankfurt and deletes raw audio after transcription, which still requires trusting cloud servers and paying EUR 24-47/mo. LokalBot processes and stores everything on your own device for free under GPLv3. See LokalBot vs Jamie.
+
+### Best local and open-source AI meeting note takers (2026) (https://www.lokalbot.com/best-local-ai-meeting-notes)
+Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license.
+- **Q: What is the best completely free, open-source local AI meeting note taker?** LokalBot (GPLv3) ships every feature in one free app with no paid tier: bot-free two-track capture, fine-tuned Apache-2.0 local models for transcription and summaries, speaker separation, Obsidian export, and a free read-only local MCP server. Meetily Community Edition (MIT) is also free for core local recording and summaries, with speaker separation and MCP in its paid Pro tier.
+- **Q: Do local AI meeting note takers work completely offline?** Yes, once the speech and language models are downloaded. LokalBot, Meetily Community Edition, and MacWhisper transcribe offline. In OpenWhispr, choose on-device models during setup instead of its recommended cloud option. Anarlog transcribes locally on supported Macs and pairs with Ollama or LM Studio for offline summaries.
+- **Q: How much RAM do I need for local meeting transcription and summaries?** A 16 GB Apple Silicon Mac or a 16 GB Windows or Linux PC comfortably runs a 0.6B-1.7B speech model (1.0-2.5 GB) and a 4B quantized summary model (~2.7 GB) sequentially. On 8 GB machines, use compact speech models like Qwen3-ASR 0.6B or Parakeet 0.6B and smaller summarizers. Check your exact hardware at lokalbot.com/hardware.
+- **Q: Which local meeting note takers run on Linux and Windows?** LokalBot (native Rust + GPUI alpha with .deb, .rpm, Arch, and Windows installer), OpenWhispr (AppImage, .deb, .rpm, Windows), Screenpipe (AppImage, Windows), and Anarlog (beta; cloud or BYO transcription server on Linux/Windows). Meetily ships native Windows binaries and builds from source on Linux. MacWhisper is macOS and iOS only.
+- **Q: Which local meeting note taker has a free local MCP server for Claude Code or Cursor?** LokalBot includes a free, read-only local stdio MCP server (lokalbot-cli mcp, off until enabled in Settings) with no cloud sync required. Anarlog and Screenpipe also expose local MCP servers. Meetily gates MCP to Pro, and OpenWhispr's MCP server is hosted on paid plans.
+
 ### The best open-source AI assistants you can run locally (https://www.lokalbot.com/best-open-source-ai-assistants)
-Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots.
+Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared on memory, document chat, licenses, platforms, and setup, with real screenshots.
 - **Q: What is the best local AI assistant?** It depends on the job. For a private ChatGPT-style chat, Jan (open source) or LM Studio (more polished, but closed source). To run models for other apps and agents, Ollama. To ask questions across your documents, AnythingLLM. For one web app shared by a household or team, Open WebUI. For an assistant that remembers your meetings and what you saw on screen, LokalBot.
 - **Q: Which local AI assistant has memory like ChatGPT?** Open WebUI has a Memory feature, marked experimental, where you or the model can save facts about you. AnythingLLM has Memories, off by default, which it extracts from recent chats every three hours. LokalBot remembers your meetings and, if you turn it on, your screen, and learns facts and preferences from your own words. Ollama and LM Studio have no memory, and Jan lists it as coming soon.
 - **Q: Is LM Studio open source?** No. The LM Studio app is proprietary, though free for home and work since July 2025. Its lms command-line tool, its SDKs, and its MLX engine are open source under the MIT license.

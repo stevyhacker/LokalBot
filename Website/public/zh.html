@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>LokalBot（中文）：100% 本地开源会议纪要与工作记忆 — 支持腾讯会议/飞书/钉钉与 ModelScope</title>
-  <meta name="description" content="免费开源（GPLv3）的本地 AI 会议纪要、语音输入与工作记忆应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 Qwen3-ASR、Qwen3.5 与 ModelScope/HF-Mirror 下载源，支持 Obsidian 导出与 Claude Code MCP。" />
+  <title>LokalBot（中文）：100% 本地开源会议纪要与工作记忆</title>
+  <meta name="description" content="免费开源（GPLv3）本地 AI 会议纪要与语音输入应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 v0.14.0 微调模型、ModelScope 源与本地 MCP。" />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -15,19 +15,24 @@
   <link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
   <link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
   <link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+  <link rel="alternate" hreflang="fr" href="https://www.lokalbot.com/fr" />
+  <link rel="alternate" hreflang="es" href="https://www.lokalbot.com/es" />
+  <link rel="alternate" hreflang="ko" href="https://www.lokalbot.com/ko" />
+  <link rel="alternate" hreflang="pt" href="https://www.lokalbot.com/pt" />
   <link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:locale" content="zh_CN" />
   <meta property="og:url" content="https://www.lokalbot.com/zh" />
-  <meta property="og:title" content="LokalBot — 100% 本地运行的开源会议纪要与工作记忆（免 Bot，GPLv3）" />
-  <meta property="og:description" content="免 Bot 录制腾讯会议/飞书/钉钉/Zoom，内置 Qwen3-ASR 与 ModelScope 下载源，自动导出 Obsidian Markdown，支持 Claude Code / Codex 只读 MCP。" />
+  <meta property="og:title" content="LokalBot（中文）：100% 本地运行的开源会议纪要（GPLv3）" />
+  <meta property="og:description" content="免 Bot 录制腾讯会议、飞书、钉钉与 Zoom，内置 v0.14.0 Apache-2.0 微调模型与 ModelScope 下载源，自动导出 Obsidian Markdown。" />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot：100% 本地运行的开源 AI 会议纪要与工作记忆" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="LokalBot — 100% 本地运行的开源会议纪要与工作记忆（免 Bot，GPLv3）" />
-  <meta name="twitter:description" content="免 Bot 录制腾讯会议/飞书/钉钉/Zoom，内置 Qwen3-ASR 与 ModelScope 下载源，自动导出 Obsidian Markdown，支持 Claude Code / Codex 只读 MCP。" />
+  <meta name="twitter:title" content="LokalBot（中文）：100% 本地运行的开源会议纪要（GPLv3）" />
+  <meta name="twitter:description" content="免 Bot 录制腾讯会议、飞书、钉钉与 Zoom，内置 v0.14.0 Apache-2.0 微调模型与 ModelScope 下载源，自动导出 Obsidian Markdown。" />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
 
   <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
@@ -35,7 +40,7 @@
 
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/zh#page","url":"https://www.lokalbot.com/zh","name":"LokalBot（中文）：100% 本地开源会议纪要与工作记忆 — 支持腾讯会议/飞书/钉钉与 ModelScope","description":"免费开源（GPLv3）的本地 AI 会议纪要、语音输入与工作记忆应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 Qwen3-ASR、Qwen3.5 与 ModelScope/HF-Mirror 下载源，支持 Obsidian 导出与 Claude Code MCP。","inLanguage":"zh-Hans","datePublished":"2026-11-20","dateModified":"2026-11-21","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"中文","item":"https://www.lokalbot.com/zh"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/zh#faq","mainEntity":[{"@type":"Question","name":"不挂代理能正常下载本地模型吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在应用内「设置 → 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。"}},{"@type":"Question","name":"为什么不会向会议里拉入机器人？","acceptedAnswer":{"@type":"Answer","text":"LokalBot 直接在你的电脑本地采集麦克风与会议软件音频流，不调用会议平台账号，也不会作为参会者加入房间。因此你仍需自行告知参会方正在录制。"}},{"@type":"Question","name":"Windows 和 Linux 版本目前可用程度如何？","acceptedAnswer":{"@type":"Answer","text":"Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力（如 Nemotron 说话人分离）仍在移植中。"}},{"@type":"Question","name":"支持把外部模型或已有 API 接进来吗？","acceptedAnswer":{"@type":"Answer","text":"支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT 订阅；任何远端服务必须经你明确授权后才会发送上下文。"}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/zh#page","url":"https://www.lokalbot.com/zh","name":"LokalBot（中文）：100% 本地开源会议纪要与工作记忆","description":"免费开源（GPLv3）本地 AI 会议纪要与语音输入应用。免 Bot 录制腾讯会议、飞书、钉钉与企业微信，内置 v0.14.0 微调模型、ModelScope 源与本地 MCP。","inLanguage":"zh-Hans","datePublished":"2026-11-20","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"首页","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"中文","item":"https://www.lokalbot.com/zh"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/zh#faq","mainEntity":[{"@type":"Question","name":"不挂代理能正常下载本地模型吗？","acceptedAnswer":{"@type":"Answer","text":"可以。在应用内「设置 > 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。"}},{"@type":"Question","name":"为什么不会向会议里拉入机器人？","acceptedAnswer":{"@type":"Answer","text":"LokalBot 直接在你的电脑本地采集麦克风与会议软件音频流，不调用会议平台账号，也不会作为参会者加入房间。因此你仍需自行告知参会方正在录制。"}},{"@type":"Question","name":"Windows 和 Linux 版本目前可用程度如何？","acceptedAnswer":{"@type":"Answer","text":"Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力仍在移植中。"}},{"@type":"Question","name":"支持把外部模型或已有订阅接进来吗？","acceptedAnswer":{"@type":"Answer","text":"支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT / Gemini / Antigravity 订阅；任何远端服务必须经你明确授权后才会发送上下文。"}}]}]}</script>
   <script src="/app.js" defer></script>
   <style>
     .loc-page {
@@ -173,33 +178,37 @@
   </style>
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
+  <a class="skip-link" href="#main">跳转到正文</a>
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
-    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">下载</a></div>
+    <a class="brand" href="/" aria-label="LokalBot 首页"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="主导航"><a href="/#features">功能</a><a href="/guides">指南</a><a href="/benchmarks">实测榜单</a><a href="/blog">博客</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">下载</a></div>
   </header>
 
   <main class="loc-page" id="main">
-    <nav class="loc-langs" aria-label="Languages">
+    <nav class="loc-langs" aria-label="语言切换">
       <a class="loc-lang" href="/" hreflang="en">English</a>
       <a class="loc-lang" href="/de" hreflang="de">Deutsch</a>
       <a class="loc-lang" href="/zh" hreflang="zh-Hans" aria-current="page">中文</a>
       <a class="loc-lang" href="/ja" hreflang="ja">日本語</a>
       <a class="loc-lang" href="/ru" hreflang="ru">Русский</a>
+      <a class="loc-lang" href="/fr" hreflang="fr">Français</a>
+      <a class="loc-lang" href="/es" hreflang="es">Español</a>
+      <a class="loc-lang" href="/ko" hreflang="ko">한국어</a>
+      <a class="loc-lang" href="/pt" hreflang="pt">Português</a>
     </nav>
 
     <header class="loc-hero">
-      <p class="eyebrow">100% 本地 · 开源 GPLv3 · 内置国内镜像源</p>
+      <p class="eyebrow">100% 本地 · GPLv3 · v0.14.0 微调模型</p>
       <h1>完全本地运行的开源会议纪要与工作记忆。</h1>
-      <p class="loc-hero__lead">LokalBot 是一款免费、开源（GPLv3）、无需账号、无遥测的本地桌面应用（macOS 原生 Swift，Windows 与 Linux 原生 Rust + GPUI Alpha）。无需向会议室拉入机器人即可双轨录会，内置 Qwen3-ASR、Qwen3.5 4B 与 EmbeddingGemma 2，并原生支持腾讯会议、飞书、钉钉与 ModelScope 下载。</p>
+      <p class="loc-hero__lead">LokalBot 是一款免费、开源（GPLv3）、无需账号的本地桌面应用（macOS 原生 Swift，Windows 与 Linux 原生 Rust + GPUI Alpha）。无需拉入会议机器人即可双轨录会，v0.14.0 默认搭载四款 Apache-2.0 微调模型，并原生支持腾讯会议、飞书、钉钉与 ModelScope 下载源。</p>
       <div class="loc-hero__actions">
         <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-download-simple" aria-hidden="true"></i>免费下载客户端</a>
         <a class="btn btn--ghost btn--lg" href="/benchmarks">查看开源实测榜单</a>
         <a class="btn btn--ghost btn--lg" href="/migrate">导出 Granola / Otter 笔记</a>
       </div>
-      <p class="loc-hero__meta">更新于 2026-11-21 · GPLv3 · macOS 15+ (Apple Silicon) · Windows &amp; Linux Alpha (Rust + GPUI) · iOS &amp; Android 局域网端到端同步</p>
+      <p class="loc-hero__meta">更新于 2026-11-26 · v0.14.0 · GPLv3 · macOS 15+ · Windows &amp; Linux Alpha (Rust + GPUI) · iOS &amp; Android 局域网端到端同步</p>
     </header>
 
     <section class="loc-grid" aria-label="LokalBot 核心功能">
@@ -210,8 +219,8 @@
       </article>
       <article class="loc-tile">
         <p class="loc-tile__kicker">开箱即用</p>
-        <h2>内置 ModelScope 与 HF-Mirror 国内源</h2>
-        <p>在「设置 → 模型」中可直接切换魔搭（ModelScope）或 HF-Mirror 下载模型，无需折腾代理。默认支持 Qwen3-ASR（中英混读表现稳定），也可选 SenseVoice、Parakeet 或 Whisper large-v3 turbo。</p>
+        <h2>内置 ModelScope 国内源与 v3 语音微调</h2>
+        <p>在「设置 &gt; 模型」中可直接切换魔搭（ModelScope）或 HF-Mirror 下载模型。默认 Qwen3-ASR 1.7B (LokalBot v3) 将静默幻觉降至 0，混读 WER 降至 12.81%，也可选 0.6B v1、SenseVoice 或 Whisper turbo。</p>
       </article>
       <article class="loc-tile">
         <p class="loc-tile__kicker">中文全文检索</p>
@@ -225,8 +234,8 @@
       </article>
       <article class="loc-tile">
         <p class="loc-tile__kicker">AI 编程协作</p>
-        <h2>只读本地 MCP + npx lokalbot</h2>
-        <p>默认关闭，按需开启后可让 Claude Code、Codex 等客户端在本地直接检索会议决策；另提供零依赖本地年度总结 CLI（npx lokalbot）统计 8 款编程 Agent 日志。</p>
+        <h2>只读本地 MCP（Claude Code / Codex / Cursor）</h2>
+        <p>默认关闭，按需开启后可让 Claude Code、Codex、Cursor、Windsurf、Gemini CLI 与 Antigravity 在本地检索会议决策；另支持零依赖本地年度总结 CLI（npx lokalbot）。</p>
       </article>
       <article class="loc-tile">
         <p class="loc-tile__kicker">跨平台原生</p>
@@ -236,31 +245,31 @@
     </section>
 
     <section class="loc-panel" aria-labelledby="stack-heading">
-      <p class="eyebrow">实测基准（开源可复现）</p>
-      <h2 id="stack-heading">本地默认模型组合（全套约 9.6 GB）</h2>
-      <p>每一项默认模型选择均在 GitHub 公开了测试脚本、数据集与原始报告，可在 Local Desktop AI Leaderboard 中按指标排序对比。</p>
+      <p class="eyebrow">实测基准（v0.14.0 开源微调）</p>
+      <h2 id="stack-heading">本地默认模型组合（四款 Apache-2.0 微调）</h2>
+      <p>每一项默认模型选择均在 GitHub 与 Hugging Face 公开了测试脚本、权重与局限说明，可在 Local Desktop AI Leaderboard 中按指标对比。</p>
       <div class="guide-table-wrap">
         <table class="guide-table">
           <thead><tr><th>任务</th><th>默认本地模型</th><th>实测指标与体积</th></tr></thead>
           <tbody>
-            <tr><td><strong>语音转文字</strong></td><td>Qwen3-ASR 1.7B (Mac) / 0.6B (Win·Linux)</td><td>AMI 17.6% WER（44× 实时）· 真实双轨会议分歧率 4.2% 排名第一 · 2.47 GB</td></tr>
-            <tr><td><strong>说话人分离</strong></td><td>Nemotron 3 (Core ML, Mac)</td><td>14.56% DER · 8/8 说话人数全对 · 500× 实时 · ~0.20 GB</td></tr>
-            <tr><td><strong>总结与记忆提取</strong></td><td>Qwen3.5 4B (Q4_K_M, llama.cpp)</td><td>26 分钟会议 33.4 秒总结 · 空白记忆克制率 95.5% (42/44) · 2.74 GB</td></tr>
+            <tr><td><strong>语音转文字</strong></td><td>Qwen3-ASR 1.7B (LokalBot v3) / 0.6B (v1)</td><td>AMI 近场 9.79% · 混读 12.81% WER · 静默幻觉 0 · 2.52 GB / 1.02 GB</td></tr>
+            <tr><td><strong>说话人分离</strong></td><td>Nemotron 3 (Core ML, Mac)</td><td>14.56% DER · 8/8 说话人数全对 · 500× 实时 · 0.20 GB</td></tr>
+            <tr><td><strong>总结与记忆</strong></td><td>Qwen3.5 4B (LokalBot v4, Q4_K_M)</td><td>Memory120 118/120 (98.3%) · 校验拒收 -60.6% · 13.64 秒中位 · 2.74 GB</td></tr>
             <tr><td><strong>混合语义搜索</strong></td><td>SQLite FTS5 + EmbeddingGemma 2 (Q8_0)</td><td>QMSum 232 场会议 39 ms 中位延迟 · 50 MB 内存 · 0.595 R@10 · 0.31 GB</td></tr>
-            <tr><td><strong>全局自动补全</strong></td><td>Gemma 4 E2B (Q6_K) / LFM2.5 1.2B</td><td>56 ms 中位延迟（静置 5 分钟后 49–53 ms）· 0/140 误写 · 3.85 GB / 0.73 GB</td></tr>
+            <tr><td><strong>全局自动补全</strong></td><td>Gemma 4 E2B (LokalBot v4, i1-Q6_K)</td><td>56/56 上下文记忆命中 · 80.0% 邮件精度 · 20.2 ms 边界延迟 · 3.85 GB</td></tr>
           </tbody>
         </table>
       </div>
-      <p class="loc-note">所有实测报告、对比云端 API 数据与局限说明（主要测于 Apple M4 Max 48 GB）均公开在 <a href="/benchmarks">Local Desktop AI Leaderboard</a> 与 <a href="https://github.com/stevyhacker/LokalBot/blob/master/README.zh-CN.md" target="_blank" rel="noopener">中文 README</a>。</p>
+      <p class="loc-note">所有实测报告、对比云端 API 数据与局限说明均公开在 <a href="/benchmarks">Local Desktop AI Leaderboard</a>、<a href="/blog/fine-tuning-four-local-models-swift-validator">v0.14.0 微调技术博客</a> 与 <a href="https://github.com/stevyhacker/LokalBot/blob/master/README.zh-CN.md" target="_blank" rel="noopener">中文 README</a>。</p>
     </section>
 
     <section class="guide-faq" aria-labelledby="faq-title">
-      <p class="eyebrow">FAQ</p>
+      <p class="eyebrow">常见问题</p>
       <h2 id="faq-title">常见问题</h2>
       <div class="faq__list">
         <details class="qa">
           <summary>不挂代理能正常下载本地模型吗？<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>可以。在应用内「设置 → 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。</p>
+          <p>可以。在应用内「设置 > 模型」中将下载源切换为 ModelScope（魔搭）或 HF-Mirror 即可直接高速下载，下载完成后全程断网也能离线录会、转写与总结。</p>
         </details>
         <details class="qa">
           <summary>为什么不会向会议里拉入机器人？<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -268,11 +277,11 @@
         </details>
         <details class="qa">
           <summary>Windows 和 Linux 版本目前可用程度如何？<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力（如 Nemotron 说话人分离）仍在移植中。</p>
+          <p>Windows（x64）与 Linux（.deb / .rpm / AUR / .tar.gz）目前为原生 Rust + GPUI Alpha 版，与 Mac 版共享完全一致的本地 SQLite 数据库格式；Windows 安装包尚未完成代码签名，部分 Mac 专属能力仍在移植中。</p>
         </details>
         <details class="qa">
-          <summary>支持把外部模型或已有 API 接进来吗？<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT 订阅；任何远端服务必须经你明确授权后才会发送上下文。</p>
+          <summary>支持把外部模型或已有订阅接进来吗？<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>支持。除内置本地模型外，你可以按需启用 Ollama、任意 OpenAI 兼容接口或你自己的 Claude / ChatGPT / Gemini / Antigravity 订阅；任何远端服务必须经你明确授权后才会发送上下文。</p>
         </details>
       </div>
     </section>
@@ -296,8 +305,8 @@
         <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
@@ -306,12 +315,14 @@
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
       <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
       <a href="/lokalbot-vs-granola">vs Granola</a>
       <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
@@ -320,12 +331,19 @@
       <a href="/lokalbot-vs-fathom">vs Fathom</a>
       <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
       <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
       <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
       <a href="/lokalbot-vs-meetily">vs Meetily</a>
       <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
       <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
       <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
       <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
       <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
       <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
     </nav>
@@ -335,11 +353,22 @@
       <a href="/guides">Guides</a>
       <a href="/blog">Blog</a>
       <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

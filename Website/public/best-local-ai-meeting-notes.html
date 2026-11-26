@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Best Local & Open-Source AI Meeting Note Takers (2026)</title>
+  <meta name="description" content="Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/best-local-ai-meeting-notes" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/best-local-ai-meeting-notes" />
+  <meta property="og:title" content="Best Local & Open-Source AI Meeting Note Takers (2026)" />
+  <meta property="og:description" content="Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Best local and open-source AI meeting note takers (2026)" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Best Local & Open-Source AI Meeting Note Takers (2026)" />
+  <meta name="twitter:description" content="Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"Article","headline":"Best local and open-source AI meeting note takers (2026)","description":"Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license.","datePublished":"2026-11-26","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/best-local-ai-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@id":"https://www.lokalbot.com/#author"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"isPartOf":{"@id":"https://www.lokalbot.com/#website"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Best local and open-source AI meeting note takers (2026)","item":"https://www.lokalbot.com/best-local-ai-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/best-local-ai-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"What is the best completely free, open-source local AI meeting note taker?","acceptedAnswer":{"@type":"Answer","text":"LokalBot (GPLv3) ships every feature in one free app with no paid tier: bot-free two-track capture, fine-tuned Apache-2.0 local models for transcription and summaries, speaker separation, Obsidian export, and a free read-only local MCP server. Meetily Community Edition (MIT) is also free for core local recording and summaries, with speaker separation and MCP in its paid Pro tier."}},{"@type":"Question","name":"Do local AI meeting note takers work completely offline?","acceptedAnswer":{"@type":"Answer","text":"Yes, once the speech and language models are downloaded. LokalBot, Meetily Community Edition, and MacWhisper transcribe offline. In OpenWhispr, choose on-device models during setup instead of its recommended cloud option. Anarlog transcribes locally on supported Macs and pairs with Ollama or LM Studio for offline summaries."}},{"@type":"Question","name":"How much RAM do I need for local meeting transcription and summaries?","acceptedAnswer":{"@type":"Answer","text":"A 16 GB Apple Silicon Mac or a 16 GB Windows or Linux PC comfortably runs a 0.6B-1.7B speech model (1.0-2.5 GB) and a 4B quantized summary model (~2.7 GB) sequentially. On 8 GB machines, use compact speech models like Qwen3-ASR 0.6B or Parakeet 0.6B and smaller summarizers. Check your exact hardware at lokalbot.com/hardware."}},{"@type":"Question","name":"Which local meeting note takers run on Linux and Windows?","acceptedAnswer":{"@type":"Answer","text":"LokalBot (native Rust + GPUI alpha with .deb, .rpm, Arch, and Windows installer), OpenWhispr (AppImage, .deb, .rpm, Windows), Screenpipe (AppImage, Windows), and Anarlog (beta; cloud or BYO transcription server on Linux/Windows). Meetily ships native Windows binaries and builds from source on Linux. MacWhisper is macOS and iOS only."}},{"@type":"Question","name":"Which local meeting note taker has a free local MCP server for Claude Code or Cursor?","acceptedAnswer":{"@type":"Answer","text":"LokalBot includes a free, read-only local stdio MCP server (lokalbot-cli mcp, off until enabled in Settings) with no cloud sync required. Anarlog and Screenpipe also expose local MCP servers. Meetily gates MCP to Pro, and OpenWhispr's MCP server is hosted on paid plans."}}]},{"@type":"ItemList","@id":"https://www.lokalbot.com/best-local-ai-meeting-notes#apps","name":"Local and open-source AI meeting note takers compared","numberOfItems":6,"itemListElement":[{"@type":"ListItem","position":1,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#lokalbot","item":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"ListItem","position":2,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#meetily","item":{"@type":"SoftwareApplication","name":"Meetily","url":"https://meetily.ai/","operatingSystem":"macOS, Windows, Linux (source)","license":"https://github.com/Zackriya-Solutions/meeting-minutes/blob/main/LICENSE","applicationCategory":"ProductivityApplication"}},{"@type":"ListItem","position":3,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#anarlog","item":{"@type":"SoftwareApplication","name":"Anarlog (formerly Hyprnote)","url":"https://github.com/fastrepl/hyprnote","operatingSystem":"macOS, Windows (beta), Linux (beta), iOS (beta), Android (beta)","license":"https://github.com/fastrepl/hyprnote/blob/main/LICENSE","applicationCategory":"ProductivityApplication"}},{"@type":"ListItem","position":4,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#openwhispr","item":{"@type":"SoftwareApplication","name":"OpenWhispr","url":"https://openwhispr.com/","operatingSystem":"macOS, Windows, Linux, iOS, iPadOS","license":"https://github.com/HeroTools/open-whispr/blob/main/LICENSE","applicationCategory":"ProductivityApplication"}},{"@type":"ListItem","position":5,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#macwhisper","item":{"@type":"SoftwareApplication","name":"MacWhisper","url":"https://goodsnooze.gumroad.com/l/macwhisper","operatingSystem":"macOS, iOS","license":"https://goodsnooze.gumroad.com/l/macwhisper","applicationCategory":"ProductivityApplication"}},{"@type":"ListItem","position":6,"url":"https://www.lokalbot.com/best-local-ai-meeting-notes#screenpipe","item":{"@type":"SoftwareApplication","name":"Screenpipe","url":"https://screenpi.pe/","operatingSystem":"macOS, Windows, Linux","license":"https://github.com/mediar-ai/screenpipe/blob/main/LICENSE.md","applicationCategory":"ProductivityApplication"}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#guide">Skip to guide</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a></div>
+  </header>
+
+  <main class="guide-page" id="guide">
+    <header class="guide-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Compare</span></nav>
+      <p class="eyebrow">Compare</p>
+      <h1>Best local and open-source AI meeting note takers (2026)</h1>
+      <p class="guide-hero__lead">Six bot-free meeting note takers that transcribe on your own computer, compared on default privacy, measured local accuracy, RAM usage, MCP access, and open-source licenses.</p>
+      <p class="guide-byline"><time datetime="2026-11-26">Updated November 26, 2026</time> · 10 min read</p>
+    </header>
+
+    <article class="guide-article">
+<p class="blog-note"><strong>Disclosure:</strong> LokalBot is our app. Every claim about the other five projects comes from their public sites, licenses, documentation, and release notes checked on November 26, 2026. Nobody paid to be listed. If a price, license, or platform detail changes, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue on GitHub</a>.</p>
+
+        <h2 id="short-answer">The short answer</h2>
+        <p>All six tools avoid sending a visible bot into your Zoom, Teams, or Google Meet calls, and all six can transcribe audio on your computer. They split cleanly by scope, license, and how much setup you want:</p>
+        <ul>
+          <li><strong>Best all-in-one local meeting library with free MCP and fine-tuned models:</strong> <a href="#lokalbot">LokalBot</a> (GPLv3, free, Mac plus Windows and Linux in alpha).</li>
+          <li><strong>Best MIT-licensed Windows + Mac meeting recorder if you want commercial Pro support:</strong> <a href="#meetily">Meetily</a>.</li>
+          <li><strong>Best bring-your-own-Ollama meeting notepad:</strong> <a href="#anarlog">Anarlog (formerly Hyprnote)</a>.</li>
+          <li><strong>Best dictation-first cross-platform tool (including Intel Mac and standalone iOS):</strong> <a href="#openwhispr">OpenWhispr</a> (switch off its default cloud option during setup).</li>
+          <li><strong>Best Mac file and subtitle transcriber:</strong> <a href="#macwhisper">MacWhisper</a> (proprietary, one-time Pro license).</li>
+          <li><strong>Best continuous 24/7 screen and audio capture layer for custom agent pipes:</strong> <a href="#screenpipe">Screenpipe</a> (source-available, commercial license for work).</li>
+        </ul>
+
+        <h2 id="at-a-glance">At a glance</h2>
+        <p>Verified November 26, 2026. Check your own machine's RAM and disk budget in the <a href="/hardware">Hardware Calculator</a>, or compare subscription savings in the <a href="/calculator">SaaS AI Cost Calculator</a>.</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table guide-table--wide">
+            <thead><tr><th scope="col">App</th><th scope="col">Default processing</th><th scope="col">Local models & WER</th><th scope="col">Typical disk / RAM</th><th scope="col">Platforms</th><th scope="col">Local MCP</th><th scope="col">License & price</th></tr></thead>
+            <tbody>
+              <tr><th scope="row"><a href="#lokalbot">LokalBot</a></th><td>100% local by default</td><td>Qwen3-ASR 1.7B v3 (9.79% AMI ihm) + Qwen3.5 4B v4</td><td>~4 GB (Win/Linux) to ~9.6 GB (Mac full stack); 50 MB search RAM</td><td>Mac, Win/Linux (alpha), iOS/Android E2EE sync</td><td>Yes, free read-only stdio</td><td>GPLv3, free</td></tr>
+              <tr><th scope="row"><a href="#meetily">Meetily</a></th><td>Local by default</td><td>Whisper / Parakeet + Qwen 3.5 or Ollama</td><td>~2-5 GB models depending on Whisper + LLM size</td><td>Mac, Windows; Linux from source</td><td>Pro only ($10/user/mo)</td><td>MIT (Community); Pro paid</td></tr>
+              <tr><th scope="row"><a href="#anarlog">Anarlog (formerly Hyprnote)</a></th><td>Local ASR on Mac; BYO LLM</td><td>On-device ASR on Mac; Ollama / LM Studio / API keys</td><td>Depends on external LLM runner (Ollama/LM Studio)</td><td>Mac; Win/Linux/mobile beta</td><td>Yes, local CLI & MCP</td><td>MIT (Community); paid hosted</td></tr>
+              <tr><th scope="row"><a href="#openwhispr">OpenWhispr</a></th><td>Setup recommends cloud; local selectable</td><td>Orukeet / Whisper + llama.cpp or cloud</td><td>~1-4 GB when using local models</td><td>Mac (ARM + Intel), Win, Linux, iOS</td><td>Hosted MCP on paid plan; local CLI free</td><td>MIT client; $8-$16/mo cloud</td></tr>
+              <tr><th scope="row"><a href="#macwhisper">MacWhisper</a></th><td>Local speech; BYO AI summaries</td><td>Whisper-family local models; Ollama or API keys</td><td>~1-3 GB speech models</td><td>macOS, iOS</td><td>No</td><td>Proprietary; free / EUR 64 Pro</td></tr>
+              <tr><th scope="row"><a href="#screenpipe">Screenpipe</a></th><td>Local capture; BYO AI</td><td>Local Whisper + OCR; connects to your AI</td><td>~30 GB/month continuous capture storage</td><td>Mac (ARM + Intel), Win, Linux</td><td>Yes, local REST + MCP</td><td>Source-available; $21-$42/mo</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h2 id="measured-models">Measured local WER, RAM, and speed</h2>
+        <p>Cloud meeting apps rarely publish reproducible word error rates. Here are measured local numbers from LokalBot's open <a href="/benchmarks">Local Desktop AI Leaderboard</a> and v0.14.0 Apache-2.0 fine-tunes (primary desktop measurements on Apple M4 Max 48 GB; GPU extraction replay on NVIDIA RTX PRO 6000 Blackwell):</p>
+        <div class="guide-table-wrap">
+          <table class="guide-table guide-table--wide">
+            <thead><tr><th scope="col">Model</th><th scope="col">Role</th><th scope="col">Disk</th><th scope="col">Measured result</th><th scope="col">Speed / RAM</th></tr></thead>
+            <tbody>
+              <tr><th scope="row">Qwen3-ASR 1.7B (LokalBot v3)</th><td>Speech (Mac default)</td><td>2.52 GB Q8_0</td><td>9.79% AMI ihm · 12.81% code-switch · 0 silence ghosts</td><td>31.2x RT on M4 Max</td></tr>
+              <tr><th scope="row">Qwen3-ASR 0.6B (LokalBot v1)</th><td>Speech (compact)</td><td>1.02 GB Q8_0</td><td>10.72% AMI ihm · 20.72% code-switch · 0 silence ghosts</td><td>52.7x RT on M4 Max</td></tr>
+              <tr><th scope="row">Parakeet TDT 0.6B v3</th><td>Speech (fast 25 lang)</td><td>0.63 GB Core ML</td><td>19.2% AMI mixed · 1.65% DE FLEURS</td><td>129x-190x RT on M4 Max</td></tr>
+              <tr><th scope="row">Qwen3.5 4B (LokalBot v4)</th><td>Notes, actions & memory</td><td>2.74 GB Q4_K_M</td><td>118/120 Memory120 · -60.6% Blind21 rejections</td><td>13.64 s median (G4 GPU)</td></tr>
+              <tr><th scope="row">EmbeddingGemma 2</th><td>Hybrid meeting search</td><td>0.31 GB Q8_0</td><td>0.595 R@10 on 232 QMSum meetings</td><td>39 ms p50 · 50 MB RAM</td></tr>
+              <tr><th scope="row">Gemma 4 E2B (LokalBot v4)</th><td>Inline autocomplete</td><td>3.85 GB i1-Q6_K</td><td>56/56 context grounding · 80.0% email precision</td><td>20.2 ms boundary / 56 ms typing</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Migrating existing notes from Granola, Otter.ai, Fireflies, Fathom, or Zoom into plain Markdown? Run our offline browser converter at <a href="/migrate">lokalbot.com/migrate</a> without uploading a file.</p>
+
+        <h2 id="the-apps">The six local meeting note takers, one by one</h2>
+        <p>Each card lists what the app runs locally, where it sends data if anywhere, its exact license, and its tradeoffs.</p>
+
+        <section class="tool" id="lokalbot" aria-labelledby="lokalbot-title">
+          <h3 id="lokalbot-title">LokalBot</h3>
+          <p class="tool-tagline">Our app: bot-free meetings, fine-tuned local models, and workday memory</p>
+          <p>LokalBot is our app. It captures your microphone and meeting app audio on two synchronized tracks without joining the call, then transcribes and summarizes on your computer by default. Version 0.14.0 ships four Apache-2.0 fine-tuned defaults: Qwen3-ASR 1.7B (LokalBot v3) and 0.6B (v1) for speech, Qwen3.5 4B (LokalBot v4) for notes and Personal Context memory, and Gemma 4 E2B (LokalBot v4) for inline autocomplete. Everything sits in one local SQLite library with hybrid search (EmbeddingGemma 2), Obsidian Markdown export, opt-in screen memory, dictation, and a free read-only local MCP server.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Keeping audio, transcripts, summaries, and MCP access strictly on your machine with no account or paid tier.</li>
+            <li>Teams or solo engineers using Mac, Windows, or Linux (alpha) alongside Obsidian, Claude Code, Codex, or Cursor.</li>
+            <li>Bilingual calls and custom dictation vocabulary where stock small speech models drift or hallucinate on silence.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Windows and Linux apps are native Rust + GPUI alphas; the Windows installer is not code-signed yet and a few features (Nemotron diarization, Gmail briefs, Apple Intelligence) remain Mac only.</li>
+            <li>No Intel Mac build (requires Apple Silicon M1+ and macOS 15+, or x64 on Windows and Linux).</li>
+            <li>No hosted team workspace; sharing happens via Markdown export or LAN/Tailscale encrypted sync to your own iOS or Android device.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd><a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GPLv3</a> (Cotabby autocomplete files AGPLv3)</dd>
+            <dt>Default local stack</dt><dd>Qwen3-ASR 1.7B v3 (2.52 GB Mac) or 0.6B v1 (1.02 GB), Qwen3.5 4B v4 (2.74 GB), EmbeddingGemma 2 (0.31 GB), Nemotron 3 (0.20 GB Mac)</dd>
+            <dt>Measured speed / WER</dt><dd>17.6% AMI mixed WER (44x RT), 9.79% AMI ihm / 12.81% code-switch WER (v3), 39 ms hybrid search at 50 MB RAM</dd>
+            <dt>Runs on</dt><dd>macOS 15+ (Apple Silicon), Windows 10/11 x64 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+ (<a href="system-requirements">requirements</a>)</dd>
+            <dt>Price</dt><dd>Free, no account, no minute cap</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download LokalBot <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="/benchmarks">See benchmarks <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="/hardware">Check RAM fit <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="meetily" aria-labelledby="meetily-title">
+          <h3 id="meetily-title">Meetily</h3>
+          <p class="tool-tagline">Popular MIT community notetaker with a paid Pro edition</p>
+          <p>Meetily has one of the largest communities in open-source meeting notes. Its free Community Edition captures microphone and system audio without a bot on macOS and Windows, transcribes locally with Whisper or Parakeet, and summarizes with built-in Qwen 3.5 models, Ollama, or your own API key. Advanced features such as speaker separation, automatic meeting detection, and MCP access live in a separate commercial Pro codebase.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Windows and Mac users who want a mature MIT-licensed local meeting recorder with a large community.</li>
+            <li>Teams that want a self-hosted Enterprise option with commercial support.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Speaker separation, automatic meeting detection, CLI, webhooks, and MCP require Meetily Pro ($10/user/mo annual) on a separate commercial codebase.</li>
+            <li>Linux currently requires building from source; no built-in dictation, screen memory, or autocomplete.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd>MIT (Community Edition); commercial codebase for Pro and Enterprise</dd>
+            <dt>Local models</dt><dd>Whisper or Parakeet for speech; built-in Qwen 3.5, Ollama, or bring-your-own cloud API keys</dd>
+            <dt>Runs on</dt><dd>macOS (Apple Silicon) and Windows; Linux from source</dd>
+            <dt>Price</dt><dd>Community free; Pro $10/user/mo billed annually; Enterprise custom</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="/lokalbot-vs-meetily">LokalBot vs Meetily <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://meetily.ai/" target="_blank" rel="noopener">Meetily site <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="anarlog" aria-labelledby="anarlog-title">
+          <h3 id="anarlog-title">Anarlog (formerly Hyprnote)</h3>
+          <p class="tool-tagline">MIT-licensed meeting notepad with bring-your-own LLM flexibility</p>
+          <p>Anarlog (originally launched as Hyprnote, while hyprnote.com now points to the team's newer Char product) is an open-source, local-first meeting notepad. It focuses tightly on call notes and lets you plug in Ollama, LM Studio, Apple Intelligence, your own API keys, or optional hosted AI and encrypted cloud sync. It stores notes locally in SQLite and plain files and includes a local CLI and MCP server.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Users who already run Ollama or LM Studio and want a clean MIT-licensed notepad dedicated to meetings.</li>
+            <li>People who want optional encrypted cloud sync and hosted sharing alongside local files.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>On-device transcription is limited to supported Macs; Linux and Windows betas rely on a cloud provider or a self-hosted server.</li>
+            <li>No bundled llama.cpp summary model out of the box, and no built-in dictation, day timeline, or autocomplete.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd>MIT (community app); enterprise components commercially licensed</dd>
+            <dt>Local models</dt><dd>On-device ASR on supported Macs; bring-your-own Ollama, LM Studio, Apple Intelligence, or API keys</dd>
+            <dt>Runs on</dt><dd>macOS; Windows, Linux, iOS, and Android in beta</dd>
+            <dt>Price</dt><dd>Free community app; paid hosted AI and team tiers</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="/lokalbot-vs-hyprnote">LokalBot vs Anarlog <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://github.com/fastrepl/hyprnote" target="_blank" rel="noopener">GitHub repository <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="openwhispr" aria-labelledby="openwhispr-title">
+          <h3 id="openwhispr-title">OpenWhispr</h3>
+          <p class="tool-tagline">MIT dictation and bot-free meeting notes across Mac, Windows, Linux, and iOS</p>
+          <p>OpenWhispr pairs system-wide voice dictation with bot-free meeting capture under the MIT license. It ships prebuilt packages for macOS (including Intel Macs), Windows, Linux (AppImage, .deb, .rpm, archive), and iOS. During setup it recommends OpenWhispr Cloud, so privacy-focused users need to explicitly select local speech models (Orukeet or Whisper) and built-in llama.cpp or Ollama summaries.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Heavy dictation users who want per-app tone modes, snippets, translation, and standalone iPhone dictation.</li>
+            <li>Intel Mac users who still want local transcription and meeting capture.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Setup steers toward OpenWhispr Cloud by default; check local settings separately for dictation, meetings, and file uploads.</li>
+            <li>Its MCP server is hosted on paid plans ($8-$16/mo) and requires cloud-synced notes; only the local CLI is free.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd>MIT (client app); hosted cloud and MCP services are proprietary</dd>
+            <dt>Local models</dt><dd>Optional on-device Orukeet (Parakeet fine-tune), Whisper, and built-in llama.cpp or Ollama</dd>
+            <dt>Runs on</dt><dd>macOS 12+ (Apple Silicon and Intel), Windows 10+ x64, Linux x86_64, iOS, iPadOS</dd>
+            <dt>Price</dt><dd>Free (local + limited cloud); Pro $8/mo; Business $16/user/mo</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="/lokalbot-vs-openwhispr">LokalBot vs OpenWhispr <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://openwhispr.com/" target="_blank" rel="noopener">OpenWhispr site <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="macwhisper" aria-labelledby="macwhisper-title">
+          <h3 id="macwhisper-title">MacWhisper</h3>
+          <p class="tool-tagline">Polished Mac specialist for transcribing files and calls locally</p>
+          <p>MacWhisper is the long-standing macOS utility for turning audio and video files into transcripts and subtitles on-device. It also records Zoom, Teams, Webex, and Discord calls without a bot and offers system-wide dictation. Unlike open-source meeting libraries, MacWhisper is proprietary and focuses on file transcription first, using Ollama or cloud API keys you supply for AI summaries.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Journalists, podcasters, and researchers who transcribe pre-recorded audio/video files and export SRT/VTT subtitles.</li>
+            <li>Mac users who prefer a one-time license (Pro EUR 64) for a dedicated transcription utility.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Closed source, macOS only (plus a separate iOS app); no Windows or Linux version.</li>
+            <li>No built-in local meeting library search, cross-meeting Ask, MCP server, or workday memory.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd>Proprietary</dd>
+            <dt>Local models</dt><dd>Local Whisper-family models on macOS; summaries via Ollama or external AI API keys</dd>
+            <dt>Runs on</dt><dd>macOS (separate iOS app)</dd>
+            <dt>Price</dt><dd>Free tier; Pro EUR 64 one-time</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="/lokalbot-vs-macwhisper">LokalBot vs MacWhisper <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://goodsnooze.gumroad.com/l/macwhisper" target="_blank" rel="noopener">MacWhisper page <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <section class="tool" id="screenpipe" aria-labelledby="screenpipe-title">
+          <h3 id="screenpipe-title">Screenpipe</h3>
+          <p class="tool-tagline">Continuous 24/7 local screen and audio capture built as an agent data layer</p>
+          <p>Screenpipe runs on macOS, Windows, and Linux and records your screen and audio continuously, exposing everything through a local REST API, MCP server, and programmable agent pipes. Meeting transcription with speaker labels and summary pipes sit on top of that continuous capture stream. While its code is public, current releases use the source-available Screenpipe Commercial License rather than an OSI open-source license.</p>
+          <p class="tool-label">Good for</p>
+          <ul>
+            <li>Developers building custom local automations and agent pipes over a continuous screen and audio log.</li>
+            <li>Intel Mac, Windows, and Linux users who want always-on capture rather than meeting-first workflows.</li>
+          </ul>
+          <p class="tool-label">Watch out for</p>
+          <ul>
+            <li>Continuous capture uses roughly 30 GB of disk per month and requires a paid commercial license for business use ($21/mo Basic, $42/seat Business).</li>
+            <li>Does not ship a built-in fine-tuned summarization model by default; you connect your own AI provider or local runner.</li>
+          </ul>
+          <dl class="tool-facts">
+            <dt>License</dt><dd>Source-available (Screenpipe Commercial License; paid for business use)</dd>
+            <dt>Local models</dt><dd>Local Whisper transcription and OCR; connects to external or local LLMs for summaries</dd>
+            <dt>Runs on</dt><dd>macOS 13+, Windows 10+, Linux (AppImage)</dd>
+            <dt>Price</dt><dd>Free personal tier (limited history); Basic $21/mo; Business $42/seat/mo</dd>
+          </dl>
+          <div class="tool-links">
+            <a class="btn btn--ghost btn--sm" href="/lokalbot-vs-screenpipe">LokalBot vs Screenpipe <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+            <a class="btn btn--ghost btn--sm" href="https://screenpi.pe/" target="_blank" rel="noopener">Screenpipe site <i class="ph ph-arrow-right" aria-hidden="true"></i></a>
+          </div>
+        </section>
+
+        <h2 id="how-to-pick">What to verify before trusting a local meeting app</h2>
+        <ol>
+          <li><strong>Default network path:</strong> Download the models, turn off Wi-Fi, and run a 60-second test call. Some "local" apps still default to cloud transcription or cloud summaries during onboarding.</li>
+          <li><strong>License boundaries:</strong> Distinguish OSI open source (GPLv3, MIT, Apache-2.0) from source-available commercial licenses or split open-core codebases where speaker labels and MCP move behind a paywall.</li>
+          <li><strong>Hardware fit:</strong> On an 8 GB or 16 GB laptop, a compact speech model (0.6-1.0 GB) plus a 4B quantized summary model (~2.7 GB) leaves room for your browser and video call. Test exact residency in our <a href="/hardware">Hardware Calculator</a>.</li>
+          <li><strong>Consent still applies:</strong> Recording without a bot keeps audio off third-party servers, but legal and workplace recording rules still require telling participants before you record.</li>
+        </ol>
+
+        <h2 id="sources">Sources</h2>
+        <p>Checked on November 26, 2026 against each project's public pages and repositories:</p>
+        <ul class="source-list">
+          <li><strong>Meetily:</strong> <a href="https://meetily.ai/" target="_blank" rel="noopener">meetily.ai/</a>, <a href="https://github.com/Zackriya-Solutions/meeting-minutes" target="_blank" rel="noopener">github.com/Zackriya-Solutions/meeting-minutes</a></li>
+          <li><strong>Anarlog (formerly Hyprnote):</strong> <a href="https://github.com/fastrepl/hyprnote" target="_blank" rel="noopener">github.com/fastrepl/hyprnote</a></li>
+          <li><strong>OpenWhispr:</strong> <a href="https://openwhispr.com/" target="_blank" rel="noopener">openwhispr.com/</a>, <a href="https://github.com/HeroTools/open-whispr" target="_blank" rel="noopener">github.com/HeroTools/open-whispr</a></li>
+          <li><strong>MacWhisper:</strong> <a href="https://goodsnooze.gumroad.com/l/macwhisper" target="_blank" rel="noopener">goodsnooze.gumroad.com/l/macwhisper</a></li>
+          <li><strong>Screenpipe:</strong> <a href="https://screenpi.pe/" target="_blank" rel="noopener">screenpi.pe/</a>, <a href="https://github.com/mediar-ai/screenpipe" target="_blank" rel="noopener">github.com/mediar-ai/screenpipe</a></li>
+        </ul>
+        <p>LokalBot's facts come from its <a href="https://github.com/stevyhacker/lokalbot#readme" target="_blank" rel="noopener">README</a>, <a href="/privacy">privacy policy</a>, and <a href="/benchmarks">open benchmarks</a>. Trademarks belong to their owners.</p>
+    </article>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Questions about this guide</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>What is the best completely free, open-source local AI meeting note taker?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot (GPLv3) ships every feature in one free app with no paid tier: bot-free two-track capture, fine-tuned Apache-2.0 local models for transcription and summaries, speaker separation, Obsidian export, and a free read-only local MCP server. Meetily Community Edition (MIT) is also free for core local recording and summaries, with speaker separation and MCP in its paid Pro tier.</p>
+        </details>
+        <details class="qa">
+          <summary>Do local AI meeting note takers work completely offline?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes, once the speech and language models are downloaded. LokalBot, Meetily Community Edition, and MacWhisper transcribe offline. In OpenWhispr, choose on-device models during setup instead of its recommended cloud option. Anarlog transcribes locally on supported Macs and pairs with Ollama or LM Studio for offline summaries.</p>
+        </details>
+        <details class="qa">
+          <summary>How much RAM do I need for local meeting transcription and summaries?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>A 16 GB Apple Silicon Mac or a 16 GB Windows or Linux PC comfortably runs a 0.6B-1.7B speech model (1.0-2.5 GB) and a 4B quantized summary model (~2.7 GB) sequentially. On 8 GB machines, use compact speech models like Qwen3-ASR 0.6B or Parakeet 0.6B and smaller summarizers. Check your exact hardware at lokalbot.com/hardware.</p>
+        </details>
+        <details class="qa">
+          <summary>Which local meeting note takers run on Linux and Windows?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot (native Rust + GPUI alpha with .deb, .rpm, Arch, and Windows installer), OpenWhispr (AppImage, .deb, .rpm, Windows), Screenpipe (AppImage, Windows), and Anarlog (beta; cloud or BYO transcription server on Linux/Windows). Meetily ships native Windows binaries and builds from source on Linux. MacWhisper is macOS and iOS only.</p>
+        </details>
+        <details class="qa">
+          <summary>Which local meeting note taker has a free local MCP server for Claude Code or Cursor?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot includes a free, read-only local stdio MCP server (lokalbot-cli mcp, off until enabled in Settings) with no cloud sync required. Anarlog and Screenpipe also expose local MCP servers. Meetily gates MCP to Pro, and OpenWhispr's MCP server is hosted on paid plans.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="guide-related" aria-labelledby="related-title">
+      <p class="eyebrow">Keep reading</p>
+      <h2 id="related-title">Related LokalBot guides</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="open-source-ai-meeting-notes">
+          <span class="guide-card__eyebrow">Open source</span>
+          <strong>Open-source AI meeting notes: what to verify</strong>
+          <span>A checklist for evaluating open-source AI meeting notes: license, local processing, network boundaries, storage, builds, and updates.</span>
+        </a>
+        <a class="guide-card" href="granola-otter-alternatives-linux-windows">
+          <span class="guide-card__eyebrow">Linux and Windows</span>
+          <strong>Granola and Otter alternatives for Linux and Windows</strong>
+          <span>Granola has no Linux app and caps free Windows history at 30 days. Compare bot-free local note takers for Linux and Windows: LokalBot, OpenWhispr, Meetily.</span>
+        </a>
+        <a class="guide-card" href="gdpr-local-ai-meeting-notes">
+          <span class="guide-card__eyebrow">GDPR & compliance</span>
+          <strong>GDPR AI meeting notes with zero cloud subprocessors</strong>
+          <span>Run GDPR-friendly AI meeting notes with zero cloud subprocessors, no DPA chain, and no bots. Compare on-device tools and participant consent rules.</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Try it locally</p>
+        <h2 class="section__title">Meeting notes that stay on your computer by default.</h2>
+        <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

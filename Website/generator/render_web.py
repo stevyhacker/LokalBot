@@ -27,7 +27,7 @@ from datetime import date
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from comparison_pages import LOKALBOT_UPDATED, PAGES, VERIFIED  # noqa: E402
+from comparison_pages import LOKALBOT_UPDATED, PAGES, RELATED_GUIDES_BY_SLUG, VERIFIED  # noqa: E402
 from guide_pages import GUIDES, GUIDES_INDEX, REFERENCES  # noqa: E402
 from blog_posts import BLOG_INDEX, POSTS  # noqa: E402
 from locale_pages import LOCALE_PAGES  # noqa: E402
@@ -44,14 +44,90 @@ GUIDES_PUBLISHED = "2026-07-13"
 ORGANIZATION = {
     "@type": "Organization",
     "@id": f"{SITE}/#organization",
-    "name": "LokalBot project",
+    "name": "LokalBot",
     "url": f"{SITE}/",
+    "logo": {"@type": "ImageObject", "url": f"{SITE}/assets/lokalbot-icon-512.png"},
+    "sameAs": [
+        "https://github.com/stevyhacker/LokalBot",
+        "https://huggingface.co/stevyhacker",
+    ],
 }
 
+FOUNDER_AUTHOR = {
+    "@type": "Person",
+    "@id": f"{SITE}/#author",
+    "name": "Stevan Bogosavljević",
+    "url": "https://bogosavljevic.me/",
+    "sameAs": [
+        "https://github.com/stevyhacker",
+        "https://huggingface.co/stevyhacker",
+    ],
+}
+
+WEBSITE_NODE = {
+    "@type": "WebSite",
+    "@id": f"{SITE}/#website",
+    "url": f"{SITE}/",
+    "name": "LokalBot",
+    "publisher": {"@id": f"{SITE}/#organization"},
+}
+
+SOFTWARE_NODE = {
+    "@type": "SoftwareApplication",
+    "@id": f"{SITE}/#software",
+    "name": "LokalBot",
+    "url": f"{SITE}/",
+    "operatingSystem": "macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+",
+    "applicationCategory": "ProductivityApplication",
+    "softwareVersion": "0.14.0",
+    "license": "https://github.com/stevyhacker/LokalBot/blob/master/LICENSE",
+    "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD"},
+    "author": {"@id": f"{SITE}/#author"},
+}
+
+BASE_ENTITIES = [WEBSITE_NODE, ORGANIZATION, FOUNDER_AUTHOR, SOFTWARE_NODE]
+
+BLOG_STUB = {
+    "@type": "Blog",
+    "@id": BLOG_ID,
+    "url": f"{SITE}/blog",
+    "name": "LokalBot Blog",
+    "publisher": {"@id": f"{SITE}/#organization"},
+    "isPartOf": {"@id": f"{SITE}/#website"},
+}
+
+INTERACTIVE_TOOLS = [
+    (
+        "wrapped",
+        "CLI + Browser",
+        "Agent Wrapped 2026",
+        "Local, zero-upload year in review for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI (npx lokalbot).",
+    ),
+    (
+        "migrate",
+        "Offline converter",
+        "Meeting Migrator",
+        "Convert Granola, Otter.ai, Fireflies, Fathom, Zoom, Teams, Screenpipe, Krisp, Tactiq, and Wispr Flow exports to Obsidian Markdown locally.",
+    ),
+    (
+        "hardware",
+        "RAM calculator",
+        "Local AI Hardware & RAM Calculator",
+        "Estimate exact disk downloads, resident RAM, KV-cache, GPU offload, and memory caps for Mac, Windows, and Linux.",
+    ),
+    (
+        "calculator",
+        "Cost calculator",
+        "SaaS AI Cost & Cloud Audio Calculator",
+        "Compare 1-year and 3-year SaaS meeting and dictation costs plus uploaded audio hours against $0 and 0 bytes on-device.",
+    ),
+]
+
 STATIC_PAGES = {
-    "": "2026-11-21",
-    "wrapped": "2026-11-20",
-    "migrate": "2026-11-20",
+    "": "2026-11-26",
+    "wrapped": "2026-11-26",
+    "migrate": "2026-11-26",
+    "calculator": "2026-11-26",
     "privacy": "2026-11-20",
     "terms": "2026-11-20",
     "support": "2026-11-20",
@@ -134,10 +210,10 @@ def fill_template(template: str, replacements: dict[str, str], label: str) -> st
 
 
 def render_footer(partial: str) -> str:
-    """The shared footer, with a Compare link for every comparison page."""
+    """The shared footer, with Compare links and all locale links."""
 
     roundups = [
-        f'      <a href="/{guide["slug"]}">Best open-source AI assistants</a>'
+        f'      <a href="/{guide["slug"]}">{guide.get("footer_label", guide["h1"])}</a>'
         for guide in GUIDES
         if guide.get("kind") == "compare"
     ]
@@ -145,7 +221,18 @@ def render_footer(partial: str) -> str:
         roundups
         + [f'      <a href="/{page["slug"]}">{page["h1"].removeprefix("LokalBot ")}</a>' for page in PAGES]
     )
-    return fill_template(partial, {"{{COMPARE_LINKS}}": links}, "Footer").rstrip("\n")
+    languages = " &middot; ".join(
+        ['<a href="/" hreflang="en">English</a>']
+        + [
+            f'<a href="/{loc["slug"]}" hreflang="{loc["hreflang"]}">{html.escape(loc["label"])}</a>'
+            for loc in LOCALE_PAGES
+        ]
+    )
+    return fill_template(
+        partial,
+        {"{{COMPARE_LINKS}}": links, "{{LANGUAGE_LINKS}}": languages},
+        "Footer",
+    ).rstrip("\n")
 
 
 def render_table_rows(rows: list[tuple[str, str, str]]) -> str:
@@ -253,11 +340,20 @@ def render_compact_cards(cards: list[tuple[str, str, str, str, str]]) -> str:
     )
 
 
+def render_compare_related_guides(page: dict) -> str:
+    slugs = RELATED_GUIDES_BY_SLUG.get(
+        page["slug"],
+        ["best-local-ai-meeting-notes", "open-source-ai-meeting-notes", "gdpr-local-ai-meeting-notes"],
+    )
+    return render_related_links({"related": slugs})
+
+
 def guide_structured_data(page: dict) -> str:
     url = f"{SITE}/{page['slug']}"
     extra = [page["item_list"]] if page.get("item_list") else []
     return json_ld(
         [
+            *BASE_ENTITIES,
             {
                 "@type": "Article",
                 "headline": page["h1"],
@@ -266,8 +362,9 @@ def guide_structured_data(page: dict) -> str:
                 "dateModified": page.get("updated", GUIDES_PUBLISHED),
                 "mainEntityOfPage": url,
                 "image": OG_IMAGE,
-                "author": ORGANIZATION,
-                "publisher": ORGANIZATION,
+                "author": {"@id": f"{SITE}/#author"},
+                "publisher": {"@id": f"{SITE}/#organization"},
+                "isPartOf": {"@id": f"{SITE}/#website"},
             },
             breadcrumb_list([("Home", f"{SITE}/"), ("Guides", f"{SITE}/guides"), (page["h1"], url)]),
             faq_page(page["faq"], url),
@@ -280,6 +377,7 @@ def comparison_structured_data(page: dict) -> str:
     url = f"{SITE}/{page['slug']}"
     return json_ld(
         [
+            *BASE_ENTITIES,
             {
                 "@type": "Article",
                 "headline": page["h1"],
@@ -287,9 +385,10 @@ def comparison_structured_data(page: dict) -> str:
                 "datePublished": page["published"],
                 "dateModified": modified(page),
                 "mainEntityOfPage": url,
-                "image": OG_IMAGE,
-                "author": ORGANIZATION,
-                "publisher": ORGANIZATION,
+                "image": f"{SITE}/assets/compare/og/{page['slug']}.png",
+                "author": {"@id": f"{SITE}/#author"},
+                "publisher": {"@id": f"{SITE}/#organization"},
+                "isPartOf": {"@id": f"{SITE}/#website"},
                 "about": [
                     {"@id": f"{SITE}/#software"},
                     {"@type": "SoftwareApplication", "name": page["competitor_name"]},
@@ -306,6 +405,7 @@ def guides_index_updated() -> str:
         [modified(page) for page in PAGES]
         + [guide.get("updated", GUIDES_PUBLISHED) for guide in GUIDES]
         + [reference["updated"] for reference in REFERENCES]
+        + [loc["updated"] for loc in LOCALE_PAGES]
     )
 
 
@@ -316,10 +416,13 @@ def guides_index_structured_data() -> str:
         + [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind", "guide") == "guide"]
         + [(guide["slug"], guide["h1"]) for guide in GUIDES if guide.get("kind") == "compare"]
         + [(page["slug"], page["h1"]) for page in PAGES]
+        + [(slug, heading) for slug, _, heading, _ in INTERACTIVE_TOOLS]
         + [(reference["slug"], reference["h1"]) for reference in REFERENCES]
+        + [(loc["slug"], f"LokalBot ({loc['label']})") for loc in LOCALE_PAGES]
     )
     return json_ld(
         [
+            *BASE_ENTITIES,
             {
                 "@type": "CollectionPage",
                 "@id": f"{url}#page",
@@ -378,8 +481,23 @@ def render_guides_index(template: str, footer: str) -> str:
             ]
             + [(page["slug"], "Compare", page["h1"], page["description"], search_terms(page)) for page in PAGES]
         ),
+        "{{TOOL_CARDS}}": render_compact_cards(
+            [(slug, eyebrow, heading, description, "") for slug, eyebrow, heading, description in INTERACTIVE_TOOLS]
+        ),
         "{{REFERENCE_CARDS}}": render_compact_cards(
             [(ref["slug"], ref["eyebrow"], ref["h1"], ref["description"], "") for ref in REFERENCES]
+        ),
+        "{{LANGUAGE_CARDS}}": render_compact_cards(
+            [
+                (
+                    loc["slug"],
+                    loc["lang"],
+                    f"LokalBot ({loc['label']})",
+                    loc["description"],
+                    f' data-terms="{html.escape(loc["label"] + " " + loc["title"], quote=True)}"',
+                )
+                for loc in LOCALE_PAGES
+            ]
         ),
         "{{FOOTER}}": footer,
     }
@@ -427,8 +545,8 @@ def blog_posting(post: dict) -> dict:
         "url": url,
         "mainEntityOfPage": url,
         "image": f"{SITE}/assets/blog/og/{post['slug']}.png",
-        "author": ORGANIZATION,
-        "publisher": ORGANIZATION,
+        "author": {"@id": f"{SITE}/#author"},
+        "publisher": {"@id": f"{SITE}/#organization"},
         "isPartOf": {"@id": BLOG_ID},
     }
 
@@ -437,6 +555,8 @@ def post_structured_data(post: dict) -> str:
     url = f"{SITE}/blog/{post['slug']}"
     return json_ld(
         [
+            *BASE_ENTITIES,
+            BLOG_STUB,
             blog_posting(post),
             breadcrumb_list([("Home", f"{SITE}/"), ("Blog", f"{SITE}/blog"), (post["h1"], url)]),
         ]
@@ -447,6 +567,7 @@ def blog_index_structured_data() -> str:
     url = f"{SITE}/blog"
     return json_ld(
         [
+            *BASE_ENTITIES,
             {
                 "@type": "Blog",
                 "@id": BLOG_ID,
@@ -462,6 +583,7 @@ def blog_index_structured_data() -> str:
                         "headline": post["h1"],
                         "url": f"{SITE}/blog/{post['slug']}",
                         "datePublished": post["published"],
+                        "author": {"@id": f"{SITE}/#author"},
                     }
                     for post in POSTS
                 ],
@@ -488,7 +610,7 @@ def render_blog_post(template: str, post: dict, footer: str) -> str:
     others = [other for other in POSTS if other["slug"] != post["slug"]][:3]
     replacements = {
         "{{SLUG}}": post["slug"],
-        "{{TITLE}}": f"{post['title']} — LokalBot Blog",
+        "{{TITLE}}": f"{post['title']} | LokalBot",
         "{{META_DESCRIPTION}}": post["description"],
         "{{PUBLISHED_DATE}}": post["published"],
         "{{UPDATED_DATE}}": post_updated(post),
@@ -554,7 +676,7 @@ def render_feed() -> str:
         f'  <link href="{SITE}/blog" rel="alternate" type="text/html" />\n'
         f"  <id>{SITE}/blog</id>\n"
         f"  <updated>{blog_updated()}T00:00:00Z</updated>\n"
-        f"  <author><name>LokalBot project</name><uri>{SITE}/</uri></author>\n"
+        f"  <author><name>Stevan Bogosavljević</name><uri>https://github.com/stevyhacker</uri></author>\n"
         f"  <icon>{SITE}/assets/lokalbot-icon-512.png</icon>\n"
         + "\n".join(entries)
         + "\n</feed>\n"
@@ -609,7 +731,7 @@ def render_llms_full(web_dir: Path) -> str:
                     cells = [row["model"], row.get("status", ""), rt]
                     for col in cols:
                         cell = (row.get("values") or {}).get(col["key"])
-                        cells.append(cell["display"] if cell else "—")
+                        cells.append(cell["display"] if cell else "-")
                     parts.append("| " + " | ".join(cells) + " |")
                 parts.append("")
                 parts.append(f"Note: {suite['note']}")
@@ -670,6 +792,7 @@ def render_lang_switcher(current_slug: str) -> str:
 def locale_structured_data(loc: dict) -> str:
     url = f"{SITE}/{loc['slug']}"
     graph = [
+        *BASE_ENTITIES,
         {
             "@type": "WebPage",
             "@id": f"{url}#page",
@@ -677,13 +800,13 @@ def locale_structured_data(loc: dict) -> str:
             "name": loc["title"],
             "description": loc["description"],
             "inLanguage": loc["lang"],
-            "datePublished": "2026-11-20",
+            "datePublished": "2026-11-20" if loc["slug"] in ("de", "zh", "ja", "ru") else "2026-11-26",
             "dateModified": loc["updated"],
             "isPartOf": {"@id": f"{SITE}/#website"},
             "about": {"@id": f"{SITE}/#software"},
             "publisher": {"@id": f"{SITE}/#organization"},
         },
-        breadcrumb_list([("Home", f"{SITE}/"), (loc["label"], url)]),
+        breadcrumb_list([(loc["home_label"], f"{SITE}/"), (loc["label"], url)]),
         faq_page(loc["faq"], url),
     ]
     return json_ld(graph)
@@ -710,6 +833,16 @@ def render_locale_page(template: str, loc: dict, footer: str) -> str:
         "{{META_DESCRIPTION}}": html.escape(loc["description"]),
         "{{OG_TITLE}}": html.escape(loc["og_title"]),
         "{{OG_DESCRIPTION}}": html.escape(loc["og_description"]),
+        "{{OG_IMAGE_ALT}}": html.escape(loc["og_image_alt"]),
+        "{{SKIP_LINK}}": html.escape(loc["skip_link"]),
+        "{{HOME_ARIA}}": html.escape(loc["home_aria"]),
+        "{{NAV_ARIA}}": html.escape(loc["nav_aria"]),
+        "{{NAV_FEATURES}}": html.escape(loc["nav_features"]),
+        "{{NAV_GUIDES}}": html.escape(loc["nav_guides"]),
+        "{{NAV_BENCHMARKS}}": html.escape(loc["nav_benchmarks"]),
+        "{{NAV_BLOG}}": html.escape(loc["nav_blog"]),
+        "{{LANGS_ARIA}}": html.escape(loc["langs_aria"]),
+        "{{FAQ_EYEBROW}}": html.escape(loc["faq_eyebrow"]),
         "{{HREFLANG_LINKS}}": render_hreflang_links(),
         "{{STRUCTURED_DATA}}": locale_structured_data(loc),
         "{{DOWNLOAD_BTN}}": html.escape(loc["download_btn"]),
@@ -803,6 +936,7 @@ def render_page(template: str, page: dict, footer: str) -> str:
         "{{LOKAL_PICK_ITEMS}}": render_pick_items(page["lokal_pick_items"]),
         "{{FAQ_ITEMS}}": render_faq_items(page["faq"]),
         "{{CTA_TITLE}}": page["cta_title"],
+        "{{RELATED_GUIDES}}": render_compare_related_guides(page),
         "{{MORE_LINKS}}": render_more_links(page),
         "{{DISCLAIMER}}": page["disclaimer"],
         "{{FOOTER}}": footer,
@@ -837,7 +971,13 @@ def main() -> int:
         raise SystemExit(f"Output directory does not exist: {web_dir}")
 
     missing_images = [
-        post["slug"] for post in POSTS if not (web_dir / "assets" / "blog" / "og" / f"{post['slug']}.png").is_file()
+        f"blog/{post['slug']}"
+        for post in POSTS
+        if not (web_dir / "assets" / "blog" / "og" / f"{post['slug']}.png").is_file()
+    ] + [
+        f"compare/{page['slug']}"
+        for page in PAGES
+        if not (web_dir / "assets" / "compare" / "og" / f"{page['slug']}.png").is_file()
     ]
     if missing_images:
         raise SystemExit(
