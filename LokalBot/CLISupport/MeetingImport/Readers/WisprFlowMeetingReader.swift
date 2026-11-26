@@ -79,8 +79,12 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
     }
 
     static func lines(_ url: URL, speakers: [Int: Speaker]) throws -> (lines: [ExternalMeeting.Line], badRows: Int) {
-        guard FileManager.default.fileExists(atPath: url.path) else { return ([], 0) }
-        let text = try String(contentsOf: url, encoding: .utf8)
+        let text: String
+        do {
+            text = try String(contentsOf: url, encoding: .utf8)
+        } catch where isFileNotFound(error) {
+            return ([], 0)
+        }
         var lines: [ExternalMeeting.Line] = []
         var badRows = 0
         for row in text.split(whereSeparator: \.isNewline) {
@@ -105,6 +109,18 @@ enum WisprFlowMeetingReader: ExternalMeetingReader {
             }
         }
         return (lines, badRows)
+    }
+
+    private static func isFileNotFound(_ error: Error) -> Bool {
+        let nsError = error as NSError
+        switch nsError.domain {
+        case NSCocoaErrorDomain:
+            return nsError.code == NSFileReadNoSuchFileError || nsError.code == NSFileNoSuchFileError
+        case NSPOSIXErrorDomain:
+            return nsError.code == Int(ENOENT)
+        default:
+            return false
+        }
     }
 
     static let assignmentSources = ["user", "consensus", "dom", "mic", "llm"]
