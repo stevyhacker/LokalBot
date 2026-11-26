@@ -8,6 +8,7 @@ mod naming;
 mod page_search;
 mod playback;
 mod presentation;
+pub(crate) mod recap;
 mod speaker_identity;
 mod speaker_suggestions;
 mod spoken;
@@ -134,6 +135,7 @@ pub struct MeetingsPage {
     tick: Option<Task<()>>,
     playback_memory: std::collections::HashMap<Uuid, (f64, f32)>,
     exporting_audio: bool,
+    include_recap_attribution: bool,
     unmatched_expanded: bool,
     screen_thumbnails: Rc<std::cell::RefCell<std::collections::HashMap<i64, Option<ScreenImage>>>>,
     screen_thumbnails_for: Option<Uuid>,
@@ -242,6 +244,8 @@ impl MeetingsPage {
             },
         ));
 
+        let include_recap_attribution =
+            recap::load_include_attribution(data.read(cx).library.paths().root());
         let mut this = Self {
             data,
             list_focus: cx.focus_handle(),
@@ -307,6 +311,7 @@ impl MeetingsPage {
             tick: None,
             playback_memory: Default::default(),
             exporting_audio: false,
+            include_recap_attribution,
             unmatched_expanded: false,
             screen_thumbnails: Default::default(),
             screen_thumbnails_for: None,
@@ -353,6 +358,8 @@ impl MeetingsPage {
         let revision = self.data.read(cx).revision;
         if revision != self.loaded_revision {
             self.loaded_revision = revision;
+            self.include_recap_attribution =
+                recap::load_include_attribution(self.data.read(cx).library.paths().root());
             self.ensure_selection(window, cx);
             self.load_doc(window, cx);
         }
@@ -926,6 +933,56 @@ impl MeetingsPage {
             .update(cx, |data, cx| data.show_message(message, cx));
     }
 
+    fn copy_recap(&mut self, cx: &mut Context<Self>) {
+        let Some(doc) = self.doc.clone() else { return };
+        let root = self.data.read(cx).library.paths().root().to_path_buf();
+        self.include_recap_attribution = recap::load_include_attribution(&root);
+        let text = recap::slack_or_email_recap(&doc, self.include_recap_attribution);
+        self.copy_text(
+            text,
+            lokalbot_i18n::tr("Recap copied for Slack / Email."),
+            cx,
+        );
+    }
+
+    fn toggle_recap_attribution(&mut self, cx: &mut Context<Self>) {
+        self.include_recap_attribution = !self.include_recap_attribution;
+        let root = self.data.read(cx).library.paths().root().to_path_buf();
+        recap::save_include_attribution(&root, self.include_recap_attribution);
+        cx.notify();
+    }
+
+    fn export_html(&mut self, cx: &mut Context<Self>) {
+        let Some(doc) = self.doc.clone() else { return };
+        let html = recap::static_html(&doc);
+        let name = format!(
+            "{}.html",
+            lokalbot_core::ids::slugify(&doc.meeting.display_title())
+        );
+        let directory = directories_home();
+        let receiver = cx.prompt_for_new_path(&directory, Some(&name));
+        let data = self.data.clone();
+        cx.spawn(async move |_, cx| {
+            let Ok(Ok(Some(path))) = receiver.await else {
+                return;
+            };
+            let result = cx
+                .background_spawn(async move { std::fs::write(&path, html) })
+                .await;
+            data.update(cx, |data, cx| match result {
+                Ok(()) => data.show_message(lokalbot_i18n::tr("Meeting recap exported as HTML."), cx),
+                Err(err) => data.show_error(
+                    lokalbot_i18n::format(
+                        "Meeting export failed: {err}",
+                        &[("err", format!("{}", err))],
+                    ),
+                    cx,
+                ),
+            });
+        })
+        .detach();
+    }
+
     fn export_markdown(&mut self, cx: &mut Context<Self>) {
         let Some(doc) = self.doc.clone() else { return };
         let markdown = model::meeting_markdown(&doc);
@@ -1143,6 +1200,11 @@ impl Page for MeetingsPage {
         });
         let has_transcript = self.doc.as_ref().is_some_and(|d| d.has_transcript());
         let has_notes = has_summary || has_transcript;
+        let has_recap_content = self
+            .doc
+            .as_ref()
+            .is_some_and(|d| d.has_summary_content() || d.has_transcript());
+        let include_attribution = self.include_recap_attribution;
         let handoff_data = self.data.clone();
         let handoff_meeting = self.doc.as_ref().map(|d| d.meeting.clone());
         let busy = self
@@ -1192,6 +1254,28 @@ impl Page for MeetingsPage {
                             })
                         };
                         let menu = menu
+                            .item(
+                                item(
+                                    lokalbot_i18n::tr("Copy recap for Slack / Email"),
+                                    |this, cx| this.copy_recap(cx),
+                                )
+                                .disabled(!has_recap_content),
+                            )
+                            .item(
+                                PopupMenuItem::new(lokalbot_i18n::tr(
+                                    recap::ATTRIBUTION_TOGGLE_LABEL,
+                                ))
+                                .checked(include_attribution)
+                                .on_click({
+                                    let p = p.clone();
+                                    move |_, _, cx| {
+                                        let _ = p.update(cx, |this, cx| {
+                                            this.toggle_recap_attribution(cx)
+                                        });
+                                    }
+                                }),
+                            )
+                            .separator()
                             .item(item(lokalbot_i18n::tr("Copy as Markdown"), |this, cx| {
                                 if let Some(doc) = this.doc.clone() {
                                     this.copy_text(
@@ -1205,6 +1289,12 @@ impl Page for MeetingsPage {
                                 lokalbot_i18n::tr("Export as Markdown…"),
                                 |this, cx| this.export_markdown(cx),
                             ))
+                            .item(
+                                item(lokalbot_i18n::tr("Export as HTML…"), |this, cx| {
+                                    this.export_html(cx)
+                                })
+                                .disabled(!has_recap_content),
+                            )
                             .separator()
                             .item(
                                 item(lokalbot_i18n::tr("Copy summary"), |this, cx| {

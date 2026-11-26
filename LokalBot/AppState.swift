@@ -631,7 +631,7 @@ final class AppState: ObservableObject {
         return meetings.first { $0.id == id }
     }
 
-    let storage = StorageManager()
+    let storage: StorageManager
     private(set) lazy var outcomeIndex = OutcomeIndex(
         storage: storage,
         mutateEvidence: { [weak self] meetings, mutation in
@@ -1143,6 +1143,9 @@ final class AppState: ObservableObject {
         },
         personalModel: personalModel,
         askMemoryEnabled: { [weak self] in self?.settings.askMemoryEnabled ?? false },
+        precomputedAnswer: { [weak self] query, meetingIDs in
+            self?.precomputedSampleAnswer(query: query, meetingIDs: meetingIDs)
+        },
         deferHistoryLoading: true)
 
     private var companionHost: CompanionHost?
@@ -1330,7 +1333,8 @@ final class AppState: ObservableObject {
         WindowAccess.shared.open("main")
     }
 
-    init() {
+    init(storage: StorageManager = StorageManager()) {
+        self.storage = storage
         AppLog.bootstrap()
         settings = settingsStore.current
         AppAppearance.apply(textSize: settings.textSize)
@@ -2014,6 +2018,25 @@ final class AppState: ObservableObject {
             return
         }
         let recording = SampleMeeting.recording(for: settings.appLanguage.localizationIdentifier())
+        let usePrecomputed = !modelRoles.snapshot.meetingReady
+        if usePrecomputed {
+            do {
+                let meeting = try SampleMeeting.hydratePrecomputed(
+                    recording: recording, storage: storage)
+                meetings.append(meeting)
+                meetings.sort { $0.startedAt > $1.startedAt }
+                selectedMeetingIDs = [meeting.id]
+                navSection = .meetings
+                outcomeIndex.refresh(meeting: meeting)
+                reindexSearchInBackground(meeting)
+                lokalbotLog("sample meeting hydrated precomputed meeting=\(meeting.id)")
+                return
+            } catch {
+                lokalbotLog("sample meeting precomputed hydration failed: \(error.localizedDescription)")
+                lastError = error.localizedDescription
+                return
+            }
+        }
         guard !importingRecordings.contains(recording.title) else { return }
         guard let url = SampleMeeting.audioURL(for: recording) else {
             lastError = "The sample meeting is missing from this copy of LokalBot."

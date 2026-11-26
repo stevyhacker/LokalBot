@@ -1,5 +1,6 @@
 use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariants as _};
+use gpui_kit::component::checkbox::Checkbox;
 use gpui_kit::component::input::{Input, InputState, Textarea, TextareaState};
 use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
@@ -21,6 +22,7 @@ pub(crate) struct FollowUpSheet {
     subject: Entity<InputState>,
     body: Entity<TextareaState>,
     requested: bool,
+    include_attribution: bool,
     status: Option<SharedString>,
     error: Option<SharedString>,
     _subscriptions: Vec<Subscription>,
@@ -86,6 +88,8 @@ impl FollowUpSheet {
                 &data.read(cx).follow_up,
                 Some((id, FollowUpWriting::Writing)) if *id == meeting.id
             );
+            let include_attribution =
+                super::recap::load_include_attribution(data.read(cx).library.paths().root());
             Self {
                 data,
                 meeting,
@@ -94,6 +98,7 @@ impl FollowUpSheet {
                 subject,
                 body,
                 requested,
+                include_attribution,
                 status: None,
                 error: None,
                 _subscriptions: subscriptions,
@@ -177,12 +182,20 @@ impl FollowUpSheet {
         cx.notify();
     }
 
+    fn set_include_attribution(&mut self, include: bool, cx: &mut Context<Self>) {
+        self.include_attribution = include;
+        let root = self.data.read(cx).library.paths().root().to_path_buf();
+        super::recap::save_include_attribution(&root, include);
+        self.data.update(cx, |data, cx| data.mark_library_changed(cx));
+        cx.notify();
+    }
+
     fn copy(&mut self, cx: &mut Context<Self>) {
         let subject = self.subject.read(cx).value();
         let body = self.body.read(cx).value();
-        cx.write_to_clipboard(ClipboardItem::new_string(format!(
-            "Subject: {subject}\n\n{body}"
-        )));
+        cx.write_to_clipboard(ClipboardItem::new_string(
+            super::recap::follow_up_copy_text(&subject, &body, self.include_attribution),
+        ));
         self.status = Some(lokalbot_i18n::tr("Copied.").into());
         cx.notify();
     }
@@ -261,6 +274,19 @@ impl Render for FollowUpSheet {
                         .child(div().flex_1().child(Input::new(&self.subject))),
                 )
                 .child(ui::grouped_surface(cx).p(px(6.)).child(Textarea::new(&self.body).large().appearance(false).h(px(260.))))
+                .child(
+                    h_flex()
+                        .gap(px(8.))
+                        .items_center()
+                        .child(
+                            Checkbox::new("follow-up-include-attribution")
+                                .checked(self.include_attribution)
+                                .label(lokalbot_i18n::tr(super::recap::ATTRIBUTION_TOGGLE_LABEL))
+                                .on_click(cx.listener(|this, on: &bool, _, cx| {
+                                    this.set_include_attribution(*on, cx);
+                                })),
+                        ),
+                )
                 .child(
                     h_flex()
                         .gap(px(8.))

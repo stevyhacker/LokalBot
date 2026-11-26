@@ -66,9 +66,15 @@ struct OnboardingView: View {
                 Spacer(minLength: 8)
                 continueButton
             case .access:
-                Text("\(access.allowedCount) of \(access.rows.count) allowed")
-                    .font(.scaled(.callout)).workspaceSupportingForeground()
-                    .accessibilityIdentifier("onboarding.allowedCount")
+                Group {
+                    if access.rows.isEmpty {
+                        Text("No permissions needed")
+                    } else {
+                        Text("\(access.allowedCount) of \(access.rows.count) allowed")
+                    }
+                }
+                .font(.scaled(.callout)).workspaceSupportingForeground()
+                .accessibilityIdentifier("onboarding.allowedCount")
                 Spacer(minLength: 8)
                 backButton
                 continueButton

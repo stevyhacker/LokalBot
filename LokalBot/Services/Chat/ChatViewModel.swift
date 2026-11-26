@@ -416,12 +416,18 @@ final class ChatViewModel: ObservableObject {
         "Search my meetings for action items",
     ]
 
+    struct PrecomputedAnswer: Equatable, Sendable {
+        var answer: String
+        var meetingTitle: String
+    }
+
     private let makeEngine: () async throws -> TextEngine
     private let tools: ChatToolRunner
     private let store: ChatStore
     private let workMemory: () -> String
     let personalModel: PersonalModelController?
     private let askMemoryEnabled: () -> Bool
+    private let precomputedAnswer: (String, Set<UUID>?) -> PrecomputedAnswer?
     private var task: Task<Void, Never>?
     private struct RetryPayload {
         var prompt: String
@@ -444,6 +450,7 @@ final class ChatViewModel: ObservableObject {
          store: ChatStore, workMemory: @escaping () -> String = { "" },
          personalModel: PersonalModelController? = nil,
          askMemoryEnabled: @escaping () -> Bool = { true },
+         precomputedAnswer: @escaping (String, Set<UUID>?) -> PrecomputedAnswer? = { _, _ in nil },
          deferHistoryLoading: Bool = false) {
         self.makeEngine = makeEngine
         self.tools = tools
@@ -451,6 +458,7 @@ final class ChatViewModel: ObservableObject {
         self.workMemory = workMemory
         self.personalModel = personalModel
         self.askMemoryEnabled = askMemoryEnabled
+        self.precomputedAnswer = precomputedAnswer
         let initialLoad = deferHistoryLoading ? ChatStore.LoadReport() : store.loadAllReport()
         let saved = initialLoad.conversations
         if let latest = saved.first {
@@ -517,6 +525,29 @@ final class ChatViewModel: ObservableObject {
         }
 
         discardRetryPayloads(for: messages)
+
+        if attachedScreenIDs.isEmpty, screenSnapshotIDs == nil,
+           let precomputed = precomputedAnswer(visibleText, meetingIDs) {
+            let orderedScopes = AskSourceScope.allCases.filter(sourceScopes.contains)
+            let sentAt = Date()
+            messages.append(ChatMessage(
+                role: .user, text: visibleText, createdAt: sentAt,
+                sourceScopes: orderedScopes, dayScopeKey: dayScopeKey,
+                attachedScreenDayKeys: attachedScreenDayKeys,
+                meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs))
+            messages.append(ChatMessage(
+                role: .assistant, text: precomputed.answer, createdAt: sentAt,
+                activity: [.init(
+                    tool: "get_meeting",
+                    icon: Self.icon(for: "get_meeting"),
+                    text: Self.finishLabel("get_meeting", summary: precomputed.meetingTitle),
+                    done: true)],
+                sourceScopes: orderedScopes, dayScopeKey: dayScopeKey,
+                attachedScreenDayKeys: attachedScreenDayKeys,
+                meetingIDs: meetingIDs, screenSnapshotIDs: screenSnapshotIDs))
+            persist()
+            return
+        }
 
         let history = Self.finalizedHistoryForKey(
             from: messages.filter { message in

@@ -99,12 +99,8 @@ extension AppControlHandler {
         capability: HardwareCapability = HardwareCapabilityProbe.current()
     ) -> (preset: ModelStackPreset, reason: String) {
         let gigabytes = Double(capability.physicalMemoryBytes) / 1_073_741_824
-        let preset = ModelStackPreset.recommended
-        let stackBytes = [preset.mainModelID, preset.autocompleteModelID]
-            .compactMap { ModelCatalog.entry(id: $0)?.sizeBytes }
-            .reduce(Int64(1_073_741_824), +)
         let memory = "\(Int(gigabytes.rounded())) GB"
-        if ModelFit.evaluate(modelSizeGB: Double(stackBytes) / 1_073_741_824, capability: capability) == .comfortable {
+        if ModelStackPreset.defaultPreset(for: capability) == .recommended {
             return (.recommended, "This Mac has \(memory) of memory, enough for the balanced models.")
         }
         return (.lightweight, "This Mac has \(memory) of memory; the lightweight models leave room for other apps.")

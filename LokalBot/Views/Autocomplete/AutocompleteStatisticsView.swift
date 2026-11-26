@@ -1,5 +1,7 @@
+import AppKit
 import Charts
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct AutocompleteStatisticsView: View {
     @EnvironmentObject var app: AppState
@@ -8,6 +10,8 @@ struct AutocompleteStatisticsView: View {
     @State private var range: CotypingUsageRange = .month
     @State private var chartMetric: ChartMetric = .words
     @State private var confirmingClear = false
+    @State private var statsNotice: String?
+    @State private var statsError: String?
 
     init(store: CotypingStatsStore = .shared) {
         self.store = store
@@ -48,6 +52,7 @@ struct AutocompleteStatisticsView: View {
                     chart(summary)
                     breakdowns(summary)
                 }
+                shareSection(summary)
                 footer
             } header: {
                 HStack {
@@ -193,6 +198,73 @@ struct AutocompleteStatisticsView: View {
         .accessibilityIdentifier("autocomplete.statistics.\(identifier)")
     }
 
+    private var ownMeetingsCount: Int {
+        app.meetings.filter(\.isOwnWork).count
+    }
+
+    private func localStats(for summary: CotypingUsageSummary) -> LocalStatsSummary {
+        LocalStatsSummary(summary: summary, meetingsCaptured: ownMeetingsCount)
+    }
+
+    private func shareSection(_ summary: CotypingUsageSummary) -> some View {
+        let stats = localStats(for: summary)
+        let hasAnyData = !summary.total.isEmpty || stats.meetingsCaptured > 0
+        return VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 10) {
+                Button("Copy Stats Summary") {
+                    copyStatsSummary(stats)
+                }
+                .disabled(!hasAnyData)
+                .accessibilityIdentifier("autocomplete.statistics.copySummary")
+
+                Button("Save Stats Card (PNG)…") {
+                    saveStatsCard(stats)
+                }
+                .disabled(!hasAnyData)
+                .accessibilityIdentifier("autocomplete.statistics.saveCard")
+            }
+            if let statsNotice {
+                Text(statsNotice)
+                    .font(AppFont.scaled(.caption))
+                    .settingsSecondary()
+            }
+            if let statsError {
+                Text(statsError)
+                    .font(AppFont.scaled(.caption))
+                    .foregroundStyle(.red)
+            }
+        }
+        .padding(.top, 4)
+    }
+
+    private func copyStatsSummary(_ stats: LocalStatsSummary) {
+        statsError = nil
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(stats.plainTextSummary(), forType: .string)
+        statsNotice = "Copied local stats summary (aggregate counts only)."
+    }
+
+    private func saveStatsCard(_ stats: LocalStatsSummary) {
+        statsError = nil
+        statsNotice = nil
+        guard let pngData = LocalStatsCardRenderer.pngData(for: stats) else {
+            statsError = "Could not render the stats card image."
+            return
+        }
+        let panel = NSSavePanel()
+        panel.title = "Save Local Stats Card"
+        panel.nameFieldStringValue = "lokalbot-stats-\(range.rawValue).png"
+        panel.canCreateDirectories = true
+        panel.allowedContentTypes = [.png]
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        do {
+            try pngData.write(to: destination, options: .atomic)
+            statsNotice = "Saved stats card PNG."
+        } catch {
+            statsError = "Could not save stats card: \(error.localizedDescription)"
+        }
+    }
+
     private var footer: some View {
         VStack(alignment: .leading, spacing: 8) {
             SettingsHelp("Counted on this Mac while you type in other apps: suggestions shown and accepted, the characters you type yourself where autocomplete works, and the pauses between them, by day, kind of app and model. No text, app names or window titles are kept. Time saved is the keystrokes you did not type at your measured speed, not counting time spent reading suggestions.")
@@ -204,6 +276,146 @@ struct AutocompleteStatisticsView: View {
                     Text("Deletes the daily and monthly counts. Usage and timing measurements are kept.")
                 }
         }
+    }
+}
+
+struct LocalStatsSummary: Equatable, Sendable {
+    static let websiteHost = "lokalbot.com"
+
+    var periodLabel: String
+    var wordsAutocompleted: Int
+    var acceptanceRate: Double?
+    var timeSavedSeconds: Double
+    var meetingsCaptured: Int
+
+    init(summary: CotypingUsageSummary, meetingsCaptured: Int) {
+        self.periodLabel = summary.range.label
+        self.wordsAutocompleted = max(0, summary.total.suggestions.words)
+        self.acceptanceRate = summary.total.suggestions.acceptanceRate
+        self.timeSavedSeconds = max(0, summary.timeSavedSeconds)
+        self.meetingsCaptured = max(0, meetingsCaptured)
+    }
+
+    init(
+        periodLabel: String,
+        wordsAutocompleted: Int,
+        acceptanceRate: Double?,
+        timeSavedSeconds: Double,
+        meetingsCaptured: Int
+    ) {
+        self.periodLabel = periodLabel
+        self.wordsAutocompleted = max(0, wordsAutocompleted)
+        self.acceptanceRate = acceptanceRate
+        self.timeSavedSeconds = max(0, timeSavedSeconds)
+        self.meetingsCaptured = max(0, meetingsCaptured)
+    }
+
+    func plainTextSummary() -> String {
+        let acceptance = AutocompleteStatisticsPresentation.percent(acceptanceRate)
+        let saved = AutocompleteStatisticsPresentation.timeSaved(timeSavedSeconds)
+        let meetingWord = meetingsCaptured == 1 ? "meeting" : "meetings"
+        return [
+            "LokalBot local stats (\(periodLabel))",
+            "Words autocompleted: \(wordsAutocompleted.formatted())",
+            "Suggestions accepted: \(acceptance)",
+            "Time saved: \(saved)",
+            "Meetings captured: \(meetingsCaptured.formatted()) \(meetingWord) (0 bots)",
+            "Cloud API cost: $0",
+            Self.websiteHost,
+        ].joined(separator: "\n")
+    }
+}
+
+struct LocalStatsCardView: View {
+    let stats: LocalStatsSummary
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 20) {
+            HStack(alignment: .firstTextBaseline) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("LokalBot")
+                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .foregroundStyle(.white)
+                    Text("Local stats · \(stats.periodLabel)")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(Color.white.opacity(0.68))
+                }
+                Spacer()
+                Text("$0 cloud API cost")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.14, green: 0.80, blue: 0.71))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Color(red: 0.14, green: 0.80, blue: 0.71).opacity(0.16), in: Capsule())
+            }
+
+            LazyVGrid(
+                columns: [GridItem(.flexible(), spacing: 14), GridItem(.flexible(), spacing: 14)],
+                spacing: 14
+            ) {
+                statTile(title: "Words autocompleted", value: stats.wordsAutocompleted.formatted())
+                statTile(title: "Suggestions accepted", value: AutocompleteStatisticsPresentation.percent(stats.acceptanceRate))
+                statTile(title: "Time saved", value: AutocompleteStatisticsPresentation.timeSaved(stats.timeSavedSeconds))
+                statTile(title: "Meetings captured", value: "\(stats.meetingsCaptured.formatted()) · 0 bots")
+            }
+
+            HStack {
+                Text("100% local processing · aggregate counts only")
+                    .font(.system(size: 12))
+                    .foregroundStyle(Color.white.opacity(0.58))
+                Spacer()
+                Text(LocalStatsSummary.websiteHost)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Color(red: 0.14, green: 0.80, blue: 0.71))
+            }
+        }
+        .padding(28)
+        .frame(width: 600, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 0.04, green: 0.07, blue: 0.11),
+                            Color(red: 0.06, green: 0.11, blue: 0.16),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .stroke(Color.white.opacity(0.10), lineWidth: 1)
+        )
+    }
+
+    private func statTile(title: String, value: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(title)
+                .font(.system(size: 12, weight: .medium))
+                .foregroundStyle(Color.white.opacity(0.66))
+            Text(value)
+                .font(.system(size: 24, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16)
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+}
+
+@MainActor
+enum LocalStatsCardRenderer {
+    static func pngData(for stats: LocalStatsSummary) -> Data? {
+        let renderer = ImageRenderer(content: LocalStatsCardView(stats: stats))
+        renderer.scale = 2.0
+        guard let cgImage = renderer.cgImage else { return nil }
+        let bitmap = NSBitmapImageRep(cgImage: cgImage)
+        return bitmap.representation(using: .png, properties: [:])
     }
 }
 

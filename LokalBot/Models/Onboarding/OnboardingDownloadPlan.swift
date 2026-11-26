@@ -1,5 +1,67 @@
 import Foundation
 
+enum OnboardingModelOption: String, CaseIterable, Identifiable, Equatable, Sendable {
+    case recommended
+    case lightweight
+    case appleBuiltIn
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .recommended: ModelStackPreset.recommended.title
+        case .lightweight: ModelStackPreset.lightweight.title
+        case .appleBuiltIn: "Apple on-device (0 GB)"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .recommended:
+            ModelStackPreset.recommended.subtitle
+        case .lightweight:
+            ModelStackPreset.lightweight.subtitle
+        case .appleBuiltIn:
+            "Uses Apple Speech and Apple Intelligence already on this Mac. 0 GB download; switch to local open models anytime in Settings."
+        }
+    }
+
+    var patch: ModelSelectionPatch {
+        switch self {
+        case .recommended:
+            ModelStackPreset.recommended.patch
+        case .lightweight:
+            ModelStackPreset.lightweight.patch
+        case .appleBuiltIn:
+            ModelSelectionPatch(
+                transcription: .appleSpeech,
+                backend: .appleIntelligence,
+                cotypingBackend: .onDevice)
+        }
+    }
+
+    static func availableCases(appleBuiltInAvailable: Bool) -> [Self] {
+        appleBuiltInAvailable ? [.recommended, .lightweight, .appleBuiltIn] : [.recommended, .lightweight]
+    }
+
+    static func matching(_ settings: AppSettings) -> Self? {
+        if settings.transcriptionModel == .appleSpeech, settings.summarizerBackend == .appleIntelligence {
+            return .appleBuiltIn
+        }
+        switch ModelStackPreset.matching(settings) {
+        case .recommended: return .recommended
+        case .lightweight: return .lightweight
+        case nil: return nil
+        }
+    }
+
+    static func defaultOption(
+        for capability: HardwareCapability = HardwareCapabilityProbe.current()
+    ) -> Self {
+        ModelStackPreset.defaultPreset(for: capability) == .recommended ? .recommended : .lightweight
+    }
+}
+
 struct OnboardingDownloadPlan: Equatable, Sendable {
     enum ModelState: Equatable, Sendable {
         case notStarted
