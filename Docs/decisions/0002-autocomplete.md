@@ -117,6 +117,12 @@ The in-process runtime and autocomplete `llama-server` explicitly enable full sl
 
 Where: `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` (`LlamaCotypingRuntime.init`, `LlamaCotypingRuntime.generate`), `LokalBot/Engines/LlamaServer.swift` (`LlamaServer.cotyping`), `LinuxWindows/crates/lokalbot-ai/src/runtime.rs` (`Role::Autocomplete`).
 
+### In-process decoding uses llama.cpp's extended batch, at most `n_batch` tokens at a time
+
+llama.cpp deprecated `llama_batch_init`, `llama_batch_free` and `llama_decode` in favour of the extended batch API, so the in-process runtime builds each decode as a `llama_batch_ext` and runs it with `llama_process` and `LLAMA_PROCESS_TYPE_DECODE`. The deprecated call converts its batch to the same `llama_batch_ext` and reaches the same decoder, so the same tokens, positions, sequence 0 and output flags give the same result. Two differences matter. A batch's entries request no logits until told to, so the runtime sets the flag on every entry. A batch holds at most the context's `n_batch` tokens (2048), so the 2048 cap on prefill chunks has to stay within `n_batch`: a longer chunk fails to add a token and the decode reports `decodeFailed`, where the old call stopped on a llama.cpp assertion.
+
+Where: `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` (`LlamaCotypingRuntime.decode`, `LlamaCotypingRuntime.init`, `LlamaCotypingRuntime.loadIfNeeded`).
+
 ### Autocomplete decodes with two threads
 
 All app autocomplete uses the measured hybrid policy with two generation and prefill threads, which won the fixed-E2B latency study on an M4 Max; other hardware and cancellation responsiveness still need broader trials. Replay keeps its explicit controls and the initializer's baseline defaults for historical parity.
@@ -157,7 +163,7 @@ Where: `LokalBot/Cotyping/Llama/CotypingEngineSelector.swift` (`CotypingEngineSe
 
 ### An idle in-process model is warmed by any activity
 
-llama.cpp stops holding the weights resident three minutes after the last decode, and the system then pages or compresses them: on 2026-10-06 the first suggestion after half an hour took 1.9 s against 62 ms while typing. Any key or click the input monitor sees, and the screen waking or unlocking, runs one throwaway token if the model has not run for a while (`LocalLlamaCotypingEngine.warmAfterIdle`), which also renews llama.cpp's keep-alive while the Mac is in use. The warm-up waits for its GPU work, because `llama_decode` only queues it and the next suggestion would otherwise wait for it.
+llama.cpp stops holding the weights resident three minutes after the last decode, and the system then pages or compresses them: on 2026-10-06 the first suggestion after half an hour took 1.9 s against 62 ms while typing. Any key or click the input monitor sees, and the screen waking or unlocking, runs one throwaway token if the model has not run for a while (`LocalLlamaCotypingEngine.warmAfterIdle`), which also renews llama.cpp's keep-alive while the Mac is in use. The warm-up waits for its GPU work, because `llama_process` only queues it and the next suggestion would otherwise wait for it.
 
 Where: `LokalBot/Cotyping/CotypingCoordinator+ModelWarmth.swift`, `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` (`LlamaCotypingRuntime.touch`), `LokalBotTests/Cotyping/CotypingCoordinatorTests.swift` (`testAKeyAfterAPauseReadiesTheModel`).
 
