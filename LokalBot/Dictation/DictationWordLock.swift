@@ -71,6 +71,8 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         var result = ""
         var last = cleaned.startIndex
         var changed = false
+        var written: [Int: Int] = [:]
+        var restored: [Int: Int] = [:]
         func consume(_ count: Int) {
             remaining = remaining.dropFirst(count)
             consumed += count
@@ -86,6 +88,7 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
                 continue
             }
             guard let value = numberValue(token.text) else { continue }
+            written[value, default: 0] += 1
             if let said = spokenWords.firstIndex(of: value) {
                 spokenWords.remove(at: said)
                 continue
@@ -96,9 +99,12 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
             result += cleaned[last..<token.range.lowerBound] + String(value)
             last = token.range.upperBound
             consume(digits)
+            restored[value, default: 0] += 1
             changed = true
         }
         guard changed, remaining.isEmpty else { return nil }
+        let said = layout.wordsBeforeRun.joined().reduce(into: [Int: Int]()) { $0[$1, default: 0] += 1 }
+        guard restored.allSatisfy({ written[$0.key] == $0.value + (said[$0.key] ?? 0) }) else { return nil }
         return result + cleaned[last...]
     }
 
@@ -128,7 +134,7 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
         let heard = digitSequence(spoken)
         let written = digitSequence(cleaned)
         if heard != written {
-            let added = isSubsequence(heard, of: written) && numberWordsAccount(for: written, spoken: spoken)
+            let added = isSubsequence(heard, of: written) && numberWordsAccount(for: cleaned, spoken: spoken)
             let dropped = isSubsequence(written, of: heard) && corrects
             if !added && !dropped { reasons.append(.digits) }
         }
@@ -198,11 +204,17 @@ enum DictationWordLock: String, Codable, Sendable, CaseIterable {
     static func numberWordsAccount(for written: String, spoken: String) -> Bool {
         guard saysNumberWords(spoken) else { return false }
         if words(spoken.lowercased()).contains(where: magnitudeWords.contains) { return true }
+        var keptAsWords = tokens(written).compactMap { numberValue($0.text) }
         let sayable = tokens(spoken).map { token -> String in
             if token.text.first?.isNumber == true { return token.text }
-            return numberValue(token.text).map(String.init) ?? ""
+            guard let value = numberValue(token.text) else { return "" }
+            if let kept = keptAsWords.firstIndex(of: value) {
+                keptAsWords.remove(at: kept)
+                return ""
+            }
+            return String(value)
         }.joined()
-        return isSubsequence(written, of: sayable)
+        return isSubsequence(digitSequence(written), of: sayable)
     }
 
     static func names(_ text: String) -> [String] {

@@ -105,6 +105,10 @@ final class DictationWordLockTests: XCTestCase {
         let dropped = lock.kept(spoken: "one one of us needs 1 ticket", cleaned: "Of us needs one ticket.")
         XCTAssertEqual(dropped.text, "one one of us needs 1 ticket", "when the words don't line up the transcript is kept")
         XCTAssertEqual(dropped.broken, [.digits])
+        let ambiguous = lock.kept(spoken: "one of us needs 1 ticket and one pass", cleaned: "Someone needs one ticket and one pass.")
+        XCTAssertEqual(ambiguous.text, "one of us needs 1 ticket and one pass",
+                       "a spoken number word that cleanup dropped leaves no way to tell which word was the digit")
+        XCTAssertEqual(ambiguous.broken, [.digits])
     }
 
     func testAddedDigitsMustComeFromTheSpokenNumberWords() {
@@ -112,6 +116,8 @@ final class DictationWordLockTests: XCTestCase {
         let invented = lock.kept(spoken: "we need 3 slides and one summary", cleaned: "We need 34 slides and one summary.")
         XCTAssertEqual(invented.broken, [.digits], "a number word elsewhere doesn't excuse an invented digit")
         XCTAssertEqual(invented.text, "we need 3 slides and one summary")
+        let stillSaid = lock.kept(spoken: "we need 3 slides and four summaries", cleaned: "We need 34 slides and four summaries.")
+        XCTAssertEqual(stillSaid.broken, [.digits], "a number word that is still there as a word explains no digit")
         XCTAssertEqual(lock.kept(spoken: "twelve of them arrive at 3", cleaned: "12 of them arrive at 3.").broken, [])
         XCTAssertEqual(lock.kept(spoken: "it was twenty twenty six by then", cleaned: "It was 2026 by then.").broken, [])
         XCTAssertEqual(lock.kept(spoken: "about twelve hundred dollars", cleaned: "About 1200 dollars.").broken, [],

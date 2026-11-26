@@ -99,5 +99,12 @@ with those rules, same model, server, seed and corpora: every output text in eve
 above, so every count above stands. The repeat's outputs are not archived; the manifests in `runs/` are from the first runs.
 This also answers part of the first limit above: one repeat, on a different build, gave identical text.
 
-Still not covered, raised in review: two separate negated statements in one dictation count as one (dropping the first
+A second review round tightened both rules again: a number word that is still in the cleaned text as a word explains no added
+digit ("3 slides and four summaries" may not become "34 slides and four summaries"), and nothing is restored when the cleaned
+text's count of a number word doesn't match what was spoken plus what would be restored ("one of us needs 1 ticket and one pass"
+cleaned to "Someone needs one ticket and one pass." keeps the transcript). The 14 runs were repeated a second time on that
+build: again every output text was identical to the runs reported above.
+
+Still not covered, raised in review: a self-correction cue also lets cleanup drop a spoken digit that restoring cannot bring
+back ("we would rather send 3 files" may lose the 3), which is the same whole-dictation cue exemption listed in the 11-21 report; two separate negated statements in one dictation count as one (dropping the first
 "do not" passes while the second stays), and the real-dictation samples were not rerun after the two rule changes.
