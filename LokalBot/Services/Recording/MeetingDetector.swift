@@ -42,6 +42,8 @@ final class MeetingDetector {
         var usesMicrophoneDetection = false
     }
 
+    nonisolated static let telemostBundleID = "ru.yandex.desktop.telemost"
+
     nonisolated static let knownApps: [String: String] = [
         "us.zoom.xos": "Zoom",
         "com.microsoft.teams2": "Teams",
@@ -56,7 +58,7 @@ final class MeetingDetector {
         "com.larksuite.larkApp": "Lark",
         "com.alibaba.DingTalkMac": "DingTalk",
         "com.tencent.WeWorkMac": "WeCom",
-        "ru.yandex.desktop.telemost": "Yandex Telemost",
+        telemostBundleID: "Yandex Telemost",
         "ru.unlimitedtech.express.desktop": "eXpress",
     ]
 
