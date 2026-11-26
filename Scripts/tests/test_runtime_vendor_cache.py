@@ -38,7 +38,7 @@ printf 'minos %s\ncmd LC_RPATH\npath @loader_path (offset 12)\n' "${TEST_MINOS:-
         destination = self.root / "Vendor" / runtime
         destination.mkdir(parents=True)
         if runtime == "llama-cpp":
-            marker = "b12613-macos15.0-arm64-generic-loader-rpath"
+            marker = "v1.1.0-macos15.0-arm64-generic-loader-rpath"
             names = [
                 "llama-server", "libllama.dylib", "libllama.1.dylib",
                 "libggml.dylib", "libggml.1.dylib",

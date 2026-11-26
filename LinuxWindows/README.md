@@ -79,9 +79,9 @@ remains opt-in pending broader hardware validation and performance comparisons.
 LokalBot first tries compatible system CUDA libraries. If the CUDA backend cannot
 use them, it downloads the pinned CUDA runtime, cuBLAS and cuBLASLt libraries into
 its own runtime folder. You do not need the CUDA compiler or full toolkit. A fresh
-download is at most about 637 MB (CUDA 13.5) or 777 MB (CUDA 12.8) on Linux, and
-622 MB (CUDA 13.5) or 715 MB (CUDA 12.4) on Windows. Reusing system libraries
-reduces that to the server archive: about 215 MB for CUDA 13.5, 210 MB for
+download is at most about 639 MB (CUDA 13.5) or 777 MB (CUDA 12.8) on Linux, and
+623 MB (CUDA 13.5) or 715 MB (CUDA 12.4) on Windows. Reusing system libraries
+reduces that to the server archive: about 216 MB for CUDA 13.5, 210 MB for
 CUDA 12.8 and 341 MB for CUDA 12.4, excluding models. Settings estimates the CUDA
 13.5 size until setup has picked a build. Downloads are verified and an
 incomplete setup does not count as installed.
