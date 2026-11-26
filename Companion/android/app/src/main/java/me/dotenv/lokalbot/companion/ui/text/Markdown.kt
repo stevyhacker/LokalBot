@@ -101,6 +101,7 @@ object Citations {
 
     private val groupPattern = Regex("\\[(\\d+(?:\\s*,\\s*\\d+)+)]")
     private val meetingPattern = Regex("\\[meeting:([0-9A-Za-z-]+)@(\\d{1,2}):(\\d{2})(?::(\\d{2}))?]")
+    private val markerPattern = Regex("\\s*\\[(\\d{1,3}(?:\\s*,\\s*\\d{1,3})*)](?!\\()")
 
     fun parse(answer: String, citations: List<AskCitation>): Parsed {
         val all = citations.toMutableList()
@@ -117,5 +118,28 @@ object Citations {
             "[$index]"
         }
         return Parsed(text, all.sortedBy { it.index })
+    }
+
+    fun plainText(answer: String): String {
+        val normalized = meetingPattern.replace(answer, "")
+        return markerPattern.replace(normalized, "").trim()
+    }
+
+    fun citedMeetingTitles(citations: List<AskCitation>): List<String> {
+        val seen = LinkedHashSet<String>()
+        for (citation in citations) {
+            if (citation.meetingId == null) continue
+            val title = citation.label.substringBefore(" · ").trim()
+            if (title.isNotEmpty()) seen += title
+        }
+        return seen.toList()
+    }
+
+    fun shareText(answer: String, citations: List<AskCitation>): String {
+        val body = plainText(answer)
+        val titles = citedMeetingTitles(citations)
+        if (titles.isEmpty()) return body
+        val sources = titles.joinToString("\n") { "- $it" }
+        return if (body.isEmpty()) "Sources:\n$sources" else "$body\n\nSources:\n$sources"
     }
 }

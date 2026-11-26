@@ -8,8 +8,8 @@ use gpui_kit::component::switch::Switch;
 use gpui_kit::component::{Sizable as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
-    AnyElement, App, Context, Div, FontWeight, IntoElement, ParentElement as _, SharedString,
-    Styled as _, div, px,
+    AnyElement, App, Context, Div, FontWeight, InteractiveElement as _, IntoElement,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, div, px,
 };
 use lokalbot_core::settings::{CotypingBackend, ModelDownloadSource, Settings, SummarizerBackend};
 
@@ -19,7 +19,7 @@ use super::{
 };
 use crate::pages::settings::model_options::download_source_row;
 use crate::pages::settings::models::{
-    RUNTIME_ID, autocomplete_needs, model_bytes, model_name, models_in_use, size_label,
+    Preset, RUNTIME_ID, autocomplete_needs, model_bytes, model_name, models_in_use, size_label,
     speech_needs,
 };
 use crate::state::{AppData, AppEvent, DownloadProgress};
@@ -506,17 +506,96 @@ impl Onboarding {
         self.start_download(cx);
     }
 
+    fn select_preset(&mut self, preset: Preset, cx: &mut Context<Self>) {
+        self.data.update(cx, |data, cx| {
+            data.update_settings(|settings| apply_preset(settings, preset), cx);
+        });
+        cx.notify();
+    }
+
+    fn preset_selector(
+        &self,
+        settings: &Settings,
+        installed: &[String],
+        screen_text: Option<&(String, u64)>,
+        cx: &mut Context<Self>,
+    ) -> Div {
+        let lb = cx.lb().clone();
+        let active = selected_preset(settings);
+        let cards = Preset::ALL.into_iter().map(|preset| {
+            let is_selected = active == Some(preset);
+            let bytes = preset_download_bytes(
+                preset,
+                settings,
+                installed,
+                screen_text,
+                self.download.include_autocomplete,
+            );
+            let title = preset_option_label(preset, bytes);
+            let detail = lokalbot_i18n::tr(preset.subtitle());
+            let id = match preset {
+                Preset::Balanced => "onboarding-preset-recommended",
+                Preset::Lightweight => "onboarding-preset-lightweight",
+            };
+            div()
+                .id(id)
+                .flex_1()
+                .min_w_0()
+                .cursor_pointer()
+                .rounded(px(10.))
+                .px(px(12.))
+                .py(px(10.))
+                .border_1()
+                .border_color(if is_selected {
+                    lb.accent_fill
+                } else {
+                    lb.group_stroke
+                })
+                .bg(if is_selected {
+                    lb.accent_fill.opacity(0.10)
+                } else {
+                    lb.group_fill
+                })
+                .child(
+                    v_flex()
+                        .gap(px(3.))
+                        .child(
+                            div()
+                                .text_size(ty::BODY)
+                                .font_weight(FontWeight::SEMIBOLD)
+                                .text_color(lb.text)
+                                .child(title),
+                        )
+                        .child(quiet(detail, cx)),
+                )
+                .on_click(cx.listener(move |this, _, _, cx| this.select_preset(preset, cx)))
+        });
+        h_flex().w_full().gap(px(10.)).children(cards)
+    }
+
     pub(super) fn render_download(&self, plan: &Plan, cx: &mut Context<Self>) -> Div {
         let lb = cx.lb().clone();
-        let (settings, installed) = {
+        let (settings, installed, screen_text) = {
             let data = self.data.read(cx);
-            (data.settings.clone(), data.models.installed.clone())
+            let screen_text = self
+                .draft
+                .reads_screen_text()
+                .then_some(data.models.screen_text.download)
+                .flatten()
+                .map(|d| (d.id.to_string(), d.bytes));
+            (
+                data.settings.clone(),
+                data.models.installed.clone(),
+                screen_text,
+            )
         };
         let microphone_allowed = self
             .access_rows(cx)
             .first()
             .is_some_and(|row| row.state == super::access::RowState::Allowed);
         let built_in = settings.summarizer_backend == SummarizerBackend::BuiltIn;
+        let preset_picker = (plan.phase == Phase::Before && built_in)
+            .then(|| self.preset_selector(&settings, &installed, screen_text.as_ref(), cx));
 
         let heading = match plan.phase {
             Phase::Before => heading(
@@ -585,6 +664,7 @@ impl Onboarding {
             .w_full()
             .gap(px(16.))
             .child(heading)
+            .children(preset_picker)
             .child(list)
             .when(shows_autocomplete, |this| {
                 this.child(div().px(px(2.)).child(quiet(autocomplete_disclosure(), cx)))
@@ -1093,6 +1173,58 @@ fn setup_downloads(
     SetupDownloads { meeting, extra }
 }
 
+fn apply_preset(settings: &mut Settings, preset: Preset) {
+    let catalog = match preset {
+        Preset::Balanced => &lokalbot_ai::catalog::PRESETS[0],
+        Preset::Lightweight => &lokalbot_ai::catalog::PRESETS[1],
+    };
+    let (speech, _) = preset.models();
+    settings.summarizer_backend = SummarizerBackend::BuiltIn;
+    settings.transcription_model = speech.to_string();
+    settings.built_in_model_id = catalog.think.to_string();
+    settings.cotyping_built_in_model_id = catalog.autocomplete.to_string();
+}
+
+fn selected_preset(settings: &Settings) -> Option<Preset> {
+    Preset::ALL
+        .into_iter()
+        .find(|preset| preset.matches(settings))
+}
+
+fn preset_download_bytes(
+    preset: Preset,
+    settings: &Settings,
+    installed: &[String],
+    screen_text: Option<&(String, u64)>,
+    include_autocomplete: bool,
+) -> u64 {
+    let mut candidate = settings.clone();
+    apply_preset(&mut candidate, preset);
+    Plan::new(Inputs {
+        settings: &candidate,
+        installed,
+        downloads: &HashMap::new(),
+        screen_text: screen_text.cloned(),
+        include_autocomplete,
+        started: false,
+        ready_before: None,
+        available_bytes: None,
+    })
+    .remaining_bytes
+}
+
+fn preset_option_label(preset: Preset, bytes: u64) -> String {
+    let base = match preset {
+        Preset::Balanced => lokalbot_i18n::tr("Recommended"),
+        Preset::Lightweight => lokalbot_i18n::tr("Lightweight"),
+    };
+    if bytes > 0 {
+        format!("{base} (~{})", size_label(bytes))
+    } else {
+        base.to_string()
+    }
+}
+
 fn autocomplete_disclosure() -> &'static str {
     lokalbot_i18n::tr(
         "Autocomplete also reads the window you are typing in, such as the conversation you are answering, to fit its suggestions: the text just above the field, and, once its text recognition model is downloaded, the whole window with on-device text recognition. It stays on this PC and is never saved; turn either off in Settings → Autocomplete.",
@@ -1359,5 +1491,34 @@ mod tests {
         assert!(text.contains("the text just above the field"));
         assert!(text.contains("never saved"));
         assert!(text.contains("turn either off"));
+    }
+
+    #[test]
+    fn lightweight_preset_switches_models_and_shrinks_the_download() {
+        let mut settings = Settings::default();
+        assert_eq!(selected_preset(&settings), Some(Preset::Balanced));
+        let recommended_bytes =
+            preset_download_bytes(Preset::Balanced, &settings, &[], None, false);
+        let lightweight_bytes =
+            preset_download_bytes(Preset::Lightweight, &settings, &[], None, false);
+        assert!(lightweight_bytes < recommended_bytes);
+        assert!(
+            preset_option_label(Preset::Balanced, recommended_bytes).starts_with("Recommended (~")
+        );
+        assert!(
+            preset_option_label(Preset::Lightweight, lightweight_bytes)
+                .starts_with("Lightweight (~")
+        );
+
+        apply_preset(&mut settings, Preset::Lightweight);
+        assert_eq!(selected_preset(&settings), Some(Preset::Lightweight));
+        assert_eq!(
+            settings.built_in_model_id,
+            lokalbot_ai::catalog::PRESETS[1].think
+        );
+        assert_eq!(
+            settings.cotyping_built_in_model_id,
+            lokalbot_ai::catalog::PRESETS[1].autocomplete
+        );
     }
 }

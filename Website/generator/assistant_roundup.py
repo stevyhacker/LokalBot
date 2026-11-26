@@ -22,7 +22,7 @@ from html import escape
 
 SLUG = "best-open-source-ai-assistants"
 PUBLISHED = "2026-11-09"
-VERIFIED = "2026-11-16"
+VERIFIED = "2026-11-26"
 TESTED = "2026-11-09"
 IMAGES = "assets/compare/ai-assistants"
 ISSUES_URL = "https://github.com/stevyhacker/lokalbot/issues"
@@ -35,6 +35,12 @@ def _long_date(iso: str) -> str:
 
 
 UPDATE_LOG = [
+    (
+        "2026-11-26",
+        "Updated LokalBot to 0.14.0 (November 24, 2026) with its four Apache-2.0 fine-tuned default models "
+        "(Qwen3.5 4B LokalBot v4, Gemma 4 E2B LokalBot v4, Qwen3-ASR 1.7B LokalBot v3, and Qwen3-ASR 0.6B LokalBot v1) "
+        "and refreshed LokalBot's GitHub star count (124). Screenshots remain from the November 9 test.",
+    ),
     (
         "2026-11-16",
         "Re-checked sources. Ollama is now 0.40.16 (November 9); the other apps are unchanged at LM Studio 0.4.28, Jan 0.8.8, "
@@ -301,10 +307,11 @@ TOOLS = [
         "alt": "LokalBot's Quick Recall searching for “demo pres”: it finds a Keynote deck and a Mail reply seen on screen, and two meetings where the demo presentation came up.",
         "caption": "LokalBot's Quick Recall on a Mac, with fictional demo data: one search finds a Keynote deck and a Mail reply you saw on screen, and two meetings where it came up.",
         "about": (
-            "<p>LokalBot is our app, and it's a different kind of assistant. Instead of starting from an empty chat, it builds a memory of your work. "
-            "It records meetings without a bot joining, transcribes and summarizes them on your computer, and, if you turn it on, keeps the text "
+            "<p>LokalBot is our app, and it takes a different angle from general chat apps. Instead of starting from an empty chat, it builds a memory of your work. "
+            "It records meetings without a bot joining, transcribes and summarizes them on your computer using Apache-2.0 fine-tuned default models "
+            "(Qwen3-ASR 1.7B LokalBot v3, Qwen3.5 4B LokalBot v4, and Gemma 4 E2B LokalBot v4), and, if you turn it on, keeps the text "
             "of what you saw on screen. Ask a question and the answer cites the meeting or screen moment it came from. It also has dictation, "
-            "autocomplete in other apps, a search of folders you choose, and a read-only MCP server, off until you turn it on, so Claude Code or Codex can search your library. "
+            "autocomplete in other apps, search across folders you choose, and a read-only MCP server, off until you turn it on, so Claude Code, Codex, or Cursor can search your library. "
             "Its models are built in; you can also point it at Ollama or another OpenAI-compatible server.</p>"
         ),
         "good_for": [
@@ -317,11 +324,11 @@ TOOLS = [
             "It's best on a Mac. The Windows and Linux app is in alpha, and LokalBot is a small project built by one developer.",
         ],
         "facts": [
-            ("Latest release", "0.13.1, November 14, 2026"),
+            ("Latest release", "0.14.0, November 24, 2026"),
             ("License", '<a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GPLv3</a>'),
-            ("Runs on", 'macOS 15+ on Apple Silicon; Windows 10/11 and Linux in alpha (<a href="system-requirements">requirements</a>)'),
+            ("Runs on", 'macOS 15+ on Apple Silicon; Windows 10/11 and Linux in alpha; iOS and Android companions (<a href="system-requirements">requirements</a>)'),
             ("Price", "Free, no account"),
-            ("Source", f'<a href="{REPO_URL}" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a> · 112 stars'),
+            ("Source", f'<a href="{REPO_URL}" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a> · 124 stars'),
         ],
         "links": [
             ("Download LokalBot", "https://github.com/stevyhacker/lokalbot/releases/latest"),
@@ -584,11 +591,12 @@ def item_list() -> dict:
 ROUNDUP = {
     "slug": SLUG,
     "kind": "compare",
+    "footer_label": "Best open-source AI assistants",
     "published": PUBLISHED,
     "updated": VERIFIED,
     "updated_label": _long_date(VERIFIED),
     "title": "Best Open-Source AI Assistants You Can Run Locally (2026)",
-    "description": "Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared: memory, document chat, licenses, platforms, and install links, with our own screenshots.",
+    "description": "Ollama, LM Studio, Jan, AnythingLLM, Open WebUI, and LokalBot compared on memory, document chat, licenses, platforms, and setup, with real screenshots.",
     "eyebrow": "Compare",
     "h1": "The best open-source AI assistants you can run locally",
     "lead": "Six private ChatGPT alternatives that run on your own computer, compared honestly: what each one is for, what it remembers about you, how it's licensed, and how to install it.",

@@ -70,7 +70,10 @@ final class OnboardingFlowTests: XCTestCase {
                        [.microphone, .accessibility, .screenRecording])
         var manual = draft(dayMemory: false, mode: .activityOnly)
         manual.recordsDetectedCalls = false
-        XCTAssertEqual(OnboardingAccess.permissions(for: manual), [.microphone], "Record still needs the microphone")
+        XCTAssertEqual(OnboardingAccess.permissions(for: manual), [], "microphone is not forced when automatic meeting capture is off")
+        var manualWithDayMemory = draft(dayMemory: true, mode: .activityOnly)
+        manualWithDayMemory.recordsDetectedCalls = false
+        XCTAssertEqual(OnboardingAccess.permissions(for: manualWithDayMemory), [.accessibility])
     }
 
     func testPermissionRowsShowTheirRealState() {
@@ -336,16 +339,81 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(ready.models.first { $0.role == .transcribe }?.state, .ready)
     }
 
-    func testSampleMeetingChosenInSetupWaitsForItsModels() throws {
-        let app = AppState()
-        try XCTSkipIf(app.modelRoles.snapshot.meetingReady, "this library already has its models")
-        app.openSampleMeetingWhenReady()
-        XCTAssertTrue(app.sampleMeetingWaitsForModels, "nothing is added before the models are here")
-        XCTAssertNil(app.sampleMeeting)
-        app.openWaitingSampleMeeting()
-        XCTAssertTrue(app.sampleMeetingWaitsForModels)
-        XCTAssertNil(app.sampleMeeting)
-        XCTAssertFalse(app.showsSampleSetup, "setup's choice never opens the download sheet")
+    func testSmallMemoryMacDefaultsToLightweightPresetAndFreshInstall() {
+        let gib: UInt64 = 1_073_741_824
+        let mac8GB = HardwareCapability(physicalMemoryBytes: 8 * gib, isAppleSilicon: true)
+        let mac12GB = HardwareCapability(physicalMemoryBytes: 12 * gib, isAppleSilicon: true)
+        let mac16GB = HardwareCapability(physicalMemoryBytes: 16 * gib, isAppleSilicon: true)
+        let mac32GB = HardwareCapability(physicalMemoryBytes: 32 * gib, isAppleSilicon: true)
+
+        XCTAssertEqual(ModelStackPreset.defaultPreset(for: mac8GB), .lightweight)
+        XCTAssertEqual(ModelStackPreset.defaultPreset(for: mac12GB), .lightweight)
+        XCTAssertEqual(ModelStackPreset.defaultPreset(for: mac16GB), .recommended)
+        XCTAssertEqual(ModelStackPreset.defaultPreset(for: mac32GB), .recommended)
+
+        let fresh8GB = AppSettings.load(from: defaults, capability: mac8GB)
+        XCTAssertEqual(ModelStackPreset.matching(fresh8GB), .lightweight)
+        XCTAssertEqual(fresh8GB.builtInModelID, ModelStackPreset.lightweight.mainModelID)
+        XCTAssertEqual(fresh8GB.transcriptionModel, ModelStackPreset.lightweight.transcription)
+        XCTAssertEqual(fresh8GB.cotypingBuiltInModelID, ModelStackPreset.lightweight.autocompleteModelID)
+
+        let fresh16GB = AppSettings.load(from: defaults, capability: mac16GB)
+        XCTAssertEqual(ModelStackPreset.matching(fresh16GB), .recommended)
+        XCTAssertEqual(fresh16GB.builtInModelID, ModelStackPreset.recommended.mainModelID)
+        XCTAssertEqual(fresh16GB.transcriptionModel, ModelStackPreset.recommended.transcription)
+    }
+
+    func testAppleBuiltInOptionHasZeroDownloadBytesAndSurfacesWhenAvailable() {
+        XCTAssertEqual(
+            OnboardingModelOption.availableCases(appleBuiltInAvailable: false),
+            [.recommended, .lightweight])
+        XCTAssertEqual(
+            OnboardingModelOption.availableCases(appleBuiltInAvailable: true),
+            [.recommended, .lightweight, .appleBuiltIn])
+
+        let settings = OnboardingModelOption.appleBuiltIn.patch.applying(to: AppSettings())
+        XCTAssertEqual(settings.transcriptionModel, .appleSpeech)
+        XCTAssertEqual(settings.summarizerBackend, .appleIntelligence)
+        XCTAssertEqual(OnboardingModelOption.matching(settings), .appleBuiltIn)
+
+        let zeroDownloadPlan = plan([.transcribe: .ready, .think: .ready], settings: settings)
+        XCTAssertEqual(zeroDownloadPlan.phase, .finished)
+        XCTAssertEqual(zeroDownloadPlan.remainingBytes, 0)
+        XCTAssertTrue(zeroDownloadPlan.allReady)
+    }
+
+    func testActivityOnlySetupLabelMatchesWindowTitleBehavior() {
+        XCTAssertEqual(AppSettings.ScreenContextCaptureMode.activityOnly.setupTitle, "App and window titles")
+    }
+
+    func testSampleMeetingChosenInSetupHydratesImmediatelyWithoutWaitingForModels() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("OnboardingSample-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock { try? FileManager.default.removeItem(at: root) }
+
+        let app = AppState(storage: StorageManager(rootURL: root))
+        var testError: Error?
+        do {
+            XCTAssertFalse(app.modelRoles.snapshot.meetingReady)
+            app.openSampleMeetingWhenReady()
+            for _ in 0..<100 where app.sampleMeeting == nil {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            let sample = try XCTUnwrap(
+                app.sampleMeeting,
+                "sample meeting must hydrate immediately without downloaded models")
+            XCTAssertFalse(app.sampleMeetingWaitsForModels)
+            XCTAssertFalse(app.showsSampleSetup)
+            let folder = sample.folderURL(in: app.storage)
+            let transcriptData = try Data(contentsOf: folder.appendingPathComponent("transcript.json"))
+            let transcript = try JSONDecoder().decode(Transcript.self, from: transcriptData)
+            XCTAssertEqual(transcript.engine, SampleMeeting.precomputedEngine)
+        } catch {
+            testError = error
+        }
+        await app.finishSearchIndexingForTesting()
+        if let testError { throw testError }
     }
 
     func testTimeLeftWaitsForASteadySpeed() {

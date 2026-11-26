@@ -46,7 +46,14 @@ struct SampleMeetingSetupSheet: View {
         .padding(24)
         .frame(width: 480)
         .onChange(of: snapshot.meetingReady) { _, ready in
-            if ready && downloading { app.importSampleMeeting() }
+            if ready && downloading {
+                app.showsSampleSetup = false
+                if let existing = app.sampleMeeting {
+                    app.reprocess(existing, transcribe: true, summarize: true)
+                } else {
+                    app.importSampleMeeting()
+                }
+            }
         }
     }
 
@@ -73,6 +80,7 @@ struct SampleMeetingBanner: View {
     let meeting: Meeting
     let hasTranscript: Bool
     let hasNotes: Bool
+    var isPrecomputed = false
 
     var body: some View {
         let stage = app.pipeline.stages[meeting.id]
@@ -85,28 +93,53 @@ struct SampleMeetingBanner: View {
         case .preparingSummaryModel, .summarizing: true
         default: false
         }
+        let modelsReady = app.modelRoles.snapshot.meetingReady
+        let question = SampleMeeting.askQuestion(for: meeting, language: app.settings.appLanguage)
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
+            HStack(spacing: 8) {
                 Label("Sample meeting", systemImage: "sparkles")
                     .font(.scaled(.headline))
                     .foregroundStyle(Brand.teal)
+                if isPrecomputed {
+                    Text("Instant preview · 0 MB downloaded")
+                        .font(.scaled(.caption).weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 2)
+                        .background(.quaternary.opacity(0.6), in: Capsule())
+                        .accessibilityIdentifier("meeting.sample.precomputedBadge")
+                }
                 Spacer()
+                if isPrecomputed || modelsReady {
+                    Button("Re-run with your local model") {
+                        app.rerunSampleMeetingWithLocalModel(meeting)
+                    }
+                    .controlSize(.small)
+                    .disabled(transcribing || summarizing)
+                    .help(modelsReady
+                          ? "Transcribe and summarize this sample again using your downloaded local models"
+                          : "Download your local models to re-run this sample on this Mac")
+                    .accessibilityIdentifier("meeting.sample.rerunLocal")
+                }
                 Button("Remove sample") { app.removeSampleMeeting(meeting) }
                     .controlSize(.small)
                     .accessibilityIdentifier("meeting.sample.remove")
             }
-            Text("The people and the company are made up, and the voices are synthetic. Your day, people, projects and action lists leave it out.")
+            Text(isPrecomputed
+                 ? "The people and the company are made up, and the voices are synthetic. Precomputed notes and cited answers are ready immediately; re-run with your local model once downloads finish."
+                 : "The people and the company are made up, and the voices are synthetic. Your day, people, projects and action lists leave it out.")
                 .workspaceTextRole(.supporting)
                 .fixedSize(horizontal: false, vertical: true)
             HStack(spacing: 16) {
-                SampleMeetingStage(done: true, active: false, title: "Download models")
+                SampleMeetingStage(done: isPrecomputed || modelsReady, active: false,
+                                   title: isPrecomputed ? "Instant preview" : "Download models")
                 SampleMeetingStage(done: hasTranscript, active: transcribing, title: "Transcribe the sample")
                 SampleMeetingStage(done: hasNotes, active: summarizing, title: "Write the notes")
             }
             HStack(alignment: .center, spacing: 10) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Try asking:").font(.scaled(.caption)).foregroundStyle(.secondary)
-                    Text(LocalizedStringKey(SampleMeeting.question))
+                    Text(verbatim: question)
                         .font(.scaled(.callout).weight(.semibold))
                         .fixedSize(horizontal: false, vertical: true)
                 }

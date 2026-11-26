@@ -37,7 +37,8 @@ struct OnboardingAccess: Equatable, Sendable {
     var rows: [Row]
 
     static func permissions(for draft: CaptureSetupDraft) -> [AppPermission] {
-        var result: [AppPermission] = [.microphone]
+        var result: [AppPermission] = []
+        if draft.recordsDetectedCalls { result.append(.microphone) }
         if draft.dayMemory { result.append(.accessibility) }
         if draft.dayMemory && draft.contextMode.capturesPixels { result.append(.screenRecording) }
         return result

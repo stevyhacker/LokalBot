@@ -14,9 +14,22 @@ struct OnboardingAccessStep: View {
                 title: "Allow access",
                 lead: "LokalBot asks only for what your choices need. Skip one and that feature waits until you allow it.")
             OnboardingCard {
-                ForEach(access.rows) { row in
-                    if row.id != access.rows.first?.id { Divider() }
-                    OnboardingPermissionRow(row: row, readsScreenText: readsScreenText, allow: allow)
+                if access.rows.isEmpty {
+                    OnboardingRow(symbol: "checkmark.shield") {
+                        Text("No system permissions needed")
+                            .font(.scaled(.body).weight(.semibold))
+                        Text("Your current choices do not need Microphone, Accessibility, or Screen Recording. You can grant them later if you turn on recording or workday memory.")
+                            .font(.scaled(.callout)).workspaceSupportingForeground()
+                            .fixedSize(horizontal: false, vertical: true)
+                    } trailing: {
+                        OnboardingDoneLabel(text: "Ready")
+                    }
+                    .accessibilityIdentifier("onboarding.permission.noneNeeded")
+                } else {
+                    ForEach(access.rows) { row in
+                        if row.id != access.rows.first?.id { Divider() }
+                        OnboardingPermissionRow(row: row, readsScreenText: readsScreenText, allow: allow)
+                    }
                 }
             }
             if !access.restartPermissions.isEmpty {

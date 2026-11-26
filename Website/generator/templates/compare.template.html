@@ -15,13 +15,14 @@
   <meta property="og:url" content="https://www.lokalbot.com/{{SLUG}}" />
   <meta property="og:title" content="{{OG_TITLE}}" />
   <meta property="og:description" content="{{OG_DESCRIPTION}}" />
-  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/compare/og/{{SLUG}}.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="{{OG_TITLE}}" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="{{OG_TITLE}}" />
   <meta name="twitter:description" content="{{OG_DESCRIPTION}}" />
-  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/compare/og/{{SLUG}}.png" />
 
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
@@ -55,7 +56,7 @@
       <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
         <i class="ph ph-github-logo" aria-hidden="true"></i>
       </a>
-      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
     </div>
   </header>
 
@@ -144,12 +145,20 @@
       </div>
     </section>
 
+    <section class="section section--tight guide-related" aria-labelledby="compare-guides-title">
+      <p class="eyebrow">Related guides</p>
+      <h2 id="compare-guides-title">Go deeper on local meeting notes</h2>
+      <div class="guide-card-grid">
+{{RELATED_GUIDES}}
+      </div>
+    </section>
+
     <!-- ─────────────────────── MORE ─────────────────────── -->
     <section class="section section--tight" aria-label="More comparisons">
       <nav class="compare-more" aria-label="More comparisons">
 {{MORE_LINKS}}
       </nav>
-      <p class="compare-disclaimer">{{DISCLAIMER}} as of {{VERIFIED_MONTH}} and may change — if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+      <p class="compare-disclaimer">{{DISCLAIMER}} as of {{VERIFIED_MONTH}} and may change: if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
     </section>
   </main>
 

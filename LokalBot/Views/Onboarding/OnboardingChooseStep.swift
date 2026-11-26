@@ -178,10 +178,10 @@ private extension AppSettings.AutoRecordMode {
     }
 }
 
-private extension AppSettings.ScreenContextCaptureMode {
+extension AppSettings.ScreenContextCaptureMode {
     var setupTitle: String {
         switch self {
-        case .activityOnly: "App names only"
+        case .activityOnly: "App and window titles"
         case .accessibleText: "Text on screen"
         case .visualContext: "Text and screenshots"
         }

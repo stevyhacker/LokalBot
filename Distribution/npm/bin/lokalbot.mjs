@@ -15,7 +15,7 @@ import { defaultYear, wrapped } from '../src/wrapped.mjs';
 const REPOSITORY = 'https://github.com/stevyhacker/LokalBot';
 const WEBSITE = 'https://www.lokalbot.com';
 
-const HELP = `lokalbot: Agent Wrapped — your year with coding agents, counted locally
+const HELP = `lokalbot: Agent Wrapped: your year with coding agents, counted locally
 
 Usage
   npx lokalbot [options]
@@ -176,6 +176,7 @@ async function main() {
       theme: values.light ? 'light' : 'dark',
       showProjects: values.projects,
       showApiValue: !values['no-api-value'],
+      platform: process.platform,
     }));
     process.stdout.write(`\n  Your image is on this page: ${pathToFileURL(file).href}\n`);
     if (!values['no-open']) open(file);

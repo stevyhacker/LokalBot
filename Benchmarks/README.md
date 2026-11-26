@@ -47,3 +47,69 @@ These alternatives were measured against what the app uses and did not replace i
 | Meeting actions and extraction | Spark-X2.6-4B `Q4_K_M` | Qwen3.5 4B `Q4_K_M` | Linux CPU screen on a Ryzen 7 9700X at 32K context: 12/12 vs 10/12 short extraction cases and 43/43 vs 41/43 fields at 2.72 vs 2.86 s median, but 5/6 vs 6/6 tool cases — asked to send mail it had no tool for, it searched meetings instead — and 150.08 vs 120.03 s on a ~20K-token input at 7.28 vs 7.18 GiB peak RSS. A pilot for further testing, not a default switch. | [2026-10-20](think/SparkX26/2026-10-20/REPORT.md) |
 | Transcription, Whisper ladder | Whisper large-v3 (Argmax) and TheStage turbo S on Core ML + MLX | Whisper large-v3 turbo, the app's Whisper option, on WhisperKit 1.1.0 (the app now pins 1.1.1) | Eight excerpts from two saved meetings, 112.08 s on an M4 Max: full large-v3 took 3.98× as long as the turbo, 45.55 vs 11.45 s. TheStage turbo took 6.48 s, 17.30× vs 9.79× realtime, but word mode shortened two English outputs (23 to 14 words, 40 to 15) and every clip's last word had no end timestamp. Disagreement against the saved Qwen3-ASR text, not true WER: English 9.5% vs 11.7%. Kept the turbo. | [2026-10-08](transcribe/WhisperComparison/results/2026-10-08/REPORT.md) |
 | Transcription, small engines | Whistle, native C API | Parakeet Ultra 0.6B on FluidAudio 0.17.5 and Qwen3-ASR 1.7B 8-bit, the app's options | On 44 human-transcribed English clips (810 words, 295 s): 20.25% WER against 8.89% for Parakeet and 7.65% for Qwen, 11.36 points above Parakeet (95% interval 7.42–16.30). Median 31.7 vs 48.0 vs 157.0 ms from a 16.9 MB download against 632 MB and 2.47 GB, and 111.69% WER on the unsupported Serbian probe. Telemetry is on by default; this ran under an enforced network block. | [2026-10-09](transcribe/WhistleComparison/results/2026-10-09/REPORT.md) |
+
+<a id="contribute-hardware-benchmarks"></a>
+
+## Contribute Hardware Benchmarks (M1 / M2 / M3 / Windows / Linux)
+
+Nearly every number above ran on one Apple M4 Max (48 GB). Verified measurements on 8 GB / 16 GB / 24 GB Apple Silicon Macs (M1, M2, M3, M4 base) and Windows or Linux desktops (Vulkan, CUDA, or CPU) are the highest-value community contribution right now. Accepted hardware rows feed the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) and calibrate the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware). Check open [GitHub Issues](https://github.com/stevyhacker/LokalBot/issues) for active hardware benchmark bounties (`$50` per verified M1 / M2 / M3 / Windows / Linux hardware profile when listed).
+
+### Target hardware profiles
+
+| Platform | Target hardware | Priority roles |
+| --- | --- | --- |
+| macOS (8 GB / 16 GB / 24 GB) | Apple M1, M2, M3, M4 base | Think (`Qwen3.5 4B`), Autocomplete (`Gemma 4 E2B`), ASR (`Qwen3-ASR`) |
+| Windows (x64, alpha) | CPU-only, AMD / Intel Vulkan, NVIDIA CUDA | Think (`Qwen3.5 4B`), Autocomplete (`Gemma 4 E2B`) |
+| Linux (x86_64, alpha) | CPU-only, AMD / Intel Vulkan, NVIDIA CUDA | Think (`Qwen3.5 4B`), Autocomplete (`Gemma 4 E2B`) |
+
+### 1. Run a reproducible harness
+
+Close heavy background apps and keep the machine plugged in so thermal throttling does not skew numbers. Never commit private recordings, transcripts, or raw model outputs; keep private scratch files in `/tmp` (or `%TEMP%`) and commit only aggregate timings, memory peaks, and hardware specs.
+
+**macOS: meeting summary and action extraction (`SummaryEfficiency`)**
+
+```sh
+Scripts/build/fetch-llama.sh
+uv run --no-project Benchmarks/think/SummaryEfficiency/run.py \
+  --transcript '/absolute/path/to/sample-or-public-transcript.json' \
+  --model "$HOME/Library/Application Support/me.dotenv.LokalBot/models/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf" \
+  --output /tmp/lokalbot-summary-replay
+```
+
+**macOS: inline autocomplete quality and keystroke latency (`Cotyping`)**
+
+```sh
+xcodegen generate
+xcodebuild build -project LokalBot.xcodeproj -scheme LokalBot \
+  -configuration Release -destination 'platform=macOS' \
+  -derivedDataPath .build/XcodeDerivedData CODE_SIGNING_ALLOWED=NO
+uv run --no-project python -S Benchmarks/autocomplete/Cotyping/quality_replay.py \
+  --app .build/XcodeDerivedData/Build/Products/Release/LokalBot.app/Contents/MacOS/LokalBot \
+  --model "$HOME/Library/Application Support/me.dotenv.LokalBot/models/Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf" \
+  --corpus Benchmarks/autocomplete/Cotyping/quality-cases.json \
+  --split all --output /tmp/lokalbot-autocomplete-replay
+```
+
+**macOS: `Qwen3-ASR 1.7B` / `0.6B` on `llama.cpp` (`QwenLlamaCpp`)**
+
+Follow [Benchmarks/transcribe/QwenLlamaCpp/README.md](transcribe/QwenLlamaCpp/README.md) to run `./run_backend.sh llama` and `score_backends.py` against public AMI and FLEURS clips.
+
+**Windows & Linux: `llama-bench` throughput and memory check**
+
+Use LokalBot's bundled `llama-server` / `llama-bench` (or matching pinned upstream `llama.cpp` release) against the pinned `Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf` and `Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf` files, recording prefill (`pp512`, `pp4096`), decode (`tg128`), and peak RSS / VRAM:
+
+```sh
+llama-bench \
+  -m /path/to/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf \
+  -p 512,4096 -n 128 -r 3 -o json
+```
+
+### 2. Submit a pull request
+
+1. Put your aggregate report under the matching role folder, for example `Benchmarks/think/SummaryEfficiency/results-YYYY-MM-DD-<chip-ram>.json` or `Benchmarks/autocomplete/Cotyping/results/YYYY-MM-DD-<chip-ram>/REPORT.md`.
+2. Record exact machine and build details at the top of the report:
+   - Chip / CPU model, GPU model and VRAM (if discrete), total RAM, OS version (plus Linux distro / Mesa or NVIDIA driver version on Linux/Windows)
+   - Exact model filename and SHA-256 (`shasum -a 256` or `Get-FileHash`)
+   - Exact `llama.cpp` build / LokalBot commit SHA and backend (`Metal`, `Vulkan`, `CUDA`, or `CPU`)
+   - Whether the machine was on AC power and ambient/thermal notes if relevant
+3. Open a pull request against `master` using [`.github/PULL_REQUEST_TEMPLATE.md`](../.github/PULL_REQUEST_TEMPLATE.md) and link the matching hardware bounty issue if applicable. Do not edit existing M4 Max baseline numbers; add your machine as a separate report file so every row remains reproducible.

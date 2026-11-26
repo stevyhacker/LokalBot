@@ -116,7 +116,7 @@ fun LokalBotApp(
         LocalOverflowDestinations provides overflow,
         LocalAppNavigator provides navigator,
     ) {
-        RecordingHost(libraryRecorder) {
+        RecordingHost(libraryRecorder, isPaired = !repository.isSample) {
             NavigationSuiteScaffold(
                 modifier = modifier,
                 layoutType = suiteType,

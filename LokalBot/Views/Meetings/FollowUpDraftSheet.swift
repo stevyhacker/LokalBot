@@ -33,6 +33,10 @@ struct FollowUpDraftSheet: View {
                     .workspaceControl()
                     .accessibilityLabel("Follow-up body")
                     .accessibilityIdentifier("followUp.body")
+                Toggle(MeetingRecapExporter.attributionToggleLabel, isOn: $app.settings.includeRecapAttribution)
+                    .toggleStyle(.checkbox)
+                    .font(.scaled(.callout))
+                    .accessibilityIdentifier("followUp.includeAttribution")
                 HStack(spacing: 8) {
                     Button {
                         Task { await write() }
@@ -107,7 +111,11 @@ struct FollowUpDraftSheet: View {
     private func copy() {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString("Subject: \(subject)\n\n\(bodyText)", forType: .string)
+        let text = MeetingRecapExporter.followUpCopyText(
+            subject: subject,
+            body: bodyText,
+            includeAttribution: app.settings.includeRecapAttribution)
+        pasteboard.setString(text, forType: .string)
         status = "Copied."
     }
 

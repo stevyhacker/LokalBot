@@ -55,11 +55,11 @@ private fun permissionsToAsk(context: Context): Array<String> = buildList {
 }.toTypedArray()
 
 @Composable
-fun RecordingHost(recorder: MeetingRecorder?, content: @Composable () -> Unit) {
+fun RecordingHost(recorder: MeetingRecorder?, isPaired: Boolean = true, content: @Composable () -> Unit) {
     RecordingAccess(recorder) {
         val appState = rememberSaveableStateHolder()
         if (recorder != null && recordingScreenShown(recorder)) {
-            RecordingScreen(recorder)
+            RecordingScreen(recorder, isPaired = isPaired)
         } else {
             appState.SaveableStateProvider("app", content)
         }

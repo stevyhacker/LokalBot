@@ -1,0 +1,15 @@
+/*
+  Content-Signal: ai-train=yes, search=yes, ai-input=yes
+  Link: <https://www.lokalbot.com/llms.txt>; rel="llms-txt"
+
+/styles.css
+  Cache-Control: public, max-age=3600
+
+/icons.css
+  Cache-Control: public, max-age=3600
+
+/app.js
+  Cache-Control: public, max-age=3600
+
+/assets/*
+  Cache-Control: public, max-age=86400

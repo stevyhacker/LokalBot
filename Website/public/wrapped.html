@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Agent Wrapped 2026: Your Year With Coding Agents — LokalBot</title>
-  <meta name="description" content="Run npx lokalbot to turn your local Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs into a shareable year-in-review card. Zero dependencies, zero uploads." />
+  <title>Agent Wrapped 2026: Your Year With Coding Agents | LokalBot</title>
+  <meta name="description" content="Run npx lokalbot or drop local session logs in your browser to build a 2026 Agent Wrapped card for Claude Code, Codex, Cursor, and 5 more agents. Zero uploads." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -12,52 +12,66 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/wrapped" />
-  <meta property="og:title" content="Agent Wrapped 2026 — Your year with coding agents" />
-  <meta property="og:description" content="Reads Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI logs locally. Zero dependencies, zero uploads. Run npx lokalbot." />
+  <meta property="og:title" content="Agent Wrapped 2026: Your Year With Coding Agents" />
+  <meta property="og:description" content="Preview sample cards or drop local Claude Code, Codex, Pi, and Gemini CLI logs in your browser with zero uploads. Or run npx lokalbot locally." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
-  <meta property="og:image:alt" content="Agent Wrapped 2026: your year with coding agents, counted locally with npx lokalbot." />
+  <meta property="og:image:alt" content="Agent Wrapped 2026: interactive local year-in-review card for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Agent Wrapped 2026 — Your year with coding agents" />
-  <meta name="twitter:description" content="Run npx lokalbot for a local, zero-upload year in review across Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI." />
+  <meta name="twitter:title" content="Agent Wrapped 2026: Your Year With Coding Agents" />
+  <meta name="twitter:description" content="Run npx lokalbot or drop local logs in your browser for a zero-upload year in review across Claude Code, Codex, Cursor, and 5 more coding agents." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-wrapped.png" />
-  <meta name="twitter:image:alt" content="Agent Wrapped 2026: your year with coding agents, counted locally with npx lokalbot." />
+  <meta name="twitter:image:alt" content="Agent Wrapped 2026: interactive local year-in-review card for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI." />
   <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
   <script src="/app.js" defer></script>
+  <script src="/wrapped.js" defer></script>
   <style>
-    .wrapped-page { max-width: 1080px; margin: 0 auto; padding: 120px 24px 80px; }
-    .wrapped-hero { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr); gap: 48px; align-items: center; }
-    @media (max-width: 860px) { .wrapped-hero { grid-template-columns: 1fr; gap: 32px; } }
-    .wrapped-hero h1 { font-size: clamp(2.2rem, 4.4vw, 3.3rem); line-height: 1.06; margin: 12px 0 18px; letter-spacing: -0.03em; color: var(--text); }
-    .wrapped-hero__lead { font-size: 1.1rem; line-height: 1.62; color: var(--text-dim); margin: 0 0 22px; }
-    .wrapped-agents { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 22px; }
+    .wrapped-page { max-width: 1120px; margin: 0 auto; padding: 112px 24px 80px; }
+    .wrapped-page .breadcrumbs { margin-bottom: 16px; }
+    .wrapped-hero { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); gap: 36px; align-items: end; margin-bottom: 36px; }
+    @media (max-width: 880px) { .wrapped-hero { grid-template-columns: 1fr; gap: 24px; } }
+    .wrapped-hero h1 { font-size: clamp(2.1rem, 4.2vw, 3.2rem); line-height: 1.06; margin: 10px 0 14px; letter-spacing: -0.03em; color: var(--text); }
+    .wrapped-hero__lead { font-size: 1.06rem; line-height: 1.6; color: var(--text-dim); margin: 0 0 18px; max-width: 60ch; }
+    .wrapped-agents { display: flex; flex-wrap: wrap; gap: 7px; margin: 0; }
     .wrapped-agent-pill {
-      padding: 6px 12px;
+      padding: 5px 11px;
       border-radius: var(--pill);
-      font: 600 0.82rem/1.2 var(--mono);
+      font: 600 0.8rem/1.2 var(--mono);
       color: var(--text-dim);
       background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-inset);
     }
+    .wrapped-cli-box {
+      padding: 20px 22px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .wrapped-cli-box__label { font: 700 0.74rem/1.2 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent-text); margin: 0 0 10px; }
     .wrapped-cmd {
-      display: inline-flex;
+      display: flex;
       align-items: center;
-      gap: 14px;
-      padding: 12px 14px 12px 18px;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 11px 12px 11px 16px;
       border-radius: var(--radius-sm);
       background: #0e141c;
       color: #ecf3f7;
       border: 1px solid var(--line-strong);
-      box-shadow: 0 14px 32px -16px rgba(14, 20, 28, 0.32);
       font-family: var(--mono);
-      font-size: 1.05rem;
+      font-size: 1.02rem;
       font-weight: 600;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .wrapped-cmd code { color: #ecf3f7; font-family: inherit; }
     .wrapped-cmd__prompt { color: var(--teal); user-select: none; margin-right: 6px; }
@@ -65,73 +79,251 @@
       border: 0;
       border-radius: 8px;
       padding: 8px 13px;
-      font: 700 0.84rem/1 var(--mono);
+      font: 700 0.82rem/1 var(--mono);
       cursor: pointer;
       background: var(--teal);
       color: var(--teal-ink);
+      flex: 0 0 auto;
     }
     .wrapped-cmd__copy:hover { filter: brightness(1.06); }
-    .wrapped-meta { font-size: 0.9rem; color: var(--text-faint); margin: 0 0 22px; }
-    .wrapped-card-frame { margin: 0; }
-    .wrapped-card-frame img {
+    .wrapped-meta { font-size: 0.86rem; color: var(--text-faint); margin: 0 0 14px; line-height: 1.5; }
+    .wrapped-cli-links { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .wrapped-studio {
+      padding: clamp(20px, 3vw, 28px);
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .wrapped-studio__head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+    .wrapped-studio__head h2 { font-size: clamp(1.25rem, 2.2vw, 1.55rem); margin: 0; color: var(--text); }
+    .wrapped-studio__sub { font-size: 0.9rem; color: var(--text-faint); margin: 0; }
+    .wrapped-profiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin-bottom: 18px; }
+    .wrapped-profile-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 3px;
+      padding: 11px 14px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      color: var(--text-dim);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .wrapped-profile-btn strong { font-size: 0.9rem; color: var(--text); }
+    .wrapped-profile-btn span { font: 500 0.76rem/1.3 var(--mono); color: var(--text-faint); }
+    .wrapped-profile-btn:hover { border-color: var(--teal); }
+    .wrapped-profile-btn[aria-pressed="true"] { border-color: rgba(35, 196, 174, 0.6); background: var(--teal-soft); }
+    .wrapped-profile-btn[aria-pressed="true"] strong { color: var(--accent-text); }
+    .wrapped-profile-btn--local { border-color: rgba(251, 191, 36, 0.45); }
+
+    .wrapped-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    .wrapped-toolbar__group { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .wrapped-seg {
+      display: inline-flex;
+      background: var(--surface-2);
+      border: 1px solid var(--glass-border);
+      border-radius: 10px;
+      padding: 3px;
+      gap: 2px;
+    }
+    .wrapped-seg button {
+      border: 0;
+      border-radius: 7px;
+      padding: 7px 12px;
+      font: 600 0.8rem/1 var(--mono);
+      color: var(--text-dim);
+      background: transparent;
+      cursor: pointer;
+    }
+    .wrapped-seg button[aria-pressed="true"] { background: var(--teal); color: var(--teal-ink); }
+    .wrapped-toggles { display: flex; flex-wrap: wrap; gap: 14px; font: 500 0.82rem/1 var(--mono); color: var(--text-dim); }
+    .wrapped-toggles label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+    .wrapped-toggles input { accent-color: var(--teal); width: 15px; height: 15px; cursor: pointer; }
+
+    .wrapped-stage-wrap {
+      max-width: 500px;
+      margin: 0 auto;
+      transition: max-width 200ms var(--ease);
+    }
+    .wrapped-stage-wrap.is-wide { max-width: 920px; }
+    #wrapped-stage svg,
+    #wrapped-stage img {
       display: block;
       width: 100%;
-      max-width: 440px;
       height: auto;
-      margin: 0 auto;
       border-radius: 16px;
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-shadow);
     }
-    .wrapped-card-frame figcaption { text-align: center; font-size: 0.86rem; color: var(--text-faint); margin-top: 12px; }
-    .wrapped-card-frame code,
-    .wrapped-tile code,
-    .wrapped-faq code { font-family: var(--mono); font-size: 0.88em; color: var(--text); }
-    .wrapped-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 64px; }
+    .wrapped-stage-actions {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-top: 18px;
+    }
+    .wrapped-action-status {
+      text-align: center;
+      min-height: 1.4em;
+      margin: 10px 0 0;
+      font-size: 0.88rem;
+      color: var(--accent-text);
+    }
+    .wrapped-caption-box {
+      max-width: 680px;
+      margin: 14px auto 0;
+      padding: 12px 16px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-2);
+      border: 1px solid var(--glass-border);
+      font: 500 0.8rem/1.55 var(--mono);
+      color: var(--text-dim);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .wrapped-drop-section { margin-top: 34px; }
+    .wrapped-drop-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+    .wrapped-drop-head h2 { font-size: clamp(1.25rem, 2.2vw, 1.6rem); margin: 0; color: var(--text); }
+    .wrapped-year-picker { display: inline-flex; align-items: center; gap: 8px; font: 600 0.82rem/1 var(--mono); color: var(--text-dim); }
+    .wrapped-year-picker select {
+      background: var(--surface-2);
+      color: var(--text);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font: 600 0.82rem/1 var(--mono);
+    }
+    .wrapped-dropzone {
+      padding: clamp(22px, 3.5vw, 34px) 22px;
+      border-radius: var(--radius-lg);
+      border: 2px dashed var(--line-strong);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      box-shadow: var(--glass-inset);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), transform 140ms var(--ease);
+    }
+    .wrapped-dropzone:hover,
+    .wrapped-dropzone.is-dragover { border-color: var(--teal); transform: translateY(-1px); }
+    .wrapped-dropzone h3 { margin: 0 0 8px; font-size: 1.12rem; color: var(--text); }
+    .wrapped-dropzone p { margin: 0 auto 14px; max-width: 66ch; color: var(--text-dim); font-size: 0.92rem; line-height: 1.55; }
+    .wrapped-dropzone__btns { display: flex; flex-wrap: wrap; justify-content: center; gap: 10px; margin-bottom: 10px; }
+    .wrapped-dropzone__badge { display: inline-block; font: 600 0.78rem/1.3 var(--mono); color: var(--accent-text); }
+    .wrapped-drop-footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-top: 12px; }
+    .wrapped-drop-status { margin: 0; font-size: 0.88rem; color: var(--text-dim); }
+
+    .wrapped-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; margin-top: 52px; }
     @media (max-width: 820px) { .wrapped-grid { grid-template-columns: 1fr; } }
     .wrapped-tile {
       padding: 24px;
       border-radius: var(--radius);
       background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-inset), var(--glass-shadow);
     }
     .wrapped-tile h2 { font-size: 1.08rem; margin: 0 0 10px; color: var(--text); }
     .wrapped-tile p { margin: 0; font-size: 0.94rem; line-height: 1.6; color: var(--text-dim); }
+    .wrapped-tile code,
+    .wrapped-faq code,
+    .wrapped-dropzone code,
+    .wrapped-bridge code { font-family: var(--mono); font-size: 0.88em; color: var(--text); }
+
     .wrapped-bridge {
-      margin-top: 56px;
+      margin-top: 52px;
       padding: clamp(24px, 4vw, 36px);
       border-radius: var(--radius-lg);
       background: var(--glass-gloss), var(--glass-tint-strong);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-inset), var(--glass-shadow);
     }
     .wrapped-bridge h2 { font-size: clamp(1.5rem, 3vw, 2rem); margin: 8px 0 12px; color: var(--text); }
-    .wrapped-bridge p { max-width: 66ch; line-height: 1.62; color: var(--text-dim); margin: 0 0 18px; }
+    .wrapped-bridge > p { max-width: 68ch; line-height: 1.62; color: var(--text-dim); margin: 0 0 18px; }
     .wrapped-bridge p strong { color: var(--text); }
-    .wrapped-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
-    .wrapped-faq { margin-top: 56px; }
+    .wrapped-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 18px; }
+    .wrapped-bridge-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+    @media (max-width: 820px) { .wrapped-bridge-grid { grid-template-columns: 1fr; } }
+    .wrapped-bridge-card { display: flex; flex-direction: column; gap: 10px; }
+    .wrapped-bridge-card__head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+    .wrapped-bridge-card__label { font: 700 0.76rem/1.2 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-faint); }
+    .wrapped-copy-stack { display: flex; flex-direction: column; gap: 8px; }
+    .wrapped-copy-cmd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      text-align: left;
+      padding: 10px 12px;
+      border-radius: 9px;
+      border: 1px solid var(--line-strong);
+      background: #0e141c;
+      color: #ecf3f7;
+      font: 500 0.8rem/1.4 var(--mono);
+      cursor: pointer;
+    }
+    .wrapped-copy-cmd__text { overflow-wrap: anywhere; }
+    .wrapped-copy-cmd__hint { flex: 0 0 auto; color: var(--teal); font-weight: 700; }
+    .wrapped-bridge-note { margin: 0; font-size: 0.84rem; color: var(--text-faint); line-height: 1.5; }
+
+    .wrapped-faq { margin-top: 52px; }
     .wrapped-faq h2 { margin: 0 0 18px; color: var(--text); }
     .wrapped-faq details { padding: 16px 0; border-top: 1px solid var(--line); }
     .wrapped-faq summary { font-weight: 600; cursor: pointer; color: var(--text); }
     .wrapped-faq details p { margin: 10px 0 0; color: var(--text-dim); line-height: 1.62; }
+
+    .footer--wrapped { grid-template-columns: 1.7fr 1fr 1fr 1fr 0.8fr; }
+    @media (max-width: 1040px) {
+      .wrapped-nav .nav__links { display: none; }
+      .wrapped-nav .nav__actions { margin-left: auto; }
+      .wrapped-nav .nav__actions .nav__menu-button { display: inline-flex; }
+    }
+    @media (max-width: 900px) {
+      .footer--wrapped { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 540px) {
+      .footer--wrapped { grid-template-columns: 1fr; }
+    }
+    [hidden] { display: none !important; }
     @media (prefers-reduced-transparency: reduce) {
-      .wrapped-tile, .wrapped-bridge, .wrapped-agent-pill {
+      .wrapped-tile, .wrapped-bridge, .wrapped-agent-pill, .wrapped-cli-box, .wrapped-studio, .wrapped-dropzone, .wrapped-profile-btn {
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
         background: var(--surface);
       }
     }
     @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-      .wrapped-tile, .wrapped-bridge { background: var(--surface); }
-      .wrapped-agent-pill { background: var(--surface-2); }
+      .wrapped-tile, .wrapped-bridge, .wrapped-cli-box, .wrapped-studio, .wrapped-dropzone { background: var(--surface); }
+      .wrapped-agent-pill, .wrapped-profile-btn { background: var(--surface-2); }
     }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Coding Agents — LokalBot","description":"Run npx lokalbot to turn your local Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs into a shareable year-in-review card. Zero dependencies, zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Which coding agents does Agent Wrapped read?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped automatically reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also point individual --*-dir flags at custom log directories."}},{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. The npm package has zero dependencies and makes zero network requests. It reads your local session logs, counts timestamps, tool calls, models, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/wrapped#app","name":"Agent Wrapped 2026","url":"https://www.lokalbot.com/wrapped","description":"Interactive offline year-in-review card generator for Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI session logs. Runs locally via npx lokalbot or directly in browser memory with zero uploads.","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Windows, Linux, or any modern browser","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"datePublished":"2026-11-19","dateModified":"2026-11-26","image":"https://www.lokalbot.com/assets/og-wrapped.png","publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/wrapped#webpage","url":"https://www.lokalbot.com/wrapped","name":"Agent Wrapped 2026: Your Year With Coding Agents | LokalBot","description":"Run npx lokalbot or drop local session logs in your browser to build a 2026 Agent Wrapped card for Claude Code, Codex, Cursor, and 5 more agents. Zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Agent Wrapped 2026","item":"https://www.lokalbot.com/wrapped"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/wrapped#faq","mainEntity":[{"@type":"Question","name":"Which coding agents does Agent Wrapped read?","acceptedAnswer":{"@type":"Answer","text":"The CLI (npx lokalbot) reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also drop Claude Code stats-cache.json, Claude/Codex/Pi/OMP .jsonl logs, or Gemini CLI session JSON files directly on this page to render offline in your browser."}},{"@type":"Question","name":"Does Agent Wrapped upload my logs or prompts?","acceptedAnswer":{"@type":"Answer","text":"No. Both the npm package and the browser file drop make zero network requests and upload zero bytes. Files dropped on this page are parsed strictly inside browser memory and never leave your tab. Prompt text is never stored or printed."}},{"@type":"Question","name":"Why does my Claude Code heatmap start 30 days ago?","acceptedAnswer":{"@type":"Answer","text":"Claude Code deletes detailed session logs after 30 days by default unless you set cleanupPeriodDays in ~/.claude/settings.json. Agent Wrapped automatically zooms to your active logged window and reads Claude Code's stats-cache.json to include earlier days counted this year."}},{"@type":"Question","name":"How is Agent Wrapped connected to LokalBot?","acceptedAnswer":{"@type":"Answer","text":"Agent Wrapped uses the same local session-log reader as LokalBot's desktop Timeline. LokalBot is a free, open-source (GPLv3) app for macOS, Windows, and Linux that records meetings without a bot, runs transcription and summaries locally, and exposes your meeting notes to Claude Code and Codex over read-only MCP."}}]}]}</script>
 </head>
 <body>
+  <a class="skip-link" href="#wrapped-main">Skip to Agent Wrapped</a>
   <div class="bg-field" aria-hidden="true"></div>
-  <header class="nav" id="top">
+  <header class="nav wrapped-nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home">
       <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
       <span class="brand__name">LokalBot</span>
@@ -140,22 +332,30 @@
       <a href="/#features">Features</a>
       <a href="/guides">Guides</a>
       <a href="/benchmarks">Benchmarks</a>
+      <a href="/hardware">Hardware</a>
+      <a href="/migrate">Migrator</a>
+      <a href="/calculator">Calculator</a>
       <a href="/blog">Blog</a>
+      <a href="/wrapped" aria-current="page">Wrapped</a>
     </nav>
     <div class="nav__actions">
       <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
         <i class="ph ph-github-logo" aria-hidden="true"></i>
       </a>
-      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download for Mac</a>
     </div>
   </header>
 
-  <main class="wrapped-page">
+  <main class="wrapped-page" id="wrapped-main">
+    <nav class="breadcrumbs" aria-label="Breadcrumb">
+      <a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>Agent Wrapped 2026</span>
+    </nav>
+
     <section class="wrapped-hero">
       <div>
-        <p class="eyebrow">Free · Open source (GPLv3) · Updated November 19, 2026</p>
+        <p class="eyebrow">Free · Open source (GPLv3) · Updated November 26, 2026</p>
         <h1>Your year with coding agents.</h1>
-        <p class="wrapped-hero__lead">Run one command to map your GitHub-style contribution graph, top 5 models by token count, agent split, parallelism, tool calls, commits, and estimated API value—counted strictly from the logs on your own computer.</p>
+        <p class="wrapped-hero__lead">Turn your local session logs into a GitHub-style contribution graph, top 5 models by token count, agent split, parallelism multiplier, tool calls, commits, and estimated API value. Counted locally with zero uploads.</p>
         <div class="wrapped-agents" aria-label="Supported coding agents">
           <span class="wrapped-agent-pill">Claude Code</span>
           <span class="wrapped-agent-pill">Codex</span>
@@ -166,30 +366,106 @@
           <span class="wrapped-agent-pill">Antigravity</span>
           <span class="wrapped-agent-pill">Gemini CLI</span>
         </div>
+      </div>
+
+      <div class="wrapped-cli-box">
+        <p class="wrapped-cli-box__label">Scan all 8 agents from your terminal</p>
         <div class="wrapped-cmd">
           <code><span class="wrapped-cmd__prompt">$</span>npx lokalbot</code>
-          <button type="button" class="wrapped-cmd__copy" data-copy-text="npx lokalbot" aria-label="Copy npx lokalbot">Copy</button>
+          <button type="button" class="wrapped-cmd__copy" data-wrapped-copy="npx lokalbot" aria-label="Copy npx lokalbot">Copy</button>
         </div>
         <p class="wrapped-meta">Zero dependencies · Zero network requests · Dark &amp; Light · Portrait 4:5 &amp; Wide 16:9 PNG · macOS, Linux, Windows</p>
-        <div class="wrapped-bridge__actions">
-          <a class="btn btn--ghost" href="https://github.com/stevyhacker/lokalbot/tree/master/Distribution/npm" target="_blank" rel="noopener">Audit the source on GitHub</a>
-          <a class="btn btn--ghost" href="/claude-code-codex-meeting-notes">Connect Claude Code to meetings</a>
+        <div class="wrapped-cli-links">
+          <a class="btn btn--ghost btn--sm" href="#offline-drop">Drop local logs offline</a>
+          <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/lokalbot/tree/master/Distribution/npm" target="_blank" rel="noopener">Audit source</a>
         </div>
       </div>
-      <figure class="wrapped-card-frame">
-        <img src="/assets/agent-wrapped-card.png" width="1200" height="1500" alt="Agent Wrapped 2026 demo card titled The Switch Hitter showing a GitHub-style contribution graph, 4 KPI tiles, Top 5 Models with token totals, and a multi-agent split bar." />
-        <figcaption>Demo card from <code>npx lokalbot --demo</code>. Export as 2× PNG in Dark or Light mode, Portrait (4:5) or Wide (16:9).</figcaption>
-      </figure>
+    </section>
+
+    <section class="wrapped-studio" aria-labelledby="studio-title">
+      <div class="wrapped-studio__head">
+        <h2 id="studio-title">Interactive card preview</h2>
+        <p class="wrapped-studio__sub">Switch profiles, toggle Portrait 4:5 or Wide 16:9, or drop your own logs below. No Node.js needed.</p>
+      </div>
+
+      <div id="wrapped-profiles" class="wrapped-profiles" role="group" aria-label="Sample agent profiles"></div>
+
+      <div class="wrapped-toolbar">
+        <div class="wrapped-toolbar__group">
+          <div class="wrapped-seg" role="group" aria-label="Card layout">
+            <button type="button" data-wrapped-layout="portrait" aria-pressed="true">Portrait 4:5</button>
+            <button type="button" data-wrapped-layout="wide" aria-pressed="false">Wide 16:9</button>
+          </div>
+          <div class="wrapped-seg" role="group" aria-label="Card color theme">
+            <button type="button" data-wrapped-theme="dark" aria-pressed="true">Dark</button>
+            <button type="button" data-wrapped-theme="light" aria-pressed="false">Light</button>
+          </div>
+          <div id="wrapped-window-group" class="wrapped-seg" role="group" aria-label="Time window" hidden>
+            <button type="button" data-wrapped-window="active" aria-pressed="true">Active window</button>
+            <button type="button" data-wrapped-window="year" aria-pressed="false">Full year</button>
+          </div>
+        </div>
+        <div class="wrapped-toggles">
+          <label id="wrapped-toggle-api-wrap"><input id="wrapped-toggle-api" type="checkbox" checked /> API value</label>
+          <label id="wrapped-toggle-projects-wrap"><input id="wrapped-toggle-projects" type="checkbox" /> Top projects</label>
+        </div>
+      </div>
+
+      <div id="wrapped-stage-wrap" class="wrapped-stage-wrap">
+        <div id="wrapped-stage">
+          <img src="/assets/agent-wrapped-card.png" width="1200" height="1500" alt="Agent Wrapped 2026 demo card titled The Switch Hitter showing a GitHub-style contribution graph, 4 KPI tiles, Top 5 Models with token totals, and a multi-agent split bar." />
+        </div>
+      </div>
+
+      <div class="wrapped-stage-actions">
+        <button id="wrapped-save-png" type="button" class="btn btn--primary btn--sm">Download 2x PNG</button>
+        <button id="wrapped-copy-png" type="button" class="btn btn--ghost btn--sm" hidden>Copy PNG</button>
+        <button id="wrapped-copy-caption" type="button" class="btn btn--ghost btn--sm">Copy share text</button>
+        <a id="wrapped-post-x" class="btn btn--ghost btn--sm" href="https://x.com/intent/tweet?text=Run%20your%202026%20Agent%20Wrapped%20locally%3A%20npx%20lokalbot%0Ahttps%3A%2F%2Fwww.lokalbot.com%2Fwrapped" target="_blank" rel="noopener">Post on X</a>
+      </div>
+      <p id="wrapped-action-status" class="wrapped-action-status" role="status" aria-live="polite"></p>
+      <pre id="wrapped-caption-preview" class="wrapped-caption-box" aria-label="Generated share text"></pre>
+
+      <div id="offline-drop" class="wrapped-drop-section">
+        <div class="wrapped-drop-head">
+          <h2>Build from your own logs in this tab</h2>
+          <label class="wrapped-year-picker">
+            Year
+            <select id="wrapped-year-select" aria-label="Year to count">
+              <option value="2026" selected>2026</option>
+              <option value="2025">2025</option>
+              <option value="2024">2024</option>
+            </select>
+          </label>
+        </div>
+
+        <input id="wrapped-file-input" type="file" multiple accept=".json,.jsonl,.ndjson" hidden />
+        <input id="wrapped-dir-input" type="file" webkitdirectory multiple hidden />
+        <div id="wrapped-dropzone" class="wrapped-dropzone" role="button" tabindex="0" aria-label="Drop local session logs or click to pick files">
+          <h3>Drop local session logs here, or pick files</h3>
+          <p>Works with Claude Code <code>stats-cache.json</code> and <code>~/.claude/projects/*/*.jsonl</code>, Codex <code>~/.codex/sessions/**/*.jsonl</code>, Pi / OMP <code>.jsonl</code> logs, and Gemini CLI <code>session-*.json</code>. Need Cursor or OpenCode SQLite databases too? Run <code>npx lokalbot</code>.</p>
+          <div class="wrapped-dropzone__btns">
+            <button id="wrapped-pick-files" type="button" class="btn btn--primary btn--sm">Pick .json / .jsonl files</button>
+            <button id="wrapped-pick-dir" type="button" class="btn btn--ghost btn--sm">Pick a log folder</button>
+          </div>
+          <span class="wrapped-dropzone__badge">0 bytes uploaded · Parsed 100% in browser memory · Prompt text discarded</span>
+        </div>
+
+        <div class="wrapped-drop-footer">
+          <p id="wrapped-drop-status" class="wrapped-drop-status" role="status" aria-live="polite">Drop files above to replace the sample card with your own local stats.</p>
+          <button id="wrapped-clear-local" type="button" class="btn btn--ghost btn--sm" hidden>Clear local data</button>
+        </div>
+      </div>
     </section>
 
     <section class="wrapped-grid" aria-label="Highlights">
       <div class="wrapped-tile">
         <h2>Zero uploads, zero dependencies</h2>
-        <p>Reads local session logs from Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI using built-in Node APIs only. Never keeps prompt text, leaves project names off the image unless you pass <code>--projects</code>, and opens an offline page to save or copy your PNG.</p>
+        <p>Both <code>npx lokalbot</code> and this page run strictly on your device. No npm dependencies, no analytics, no prompt text saved, and project names stay off the card unless you toggle them on.</p>
       </div>
       <div class="wrapped-tile">
         <h2>Built for how you actually ship</h2>
-        <p>Shows a GitHub-style contribution graph, Top 5 Models with token totals (merging provider prefixes across agents), multi-agent split bar, parallelism multiplier, estimated list-API value, and commits and merged pull requests.</p>
+        <p>Maps a GitHub-style contribution graph, Top 5 Models with token totals (merging provider prefixes across agents), multi-agent split bar, parallelism multiplier, estimated list-API value, and commits and merged pull requests.</p>
       </div>
       <div class="wrapped-tile">
         <h2>Handles Claude's 30-day log cleanup</h2>
@@ -197,26 +473,110 @@
       </div>
     </section>
 
-    <section class="wrapped-bridge">
+    <section class="wrapped-bridge" aria-labelledby="wrapped-bridge-title">
       <p class="eyebrow">From the maker of Agent Wrapped</p>
-      <h2>Give Claude Code and Codex memory of your meetings.</h2>
-      <p>Your coding agents already read your codebase, but they still don't know what your team decided on Zoom twenty minutes ago. <strong>LokalBot</strong> is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux that records calls with no meeting bot, runs transcription and summaries locally on your machine, and exposes decisions and action items to Claude Code and Codex over read-only MCP.</p>
+      <h2 id="wrapped-bridge-title">Give Claude Code and Codex memory of your meetings.</h2>
+      <p>Your coding agents already read your codebase, yet they still miss what your team decided on Zoom twenty minutes ago. <strong>LokalBot</strong> is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux that records calls with no meeting bot, runs transcription and summaries locally, and exposes decisions and action items to Claude Code and Codex over read-only MCP.</p>
       <div class="wrapped-bridge__actions">
-        <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download LokalBot</a>
+        <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for Mac</a>
         <a class="btn btn--ghost" href="/claude-code-codex-plugins">Install Claude Code &amp; Codex plugin</a>
+        <a class="btn btn--ghost" href="/claude-code-codex-meeting-notes">MCP setup guide</a>
       </div>
-      <p class="home-install">macOS Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span></p>
+      <p class="wrapped-bridge-note">Direct installers: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="/hardware">Hardware calculator</a></p>
+
+      <div class="wrapped-bridge-grid">
+        <div class="wrapped-bridge-card">
+          <div class="wrapped-bridge-card__head">
+            <span class="wrapped-bridge-card__label">1. Install LokalBot</span>
+            <div class="wrapped-seg" role="group" aria-label="Install LokalBot by operating system">
+              <button type="button" data-wrapped-os="darwin" aria-pressed="true">macOS</button>
+              <button type="button" data-wrapped-os="win32" aria-pressed="false">Windows</button>
+              <button type="button" data-wrapped-os="linux" aria-pressed="false">Linux</button>
+            </div>
+          </div>
+
+          <div data-wrapped-os-panel="darwin">
+            <div class="wrapped-copy-stack">
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="brew install --cask stevyhacker/tap/lokalbot">
+                <span class="wrapped-copy-cmd__text">brew install --cask stevyhacker/tap/lokalbot</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+            </div>
+            <p class="wrapped-bridge-note">Apple Silicon, macOS 15+. Notarized <code>.dmg</code> is also on GitHub Releases.</p>
+          </div>
+
+          <div data-wrapped-os-panel="win32" hidden>
+            <div class="wrapped-copy-stack">
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot">
+                <span class="wrapped-copy-cmd__text">scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket &amp;&amp; scoop install lokalbot/lokalbot</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+            </div>
+            <p class="wrapped-bridge-note">Windows 10 or 11 (x64, alpha). Or run the per-user <code>.exe</code> installer from GitHub Releases.</p>
+          </div>
+
+          <div data-wrapped-os-panel="linux" hidden>
+            <div class="wrapped-copy-stack">
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="sudo apt install ./LokalBot-*-linux-amd64.deb">
+                <span class="wrapped-copy-cmd__text">sudo apt install ./LokalBot-*-linux-amd64.deb</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="sudo dnf install ./LokalBot-*-linux-x86_64.rpm">
+                <span class="wrapped-copy-cmd__text">sudo dnf install ./LokalBot-*-linux-x86_64.rpm</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+            </div>
+            <p class="wrapped-bridge-note">Download the <code>.deb</code> or <code>.rpm</code> from <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Releases</a>; both configure <code>pkg.lokalbot.com</code> for <code>apt</code> and <code>dnf</code> upgrades.</p>
+          </div>
+        </div>
+
+        <div class="wrapped-bridge-card">
+          <div class="wrapped-bridge-card__head">
+            <span class="wrapped-bridge-card__label">2. Connect your agent</span>
+            <div class="wrapped-seg" role="group" aria-label="Coding agent integration">
+              <button type="button" data-wrapped-agent-tab="claude-code" aria-pressed="true">Claude Code</button>
+              <button type="button" data-wrapped-agent-tab="codex" aria-pressed="false">Codex</button>
+            </div>
+          </div>
+
+          <div data-wrapped-agent-panel="claude-code">
+            <div class="wrapped-copy-stack">
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="/plugin marketplace add stevyhacker/lokalbot&#10;/plugin install lokalbot@lokalbot">
+                <span class="wrapped-copy-cmd__text">/plugin marketplace add stevyhacker/lokalbot<br />/plugin install lokalbot@lokalbot</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="claude mcp add lokalbot -- lokalbot-cli mcp">
+                <span class="wrapped-copy-cmd__text">claude mcp add lokalbot -- lokalbot-cli mcp</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+            </div>
+          </div>
+
+          <div data-wrapped-agent-panel="codex" hidden>
+            <div class="wrapped-copy-stack">
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin&#10;codex plugin add lokalbot@lokalbot">
+                <span class="wrapped-copy-cmd__text">codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin<br />codex plugin add lokalbot@lokalbot</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+              <button type="button" class="wrapped-copy-cmd" data-wrapped-copy="codex mcp add lokalbot -- lokalbot-cli mcp">
+                <span class="wrapped-copy-cmd__text">codex mcp add lokalbot -- lokalbot-cli mcp</span>
+                <span class="wrapped-copy-cmd__hint" data-copy-label>Copy</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
     <section class="wrapped-faq" aria-labelledby="wrapped-faq-title">
       <h2 id="wrapped-faq-title">Frequently asked questions</h2>
       <details>
         <summary>Which coding agents does Agent Wrapped read?</summary>
-        <p>Agent Wrapped automatically reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also pass individual <code>--*-dir</code> flags to point at custom log directories.</p>
+        <p>The CLI (<code>npx lokalbot</code>) reads local session logs from Claude Code, Codex, Cursor, Pi, OMP (Oh My Pi), OpenCode, Antigravity, and Gemini CLI. You can also drop Claude Code <code>stats-cache.json</code>, Claude/Codex/Pi/OMP <code>.jsonl</code> logs, or Gemini CLI session JSON files directly on this page to render offline in your browser.</p>
       </details>
       <details>
         <summary>Does Agent Wrapped upload my logs or prompts?</summary>
-        <p>No. The npm package has zero dependencies and makes zero network requests. It reads your local session logs, counts timestamps, tool calls, models, tokens, and git actions, and renders the card locally in your terminal and browser. Prompt text is never stored or printed.</p>
+        <p>No. Both the npm package and the browser file drop make zero network requests and upload zero bytes. Files dropped on this page are parsed strictly inside browser memory and never leave your tab. Prompt text is never stored or printed.</p>
       </details>
       <details>
         <summary>Why does my Claude Code heatmap start 30 days ago?</summary>
@@ -229,19 +589,56 @@
     </section>
   </main>
 
-  <footer class="footer footer--legal">
+  <footer class="footer footer--wrapped">
     <div class="footer__brand">
-      <a class="brand" href="/"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
-      <p>Your personal context engine.</p>
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes and private work memory.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
     </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">Cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
     <nav class="footer__col" aria-label="Project">
       <h3>Project</h3>
-      <a href="/">Home</a>
+      <a href="/about">About</a>
       <a href="/guides">Guides</a>
       <a href="/blog">Blog</a>
       <a href="/benchmarks">Benchmarks</a>
-      <a href="/privacy">Privacy</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__col" aria-label="Languages">
+      <h3>Languages</h3>
+      <a href="/de" hreflang="de">Deutsch</a>
+      <a href="/zh" hreflang="zh-Hans">中文</a>
+      <a href="/ja" hreflang="ja">日本語</a>
+      <a href="/ru" hreflang="ru">Русский</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

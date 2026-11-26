@@ -61,7 +61,9 @@ struct RecordingScreen: View {
                     .submitLabel(.done)
                 VStack(spacing: 8) {
                     Text("Let everyone know you're recording.")
-                    if let manifest = session.manifest, manifest.recordingsEnabled != true {
+                    if session.mode != .paired {
+                        Text("Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize.")
+                    } else if let manifest = session.manifest, manifest.recordingsEnabled != true {
                         Text("\(session.macName) isn't set to accept recordings yet. This one stays on this device until it is.")
                     }
                     if let message = recording.errorMessage {
@@ -116,7 +118,7 @@ struct RecordingScreen: View {
                 Button {
                     Task { await recording.stop() }
                 } label: {
-                    Label("Stop and Send", systemImage: "stop.fill").frame(maxWidth: .infinity)
+                    Label(session.mode == .paired ? "Stop and Send" : "Stop and Save", systemImage: "stop.fill").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(LBTokens.Palette.recording)
@@ -155,7 +157,7 @@ struct RecordToolbarItem: ToolbarContent {
 
     var body: some ToolbarContent {
         ToolbarItem(placement: .topBarLeading) {
-            if session.mode == .paired {
+            if session.mode != .loading {
                 Button {
                     Task { await recording.begin() }
                 } label: {
@@ -170,33 +172,88 @@ struct RecordToolbarItem: ToolbarContent {
 
 struct HeldRecordingsNotice: View {
     @Environment(CompanionSession.self) private var session
-    @State private var confirmingDelete = false
+    @State private var confirmingDeleteAll = false
+    @State private var deletingItem: RecordingItem?
+
+    private let format = LBFormat.current
 
     var body: some View {
         let held = session.recordings.filter(\.isOnlyCopy)
         if !held.isEmpty {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("\(held.count) recording\(held.count == 1 ? " hasn't" : "s haven't") reached a computer")
+            VStack(alignment: .leading, spacing: 10) {
+                Text("\(held.count) recording\(held.count == 1 ? "" : "s") on this device")
                     .font(LBTokens.Typography.body.weight(.semibold))
-                Text("Pair with your computer to send \(held.count == 1 ? "it" : "them"). Until then \(held.count == 1 ? "it stays" : "they stay") on this device.")
+                Text("Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize.")
                     .font(LBTokens.Typography.secondary)
                     .workspaceSupportingForeground()
                     .fixedSize(horizontal: false, vertical: true)
-                Button("Delete \(held.count == 1 ? "It" : "Them")", role: .destructive) { confirmingDelete = true }
-                    .font(LBTokens.Typography.secondary)
+                VStack(spacing: 8) {
+                    ForEach(held) { item in
+                        HStack(alignment: .center, spacing: 10) {
+                            Image(systemName: "waveform.circle")
+                                .foregroundStyle(Brand.teal)
+                                .accessibilityHidden(true)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.title.isEmpty ? "Recording" : item.title)
+                                    .font(LBTokens.Typography.secondary.weight(.semibold))
+                                    .lineLimit(1)
+                                Text(metadata(for: item))
+                                    .font(LBTokens.Typography.caption)
+                                    .workspaceSupportingForeground()
+                                    .lineLimit(1)
+                            }
+                            Spacer(minLength: 8)
+                            if item.state != .recording {
+                                Button(role: .destructive) {
+                                    deletingItem = item
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(LBTokens.Typography.secondary)
+                                }
+                                .buttonStyle(.borderless)
+                                .accessibilityLabel("Delete \(item.title.isEmpty ? "Recording" : item.title)")
+                            }
+                        }
+                        if item.id != held.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+                .padding(.top, 2)
+                if held.count > 1 {
+                    Button("Delete All", role: .destructive) { confirmingDeleteAll = true }
+                        .font(LBTokens.Typography.secondary)
+                }
             }
             .padding(14)
             .frame(maxWidth: .infinity, alignment: .leading)
             .lbGroupedSurface()
-            .confirmationDialog("Delete \(held.count == 1 ? "this recording" : "these recordings")?",
-                                isPresented: $confirmingDelete, titleVisibility: .visible) {
-                Button("Delete", role: .destructive) {
-                    Task { for item in held { await session.discardRecording(id: item.id) } }
+            .confirmationDialog("Delete this recording?",
+                                isPresented: Binding(get: { deletingItem != nil }, set: { if !$0 { deletingItem = nil } }),
+                                titleVisibility: .visible, presenting: deletingItem) { item in
+                Button("Delete Recording", role: .destructive) {
+                    Task { await session.discardRecording(id: item.id) }
+                }
+            } message: { _ in
+                Text("It hasn't reached a computer, so it can't be recovered.")
+            }
+            .confirmationDialog("Delete all \(held.count) recordings?",
+                                isPresented: $confirmingDeleteAll, titleVisibility: .visible) {
+                Button("Delete All", role: .destructive) {
+                    Task { for item in held where item.state != .recording { await session.discardRecording(id: item.id) } }
                 }
             } message: {
                 Text("They haven't reached a computer, so they can't be recovered.")
             }
         }
+    }
+
+    private func metadata(for item: RecordingItem) -> String {
+        let day = DayKey(item.startedAt)
+        let dayPart = format.dayTitle(day, today: session.today)
+        let timePart = format.time(item.startedAt)
+        let durationPart = item.durationSeconds.map(LBFormat.stamp)
+        return [dayPart, timePart, durationPart].compactMap { $0 }.joined(separator: " · ")
     }
 }
 
@@ -229,8 +286,12 @@ struct DeviceRecordingsSection: View {
                                 titleVisibility: .visible, presenting: discarding) { item in
                 Button("Delete Recording", role: .destructive) { Task { await session.discardRecording(id: item.id) } }
             } message: { item in
-                Text(item.isOnlyCopy ? "It hasn't reached \(session.macName), so it can't be recovered."
-                     : "\(session.macName) keeps its copy.")
+                if session.mode != .paired {
+                    Text("It hasn't reached a computer, so deleting it can't be undone.")
+                } else {
+                    Text(item.isOnlyCopy ? "It hasn't reached \(session.macName), so it can't be recovered."
+                         : "\(session.macName) keeps its copy.")
+                }
             }
             .alert("Name This Recording", isPresented: Binding(get: { renaming != nil }, set: { if !$0 { renaming = nil } }),
                    presenting: renaming) { item in
@@ -330,6 +391,9 @@ struct RecordingRow: View {
         case .recording:
             return "Recording"
         case .waiting:
+            if session.mode != .paired {
+                return "Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize."
+            }
             if let progress { return "Sending… \(Int(progress * 100))%" }
             return item.message ?? "Waiting for \(session.macName)"
         case .failed:

@@ -34,21 +34,29 @@ STATUS_LABELS = {
 def repo_relative_report(url: str) -> str:
     if url.startswith(GITHUB_BLOB_PREFIX):
         return f"`{url[len(GITHUB_BLOB_PREFIX):]}`"
+    if url.startswith("https://huggingface.co/"):
+        slug = url[len("https://huggingface.co/"):]
+        return f"[HF model card: `{slug}`]({url})"
     return f"[report]({url})"
 
 
 def render_summary(data: dict) -> str:
+    stack_total = sum(
+        float(item["sizeGb"])
+        for item in data.get("referenceStack", [])
+        if isinstance(item.get("sizeGb"), (int, float))
+    )
     lines: list[str] = [
-        "# LokalBot — Local Desktop AI Leaderboard (synced benchmark summary)",
+        "# LokalBot: Local Desktop AI Leaderboard (synced benchmark summary)",
         "",
-        f"Updated **{data['updated']}**. Generated from `Website/public/benchmarks.json` — every number comes verbatim from a checked-in report under `Benchmarks/README.md`. Nothing here is estimated or invented.",
+        f"Updated **{data['updated']}**. Generated from `Website/public/benchmarks.json`. Every number comes verbatim from a checked-in report under `Benchmarks/README.md` or a verified Apache-2.0 Hugging Face model card. Nothing here is estimated or invented.",
         "",
         f"- **Interactive sortable leaderboard:** {data['url']}",
         f"- **Machine-readable JSON:** {data['dataUrl']}",
         "- **Full harnesses & raw outputs:** `Benchmarks/README.md`",
         f"- **Hardware scope:** {data['hardwareSummary']}",
         "",
-        "## Current local reference stack (~9.6 GB total)",
+        f"## v0.14.0 local reference stack (~{stack_total:.1f} GB total)",
         "",
         "| Role | Default model | Format | Size (GB) | Headline result | Interactive view |",
         "| --- | --- | --- | ---: | --- | --- |",
@@ -59,6 +67,22 @@ def render_summary(data: dict) -> str:
         lines.append(
             f"| {item['role']} | **{item['model']}** | {item['format']} | {size} | {item['headline']} | [View suite]({data['url']}#{item['suiteId']}) |"
         )
+
+    fine_tunes = data.get("fineTunedModels", [])
+    if fine_tunes:
+        lines.extend(
+            [
+                "",
+                "## v0.14.0 Apache-2.0 Fine-Tuned Models",
+                "",
+                "| Role | Model | Hugging Face repo | Format | Size (GB) | License | Headline result |",
+                "| --- | --- | --- | --- | ---: | --- | --- |",
+            ]
+        )
+        for ft in fine_tunes:
+            lines.append(
+                f"| {ft['role']} | **{ft['model']}** | [`{ft['repo']}`](https://huggingface.co/{ft['repo']}) | {ft['format']} | {ft['sizeGb']:.2f} | {ft['license']} | {ft['headline']} |"
+            )
 
     for cat in data.get("categories", []):
         lines.extend(["", f"## {cat['label']}", "", cat["summary"]])
@@ -96,7 +120,7 @@ def render_summary(data: dict) -> str:
                             text = f"{text} ({val['sub']})"
                         cells.append(text)
                     else:
-                        cells.append("—")
+                        cells.append("-")
                 lines.append("| " + " | ".join(cells) + " |")
 
             lines.extend(
@@ -110,7 +134,7 @@ def render_summary(data: dict) -> str:
     lines.extend(
         [
             "",
-            "## Honest gaps — what is NOT yet measured",
+            "## Honest gaps: what is NOT yet measured",
             "",
             "| Gap | Status & needed run |",
             "| --- | --- |",

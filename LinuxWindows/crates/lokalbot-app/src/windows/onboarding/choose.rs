@@ -34,7 +34,7 @@ fn meeting_mode_detail(mode: AutoRecordMode) -> &'static str {
 
 fn context_mode_title(mode: ScreenContextMode) -> &'static str {
     match mode {
-        ScreenContextMode::ActivityOnly => lokalbot_i18n::tr("App names only"),
+        ScreenContextMode::ActivityOnly => lokalbot_i18n::tr("App and window titles"),
         ScreenContextMode::Text => lokalbot_i18n::tr("Text on screen"),
         ScreenContextMode::TextAndVisual => lokalbot_i18n::tr("Text and screenshots"),
     }
@@ -362,5 +362,13 @@ mod tests {
             assert!(!meeting_mode_title(mode).is_empty());
             assert!(!meeting_mode_detail(mode).is_empty());
         }
+    }
+
+    #[test]
+    fn activity_only_label_mentions_window_titles() {
+        assert_eq!(
+            context_mode_title(ScreenContextMode::ActivityOnly),
+            "App and window titles"
+        );
     }
 }

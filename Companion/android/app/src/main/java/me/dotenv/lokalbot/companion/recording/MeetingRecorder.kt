@@ -12,7 +12,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.data.RecordingSink
 
 sealed interface RecorderState {
     data object Idle : RecorderState
@@ -42,12 +42,12 @@ interface AudioCapture {
 
 class MeetingRecorder(
     private val scope: CoroutineScope,
-    private val library: () -> CompanionRepository?,
+    private val library: () -> RecordingSink?,
     private val newCapture: () -> AudioCapture,
     private val elapsedMillis: () -> Long = SystemClock::elapsedRealtime,
     private val titleSaveDelayMillis: Long = 500,
 ) {
-    private class Session(val repository: CompanionRepository, val capture: AudioCapture)
+    private class Session(val repository: RecordingSink, val capture: AudioCapture)
 
     private val lock = Mutex()
 
@@ -145,7 +145,7 @@ class MeetingRecorder(
         }
     }
 
-    suspend fun recoverIfIdle(repository: CompanionRepository): Int = lock.withLock {
+    suspend fun recoverIfIdle(repository: RecordingSink): Int = lock.withLock {
         if (isActive) 0 else runCatching { repository.recoverRecordings() }.getOrDefault(0)
     }
 

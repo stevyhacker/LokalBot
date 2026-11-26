@@ -378,8 +378,8 @@ function drawContributionGraph(data, range, pal, { x, y, width, height, compact 
   if (busiest) {
     const peakMaxW = Math.max(200, swatchesStartX - 58 - (x + padX));
     const peakText = compact
-      ? `Peak · ${cardDayLabel(busiest.date)} — ${cardHours(busiest.agentMs)}h (${cardPlural(busiest.sessions, 'session')})`
-      : `Peak · ${cardDayLabel(busiest.date)} — ${cardHours(busiest.agentMs)} agent hours across ${cardPlural(busiest.sessions, 'session')}`;
+      ? `Peak · ${cardDayLabel(busiest.date)} · ${cardHours(busiest.agentMs)}h (${cardPlural(busiest.sessions, 'session')})`
+      : `Peak · ${cardDayLabel(busiest.date)} · ${cardHours(busiest.agentMs)} agent hours across ${cardPlural(busiest.sessions, 'session')}`;
     parts.push(`<circle cx="${x + padX + 6}" cy="${footerY - 5}" r="5" fill="${pal.cellPeak}"/>`);
     parts.push(svgText(x + padX + 20, footerY, peakText, {
       family: 'mono',
@@ -674,11 +674,10 @@ function drawAgentSplitBar(timed, totalMs, pal, { x, y, width, maxNamed = 4, fon
     cursor += widths[idx] + gap;
   });
 
-  // Inline dot legend fitted to `width`.
   const labels = segments.map((seg, idx) => `${seg.name} ${pcts[idx]}%`);
   let size = fontSize;
   let itemGap = 18;
-  const dotBlock = 15; // 9px dot + 6px space
+  const dotBlock = 15;
   const measure = (s, g) => labels.reduce((sum, lbl) => sum + dotBlock + lbl.length * s * CARD_MONO_EM, 0) + g * (labels.length - 1);
   if (measure(size, itemGap) > width) itemGap = 12;
   while (size > 11 && measure(size, itemGap) > width) size -= 1;
@@ -712,7 +711,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
 
   parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${pal.ground}"/>`);
 
-  // Header
   parts.push(...drawBadge(MARGIN, 60, `AGENT WRAPPED ${stats.year}`, pal, { size: 15, padX: 16, height: 36 }));
   const agents = headerAgentLine(stats.agents);
   if (agents) {
@@ -725,7 +723,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     }));
   }
 
-  // Persona
   const titleSize = svgFit(stats.persona.title, 96, inner, 0.54);
   parts.push(svgText(MARGIN - 2, 204, stats.persona.title, {
     family: 'sans',
@@ -737,7 +734,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
   const lineSize = svgFit(stats.persona.line, 25, inner, CARD_SANS_EM);
   parts.push(svgText(MARGIN, 252, stats.persona.line, { family: 'sans', size: lineSize, fill: pal.dim, weight: 500 }));
 
-  // 2x2 KPI Grid
   const tiles = buildKpiTiles(stats, { showApiValue });
   const gap = 20;
   const tileW = Math.floor((inner - gap) / 2);
@@ -753,7 +749,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     }));
   });
 
-  // GitHub-style Contribution Graph
   const graphY = 610;
   const graphH = 252;
   parts.push(...drawContributionGraph(data, range, pal, {
@@ -764,11 +759,10 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     compact: true,
   }));
 
-  // Coverage / zoom footnote (kept directly under calendar when relevant)
   const earlier = stats.coverage?.earlier;
   let nextY = graphY + graphH + 20;
   if (range.zoomed) {
-    const spanLabel = `${cardDayLabel(dayDate(data.year, range.start))} – ${cardDayLabel(dayDate(data.year, range.end))}`;
+    const spanLabel = `${cardDayLabel(dayDate(data.year, range.start))} - ${cardDayLabel(dayDate(data.year, range.end))}`;
     const note = earlier
       ? `Zoomed to ${spanLabel} logs · plus ${cardPlural(earlier.days, 'earlier day')} counted by Claude Code.`
       : `Zoomed to active window (${spanLabel}).`;
@@ -780,7 +774,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     nextY += 34;
   }
 
-  // Top 5 Models card (or compact Daily Rhythm when no model token data is present)
   const topModels = stats.topModels ?? [];
   const middleH = topModels.length > 0 ? 232 : 186;
   if (topModels.length > 0) {
@@ -799,7 +792,6 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     }));
   }
 
-  // Agent split bar
   const timed = stats.agents.filter((agent) => agent.agentMs > 0);
   if (timed.length > 1 && stats.totals.agentMs > 0) {
     const barY = Math.min(nextY + middleH + 38, 1252);
@@ -819,11 +811,10 @@ function renderPortraitCard(data, { showProjects = false, showApiValue = true, w
     parts.push(svgText(MARGIN, 1348, sentence, { family: 'sans', size: svgFit(sentence, 21, inner, CARD_SANS_EM), fill: pal.dim, weight: 500 }));
   }
 
-  // Footer
   parts.push(`<line x1="${MARGIN}" y1="1384" x2="${WIDTH - MARGIN}" y2="1384" stroke="${pal.border}" stroke-width="1"/>`);
   parts.push(`<rect x="${MARGIN}" y="1408" width="194" height="44" rx="10" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.2"/>`);
   parts.push(svgText(MARGIN + 20, 1437, 'npx lokalbot', { family: 'mono', size: 21, fill: pal.text, weight: 700 }));
-  parts.push(svgText(WIDTH - MARGIN, 1437, 'lokalbot.com', { family: 'mono', size: 22, fill: pal.tealBright, anchor: 'end', weight: 700 }));
+  parts.push(svgText(WIDTH - MARGIN, 1437, 'lokalbot.com/wrapped', { family: 'mono', size: 22, fill: pal.tealBright, anchor: 'end', weight: 700 }));
   parts.push(svgText(MARGIN, 1478, 'Counted locally from session logs. Nothing was uploaded.', { family: 'sans', size: 17, fill: pal.faint }));
 
   return wrapSvg(WIDTH, HEIGHT, stats, showApiValue, parts);
@@ -841,7 +832,6 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
 
   parts.push(`<rect width="${WIDTH}" height="${HEIGHT}" fill="${pal.ground}"/>`);
 
-  // Header
   parts.push(...drawBadge(MARGIN, 30, `AGENT WRAPPED ${stats.year}`, pal, { size: 14, padX: 15, height: 32 }));
   const agents = headerAgentLine(stats.agents);
   if (agents) {
@@ -855,7 +845,6 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
   }
   parts.push(`<line x1="${MARGIN}" y1="78" x2="${WIDTH - MARGIN}" y2="78" stroke="${pal.border}" stroke-width="1"/>`);
 
-  // Top Hero Row: Persona (left) + Agent split bar (right)
   const titleMaxW = 900;
   const titleSize = svgFit(stats.persona.title, 62, titleMaxW, 0.54);
   parts.push(svgText(MARGIN - 2, 150, stats.persona.title, {
@@ -889,7 +878,6 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
     }));
   }
 
-  // 4-Column KPI Tile Row (full-width band)
   const tiles = buildKpiTiles(stats, { showApiValue });
   const gap = 20;
   const tileW = Math.floor((inner - gap * (tiles.length - 1)) / tiles.length);
@@ -903,7 +891,6 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
     }));
   });
 
-  // Hero Full-Width GitHub Contribution Graph + Top 5 Models strip
   const topModels = stats.topModels ?? [];
   const graphY = 352;
   const graphH = topModels.length > 0 ? 276 : 408;
@@ -924,12 +911,11 @@ function renderWideCard(data, { showProjects = false, showApiValue = true, windo
     }));
   }
 
-  // Footer
   parts.push(`<line x1="${MARGIN}" y1="798" x2="${WIDTH - MARGIN}" y2="798" stroke="${pal.border}" stroke-width="1"/>`);
   parts.push(`<rect x="${MARGIN}" y="820" width="184" height="44" rx="10" fill="${pal.surface}" stroke="${pal.border}" stroke-width="1.2"/>`);
   parts.push(svgText(MARGIN + 19, 848, 'npx lokalbot', { family: 'mono', size: 20, fill: pal.text, weight: 700 }));
   parts.push(svgText(MARGIN + 208, 848, 'Counted locally from session logs. Nothing was uploaded.', { family: 'sans', size: 18, fill: pal.faint, weight: 500 }));
-  parts.push(svgText(WIDTH - MARGIN, 848, 'lokalbot.com', { family: 'mono', size: 21, fill: pal.tealBright, anchor: 'end', weight: 700 }));
+  parts.push(svgText(WIDTH - MARGIN, 848, 'lokalbot.com/wrapped', { family: 'mono', size: 21, fill: pal.tealBright, anchor: 'end', weight: 700 }));
 
   return wrapSvg(WIDTH, HEIGHT, stats, showApiValue, parts);
 }
@@ -1067,5 +1053,5 @@ export function cardShareCaption(stats, { showApiValue = true } = {}) {
   if (totals.toolCalls > 0) bits.push(`${cardNumber(totals.toolCalls)} tool calls`);
   if (showApiValue && (totals.estimatedApiUsd ?? 0) >= 10) bits.push(`~${cardCurrency(totals.estimatedApiUsd)} API value`);
   if (totals.commits > 0) bits.push(cardPlural(totals.commits, 'commit'));
-  return `My ${stats.year} Agent Wrapped: ${stats.persona.title}\n${bits.join(' · ')}\n\nRun yours locally (zero uploads): npx lokalbot`;
+  return `My ${stats.year} Agent Wrapped: ${stats.persona.title}\n${bits.join(' · ')}\n\nRun yours locally (zero uploads): npx lokalbot\nhttps://www.lokalbot.com/wrapped`;
 }

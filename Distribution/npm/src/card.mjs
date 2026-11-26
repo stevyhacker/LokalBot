@@ -29,6 +29,12 @@ const INK = {
 
 export const escape = svgEscape;
 
+function resolvePlatform(platform = process.platform) {
+  if (platform === 'darwin') return 'darwin';
+  if (platform === 'win32') return 'win32';
+  return 'linux';
+}
+
 function cardData({ stats, grid, calendar, earlierDays }) {
   const months = new Array(calendar.days);
   for (let day = 0; day < calendar.days; day += 1) months[day] = calendar.month(day);
@@ -88,6 +94,8 @@ export function renderPage(result, options = {}) {
   const initialProjects = Boolean(options.showProjects);
   const initialApiValue = options.showApiValue !== false;
   const initialWindow = options.window ?? defaultWindowMode(stats);
+  const initialPlatform = resolvePlatform(options.platform);
+  const initialAgentTab = stats.agents[0]?.id === 'codex' ? 'codex' : 'claude-code';
   const zoomAvailable = canZoomWindow(stats);
   const hasProjects = initialProjects && stats.projects.length > 0;
   const hasApiValue = (stats.totals.estimatedApiUsd ?? 0) >= 10;
@@ -110,6 +118,15 @@ export function renderPage(result, options = {}) {
     const startsLate = claudeLoggedFrom !== null && claudeLoggedFrom > `${stats.year}-01-31`;
     return usesClaude && (earlier !== null || startsLate);
   })();
+
+  const brewCmd = 'brew install --cask stevyhacker/tap/lokalbot';
+  const scoopCmd = 'scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot';
+  const debCmd = 'sudo apt install ./LokalBot-*-linux-amd64.deb';
+  const rpmCmd = 'sudo dnf install ./LokalBot-*-linux-x86_64.rpm';
+  const claudePluginCmd = '/plugin marketplace add stevyhacker/lokalbot\n/plugin install lokalbot@lokalbot';
+  const claudeMcpCmd = 'claude mcp add lokalbot -- lokalbot-cli mcp';
+  const codexPluginCmd = 'codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin\ncodex plugin add lokalbot@lokalbot';
+  const codexMcpCmd = 'codex mcp add lokalbot -- lokalbot-cli mcp';
 
   return `<!doctype html>
 <html lang="en">
@@ -136,20 +153,26 @@ export function renderPage(result, options = {}) {
   .btn { display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 ${MONO}; color: #04141a; background: ${INK.teal}; border: 0; border-radius: 9px; padding: 12px 16px; cursor: pointer; text-decoration: none; }
   .btn.quiet { color: ${INK.text}; background: #14202d; border: 1px solid ${INK.border}; }
   .btn:focus-visible, .seg button:focus-visible, .copy-cmd:focus-visible { outline: 2px solid ${INK.tealBright}; outline-offset: 2px; }
-  .btn[hidden] { display: none; }
+  .btn[hidden], [hidden] { display: none !important; }
   #status { color: ${INK.tealBright}; font: 500 14px/1.4 ${SANS}; margin-left: 4px; }
   .note { color: ${INK.faint}; font-size: 14px; margin: 14px 0 0; }
   .tip { margin-top: 22px; padding: 14px 16px; background: #12171f; border: 1px solid #352b14; border-left: 3px solid ${INK.amber}; border-radius: 10px; color: ${INK.dim}; font-size: 14px; }
   .tip strong { color: ${INK.amber}; font-weight: 600; }
-  .tip code { font: 500 13px/1.4 ${MONO}; color: ${INK.text}; background: #0a1017; padding: 2px 6px; border-radius: 4px; }
+  .tip code, .install-note code { font: 500 12.5px/1.4 ${MONO}; color: ${INK.text}; background: #0a1017; padding: 2px 6px; border-radius: 4px; }
   .promo { margin-top: 24px; padding: 20px 22px; background: ${INK.surface}; border: 1px solid ${INK.border}; border-radius: 12px; }
   .promo-eyebrow { font: 700 12px/1 ${MONO}; letter-spacing: 0.08em; text-transform: uppercase; color: ${INK.teal}; margin: 0 0 8px; }
   .promo h2 { margin: 0 0 8px; font: 700 21px/1.25 ${SANS}; letter-spacing: -0.02em; color: ${INK.text}; }
   .promo p { margin: 0 0 14px; color: ${INK.dim}; font-size: 15px; }
-  .install-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
-  .copy-cmd { display: inline-flex; align-items: center; gap: 10px; font: 500 13px/1.2 ${MONO}; color: ${INK.text}; background: #070d14; border: 1px solid ${INK.border}; border-radius: 7px; padding: 10px 14px; cursor: pointer; }
-  .copy-cmd span.hint { color: ${INK.teal}; font-weight: 600; }
-  .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; font: 500 13px/1 ${MONO}; }
+  .promo-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin: 14px 0 10px; }
+  .promo-label { font: 700 12px/1 ${MONO}; letter-spacing: 0.06em; text-transform: uppercase; color: ${INK.faint}; }
+  .install-stack { display: flex; flex-direction: column; gap: 8px; }
+  .copy-cmd { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; text-align: left; font: 500 13px/1.35 ${MONO}; color: ${INK.text}; background: #070d14; border: 1px solid ${INK.border}; border-radius: 8px; padding: 10px 14px; cursor: pointer; }
+  .copy-cmd-text { display: flex; align-items: baseline; gap: 10px; min-width: 0; overflow-wrap: anywhere; }
+  .cmd-tag { flex: 0 0 auto; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: ${INK.tealBright}; background: #0e1d24; border: 1px solid #1f4a4f; border-radius: 5px; padding: 2px 6px; }
+  .copy-cmd span.hint { flex: 0 0 auto; color: ${INK.teal}; font-weight: 600; }
+  .install-note { margin: 10px 0 0 !important; font-size: 13px !important; color: ${INK.faint} !important; line-height: 1.5; }
+  .bridge-box { margin-top: 18px; padding-top: 16px; border-top: 1px solid ${INK.border}; }
+  .links { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 16px; padding-top: 14px; border-top: 1px solid ${INK.border}; font: 500 13px/1.4 ${MONO}; }
   a { color: ${INK.tealBright}; text-decoration: none; }
   a:hover { text-decoration: underline; }
   body.light { background: #eef3f3; color: #0b1219; }
@@ -165,11 +188,13 @@ export function renderPage(result, options = {}) {
   body.light .note { color: #5f7280; }
   body.light .tip { background: #fffbf2; border-color: #ecd6a5; border-left-color: #d97706; color: #3b4b56; }
   body.light .tip strong { color: #9a4a00; }
-  body.light .tip code { color: #0b1219; background: #f3ece0; }
+  body.light .tip code, body.light .install-note code { color: #0b1219; background: #e8efef; }
   body.light .promo { background: #ffffff; border-color: #d5e0e2; }
   body.light .promo-eyebrow { color: #0b7a6e; }
   body.light .promo h2 { color: #0b1219; }
   body.light .promo p { color: #3b4b56; }
+  body.light .promo-label, body.light .install-note { color: #5f7280 !important; }
+  body.light .bridge-box, body.light .links { border-color: #d5e0e2; }
   body.light .copy-cmd { color: #f1f6f9; background: #0e1720; border-color: #0e1720; }
   body.light a { color: #075f55; }
 </style>
@@ -210,17 +235,71 @@ ${svg}
   </div>
   <p class="note">This page is a local file on your computer. Saving, copying, or toggling options uploads nothing.</p>
 
-  ${claudeLate ? `<div class="tip"><strong>Claude Code deletes session logs after 30 days.</strong> Add <code>"cleanupPeriodDays": 3650</code> to <code>~/.claude/settings.json</code> to keep next year's logs—or install LokalBot to archive your coding-agent history locally alongside your meetings.</div>` : ''}
+  ${claudeLate ? `<div class="tip"><strong>Claude Code deletes session logs after 30 days.</strong> Add <code>"cleanupPeriodDays": 3650</code> to <code>~/.claude/settings.json</code> to keep next year's logs, or install LokalBot to archive your coding-agent history locally alongside your meetings.</div>` : ''}
 
   <section class="promo">
     <div class="promo-eyebrow">Built by LokalBot · Free &amp; Open Source (GPLv3)</div>
     <h2>Give Claude Code &amp; Codex memory of your meetings.</h2>
     <p>LokalBot records calls on your computer with no meeting bot, runs transcription and summaries locally, and lets Claude Code and Codex search what was decided over read-only MCP. macOS, Windows &amp; Linux.</p>
-    <div class="install-row">
-      <button id="copy-brew" type="button" class="copy-cmd"><span>brew install --cask stevyhacker/tap/lokalbot</span><span class="hint">Copy</span></button>
+
+    <div class="promo-head">
+      <span class="promo-label">1. Install LokalBot</span>
+      <div class="seg" role="group" aria-label="Install LokalBot by operating system">
+        <button type="button" data-os="darwin" aria-pressed="${initialPlatform === 'darwin'}">macOS</button>
+        <button type="button" data-os="win32" aria-pressed="${initialPlatform === 'win32'}">Windows</button>
+        <button type="button" data-os="linux" aria-pressed="${initialPlatform === 'linux'}">Linux</button>
+      </div>
     </div>
+
+    <div data-os-panel="darwin"${initialPlatform === 'darwin' ? '' : ' hidden'}>
+      <div class="install-stack">
+        <button id="copy-brew" type="button" class="copy-cmd" data-copy-cmd="${svgEscape(brewCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">Homebrew</span><span>${svgEscape(brewCmd)}</span></span><span class="hint">Copy</span></button>
+      </div>
+      <p class="install-note">Apple Silicon, macOS 15+. Or download the notarized <code>.dmg</code> from <a href="https://github.com/stevyhacker/LokalBot/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a>.</p>
+    </div>
+
+    <div data-os-panel="win32"${initialPlatform === 'win32' ? '' : ' hidden'}>
+      <div class="install-stack">
+        <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(scoopCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">Scoop</span><span>${svgEscape(scoopCmd)}</span></span><span class="hint">Copy</span></button>
+      </div>
+      <p class="install-note">Windows 10 or 11 (x64, alpha). Or download the per-user <code>.exe</code> installer from <a href="https://github.com/stevyhacker/LokalBot/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a>.</p>
+    </div>
+
+    <div data-os-panel="linux"${initialPlatform === 'linux' ? '' : ' hidden'}>
+      <div class="install-stack">
+        <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(debCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">.deb</span><span>${svgEscape(debCmd)}</span></span><span class="hint">Copy</span></button>
+        <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(rpmCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">.rpm</span><span>${svgEscape(rpmCmd)}</span></span><span class="hint">Copy</span></button>
+      </div>
+      <p class="install-note">Download the <code>.deb</code> or <code>.rpm</code> from <a href="https://github.com/stevyhacker/LokalBot/releases/latest" target="_blank" rel="noopener noreferrer">GitHub Releases</a>. Both add <code>pkg.lokalbot.com</code> so <code>apt upgrade</code> and <code>dnf upgrade</code> keep LokalBot updated. Arch package and <code>.tar.gz</code> archive are in the same release.</p>
+    </div>
+
+    <div class="bridge-box">
+      <div class="promo-head" style="margin-top:0;">
+        <span class="promo-label">2. Connect your coding agent</span>
+        <div class="seg" role="group" aria-label="Coding agent integration">
+          <button type="button" data-agent-tab="claude-code" aria-pressed="${initialAgentTab === 'claude-code'}">Claude Code</button>
+          <button type="button" data-agent-tab="codex" aria-pressed="${initialAgentTab === 'codex'}">Codex</button>
+        </div>
+      </div>
+
+      <div data-agent-panel="claude-code"${initialAgentTab === 'claude-code' ? '' : ' hidden'}>
+        <div class="install-stack">
+          <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(claudePluginCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">Plugin</span><span>/plugin marketplace add stevyhacker/lokalbot<br>/plugin install lokalbot@lokalbot</span></span><span class="hint">Copy</span></button>
+          <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(claudeMcpCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">MCP</span><span>${svgEscape(claudeMcpCmd)}</span></span><span class="hint">Copy</span></button>
+        </div>
+      </div>
+
+      <div data-agent-panel="codex"${initialAgentTab === 'codex' ? '' : ' hidden'}>
+        <div class="install-stack">
+          <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(codexPluginCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">Plugin</span><span>codex plugin marketplace add stevyhacker/lokalbot --sparse .agents/plugins --sparse Distribution/openai-plugin<br>codex plugin add lokalbot@lokalbot</span></span><span class="hint">Copy</span></button>
+          <button type="button" class="copy-cmd" data-copy-cmd="${svgEscape(codexMcpCmd)}"><span class="copy-cmd-text"><span class="cmd-tag">MCP</span><span>${svgEscape(codexMcpCmd)}</span></span><span class="hint">Copy</span></button>
+        </div>
+      </div>
+    </div>
+
     <div class="links">
-      <a href="https://www.lokalbot.com/" target="_blank" rel="noopener noreferrer">lokalbot.com</a>
+      <a href="https://www.lokalbot.com/wrapped" target="_blank" rel="noopener noreferrer">lokalbot.com/wrapped</a>
+      <a href="https://www.lokalbot.com/claude-code-codex-plugins" target="_blank" rel="noopener noreferrer">Plugins &amp; MCP guide</a>
       <a href="https://github.com/stevyhacker/LokalBot" target="_blank" rel="noopener noreferrer">GitHub repository</a>
       <a href="https://github.com/stevyhacker/LokalBot/releases/latest" target="_blank" rel="noopener noreferrer">Download for Mac, Windows &amp; Linux</a>
     </div>
@@ -263,7 +342,6 @@ ${RENDERER_SOURCE}
   const copy = document.getElementById('copy');
   const postX = document.getElementById('post-x');
   const copyCaption = document.getElementById('copy-caption');
-  const copyBrew = document.getElementById('copy-brew');
   const toggleProjects = document.getElementById('toggle-projects');
   const toggleApi = document.getElementById('toggle-api');
   const defaultFileName = ${JSON.stringify(defaultFile)};
@@ -322,6 +400,45 @@ ${RENDERER_SOURCE}
     });
   }
 
+  for (const btn of document.querySelectorAll('[data-os]')) {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.os;
+      for (const tab of document.querySelectorAll('[data-os]')) {
+        tab.setAttribute('aria-pressed', String(tab.dataset.os === target));
+      }
+      for (const panel of document.querySelectorAll('[data-os-panel]')) {
+        panel.hidden = panel.dataset.osPanel !== target;
+      }
+    });
+  }
+
+  for (const btn of document.querySelectorAll('[data-agent-tab]')) {
+    btn.addEventListener('click', () => {
+      const target = btn.dataset.agentTab;
+      for (const tab of document.querySelectorAll('[data-agent-tab]')) {
+        tab.setAttribute('aria-pressed', String(tab.dataset.agentTab === target));
+      }
+      for (const panel of document.querySelectorAll('[data-agent-panel]')) {
+        panel.hidden = panel.dataset.agentPanel !== target;
+      }
+    });
+  }
+
+  for (const btn of document.querySelectorAll('[data-copy-cmd]')) {
+    btn.addEventListener('click', async () => {
+      const cmd = btn.getAttribute('data-copy-cmd');
+      const hint = btn.querySelector('.hint');
+      try {
+        await navigator.clipboard.writeText(cmd);
+        if (hint) {
+          hint.textContent = 'Copied';
+          setTimeout(() => { hint.textContent = 'Copy'; }, 2000);
+        }
+      } catch {
+      }
+    });
+  }
+
   async function png() {
     const svg = stage.querySelector('svg');
     const dims = cardDimensions(state.layout);
@@ -365,7 +482,7 @@ ${RENDERER_SOURCE}
     copy.addEventListener('click', async () => {
       try {
         await navigator.clipboard.write([new ClipboardItem({ 'image/png': png() })]);
-        status.textContent = 'Image copied — paste it into X, Slack, or LinkedIn.';
+        status.textContent = 'Image copied. Paste it into X, Slack, or LinkedIn.';
       } catch {
         status.textContent = 'The image could not be copied here. Save it instead.';
       }
@@ -379,16 +496,6 @@ ${RENDERER_SOURCE}
       status.textContent = 'Caption copied.';
     } catch {
       status.textContent = 'Could not copy caption.';
-    }
-  });
-
-  copyBrew.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText('brew install --cask stevyhacker/tap/lokalbot');
-      copyBrew.querySelector('.hint').textContent = 'Copied';
-      setTimeout(() => { copyBrew.querySelector('.hint').textContent = 'Copy'; }, 2000);
-    } catch {
-      // Ignore clipboard error on restricted browser contexts.
     }
   });
 })();

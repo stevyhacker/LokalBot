@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Local AI Meeting Notes on Linux — Bot-Free and Open Source</title>
-  <meta name="description" content="Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs." />
+  <title>Local AI Meeting Notes on Linux: Bot-Free & Open Source</title>
+  <meta name="description" content="Record, transcribe, and summarize meetings on Linux without a bot or cloud: X11 and Wayland support, apt/dnf/pacman install, and local models." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -12,20 +12,21 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/local-ai-meeting-notes-linux" />
-  <meta property="og:title" content="Local AI Meeting Notes on Linux — Bot-Free and Open Source" />
-  <meta property="og:description" content="Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs." />
+  <meta property="og:title" content="Local AI Meeting Notes on Linux: Bot-Free & Open Source" />
+  <meta property="og:description" content="Record, transcribe, and summarize meetings on Linux without a bot or cloud: X11 and Wayland support, apt/dnf/pacman install, and local models." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="Local AI meeting notes on Linux" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Local AI Meeting Notes on Linux — Bot-Free and Open Source" />
-  <meta name="twitter:description" content="Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs." />
+  <meta name="twitter:title" content="Local AI Meeting Notes on Linux: Bot-Free & Open Source" />
+  <meta name="twitter:description" content="Record, transcribe, and summarize meetings on Linux without a bot or cloud: X11 and Wayland support, apt/dnf/pacman install, and local models." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"Local AI meeting notes on Linux","description":"Record, transcribe, and summarize meetings on Linux without a bot or a cloud service: how LokalBot works on X11 and Wayland, installing with apt, dnf, or pacman, and the models it runs.","datePublished":"2026-10-26","dateModified":"2026-11-21","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-linux","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Linux","item":"https://www.lokalbot.com/local-ai-meeting-notes-linux"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-linux#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot work on Wayland?","acceptedAnswer":{"@type":"Answer","text":"Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, and KDE Plasma, but not yet on other compositors."}},{"@type":"Question","name":"Do I need an NVIDIA GPU?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."}},{"@type":"Question","name":"Can I move my library between Linux and a Mac?","acceptedAnswer":{"@type":"Answer","text":"Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"Article","headline":"Local AI meeting notes on Linux","description":"Record, transcribe, and summarize meetings on Linux without a bot or cloud: X11 and Wayland support, apt/dnf/pacman install, and local models.","datePublished":"2026-10-26","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/local-ai-meeting-notes-linux","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@id":"https://www.lokalbot.com/#author"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"isPartOf":{"@id":"https://www.lokalbot.com/#website"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI meeting notes on Linux","item":"https://www.lokalbot.com/local-ai-meeting-notes-linux"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/local-ai-meeting-notes-linux#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot work on Wayland?","acceptedAnswer":{"@type":"Answer","text":"Yes, with limits. Meetings, transcription, notes, search, and Ask work on any desktop. Day memory works on Hyprland, Sway, KDE, and GNOME with the Window Calls extension; screen context needs grim on Sway and Hyprland or the desktop's screenshot portal elsewhere; dictation and selection actions each need a compositor shortcut, bound to lokalbot dictate and lokalbot selection-actions; and autocomplete in other apps works as an input method on Sway, Hyprland, GNOME, and KDE Plasma, but not yet on other compositors."}},{"@type":"Question","name":"Do I need an NVIDIA GPU?","acceptedAnswer":{"@type":"Answer","text":"No. The built-in models run on any Vulkan GPU, including AMD and Intel graphics, or on the CPU. CUDA is an experimental option for NVIDIA GPUs."}},{"@type":"Question","name":"Can I move my library between Linux and a Mac?","acceptedAnswer":{"@type":"Answer","text":"Yes. Both apps read the same library format, and meetings recorded on a Mac play and transcribe on Linux. On Linux the library lives in ~/.local/share/LokalBot. LokalBot doesn't sync it between computers for you."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -34,7 +35,7 @@
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
     <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a></div>
   </header>
 
   <main class="guide-page" id="guide">
@@ -43,7 +44,7 @@
       <p class="eyebrow">Linux</p>
       <h1>Local AI meeting notes on Linux</h1>
       <p class="guide-hero__lead">LokalBot records both sides of a call without a bot, transcribes and summarizes it with models on your computer, and keeps every meeting searchable. Here is what works on Linux, what depends on your desktop, and how to install it.</p>
-      <p class="guide-byline"><time datetime="2026-11-21">Updated November 21, 2026</time> · 6 min read</p>
+      <p class="guide-byline"><time datetime="2026-11-26">Updated November 26, 2026</time> · 6 min read</p>
     </header>
 
     <article class="guide-article">
@@ -55,12 +56,12 @@
           <li><strong>Notes and Ask.</strong> Summaries, decisions, action items, and answers with citations come from Qwen3.5 4B in the built-in llama.cpp, or from Ollama, an OpenAI-compatible server you approve, or your ChatGPT or Claude plan.</li>
           <li><strong>Search.</strong> Keyword and meaning search across your meetings, with SQLite full-text search and EmbeddingGemma 2, plus Quick Recall from a shortcut.</li>
           <li><strong>Agent access.</strong> A read-only CLI and MCP server lets Claude Code, Codex, and other agents search your meetings, off until you allow it.</li>
-          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings → General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
+          <li><strong>Selection actions.</strong> Turn them on in <strong>Settings > General</strong>, select text in any app, and press <kbd>Ctrl+Alt+Space</kbd> to fix the grammar, shorten it, translate it, or draft a reply from what your meetings say. Apps without accessibility get results you can copy but not replace in place.</li>
           <li><strong>Spoken summaries.</strong> Hear summaries and answers read aloud, or export a WAV, with Kokoro 82M on your computer.</li>
           <li><strong>Overnight review and Personal Context.</strong> LokalBot reviews your day overnight, waiting for mains power, and keeps the facts, preferences, goals, and principles you give it. Agents read only the items you choose to share.</li>
           <li><strong>Files.</strong> Search folders you choose by words and meaning, off until you turn it on. Scanned PDF pages are read only when stored as JPEG or plain raster, <code>.doc</code> and RAW files aren't read, and video frames, HEIC, and AVIF need ffmpeg.</li>
-          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings → Day Memory</strong>.</li>
-          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings → Phones &amp; tablets</strong>. Pair an iPhone or iPad with the <a href="https://apps.apple.com/app/id6836773709" target="_blank" rel="noopener">app on the App Store</a>, or an Android phone or tablet with the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app on Google Play</a>. A firewall must allow TCP port 17890.</li>
+          <li><strong>Exports and coding sessions.</strong> Keep a Markdown note for every meeting and a daily note in your Obsidian or Logseq folder. Coding-agent sessions join day memory only after you choose that in setup or <strong>Settings > Day Memory</strong>.</li>
+          <li><strong>Phones and tablets.</strong> LokalBot can share your meetings and day with your own devices, off until you turn it on in <strong>Settings > Phones &amp; tablets</strong>. Pair an iPhone or iPad with the <a href="https://apps.apple.com/app/id6836773709" target="_blank" rel="noopener">app on the App Store</a>, or an Android phone or tablet with the <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">app on Google Play</a>. A firewall must allow TCP port 17890.</li>
         </ul>
 
         <h2>Your desktop matters</h2>
@@ -79,11 +80,11 @@
           </table>
         </div>
         <p>On <a href="/blog/windows-and-linux-alpha">Omarchy and other Hyprland desktops</a>, <code>grim</code>, <code>wtype</code>, <code>wl-clipboard</code>, and PipeWire are already there, and the dictation pill and Quick Recall float instead of tiling.</p>
-        <p>On Wayland, autocomplete in other apps takes part as an input method, the way language input tools do, and shows the suggestion inside the field. Turn it on in <strong>Settings → Writing</strong>. What else it needs depends on your desktop:</p>
+        <p>On Wayland, autocomplete in other apps takes part as an input method, the way language input tools do, and shows the suggestion inside the field. Turn it on in <strong>Settings > Writing</strong>. What else it needs depends on your desktop:</p>
         <ul>
           <li><strong>Sway and Hyprland:</strong> nothing more. A desktop runs one input method at a time, so if Fcitx or IBus is running, LokalBot stays out of its way and Settings says so. Omarchy runs Fcitx 5; if you don't use it, <code>systemctl --user disable --now omarchy-fcitx5.service</code> lets autocomplete start.</li>
-          <li><strong>GNOME:</strong> add LokalBot in GNOME Settings → Keyboard → Input Sources → + → Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
-          <li><strong>KDE Plasma:</strong> choose LokalBot in System Settings → Keyboard → Virtual Keyboard and click Apply. If you run LokalBot from the extracted <code>.tar.gz</code> folder, first run the command Settings shows. Plasma holds one input method there, so this replaces Fcitx or IBus until you choose it again. After a LokalBot update, log out and back in once.</li>
+          <li><strong>GNOME:</strong> add LokalBot in GNOME Settings > Keyboard > Input Sources > + > Other, then choose it in the top bar or with <kbd>Super+Space</kbd>. With the <code>.tar.gz</code>, first run the command Settings shows. Either way, log out and back in once. Firefox and Chrome stay quiet without the Window Calls extension.</li>
+          <li><strong>KDE Plasma:</strong> choose LokalBot in System Settings > Keyboard > Virtual Keyboard and click Apply. If you run LokalBot from the extracted <code>.tar.gz</code> folder, first run the command Settings shows. Plasma holds one input method there, so this replaces Fcitx or IBus until you choose it again. After a LokalBot update, log out and back in once.</li>
           <li><strong>Other compositors:</strong> not yet. Settings says so and offers the practice editor.</li>
         </ul>
         <p>Not every app can take part. X11 apps running through XWayland get no suggestions, and neither do Qt 5 apps outside KDE Plasma, though typing in them is unaffected, and older Chromium and Electron apps need <code>--enable-wayland-ime</code>, according to their documentation.</p>
@@ -99,7 +100,7 @@
         <p>All of them are on the <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">latest release</a>. LokalBot needs x86_64 with glibc 2.39 or later (Ubuntu 24.04, Debian 13, Fedora 40, or newer), PulseAudio or PipeWire, and a Vulkan or OpenGL driver; Mesa is fine. Reading screen text in scripts other than Latin needs Tesseract (<code>tesseract-ocr</code> on Debian and Ubuntu, <code>tesseract</code> on Fedora and Arch), which the <code>.deb</code> and <code>.rpm</code> recommend. See the <a href="system-requirements">system requirements</a>.</p>
 
         <h2>Models and hardware</h2>
-        <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings → Models → llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
+        <p>On first launch LokalBot asks what to remember and downloads the models you choose: about 4 GB for the default transcription, notes, and search models. llama.cpp runs on any Vulkan GPU or on the CPU. On an NVIDIA GPU you can choose <strong>CUDA (experimental)</strong> in Settings > Models > llama.cpp; in testing, CUDA read a long prompt into Qwen3.5 4B 44% faster than Vulkan on an RTX 3060. Without a capable GPU, notes on the CPU are slow, so you can point notes and Ask at Ollama on another computer or at a server you approve.</p>
 
         <h2>What's not there yet</h2>
         <ul>
@@ -141,7 +142,7 @@
         <a class="guide-card" href="local-ai-meeting-notes-windows">
           <span class="guide-card__eyebrow">Windows</span>
           <strong>Local AI meeting notes on Windows</strong>
-          <span>Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10 and 11 without a bot or a cloud service: how LokalBot works, installing it without admin rights, and the models it runs.</span>
+          <span>Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10/11 without a bot or cloud: per-user install, Vulkan/CUDA, and local models.</span>
         </a>
         <a class="guide-card" href="open-source-ai-meeting-notes">
           <span class="guide-card__eyebrow">Open source</span>
@@ -170,8 +171,8 @@
         <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
@@ -180,12 +181,14 @@
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
       <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
       <a href="/lokalbot-vs-granola">vs Granola</a>
       <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
@@ -194,12 +197,19 @@
       <a href="/lokalbot-vs-fathom">vs Fathom</a>
       <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
       <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
       <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
       <a href="/lokalbot-vs-meetily">vs Meetily</a>
       <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
       <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
       <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
       <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
       <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
       <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
     </nav>
@@ -209,11 +219,22 @@
       <a href="/guides">Guides</a>
       <a href="/blog">Blog</a>
       <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

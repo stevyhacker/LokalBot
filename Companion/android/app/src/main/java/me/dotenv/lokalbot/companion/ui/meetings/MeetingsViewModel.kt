@@ -51,7 +51,8 @@ class MeetingsViewModel(repository: CompanionRepository) : LibraryViewModel(repo
         repository.uploadProgress,
         repository.revision.mapLatest { repository.manifest()?.recordingsEnabled == false },
     ) { recordings, progress, turnedOff ->
-        recordings.map { RecordingRowState(it, recordingStatus(it, progress, turnedOff)) }
+        val unpaired = repository.isSample
+        recordings.map { RecordingRowState(it, recordingStatus(it, progress, turnedOff, unpaired = unpaired)) }
     }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     val computerName: StateFlow<String?> = repository.syncState.map { it.status.macName }.distinctUntilChanged()

@@ -10,11 +10,8 @@ interface Message {
 }
 
 async function readMessage(): Promise<Message | null> {
-  try {
-    const selected = await getSelectedText();
-    if (selected.trim()) return { text: selected, source: "Selection" };
-  } catch {
-  }
+  const selected = await getSelectedText().catch(() => "");
+  if (selected.trim()) return { text: selected, source: "Selection" };
   const copied = await Clipboard.readText();
   return copied?.trim() ? { text: copied, source: "Clipboard" } : null;
 }

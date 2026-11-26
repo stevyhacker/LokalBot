@@ -192,6 +192,24 @@ enum ModelStackPreset: String, CaseIterable, Identifiable {
     static func matching(_ settings: AppSettings) -> Self? {
         allCases.first { $0.patch.matches(settings) }
     }
+
+    static let minimumRecommendedMemoryBytes: UInt64 = 16 * 1_073_741_824
+
+    static func defaultPreset(
+        for capability: HardwareCapability = HardwareCapabilityProbe.current()
+    ) -> Self {
+        guard capability.physicalMemoryBytes >= minimumRecommendedMemoryBytes else {
+            return .lightweight
+        }
+        let preset = ModelStackPreset.recommended
+        let stackBytes = [preset.mainModelID, preset.autocompleteModelID]
+            .compactMap { ModelCatalog.entry(id: $0)?.sizeBytes }
+            .reduce(Int64(1_073_741_824), +)
+        if ModelFit.evaluate(modelSizeGB: Double(stackBytes) / 1_073_741_824, capability: capability) == .comfortable {
+            return .recommended
+        }
+        return .lightweight
+    }
 }
 
 enum ModelSettingsPresentation {

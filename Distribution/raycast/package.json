@@ -2,7 +2,7 @@
   "$schema": "https://www.raycast.com/schemas/extension.json",
   "name": "lokalbot",
   "title": "LokalBot",
-  "description": "Find what you said or saw on your Mac. Search your LokalBot meetings, ask about them, and draft replies from what was said.",
+  "description": "Search your local LokalBot meetings, ask about them, and draft replies from what was said.",
   "icon": "icon.png",
   "author": "stevan_bogosavljevic",
   "categories": [

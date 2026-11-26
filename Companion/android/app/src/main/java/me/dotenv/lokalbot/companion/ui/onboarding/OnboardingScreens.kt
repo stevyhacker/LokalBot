@@ -26,12 +26,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.Wifi
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
@@ -45,7 +48,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -58,10 +60,16 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import java.time.LocalDate
+import java.time.ZoneId
 import me.dotenv.lokalbot.companion.R
+import me.dotenv.lokalbot.companion.data.DeviceRecording
+import me.dotenv.lokalbot.companion.data.RecordingState
+import me.dotenv.lokalbot.companion.ui.rememberFormats
 import me.dotenv.lokalbot.companion.ui.components.groupedSurface
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
@@ -78,9 +86,11 @@ fun AppMark(modifier: Modifier = Modifier) {
 fun WelcomeScreen(
     onPair: () -> Unit,
     onTrySample: () -> Unit,
+    onRecord: (() -> Unit)? = null,
     removedByMac: Boolean = false,
     onDismissRemoved: () -> Unit = {},
-    heldRecordings: Int = 0,
+    heldRecordings: List<DeviceRecording> = emptyList(),
+    onDeleteHeldRecording: (String) -> Unit = {},
     onDeleteHeldRecordings: () -> Unit = {},
 ) {
     val palette = LokalBotTheme.palette
@@ -101,18 +111,31 @@ fun WelcomeScreen(
                     }
                 }
             }
-            if (heldRecordings > 0) HeldRecordings(heldRecordings, onDeleteHeldRecordings)
+            if (heldRecordings.isNotEmpty()) {
+                HeldRecordings(heldRecordings, onDeleteHeldRecording, onDeleteHeldRecordings)
+            }
             AppMark()
             Text(stringResource(R.string.welcome_title), style = LokalBotType.pageTitle, textAlign = TextAlign.Center, modifier = Modifier.semantics { heading() })
             Text(stringResource(R.string.welcome_message), style = LokalBotType.body, color = LokalBotTheme.supportingText, textAlign = TextAlign.Center)
             Spacer(Modifier.height(4.dp))
             Column(Modifier.fillMaxWidth().groupedSurface().padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Promise(Icons.Outlined.Mic, stringResource(R.string.welcome_point_record))
                 Promise(Icons.Outlined.Wifi, stringResource(R.string.welcome_point_network))
                 Promise(Icons.Outlined.Lock, stringResource(R.string.welcome_point_encrypted))
             }
             Spacer(Modifier.height(4.dp))
-            Button(onClick = onPair, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = palette.accentFill)) {
-                Text(stringResource(R.string.welcome_pair))
+            if (onRecord != null) {
+                Button(onClick = onRecord, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = palette.accentFill)) {
+                    Icon(Icons.Outlined.Mic, contentDescription = null, modifier = Modifier.padding(end = 8.dp).size(18.dp))
+                    Text(stringResource(R.string.welcome_record))
+                }
+                OutlinedButton(onClick = onPair, modifier = Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.welcome_pair))
+                }
+            } else {
+                Button(onClick = onPair, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = palette.accentFill)) {
+                    Text(stringResource(R.string.welcome_pair))
+                }
             }
             OutlinedButton(onClick = onTrySample, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.welcome_try_sample))
@@ -123,32 +146,85 @@ fun WelcomeScreen(
 }
 
 @Composable
-private fun HeldRecordings(count: Int, onDelete: () -> Unit) {
+private fun HeldRecordings(
+    recordings: List<DeviceRecording>,
+    onDeleteOne: (String) -> Unit,
+    onDeleteAll: () -> Unit,
+) {
     val palette = LokalBotTheme.palette
-    var confirming by remember { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().groupedSurface().padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    val formats = rememberFormats(ZoneId.systemDefault())
+    val today = remember { LocalDate.now() }
+    var confirmingAll by remember { mutableStateOf(false) }
+    var deletingOne by remember { mutableStateOf<DeviceRecording?>(null) }
+    Column(Modifier.fillMaxWidth().groupedSurface().padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
-            pluralStringResource(R.plurals.welcome_held_recordings_title, count, count),
+            pluralStringResource(R.plurals.welcome_held_recordings_title, recordings.size, recordings.size),
             style = LokalBotType.body.copy(fontWeight = FontWeight.SemiBold),
         )
-        Text(stringResource(R.string.welcome_held_recordings_message), style = LokalBotType.secondary, color = LokalBotTheme.supportingText)
-        TextButton(onClick = { confirming = true }) {
-            Text(stringResource(R.string.welcome_held_recordings_delete), color = palette.recordingText)
+        Text(stringResource(R.string.recording_unpaired_prompt), style = LokalBotType.secondary, color = LokalBotTheme.supportingText)
+        recordings.forEachIndexed { index, recording ->
+            if (index > 0) HorizontalDivider(color = palette.separator)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        recording.title.ifBlank { stringResource(R.string.recording_default_title) },
+                        style = LokalBotType.secondary.copy(fontWeight = FontWeight.SemiBold),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        formats.recordingMeta(recording.startedAt, recording.durationSeconds, today),
+                        style = LokalBotType.timestamp,
+                        color = LokalBotTheme.supportingText,
+                        maxLines = 1,
+                    )
+                }
+                if (recording.state != RecordingState.Recording) {
+                    IconButton(onClick = { deletingOne = recording }) {
+                        Icon(
+                            Icons.Outlined.DeleteOutline,
+                            contentDescription = stringResource(R.string.recording_delete),
+                            tint = palette.recordingText,
+                        )
+                    }
+                }
+            }
+        }
+        if (recordings.size > 1 && recordings.none { it.state == RecordingState.Recording }) {
+            TextButton(onClick = { confirmingAll = true }) {
+                Text(stringResource(R.string.welcome_held_recordings_delete_all), color = palette.recordingText)
+            }
         }
     }
-    if (confirming) {
+    deletingOne?.let { target ->
         AlertDialog(
-            onDismissRequest = { confirming = false },
+            onDismissRequest = { deletingOne = null },
+            title = { Text(stringResource(R.string.welcome_held_recordings_confirm_single_title)) },
+            text = { Text(stringResource(R.string.welcome_held_recordings_confirm_single_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    deletingOne = null
+                    onDeleteOne(target.id)
+                }) { Text(stringResource(R.string.welcome_held_recordings_delete), color = palette.recordingText) }
+            },
+            dismissButton = {
+                TextButton(onClick = { deletingOne = null }) { Text(stringResource(R.string.cancel)) }
+            },
+        )
+    }
+    if (confirmingAll) {
+        AlertDialog(
+            onDismissRequest = { confirmingAll = false },
             title = { Text(stringResource(R.string.welcome_held_recordings_confirm_title)) },
             text = { Text(stringResource(R.string.welcome_held_recordings_confirm_message)) },
             confirmButton = {
                 TextButton(onClick = {
-                    confirming = false
-                    onDelete()
-                }) { Text(stringResource(R.string.welcome_held_recordings_delete), color = palette.recordingText) }
+                    confirmingAll = false
+                    onDeleteAll()
+                }) { Text(stringResource(R.string.welcome_held_recordings_delete_all), color = palette.recordingText) }
             },
             dismissButton = {
-                TextButton(onClick = { confirming = false }) { Text(stringResource(R.string.cancel)) }
+                TextButton(onClick = { confirmingAll = false }) { Text(stringResource(R.string.cancel)) }
             },
         )
     }

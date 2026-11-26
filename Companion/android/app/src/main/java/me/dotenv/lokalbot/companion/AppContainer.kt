@@ -9,14 +9,20 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.dotenv.lokalbot.companion.data.CompanionRepository
+import me.dotenv.lokalbot.companion.data.DeviceRecording
 import me.dotenv.lokalbot.companion.data.FixtureRepository
+import me.dotenv.lokalbot.companion.data.RecordingState
 import me.dotenv.lokalbot.companion.data.RustRepository
+import me.dotenv.lokalbot.companion.data.UnpairedRecordingsStore
 import me.dotenv.lokalbot.companion.data.UploadOutcome
 import me.dotenv.lokalbot.companion.pairing.PairingPayload
 import me.dotenv.lokalbot.companion.recording.MediaRecorderCapture
@@ -27,6 +33,7 @@ import me.dotenv.lokalbot.companion.sync.MacDiscovery
 import me.dotenv.lokalbot.companion.sync.SyncWorker
 import me.dotenv.lokalbot.companion.sync.UploadWorker
 import me.dotenv.lokalbot.sync.ClientConfig
+import me.dotenv.lokalbot.sync.RecordingInfo
 import me.dotenv.lokalbot.sync.SyncClient
 import me.dotenv.lokalbot.sync.SyncException
 import me.dotenv.lokalbot.sync.generateStaticKey
@@ -43,6 +50,7 @@ class AppContainer(private val app: Application) {
     val databaseFile = File(app.noBackupFilesDir, "companion.sqlite")
 
     private val recordingsDir = File(app.noBackupFilesDir, "recordings")
+    val unpairedRecordings = UnpairedRecordingsStore(File(app.noBackupFilesDir, "unpaired-recordings"))
     private val notifier by lazy { AnswerNotifier(app) }
 
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -50,7 +58,11 @@ class AppContainer(private val app: Application) {
     private val _repository = MutableStateFlow<CompanionRepository?>(null)
     val repository: StateFlow<CompanionRepository?> = _repository.asStateFlow()
 
-    val recorder = MeetingRecorder(scope, library = { _repository.value }, newCapture = { MediaRecorderCapture(app) })
+    val recorder = MeetingRecorder(
+        scope,
+        library = { _repository.value ?: unpairedRecordings },
+        newCapture = { MediaRecorderCapture(app) },
+    )
 
     private val _ready = MutableStateFlow(false)
     val ready: StateFlow<Boolean> = _ready.asStateFlow()
@@ -62,16 +74,45 @@ class AppContainer(private val app: Application) {
         _removedByMac.value = false
     }
 
-    private val _heldRecordings = MutableStateFlow(0)
-    val heldRecordings: StateFlow<Int> = _heldRecordings.asStateFlow()
+    private val _revokedRecordings = MutableStateFlow<List<DeviceRecording>>(emptyList())
+    val heldRecordings: StateFlow<List<DeviceRecording>> = combine(
+        unpairedRecordings.recordings,
+        _revokedRecordings,
+    ) { local, revoked ->
+        (local + revoked).sortedByDescending { it.startedAt }
+    }.stateIn(scope, SharingStarted.Eagerly, emptyList())
+
+    suspend fun discardHeldRecording(id: String) {
+        if (unpairedRecordings.contains(id)) {
+            withContext(Dispatchers.IO) { unpairedRecordings.discardRecording(id) }
+            return
+        }
+        withContext(Dispatchers.IO) {
+            runCatching { openClient(deviceName()) }.getOrNull()?.let { client ->
+                runCatching { client.discardRecording(id) }
+                val remaining = unsentRecordings(client)
+                client.close()
+                if (remaining == null) {
+                    _revokedRecordings.value = _revokedRecordings.value.filterNot { it.id == id }
+                } else {
+                    _revokedRecordings.value = remaining
+                    if (remaining.isEmpty()) eraseFiles()
+                }
+            }
+        }
+    }
 
     suspend fun discardHeldRecordings() {
-        withContext(Dispatchers.IO) { eraseFiles() }
-        _heldRecordings.value = 0
+        withContext(Dispatchers.IO) {
+            unpairedRecordings.clearAll()
+            eraseFiles()
+        }
+        _revokedRecordings.value = emptyList()
     }
 
     init {
         scope.launch {
+            withContext(Dispatchers.IO) { unpairedRecordings.recoverRecordings() }
             val mode = preferences.mode.first()
             _repository.value = when (mode) {
                 LibraryMode.Sample -> loadSample()
@@ -79,10 +120,10 @@ class AppContainer(private val app: Application) {
                 LibraryMode.None -> null
             }
             if (mode != LibraryMode.Paired && databaseFile.exists()) {
-                _heldRecordings.value = withContext(Dispatchers.IO) {
+                _revokedRecordings.value = withContext(Dispatchers.IO) {
                     runCatching { openClient(deviceName()) }.getOrNull()?.let { client ->
                         unsentRecordings(client).also { client.close() }
-                    } ?: 0
+                    }.orEmpty()
                 }
             }
             _ready.value = true
@@ -91,7 +132,8 @@ class AppContainer(private val app: Application) {
 
     fun storageBytes(): Long =
         listOf("", "-wal", "-shm").sumOf { File(databaseFile.path + it).length() } +
-            (recordingsDir.listFiles()?.sumOf { it.length() } ?: 0)
+            (recordingsDir.listFiles()?.sumOf { it.length() } ?: 0) +
+            unpairedRecordings.storageBytes()
 
     suspend fun openSample() {
         _removedByMac.value = false
@@ -119,8 +161,9 @@ class AppContainer(private val app: Application) {
                 if (cutShort) recorder.abort()
                 close(_repository.value)
                 val library = paired(client)
+                library.migrateLocalRecordings()
                 _repository.value = library
-                _heldRecordings.value = 0
+                _revokedRecordings.value = emptyList()
                 preferences.setMode(LibraryMode.Paired)
                 SyncWorker.schedule(app)
                 if (cutShort) recorder.recoverIfIdle(library)
@@ -137,14 +180,18 @@ class AppContainer(private val app: Application) {
     }
 
     suspend fun removeLibrary() {
-        recorder.abort()
         val current = _repository.value
+        val wasPaired = current is RustRepository
+        if (wasPaired) recorder.abort()
         _repository.value = null
         withContext(Dispatchers.IO) {
-            if (current is RustRepository) runCatching { current.unpairAndClose() }
-            if (current is RustRepository || _heldRecordings.value == 0) eraseFiles()
+            if (current is RustRepository) {
+                runCatching { current.unpairAndClose() }
+                unpairedRecordings.clearAll()
+            }
+            if (wasPaired || _revokedRecordings.value.isEmpty()) eraseFiles()
         }
-        if (current is RustRepository) _heldRecordings.value = 0
+        if (wasPaired) _revokedRecordings.value = emptyList()
         SyncWorker.cancel(app)
         UploadWorker.cancel(app)
         preferences.setMode(LibraryMode.None)
@@ -170,19 +217,25 @@ class AppContainer(private val app: Application) {
     }
 
     private suspend fun loadSample(): CompanionRepository = withContext(Dispatchers.IO) {
-        FixtureRepository.fromJson(app.assets.open(SAMPLE_ASSET).bufferedReader().use { it.readText() })
+        FixtureRepository.fromJson(
+            app.assets.open(SAMPLE_ASSET).bufferedReader().use { it.readText() },
+            localRecordings = unpairedRecordings,
+        )
     }
 
     private suspend fun openPaired(): CompanionRepository? = withContext(Dispatchers.IO) {
         val client = runCatching { openClient(deviceName()) }.getOrNull() ?: return@withContext null
         if (client.pairedMac() == null) {
-            _heldRecordings.value = unsentRecordings(client)
+            _revokedRecordings.value = unsentRecordings(client).orEmpty()
             client.close()
             preferences.setMode(LibraryMode.None)
             return@withContext null
         }
+        val library = paired(client)
+        val migrated = library.migrateLocalRecordings()
         SyncWorker.schedule(app)
-        paired(client).also { recorder.recoverIfIdle(it) }
+        if (migrated > 0 || unpairedRecordings.waitingForMigration().isNotEmpty()) UploadWorker.enqueue(app)
+        library.also { recorder.recoverIfIdle(it) }
     }
 
     private fun paired(client: SyncClient): RustRepository {
@@ -193,6 +246,7 @@ class AppContainer(private val app: Application) {
             onQueuedAnswer = notifier::announce,
             onRevoked = { scope.launch { forget(library) } },
             onRecordingsWaiting = { UploadWorker.enqueue(app) },
+            unpairedStore = unpairedRecordings,
         )
         return library
     }
@@ -202,10 +256,13 @@ class AppContainer(private val app: Application) {
         recorder.abort()
         _repository.value = null
         withContext(Dispatchers.IO) {
-            val held = library.heldAfterRevocation()
+            library.heldAfterRevocation()
             library.close()
-            _heldRecordings.value = held
-            if (held == 0) eraseFiles()
+            val held = runCatching { openClient(deviceName()) }.getOrNull()?.let { client ->
+                unsentRecordings(client).also { client.close() }
+            }
+            _revokedRecordings.value = held.orEmpty()
+            if (held != null && held.isEmpty()) eraseFiles()
         }
         SyncWorker.cancel(app)
         UploadWorker.cancel(app)
@@ -213,10 +270,26 @@ class AppContainer(private val app: Application) {
         _removedByMac.value = true
     }
 
-    private fun unsentRecordings(client: SyncClient): Int {
+    private fun unsentRecordings(client: SyncClient): List<DeviceRecording>? {
         runCatching { client.recoverRecordings() }
-        return runCatching { client.recordings().count { it.state != "uploaded" } }.getOrDefault(0)
+        return runCatching {
+            client.recordings()
+                .filter { it.state != "uploaded" }
+                .map(::toDeviceRecording)
+        }.getOrNull()
     }
+
+    private fun toDeviceRecording(info: RecordingInfo) = DeviceRecording(
+        id = info.id,
+        title = info.title,
+        state = RecordingState.entries.firstOrNull { it.name.equals(info.state, ignoreCase = true) } ?: RecordingState.Waiting,
+        startedAt = info.startedAt,
+        durationSeconds = info.durationSeconds,
+        byteCount = info.byteCount.toLong(),
+        sentBytes = info.sentBytes.toLong(),
+        message = info.message,
+        filePath = info.filePath,
+    )
 
     private fun eraseFiles() {
         listOf("", "-wal", "-shm").forEach { File(databaseFile.path + it).delete() }

@@ -513,6 +513,10 @@ private struct MeetingWorkspaceDetail: View {
         let hasRecap = summary?.isEmpty == false || projection != nil
         return [
             .init(title: "Copy recap for Slack / Email", enabled: hasRecap, action: copyRecap),
+            .init(title: MeetingRecapExporter.attributionToggleLabel,
+                  identifier: "toolbar.recapAttribution",
+                  selected: app.settings.includeRecapAttribution,
+                  action: { app.settings.includeRecapAttribution.toggle() }),
             .init(title: "Export as HTML…", action: exportHTML),
             .separator,
             .init(title: "Copy as Markdown", action: { MeetingMarkdownActions.copy(meeting) }),
@@ -613,7 +617,8 @@ private struct MeetingWorkspaceDetail: View {
         if meeting.isSample {
             SampleMeetingBanner(meeting: meeting,
                                 hasTranscript: transcript?.segments.isEmpty == false,
-                                hasNotes: summary?.isEmpty == false)
+                                hasNotes: summary?.isEmpty == false,
+                                isPrecomputed: transcript?.engine == SampleMeeting.precomputedEngine)
         }
         let hasOutsideAudio = meeting.additionalSavedAudioDuration > 0.1
         if captureNeedsAttention || hasOutsideAudio {
@@ -1390,7 +1395,8 @@ private struct MeetingWorkspaceDetail: View {
         let text = MeetingRecapExporter.slackOrEmailRecap(
             meeting: meeting,
             summary: summary,
-            projection: projection)
+            projection: projection,
+            includeAttribution: app.settings.includeRecapAttribution)
         MeetingMarkdownActions.copyText(text)
     }
 

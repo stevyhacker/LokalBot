@@ -2,22 +2,82 @@
   "schemaVersion": 1,
   "title": "Local Desktop AI Leaderboard",
   "subtitle": "Independent, reproducible benchmarks of local models for everyday desktop workflows, measured head-to-head against cloud baselines.",
-  "updated": "2026-11-20",
+  "updated": "2026-11-26",
   "url": "https://www.lokalbot.com/benchmarks",
   "dataUrl": "https://www.lokalbot.com/benchmarks.json",
   "repository": "https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks",
   "license": "GPL-3.0-or-later",
-  "hardwareSummary": "Primary desktop runs on Apple M4 Max (48 GB unified memory); Linux CPU memory/extraction runs on AMD Ryzen 7 9700X (64 GB); experimental MemT run on Windows + RX 6600 XT.",
+  "hardwareSummary": "Primary desktop runs on Apple M4 Max (48 GB unified memory); Linux CPU memory/extraction runs on AMD Ryzen 7 9700X (64 GB); v0.14.0 Qwen3.5 4B replay on NVIDIA RTX PRO 6000 Blackwell (pinned llama.cpp v1.0.0); experimental MemT run on Windows + RX 6600 XT.",
+  "fineTunedModels": [
+    {
+      "role": "Transcription (Default)",
+      "model": "Qwen3-ASR 1.7B (LokalBot v3)",
+      "repo": "stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF",
+      "revision": "33ca434ce773d56914f609cec80e843d085b5645",
+      "files": [
+        "Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf",
+        "mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf"
+      ],
+      "format": "GGUF Q8_0 + mmproj",
+      "sizeGb": 2.52,
+      "license": "Apache-2.0",
+      "suiteId": "stt-lokalbot-v3",
+      "headline": "9.79% AMI ihm · 24.41% sdm · 100% clean silence · -24.3 pp code-switch"
+    },
+    {
+      "role": "Transcription (Compact)",
+      "model": "Qwen3-ASR 0.6B (LokalBot v1)",
+      "repo": "stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF",
+      "revision": "4f9e435248343b208223ce33fa1a8b0b2f2e6bc6",
+      "files": [
+        "Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf",
+        "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf"
+      ],
+      "format": "GGUF Q8_0 + stock mmproj",
+      "sizeGb": 1.02,
+      "license": "Apache-2.0",
+      "suiteId": "stt-lokalbot-v3",
+      "headline": "10.72% AMI ihm · -21.7 pp South Slavic WER · 52.7x RT · 100% clean silence"
+    },
+    {
+      "role": "Summaries, Memory & Ask",
+      "model": "Qwen3.5 4B (LokalBot v4)",
+      "repo": "stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
+      "revision": "b7c9e3308abcf996350e35c9dc97d9590bf6a00a",
+      "files": [
+        "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf"
+      ],
+      "format": "GGUF Q4_K_M",
+      "sizeGb": 2.74,
+      "license": "Apache-2.0",
+      "suiteId": "summaries-lokalbot-v4",
+      "headline": "118/120 memory (1 unw.) · 45% Blind21 decisions · 60.6% fewer rejections · 1.78x faster"
+    },
+    {
+      "role": "Inline Autocomplete",
+      "model": "Gemma 4 E2B (LokalBot v4)",
+      "repo": "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+      "revision": "e089648312aee558514a13dbbd4efb19a0b3eb25",
+      "files": [
+        "Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf"
+      ],
+      "format": "GGUF i1-Q6_K",
+      "sizeGb": 3.85,
+      "license": "Apache-2.0",
+      "suiteId": "autocomplete-lokalbot-v4",
+      "headline": "56/56 memory+visible · 52.2% precision · 80.0% email prec · 20.2 ms boundary"
+    }
+  ],
   "referenceStack": [
     {
       "categoryId": "stt",
-      "suiteId": "stt-ami-cloud",
+      "suiteId": "stt-lokalbot-v3",
       "role": "Transcription",
-      "model": "Qwen3-ASR 1.7B",
-      "format": "MLX 8-bit / GGUF Q8_0",
-      "sizeGb": 2.47,
-      "headline": "17.6% WER · 44× RT",
-      "subline": "Lowest disagreement (4.2%) on real 2-track meetings; $0/hr"
+      "model": "Qwen3-ASR 1.7B (LokalBot v3)",
+      "format": "GGUF Q8_0 + mmproj (llama.cpp)",
+      "sizeGb": 2.52,
+      "headline": "9.79% AMI ihm · 100% clean silence",
+      "subline": "Apache-2.0 fine-tune: -24.3 pp code-switch WER, 31.7x RT; stock 17.6% AMI mixed"
     },
     {
       "categoryId": "diarization",
@@ -26,7 +86,7 @@
       "model": "Nemotron 3",
       "format": "Core ML (FluidAudio)",
       "sizeGb": 0.2,
-      "headline": "14.56% DER · 500× RT",
+      "headline": "14.56% DER · 500x RT",
       "subline": "8/8 correct speaker counts vs 43.44% DER for Pyannote"
     },
     {
@@ -41,23 +101,23 @@
     },
     {
       "categoryId": "autocomplete",
-      "suiteId": "autocomplete-engine",
+      "suiteId": "autocomplete-lokalbot-v4",
       "role": "Inline Autocomplete",
-      "model": "Gemma 4 E2B Base",
+      "model": "Gemma 4 E2B (LokalBot v4)",
       "format": "GGUF i1-Q6_K (llama.cpp)",
       "sizeGb": 3.85,
-      "headline": "56 ms · 50.1% precision",
-      "subline": "0/140 unsafe; 49–53 ms after 5-min idle warm-up fix"
+      "headline": "56/56 grounded · 52.2% precision",
+      "subline": "Apache-2.0 fine-tune: 20.2 ms boundary median, 80.0% email prec, 0 unsafe"
     },
     {
       "categoryId": "summaries",
-      "suiteId": "summaries-mac-extraction",
+      "suiteId": "summaries-lokalbot-v4",
       "role": "Summaries & Memory",
-      "model": "Qwen3.5 4B",
+      "model": "Qwen3.5 4B (LokalBot v4)",
       "format": "GGUF Q4_K_M (llama.cpp)",
       "sizeGb": 2.74,
-      "headline": "33.4 s warm · 95.5% restraint",
-      "subline": "6/6 native tool calls; 42/44 empty memory cases clean"
+      "headline": "118/120 memory · 1.78x faster",
+      "subline": "Apache-2.0 fine-tune: 60.6% fewer rejections, 45% Blind21 decisions, 6/6 tools"
     },
     {
       "categoryId": "ocr-tts",
@@ -67,7 +127,7 @@
       "format": "macOS native + local TTS",
       "sizeGb": 0.1,
       "headline": "0.971 F1 · 119.6 ms OCR",
-      "subline": "57× faster than PP-OCRv6; Kokoro TTS peaks at 0.81 GiB"
+      "subline": "57x faster than PP-OCRv6; Kokoro TTS peaks at 0.81 GiB"
     }
   ],
   "categories": [
@@ -666,6 +726,101 @@
               "note": "Best Serbian turn WER (15.6% vs 22.3% for Qwen), but ~0.8 s decode overhead per turn."
             }
           ]
+        },
+        {
+          "id": "stt-lokalbot-v3",
+          "shortLabel": "v0.14.0 Fine-Tunes (HF)",
+          "label": "v0.14.0 Apache-2.0 ASR Fine-Tunes: Qwen3-ASR 1.7B v3 & 0.6B v1 vs. Stock Q8_0",
+          "runDate": "2026-11-24",
+          "hardware": "Apple M4 Max (48 GB) · LokalBot vendored llama-server v1.0.0 · greedy decoding",
+          "dataset": "Disjoint Blind Holdout (466 clips) + Expanded AMI Meetings (400 clips: 200 ihm + 200 sdm)",
+          "note": "Head-to-head evals published on the Apache-2.0 Hugging Face model cards using LokalBot's production /completion prompt format and 100% open-license CC0/CC-BY-4.0 training data.",
+          "caveat": "v3 requires its paired mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf (355.7 MB) and abstains on 2/200 very noisy far-field AMI sdm clips while lowering overall sdm WER by 1.67 pp. Guard languages stay within +0.18 pp of stock.",
+          "reportUrl": "https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/blob/master/LokalBot/Engines/QwenLlamaASR.swift",
+          "defaultSort": { "key": "amiIhm", "dir": "asc" },
+          "primaryMetric": { "key": "amiIhm", "dir": "asc", "max": 15 },
+          "columns": [
+            { "key": "amiIhm", "label": "AMI ihm (200) ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "amiSdm", "label": "AMI sdm (200) ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "codeSwitch", "label": "Code-Switch ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "silence", "label": "Clean Silence ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "speed", "label": "Speed (RTF) ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "asr-1-7b-v3",
+              "model": "Qwen3-ASR 1.7B (LokalBot v3)",
+              "org": "LokalBot (Apache-2.0)",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama-server v1.0.0",
+              "quant": "Q8_0 + v3 mmproj · 2.52 GB",
+              "sizeGb": 2.52,
+              "values": {
+                "amiIhm": { "display": "9.79%", "num": 9.79, "sub": "-0.45 pp" },
+                "amiSdm": { "display": "24.41%", "num": 24.41, "sub": "-1.67 pp" },
+                "codeSwitch": { "display": "12.81%", "num": 12.81, "sub": "-24.31 pp" },
+                "silence": { "display": "100.0%", "num": 100.0, "sub": "0 halluc." },
+                "speed": { "display": "31.69x", "num": 31.69 }
+              },
+              "note": "v0.14.0 default. 100% vocab recall (4.00% WER), 17.79% South Slavic auto WER, 4.53% 5-lang guard WER."
+            },
+            {
+              "id": "asr-1-7b-stock",
+              "model": "Qwen3-ASR 1.7B (Stock Q8_0)",
+              "org": "Qwen / ggml-org",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama-server v1.0.0",
+              "quant": "Q8_0 + mmproj · 2.52 GB",
+              "sizeGb": 2.52,
+              "values": {
+                "amiIhm": { "display": "10.24%", "num": 10.24 },
+                "amiSdm": { "display": "26.08%", "num": 26.08 },
+                "codeSwitch": { "display": "37.12%", "num": 37.12 },
+                "silence": { "display": "8.3%", "num": 8.3, "sub": "123 halluc. w" },
+                "speed": { "display": "31.34x", "num": 31.34 }
+              },
+              "note": "Unmodified stock Q8_0 baseline; 16 prompt echoes and 123 hallucinated words on silence with custom vocab."
+            },
+            {
+              "id": "asr-0-6b-v1",
+              "model": "Qwen3-ASR 0.6B (LokalBot v1)",
+              "org": "LokalBot (Apache-2.0)",
+              "kind": "local",
+              "status": "option",
+              "runtime": "llama-server v1.0.0",
+              "quant": "Q8_0 + stock mmproj · 1.02 GB",
+              "sizeGb": 1.02,
+              "values": {
+                "amiIhm": { "display": "10.72%", "num": 10.72, "sub": "-0.15 pp" },
+                "amiSdm": { "display": "26.23%", "num": 26.23, "sub": "-0.34 pp" },
+                "codeSwitch": { "display": "20.72%", "num": 20.72, "sub": "-28.49 pp" },
+                "silence": { "display": "100.0%", "num": 100.0, "sub": "0 halluc." },
+                "speed": { "display": "52.72x", "num": 52.72 }
+              },
+              "note": "v0.14.0 compact tier. Cuts South Slavic auto WER from 52.26% to 30.57% with bit-identical stock mmproj."
+            },
+            {
+              "id": "asr-0-6b-stock",
+              "model": "Qwen3-ASR 0.6B (Stock Q8_0)",
+              "org": "Qwen / ggml-org",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama-server v1.0.0",
+              "quant": "Q8_0 + mmproj · 1.02 GB",
+              "sizeGb": 1.02,
+              "values": {
+                "amiIhm": { "display": "10.87%", "num": 10.87 },
+                "amiSdm": { "display": "26.57%", "num": 26.57 },
+                "codeSwitch": { "display": "49.21%", "num": 49.21 },
+                "silence": { "display": "100.0%", "num": 100.0 },
+                "speed": { "display": "39.67x", "num": 39.67 }
+              },
+              "note": "Stock 0.6B Q8_0 baseline; 80.0% dictation vocab recall vs 100.0% for LokalBot v1."
+            }
+          ]
         }
       ]
     },
@@ -1196,6 +1351,83 @@
               }
             }
           ]
+        },
+        {
+          "id": "autocomplete-lokalbot-v4",
+          "shortLabel": "v0.14.0 Fine-Tune (HF)",
+          "label": "v0.14.0 Apache-2.0 Autocomplete: Gemma 4 E2B (LokalBot v4) vs. Stock",
+          "runDate": "2026-11-24",
+          "hardware": "Apple M4 Max (48 GB) · LokalBot Release binary + llama.cpp v1.0.0",
+          "dataset": "788 Engine word positions + 56 memory and visible-context grounding checks + 242 blind holdout cases",
+          "note": "Rank-32 LoRA across 275 attention, MLP, and Per-Layer Embedding matrices of google/gemma-4-E2B quantized with a bilingual EN/SR imatrix.",
+          "caveat": "v4 prioritizes stock-like restraint (182 wrong shown vs 181 stock) and 56/56 grounding; v3 reaches higher raw coverage (58.6%) with +39 extra wrong shown completions.",
+          "reportUrl": "https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/blob/master/LokalBot/Engines/ModelCatalog.swift",
+          "defaultSort": { "key": "precision", "dir": "desc" },
+          "primaryMetric": { "key": "precision", "dir": "desc", "max": 60 },
+          "columns": [
+            { "key": "precision", "label": "Precision ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "accuracy", "label": "Engine Acc ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "grounded", "label": "Grounded / 56 ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "emailPrec", "label": "Email Prec ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "latency", "label": "Boundary p50 ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "auto-e2b-v4",
+              "model": "Gemma 4 E2B (LokalBot v4)",
+              "org": "LokalBot (Apache-2.0)",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "i1-Q6_K · 3.85 GB",
+              "sizeGb": 3.85,
+              "values": {
+                "precision": { "display": "52.2%", "num": 52.2, "sub": "199/381" },
+                "accuracy": { "display": "25.25%", "num": 25.25, "sub": "20.1% other" },
+                "grounded": { "display": "56/56", "num": 56, "sub": "100%" },
+                "emailPrec": { "display": "80.0%", "num": 80.0 },
+                "latency": { "display": "20.2 ms", "num": 20.2, "sub": "80.0 ms p95" }
+              },
+              "note": "v0.14.0 default. Matches or beats stock across every pillar with 0 unsafe checks and 0 stale visible facts."
+            },
+            {
+              "id": "auto-e2b-v3",
+              "model": "Gemma 4 E2B (LokalBot v3)",
+              "org": "LokalBot (Apache-2.0)",
+              "kind": "local",
+              "status": "option",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "i1-Q6_K · 3.85 GB",
+              "sizeGb": 3.85,
+              "values": {
+                "precision": { "display": "52.4%", "num": 52.4, "sub": "242/462" },
+                "accuracy": { "display": "30.71%", "num": 30.71, "sub": "28.1% other" },
+                "grounded": { "display": "54/56", "num": 54, "sub": "2 abstentions" },
+                "emailPrec": { "display": "70.7%", "num": 70.7 },
+                "latency": { "display": "26.6 ms", "num": 26.6, "sub": "87.2 ms p95" }
+              },
+              "note": "High-recall checkpoint available in the same HF repo for users wanting higher coverage."
+            },
+            {
+              "id": "auto-e2b-stock",
+              "model": "Gemma 4 E2B Base (Stock)",
+              "org": "Google / mradermacher",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "i1-Q6_K · 3.85 GB",
+              "sizeGb": 3.85,
+              "values": {
+                "precision": { "display": "50.1%", "num": 50.1, "sub": "182/363" },
+                "accuracy": { "display": "23.10%", "num": 23.10, "sub": "14.6% other" },
+                "grounded": { "display": "49/56", "num": 49, "sub": "23/30 visible" },
+                "emailPrec": { "display": "74.3%", "num": 74.3 },
+                "latency": { "display": "21.2 ms", "num": 21.2, "sub": "103.5 ms p95" }
+              },
+              "note": "Previous stock autocomplete baseline on identical production gates."
+            }
+          ]
         }
       ]
     },
@@ -1544,6 +1776,65 @@
                 "size": { "display": "2.74 GB", "num": 2.74 }
               },
               "note": "Remains default pending full meeting-note + Apple Silicon testing."
+            }
+          ]
+        },
+        {
+          "id": "summaries-lokalbot-v4",
+          "shortLabel": "v0.14.0 Fine-Tune (HF)",
+          "label": "v0.14.0 Apache-2.0 Think: Qwen3.5 4B (LokalBot v4) vs. Stock Q4_K_M",
+          "runDate": "2026-11-24",
+          "hardware": "NVIDIA RTX PRO 6000 Blackwell · pinned llama.cpp v1.0.0 (b1b770d9) · 32K ctx · enable_thinking=false",
+          "dataset": "120-case Memory Retention + Blind21 holdout (21 untouched EN meetings) + Private28 dev (28 real meetings) + SparkX26",
+          "note": "Trained on 4,117 Swift-verified rows from open-license sources (zero private meetings in training). Drop-in 2.74 GB Q4_K_M replacement matching stock footprint.",
+          "caveat": "On Blind21, stock has higher raw action recall (55.3% vs 47.1%, McNemar p=0.2478) and fewer false-positive decisions on zero-decision meetings (6 vs 25). LokalBot runs v4 with enable_thinking=false by default.",
+          "reportUrl": "https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
+          "harnessUrl": "https://github.com/stevyhacker/LokalBot/blob/master/LokalBot/Engines/ModelCatalog.swift",
+          "defaultSort": { "key": "memoryPct", "dir": "desc" },
+          "primaryMetric": { "key": "memoryPct", "dir": "desc", "max": 100 },
+          "columns": [
+            { "key": "memoryPct", "label": "Memory (120) ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "blindDec", "label": "Blind21 Decisions ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" },
+            { "key": "rejections", "label": "Rejections ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "latency", "label": "Blind21 Median ↓", "type": "number", "dir": "asc", "sortable": true, "align": "right" },
+            { "key": "tools", "label": "SparkX26 Tools ↑", "type": "number", "dir": "desc", "sortable": true, "align": "right" }
+          ],
+          "rows": [
+            {
+              "id": "think-qwen35-4b-v4",
+              "model": "Qwen3.5 4B (LokalBot v4)",
+              "org": "LokalBot (Apache-2.0)",
+              "kind": "local",
+              "status": "default",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "memoryPct": { "display": "98.3%", "num": 98.3, "sub": "118/120 · 1 unw." },
+                "blindDec": { "display": "45.0%", "num": 45.0, "sub": "18/40 · 12/12 mtgs" },
+                "rejections": { "display": "69", "num": 69, "sub": "-60.6%" },
+                "latency": { "display": "13.64 s", "num": 13.64, "sub": "1.78x faster" },
+                "tools": { "display": "6/6", "num": 6, "sub": "9/12 cases" }
+              },
+              "note": "v0.14.0 default Think model. 13/13 Serbian memory recall (0 unwanted), 0 Russian drift hits on Golden6, 21/21 Blind21 completed."
+            },
+            {
+              "id": "think-qwen35-4b-stock",
+              "model": "Qwen3.5 4B (Stock Q4_K_M)",
+              "org": "Qwen / Unsloth",
+              "kind": "local",
+              "status": "baseline",
+              "runtime": "llama.cpp v1.0.0",
+              "quant": "Q4_K_M · 2.74 GB",
+              "sizeGb": 2.74,
+              "values": {
+                "memoryPct": { "display": "67.5%", "num": 67.5, "sub": "81/120 · 12 unw." },
+                "blindDec": { "display": "7.5%", "num": 7.5, "sub": "3/40 · 3/12 mtgs" },
+                "rejections": { "display": "175", "num": 175 },
+                "latency": { "display": "24.24 s", "num": 24.24 },
+                "tools": { "display": "6/6", "num": 6, "sub": "8/12 cases" }
+              },
+              "note": "Stock baseline on identical hardware; 0/13 Serbian memory recall (9 unwanted), 21 Russian drift hits on Golden6, 20/21 Blind21 completed."
             }
           ]
         }

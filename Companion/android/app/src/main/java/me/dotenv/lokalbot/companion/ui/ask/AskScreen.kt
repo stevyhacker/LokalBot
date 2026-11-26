@@ -1,6 +1,9 @@
 package me.dotenv.lokalbot.companion.ui.ask
 
 import android.Manifest
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,8 +44,11 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.ArrowUpward
 import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.Check
+import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.Stop
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
@@ -52,6 +58,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.VerticalDivider
@@ -75,6 +82,7 @@ import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -341,6 +349,7 @@ private fun TurnView(turn: AskTurnState, actions: TurnActions) {
         }
         when (turn.phase) {
             TurnPhase.Done -> turn.result?.let { result ->
+                AnswerActionsRow(parsed.answer, parsed.citations)
                 AnswerLocationLine(result, actions.isSample)
                 if (parsed.citations.isNotEmpty()) Sources(parsed.citations, actions.onCitation)
             }
@@ -352,6 +361,38 @@ private fun TurnView(turn: AskTurnState, actions: TurnActions) {
                 OutlinedButton(onClick = { actions.onRetry(turn.request.question) }) { Text(stringResource(R.string.ask_retry)) }
             }
             TurnPhase.Streaming -> Unit
+        }
+    }
+}
+
+@Composable
+private fun AnswerActionsRow(answer: String, citations: List<AskCitation>) {
+    val context = LocalContext.current
+    val appName = stringResource(R.string.app_name)
+    val shareLabel = stringResource(R.string.ask_share)
+    var copied by remember(answer) { mutableStateOf(false) }
+    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        TextButton(onClick = {
+            val clipboard = context.getSystemService(ClipboardManager::class.java)
+            clipboard?.setPrimaryClip(ClipData.newPlainText(appName, Citations.plainText(answer)))
+            copied = true
+        }) {
+            Icon(
+                if (copied) Icons.Outlined.Check else Icons.Outlined.ContentCopy,
+                contentDescription = null,
+                modifier = Modifier.padding(end = 6.dp).size(16.dp),
+            )
+            Text(stringResource(if (copied) R.string.ask_copied else R.string.ask_copy), style = LokalBotType.secondary)
+        }
+        TextButton(onClick = {
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, Citations.shareText(answer, citations))
+            }
+            context.startActivity(Intent.createChooser(shareIntent, shareLabel))
+        }) {
+            Icon(Icons.Outlined.Share, contentDescription = null, modifier = Modifier.padding(end = 6.dp).size(16.dp))
+            Text(shareLabel, style = LokalBotType.secondary)
         }
     }
 }

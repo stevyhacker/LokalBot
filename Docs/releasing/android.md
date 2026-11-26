@@ -184,3 +184,24 @@ gh workflow run google-play.yml --ref master -f tag=v0.13.3 -f validate_only=tru
 # Publish to production (or pass -f track=internal / -f status=draft):
 gh workflow run google-play.yml --ref master -f tag=v0.13.3
 ```
+
+### Store listing metadata, screenshots, and Play review
+
+`Scripts/release/publish_google_play.py` uploads the `.aab`, R8 mapping, and
+per-release What's New notes, while the versioned store listing copy lives in
+[Companion/store-metadata/android/en-US/](../../Companion/store-metadata/android/en-US/):
+
+| Field | Limit | Current value / file |
+| --- | --- | --- |
+| Title | 30 chars | `LokalBot: Private Meeting AI` (`title.txt`, 28 chars) |
+| Short Description | 80 chars | `short_description.txt` (75 chars) |
+| Full Description | 4,000 chars | `full_description.txt` (Mac, Windows, Linux pairing + offline recording) |
+| Review & FGS notes | Console form | [review_notes.txt](../../Companion/store-metadata/android/en-US/review_notes.txt) |
+| Screenshot plan | 8 to 10 shots | [screenshots.md](../../Companion/store-metadata/android/en-US/screenshots.md) |
+
+Keep Google Play metadata free of iOS, iPhone, iPad, or App Store mentions.
+Reviewers can test `FOREGROUND_SERVICE_MICROPHONE` right from the welcome
+screen by tapping **Record a meeting** (saved strictly in private on-device
+storage until paired with LokalBot on Mac, Windows, or Linux over Wi-Fi or
+Tailscale) and can tap **Try it without a computer** to explore the built-in
+sample library.

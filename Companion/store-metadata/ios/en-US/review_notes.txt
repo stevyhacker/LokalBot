@@ -1,0 +1,19 @@
+No account or login is required.
+
+To test recording immediately without pairing a computer:
+1. On the welcome screen, tap "Record a Meeting" and grant microphone permission.
+2. Record a short audio clip, optionally enter a title, and tap "Stop and Save".
+3. Confirm the saved recording appears in the on-device recordings card on the welcome screen with its timestamp, duration, and delete button.
+4. Background recording (`UIBackgroundModes: audio`) keeps the active recording running when the screen locks or the user switches apps, and shows the system microphone indicator.
+
+To test the full work-memory experience without a desktop computer:
+1. On the welcome screen, tap "Try It Without a Computer".
+2. This loads a built-in sample library (Today, Meetings, Actions, Timeline, People, Projects, and Ask with sample answers and clickable citations).
+3. You can also record from the microphone button in Meetings or Today while in sample mode; recordings remain strictly in private on-device storage with zero network traffic until a computer is paired.
+
+Desktop pairing and permissions:
+- The companion pairs directly with the open-source LokalBot desktop app (macOS, Windows, or Linux) over the user's local Wi-Fi network (Bonjour `_lokalbot._tcp`) or Tailscale, end-to-end encrypted with Noise (X25519, ChaChaPoly, BLAKE2s).
+- Camera permission is used solely to scan the one-time pairing QR code displayed in LokalBot on the desktop.
+- Local Network permission is used solely to discover the paired computer on the user's LAN.
+- Face ID / Touch ID is used solely when the user enables optional App Lock in Settings.
+- No data is sent to any LokalBot server.

@@ -5,8 +5,11 @@
 `io.github.stevyhacker/lokalbot`. It names the release's one-click bundle,
 `LokalBot.mcpb` (built by [`Scripts/release/build-mcpb.sh`](../../Scripts/release/build-mcpb.sh)),
 with the SHA-256 GitHub reports for it. MCP clients and directories that read
-the registry can then find and install it. The bundle runs the `lokalbot-cli`
-helper inside LokalBot.app, so it needs the Mac app installed.
+the registry can then find and install it. The `.mcpb` bundle runs the
+`lokalbot-cli` helper inside `LokalBot.app` on macOS, while running
+`lokalbot-cli mcp` exposes the same read-only stdio MCP server (meetings,
+screen memory, Files, Personal Context, and coding-agent notes) on macOS,
+Windows, and Linux.
 
 The registry keeps every version it is sent, and a published version can't be
 changed. The `version`, `identifier` and `fileSha256` here show the latest
@@ -50,3 +53,5 @@ publishes nothing.
 - [Claude Code & Codex meeting notes guide](https://www.lokalbot.com/claude-code-codex-meeting-notes)
 - [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks)
 - [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)
+- [SaaS AI Cost Calculator](https://www.lokalbot.com/calculator)
+- [Agent Wrapped (`npx lokalbot`)](https://www.lokalbot.com/wrapped)

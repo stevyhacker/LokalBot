@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>AI Meeting Notes Cost &amp; Cloud Audio Calculator | LokalBot</title>
+  <meta name="description" content="Calculate 1-year and 3-year SaaS spend plus annual cloud audio uploads across Granola, Otter, Wispr Flow, Fireflies, Fathom, and more vs. $0 local LokalBot." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+  <link rel="canonical" href="https://www.lokalbot.com/calculator" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/calculator" />
+  <meta property="og:title" content="AI Meeting Notes Cost &amp; Cloud Audio Calculator | LokalBot" />
+  <meta property="og:description" content="Estimate 1-year and 3-year SaaS subscription costs and gigabytes of private voice audio sent to cloud AI tools vs. $0 and 0 bytes with LokalBot." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot SaaS AI Subscription and Cloud Audio Calculator comparing cloud meeting tools against $0 on-device processing." />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="AI Meeting Notes Cost &amp; Cloud Audio Calculator | LokalBot" />
+  <meta name="twitter:description" content="See your 1-year and 3-year meeting notes and dictation SaaS bill plus gigabytes of audio uploaded to third-party clouds vs. $0 local LokalBot." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta name="twitter:image:alt" content="LokalBot SaaS AI Subscription and Cloud Audio Calculator comparing cloud meeting tools against $0 on-device processing." />
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/calculator#app","name":"LokalBot SaaS AI Subscription & Cloud Audio Calculator","url":"https://www.lokalbot.com/calculator","description":"Client-side calculator comparing 1-year and 3-year subscription spend and annual cloud audio uploads across Granola, Wispr Flow, Otter, Fireflies, Fathom, Notion AI, Read.ai, Superwhisper, Screenpipe, and OpenWhispr against $0 local LokalBot.","applicationCategory":"FinanceApplication","operatingSystem":"Any (runs locally in browser)","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"datePublished":"2026-11-26","dateModified":"2026-11-26","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"SaaS Cost Calculator","item":"https://www.lokalbot.com/calculator"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/calculator#faq","mainEntity":[{"@type":"Question","name":"Where do the competitor subscription prices come from?","acceptedAnswer":{"@type":"Answer","text":"Every tier comes from each vendor's public pricing page checked between October 26 and November 20, 2026, matching the tables on LokalBot's comparison pages. You can switch between annual and monthly or Pro and Business tiers inside the calculator."}},{"@type":"Question","name":"How is annual cloud audio upload size calculated?","acceptedAnswer":{"@type":"Answer","text":"When your stack includes at least one cloud-processed meeting or voice tool, we multiply weekly call and dictation hours by team seats and 50 working weeks per year, then estimate compressed audio upload at 64 kbps (28.8 MB per hour). Raw 16 kHz mono WAV audio is 4x larger at 115.2 MB per hour."}},{"@type":"Question","name":"Why is LokalBot $0 per seat with 0 bytes uploaded?","acceptedAnswer":{"@type":"Answer","text":"LokalBot is GPLv3 open-source desktop software that runs Apache-2.0 transcription, summarization, search, and autocomplete models on your own Mac, Windows, or Linux computer. There are no LokalBot cloud inference servers to pay for and no user accounts."}},{"@type":"Question","name":"Does this calculator send my numbers to a server?","acceptedAnswer":{"@type":"Answer","text":"No. All math, URL share links, and PNG receipt images run locally in your browser with zero analytics scripts, cookies, or network uploads."}}]}]}</script>
+  <script src="/app.js" defer></script>
+  <script src="/calculator.js" defer></script>
+  <style>
+    .calc-page {
+      width: min(1140px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 122px 0 84px;
+    }
+    .calc-hero { margin-bottom: 28px; }
+    .calc-hero .breadcrumbs { margin-bottom: 14px; }
+    .calc-hero h1 {
+      margin: 10px 0 14px;
+      font-size: clamp(2.05rem, 4.2vw, 3.2rem);
+      line-height: 1.07;
+      letter-spacing: -0.035em;
+      color: var(--text);
+      max-width: 24ch;
+    }
+    .calc-hero__lead {
+      font-size: 1.06rem;
+      line-height: 1.62;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0 0 18px;
+    }
+    .calc-hero__meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+    .calc-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 12px;
+      border-radius: var(--pill);
+      font: 600 0.79rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      text-decoration: none;
+    }
+    a.calc-chip:hover { border-color: var(--teal); color: var(--accent-text); }
+    .calc-chip--accent {
+      color: var(--accent-text);
+      border-color: rgba(35, 196, 174, 0.36);
+      background: var(--teal-soft);
+    }
+    .calc-presets {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin: 0 0 18px;
+    }
+    .calc-preset {
+      appearance: none;
+      border: 1px solid var(--glass-border);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      color: var(--text-dim);
+      font: 600 0.82rem/1.2 var(--font);
+      padding: 8px 14px;
+      border-radius: var(--pill);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .calc-preset:hover { border-color: var(--teal); color: var(--text); }
+    .calc-preset.is-active {
+      border-color: rgba(35, 196, 174, 0.55);
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+    .calc-grid {
+      display: grid;
+      grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+      gap: 20px;
+      align-items: start;
+      margin-bottom: 44px;
+    }
+    @media (max-width: 940px) { .calc-grid { grid-template-columns: 1fr; } }
+    .calc-panel {
+      padding: 22px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .calc-panel h2 {
+      margin: 0 0 14px;
+      font-size: 1.08rem;
+      letter-spacing: -0.015em;
+      color: var(--text);
+    }
+    .calc-tools {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 20px;
+    }
+    .calc-tool {
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr) auto;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 12px;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-tint-chip);
+      transition: border-color 140ms var(--ease), background 140ms var(--ease);
+    }
+    .calc-tool.is-checked {
+      border-color: rgba(35, 196, 174, 0.42);
+      background: rgba(35, 196, 174, 0.08);
+    }
+    .calc-tool input[type="checkbox"] {
+      accent-color: var(--teal);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .calc-tool__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .calc-tool__name {
+      font-size: 0.92rem;
+      font-weight: 650;
+      color: var(--text);
+    }
+    .calc-tool__sub {
+      font-size: 0.77rem;
+      color: var(--text-faint);
+      line-height: 1.35;
+    }
+    .calc-tool__price {
+      font: 700 0.84rem/1.2 var(--mono);
+      color: var(--text);
+      white-space: nowrap;
+      text-align: right;
+    }
+    .calc-tier-select {
+      appearance: none;
+      background-color: var(--surface-2);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%238fa6b4' d='M2.5 4.25L6 7.75l3.5-3.5' stroke='%238fa6b4' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round' fill-opacity='0'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      color: var(--text);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      padding: 6px 26px 6px 9px;
+      font: 600 0.78rem/1.2 var(--mono);
+      cursor: pointer;
+      max-width: 175px;
+    }
+    .calc-slider-group {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      padding-top: 16px;
+      border-top: 1px solid var(--line);
+    }
+    @media (max-width: 560px) { .calc-slider-group { grid-template-columns: 1fr; } }
+    .calc-control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .calc-control__head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+    .calc-control label {
+      font: 600 0.76rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+    }
+    .calc-num-input {
+      width: 72px;
+      padding: 5px 8px;
+      border-radius: 8px;
+      border: 1px solid var(--line-strong);
+      background: var(--surface-2);
+      color: var(--text);
+      font: 700 0.88rem/1.2 var(--mono);
+      text-align: right;
+    }
+    .calc-range {
+      width: 100%;
+      accent-color: var(--teal);
+      cursor: pointer;
+    }
+    .calc-results {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .calc-receipt {
+      padding: 24px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint-strong);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .calc-receipt__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .calc-receipt__title {
+      margin: 0;
+      font-size: 1.15rem;
+      color: var(--text);
+    }
+    .calc-receipt__tag {
+      padding: 4px 10px;
+      border-radius: var(--pill);
+      font: 700 0.72rem/1.2 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      background: var(--teal-soft);
+      color: var(--accent-text);
+    }
+    .calc-kpis {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 18px;
+    }
+    @media (max-width: 520px) { .calc-kpis { grid-template-columns: 1fr; } }
+    .calc-kpi {
+      padding: 15px 16px;
+      border-radius: var(--radius);
+      background: var(--glass-tint-chip);
+      border: 1px solid var(--glass-border);
+    }
+    .calc-kpi--highlight {
+      border-color: rgba(35, 196, 174, 0.42);
+      background: rgba(35, 196, 174, 0.08);
+    }
+    .calc-kpi__label {
+      display: block;
+      font: 600 0.72rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      margin-bottom: 6px;
+    }
+    .calc-kpi__val {
+      display: block;
+      font: 700 1.55rem/1.1 var(--mono);
+      color: var(--text);
+    }
+    .calc-kpi__vs {
+      display: block;
+      margin-top: 6px;
+      font: 600 0.79rem/1.35 var(--mono);
+      color: var(--accent-text);
+    }
+    .calc-breakdown {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-bottom: 16px;
+    }
+    .calc-breakdown th {
+      text-align: left;
+      font: 600 0.7rem/1.3 var(--mono);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-faint);
+      padding: 8px 6px;
+      border-bottom: 1px solid var(--line-strong);
+    }
+    .calc-breakdown td {
+      padding: 9px 6px;
+      border-bottom: 1px solid var(--line);
+      color: var(--text-dim);
+    }
+    .calc-breakdown th.is-num,
+    .calc-breakdown td.is-num {
+      text-align: right;
+      font-family: var(--mono);
+      white-space: nowrap;
+    }
+    .calc-breakdown a { color: var(--text); font-weight: 600; }
+    .calc-breakdown a:hover { color: var(--accent-text); text-decoration: underline; }
+    .calc-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .calc-btn-ghost {
+      appearance: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      border-radius: var(--pill);
+      border: 1px solid var(--line-strong);
+      background: var(--glass-tint-chip);
+      color: var(--text);
+      font: 600 0.82rem/1.2 var(--font);
+      cursor: pointer;
+      transition: border-color 140ms var(--ease), color 140ms var(--ease);
+    }
+    .calc-btn-ghost:hover { border-color: var(--teal); color: var(--accent-text); }
+    .calc-footnote {
+      margin: 12px 0 0;
+      font-size: 0.8rem;
+      line-height: 1.5;
+      color: var(--text-faint);
+    }
+    .footer__langs {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 0.84rem;
+      color: var(--text-faint);
+    }
+    .footer__langs a { color: var(--text-dim); }
+    .footer__langs a:hover { color: var(--accent-text); }
+    @media (prefers-reduced-transparency: reduce) {
+      .calc-chip, .calc-preset, .calc-panel, .calc-receipt, .calc-tool, .calc-kpi, .calc-btn-ghost {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .calc-chip, .calc-preset, .calc-panel, .calc-receipt, .calc-tool, .calc-kpi, .calc-btn-ghost {
+        background: var(--surface);
+      }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#calc-app">Skip to calculator</a>
+  <div class="bg-field" aria-hidden="true"></div>
+
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary">
+      <a href="/#features">Features</a>
+      <a href="/guides">Guides</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/hardware">Hardware</a>
+      <a href="/calculator" aria-current="page">Calculator</a>
+      <a href="/blog">Blog</a>
+    </nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
+    </div>
+  </header>
+
+  <main class="calc-page">
+    <header class="calc-hero">
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>SaaS Cost Calculator</span>
+      </nav>
+      <p class="eyebrow">100% local in your browser · Zero uploads</p>
+      <h1>What do cloud meeting notes &amp; voice apps cost you?</h1>
+      <p class="calc-hero__lead">Pick the meeting, dictation, and screen-memory subscriptions your team pays for today. Compare your 1-year and 3-year SaaS spend and annual gigabytes of private audio uploaded to third-party servers against $0 and 0 bytes with LokalBot.</p>
+      <div class="calc-hero__meta">
+        <span class="calc-chip calc-chip--accent">Pricing verified Oct 26 - Nov 20, 2026</span>
+        <a class="calc-chip" href="/hardware">Check RAM &amp; hardware fit</a>
+        <a class="calc-chip" href="/migrate">Migrate existing exports</a>
+        <a class="calc-chip" href="/benchmarks">View local benchmarks</a>
+      </div>
+    </header>
+
+    <section id="calc-app" aria-label="SaaS AI Subscription and Cloud Audio Calculator">
+      <div class="calc-presets" id="calc-presets" aria-label="Quick team presets"></div>
+
+      <div class="calc-grid">
+        <div class="calc-panel">
+          <h2>1. Select your current AI stack</h2>
+          <div class="calc-tools" id="calc-tools"></div>
+
+          <div class="calc-slider-group">
+            <div class="calc-control">
+              <div class="calc-control__head">
+                <label for="calc-seats">Team seats</label>
+                <input id="calc-seats-num" class="calc-num-input" type="number" min="1" max="100" value="1" aria-label="Team seats number" />
+              </div>
+              <input id="calc-seats" class="calc-range" type="range" min="1" max="100" value="1" />
+            </div>
+
+            <div class="calc-control">
+              <div class="calc-control__head">
+                <label for="calc-hours">Call &amp; voice hrs / wk / seat</label>
+                <input id="calc-hours-num" class="calc-num-input" type="number" min="1" max="40" value="8" aria-label="Weekly call hours number" />
+              </div>
+              <input id="calc-hours" class="calc-range" type="range" min="1" max="40" value="8" />
+            </div>
+          </div>
+        </div>
+
+        <div class="calc-results" aria-live="polite">
+          <div class="calc-receipt">
+            <div class="calc-receipt__head">
+              <h2 class="calc-receipt__title">Your local vs. cloud receipt</h2>
+              <span class="calc-receipt__tag" id="calc-summary-tag">1 seat · 8 hrs/wk</span>
+            </div>
+
+            <div class="calc-kpis">
+              <div class="calc-kpi calc-kpi--highlight">
+                <span class="calc-kpi__label">1-year SaaS spend</span>
+                <span class="calc-kpi__val" id="calc-kpi-1y">$0</span>
+                <span class="calc-kpi__vs">vs. $0 with LokalBot</span>
+              </div>
+              <div class="calc-kpi calc-kpi--highlight">
+                <span class="calc-kpi__label">3-year SaaS spend</span>
+                <span class="calc-kpi__val" id="calc-kpi-3y">$0</span>
+                <span class="calc-kpi__vs">vs. $0 with LokalBot</span>
+              </div>
+              <div class="calc-kpi">
+                <span class="calc-kpi__label">Cloud audio / year</span>
+                <span class="calc-kpi__val" id="calc-kpi-hours">0 hrs</span>
+                <span class="calc-kpi__vs">vs. 0 hrs uploaded locally</span>
+              </div>
+              <div class="calc-kpi">
+                <span class="calc-kpi__label">Private audio sent</span>
+                <span class="calc-kpi__val" id="calc-kpi-gb">0.0 GB</span>
+                <span class="calc-kpi__vs">vs. 0 bytes with LokalBot</span>
+              </div>
+            </div>
+
+            <table class="calc-breakdown" aria-label="Selected subscription breakdown">
+              <thead>
+                <tr>
+                  <th scope="col">Tool &amp; tier</th>
+                  <th scope="col" class="is-num">Per seat / mo</th>
+                  <th scope="col" class="is-num">1-year total</th>
+                </tr>
+              </thead>
+              <tbody id="calc-breakdown-body"></tbody>
+            </table>
+
+            <div class="calc-actions">
+              <button type="button" class="btn btn--primary btn--sm" id="calc-save-png">Save Receipt PNG</button>
+              <button type="button" class="calc-btn-ghost" id="calc-copy-link">Copy Share Link</button>
+            </div>
+            <p class="calc-footnote" id="calc-footnote">Cloud audio estimate assumes 50 working weeks per year at 64 kbps compressed voice stream (28.8 MB/hr). Raw 16 kHz mono WAV is 115.2 MB/hr (4x larger).</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="guide-faq" aria-labelledby="calc-faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="calc-faq-title">Pricing sources and calculation notes</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>Where do the competitor subscription prices come from?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Every tier comes from each vendor's public pricing page checked between October 26 and November 20, 2026, matching the tables on LokalBot's comparison pages. You can switch between annual and monthly or Pro and Business tiers inside the calculator.</p>
+        </details>
+        <details class="qa">
+          <summary>How is annual cloud audio upload size calculated?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>When your stack includes at least one cloud-processed meeting or voice tool, we multiply weekly call and dictation hours by team seats and 50 working weeks per year, then estimate compressed audio upload at 64 kbps (28.8 MB per hour). Raw 16 kHz mono WAV audio is 4x larger at 115.2 MB per hour.</p>
+        </details>
+        <details class="qa">
+          <summary>Why is LokalBot $0 per seat with 0 bytes uploaded?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot is GPLv3 open-source desktop software that runs Apache-2.0 transcription, summarization, search, and autocomplete models on your own Mac, Windows, or Linux computer. There are no LokalBot cloud inference servers to pay for and no user accounts.</p>
+        </details>
+        <details class="qa">
+          <summary>Does this calculator send my numbers to a server?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. All math, URL share links, and PNG receipt images run locally in your browser with zero analytics scripts, cookies, or network uploads.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Keep your budget and your audio</p>
+        <h2 class="section__title">Replace recurring cloud AI bills with local models.</h2>
+        <p class="section__lead">Free, open source (GPLv3), no meeting bot, and no account. Runs on macOS, Windows, and Linux.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="/hardware">Hardware calculator</a> &middot; <a href="/migrate">Meeting Migrator</a> &middot; <a href="/benchmarks">Benchmarks</a> &middot; <a href="/wrapped">Agent Wrapped</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/calculator">SaaS Cost Calculator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span>Languages:</span>
+      <a href="/">English</a>
+      <a href="/de">Deutsch</a>
+      <a href="/zh">中文</a>
+      <a href="/ja">日本語</a>
+      <a href="/ru">Русский</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

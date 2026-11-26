@@ -6,6 +6,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import kotlinx.serialization.builtins.ListSerializer
 import me.dotenv.lokalbot.companion.data.FixtureRepository
+import me.dotenv.lokalbot.companion.data.UnpairedRecordingsStore
 import me.dotenv.lokalbot.companion.data.model.Manifest
 import me.dotenv.lokalbot.companion.data.model.Meeting
 import me.dotenv.lokalbot.companion.data.model.RecordEnvelope
@@ -42,7 +43,8 @@ object TestLibrary {
 
     fun dueDate(actionId: String): String = meetings.flatMap { it.actions }.single { it.id == actionId }.dueDate!!
 
-    fun repository(): FixtureRepository = FixtureRepository.fromJson(json, fixedNow = now, streamDelayMillis = 0)
+    fun repository(localRecordings: UnpairedRecordingsStore? = null): FixtureRepository =
+        FixtureRepository.fromJson(json, fixedNow = now, streamDelayMillis = 0, localRecordings = localRecordings)
 
     const val DESIGN_REVIEW = "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e01"
     const val STANDUP = "3f6c2a10-8a4e-4d2b-9b1e-0a1b2c3d4e02"

@@ -16,12 +16,25 @@ Claude Code、Codex 和任何 MCP 客户端也能搜索它。
 
 <sub>真实应用截图。演示会议是虚构的普通话会议，语音由 TTS 合成；转写和纪要由本机上的 Qwen3-ASR 和 Qwen3.5 4B 实际生成，未做修改（<a href="Assets/screenshots/zh-Hans/README.md">制作说明</a>）。</sub>
 
-**在 Mac 上安装**（Apple Silicon，macOS 15 及以上）：
+**在 macOS、Windows 或 Linux 上安装**（或零安装体验 [Agent Wrapped 2026](https://www.lokalbot.com/wrapped)）：
 
 </div>
 
 ```bash
+# macOS（Apple Silicon，macOS 15 及以上）
 brew install --cask stevyhacker/tap/lokalbot
+
+# Windows（10/11 x64，alpha）
+scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot
+
+# Debian / Ubuntu（x86_64，alpha）
+curl -fsSL https://pkg.lokalbot.com/lokalbot.gpg | sudo tee /usr/share/keyrings/lokalbot-archive-keyring.gpg > /dev/null && printf 'Types: deb\nURIs: https://pkg.lokalbot.com/apt\nSuites: stable\nComponents: main\nArchitectures: amd64\nSigned-By: /usr/share/keyrings/lokalbot-archive-keyring.gpg\n' | sudo tee /etc/apt/sources.list.d/lokalbot.sources > /dev/null && sudo apt update && sudo apt install lokalbot
+
+# Fedora（x86_64，alpha）
+curl -fsSL https://pkg.lokalbot.com/lokalbot.asc | sudo tee /etc/pki/rpm-gpg/RPM-GPG-KEY-lokalbot > /dev/null && printf '[lokalbot]\nname=LokalBot (alpha)\nbaseurl=https://pkg.lokalbot.com/rpm\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-lokalbot\n' | sudo tee /etc/yum.repos.d/lokalbot.repo > /dev/null && sudo dnf install lokalbot
+
+# Agent Wrapped 2026（零安装，仅读取本机编程智能体日志）
+npx lokalbot
 ```
 
 <div align="center">
@@ -32,7 +45,7 @@ brew install --cask stevyhacker/tap/lokalbot
 [![在 App Store 下载 LokalBot iOS 和 iPadOS 配套应用](https://img.shields.io/badge/%E2%80%82iOS%20%E4%B8%8E%20iPadOS%20%E7%89%88%E2%80%82-App%20Store-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/id6836773709)
 [![在 Google Play 获取 LokalBot 安卓配套应用](https://img.shields.io/badge/%E2%80%82Android%20%E7%89%88%E2%80%82-Google%20Play-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>macOS：<code>.dmg</code> 或 Homebrew · Windows 10/11 x64：<code>setup.exe</code> 或免安装 zip（alpha）· Linux x86_64：<code>.deb</code>、<code>.rpm</code>、Arch 或 <code>.tar.gz</code>（alpha）· iOS/iPadOS 18+ 与 Android 10+ 配套应用。<a href="#get-started">安装详情</a></sub>
+<sub>macOS：<code>.dmg</code> 或 Homebrew · Windows 10/11 x64：<code>setup.exe</code>、Scoop 或免安装 zip（alpha）· Linux x86_64：<code>apt</code>/<code>dnf</code>、<code>.deb</code>、<code>.rpm</code>、Arch 或 <code>.tar.gz</code>（alpha）· iOS/iPadOS 18+ 与 Android 10+ 配套应用。<a href="#get-started">安装详情</a></sub>
 
 **免费开源（GPLv3）· 无需账号 · 没有统计分析和遥测 · 经过 Apple 公证的 Mac 应用 · 模型下载完成后，内置 AI 可离线使用**
 
@@ -40,13 +53,15 @@ brew install --cask stevyhacker/tap/lokalbot
 [![Downloads](https://img.shields.io/github/downloads/stevyhacker/lokalbot/total?color=1f6feb&label=downloads)](https://github.com/stevyhacker/lokalbot/releases)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-2ea043)](LICENSE)
 [![MCP: read-only server](https://img.shields.io/badge/MCP-read--only%20server-8250df)](#developers)
+[![stevyhacker/LokalBot MCP server](https://glama.ai/mcp/servers/stevyhacker/LokalBot/badges/score.svg)](https://glama.ai/mcp/servers/stevyhacker/LokalBot)
+[![Raycast Store](https://img.shields.io/badge/Raycast-Store-FF6363?logo=raycast&logoColor=white)](https://www.raycast.com/stevan_bogosavljevic/lokalbot)
 [![GitHub Discussions](https://img.shields.io/github/discussions/stevyhacker/lokalbot?color=8250df&label=discussions)](https://github.com/stevyhacker/lokalbot/discussions)
 
 <sub>⭐ 如果 LokalBot 对你有用，请给仓库点个星。它由一位开发者独立打造，星标是其他人发现它的方式。</sub>
 
 [English](README.md) · **简体中文**
 
-[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [iOS 与 Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
+[开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [iOS 与 Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [费用计算器](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
 
 <picture><source media="(prefers-color-scheme: dark)" srcset="Assets/hero/lokalbot-demo-dark.gif" /><img src="Assets/hero/lokalbot-demo-light.gif" width="920" alt="LokalBot 的使用过程：六个循环场景，演示数据为虚构内容，界面为英文。录制一场 Google Chrome 通话，实时转写逐行出现，随后生成纪要，点击待办的引用会跳到转写里的原话。输入 demo pres，同时找到在屏幕上看过的 Keynote 文稿、Mail 回复和两场会议。在 TextEdit 中，自动补全接着写完团队套餐的价格，按 Tab 接受。按住 Option-Space 说话，光标处写出一段简短的团队通知。向 Ask 提问，回答带编号引用，点击引用打开来源会议。在终端里，Claude Code 调用 LokalBot，列出设计评审的决定和还欠的事项。" /></picture>
 
@@ -109,7 +124,7 @@ lokalbot-cli mcp
 
 应用还提供可选的 **Agent Mode**，用来处理经过你审阅的上下文。文件和命令操作遵循它的审批设置，与只读的 CLI/MCP 接口相互独立。
 
-[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [MCP 架构](Docs/development/agent-cli.md)
+[CLI 示例](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code 插件](Distribution/claude-plugin/README.md) · [Raycast 扩展](https://www.raycast.com/stevan_bogosavljevic/lokalbot) · [Agent Wrapped (`npx lokalbot`)](https://www.lokalbot.com/wrapped) · [MCP 架构](Docs/development/agent-cli.md)
 
 <a id="features"></a>
 
@@ -231,7 +246,7 @@ lokalbot-cli mcp
 
 ### 你的笔记、智能体和设备
 
-**把笔记放进 Obsidian 或 Logseq。** 开启 **Meeting note export**，就会在你选择的文件夹（比如 Obsidian 仓库或 Logseq 图谱）里为每场会议保留一份 Markdown 笔记。详见[我的笔记可以导出到别处吗？](#faq)和 [Meeting transcripts in Obsidian（英文）](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown)。
+**把笔记放进 Obsidian 或 Logseq。** 开启 **Meeting note export**，就会在你选择的文件夹（比如 Obsidian 仓库或 Logseq 图谱）里为每场会议保留一份 Markdown 笔记；也可以使用开源的 [Obsidian 版 LokalBot 插件](https://github.com/stevyhacker/obsidian-lokalbot)，直接在 Obsidian 中搜索会议、向每日笔记插入未完成待办并在本机向 LokalBot 提问。从 Granola、Otter、Fireflies、Fathom 或 Zoom 迁移？可以试试零上传的[离线会议导出转 Obsidian 工具](https://www.lokalbot.com/migrate)，或者直接在 LokalBot 里导入。详见[我的笔记可以导出到别处吗？](#faq)和 [Meeting transcripts in Obsidian（英文）](https://www.lokalbot.com/meeting-transcripts-obsidian-markdown)。
 
 **把工作交给编程智能体。** Claude Code、Codex 和任何 MCP 客户端都可以读取你允许的内容，详见[开发者与智能体](#developers)。
 
@@ -302,31 +317,31 @@ iPhone、iPad 和 Android 配套应用会保存一份端到端加密的副本，
 | 自动补全 | 每次按键中位数 56 毫秒（p95 为 102 毫秒） |
 | 屏幕文字识别（Apple Vision） | 合成截图每张约 120 毫秒，真实截图平均 243 毫秒 |
 
-Mac 上全部角色的默认模型约占 9.6 GB 磁盘空间，Windows 和 Linux 上约 4 GB。这是下载大小，不是内存要求。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。详见[本地 AI，由你选择](#models)和[基准测试报告（英文）](Benchmarks/README.md)，其中记录了确切的模型、运行时和测试集。
+Mac 上全部角色的默认模型约占 9.6 GB 磁盘空间，Windows 和 Linux 上约 4 GB。这是下载大小，不是内存要求。可在[本地 AI 硬件与内存计算器](https://www.lokalbot.com/hardware)中查看你这台电脑的磁盘、内存和显存占用，或在[云端 SaaS 费用计算器](https://www.lokalbot.com/calculator)中估算每年可省下的订阅费。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。完整的交互式榜单与可复现 JSON 位于[本地桌面 AI 基准榜单](https://www.lokalbot.com/benchmarks)（[JSON](https://www.lokalbot.com/benchmarks.json)），并同步镜像到 [Hugging Face 基准测试 Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks)；原始测试脚本见[基准测试报告（英文）](Benchmarks/README.md)。
 
 <a id="models"></a>
 
 ## 本地 AI，由你选择
 
-先用内置模型，之后可以在 **Settings → Models** 中更换。LokalBot 支持内置的 llama.cpp 运行时、Ollama、OpenAI 兼容服务器，以及 macOS 26 及以上受支持 Mac 上的 Apple Intelligence。Think 角色也可以使用你自己的 ChatGPT 套餐（Sign in with ChatGPT）或 Claude 套餐（通过已登录的 Claude Code），不需要 API Key；Agent Mode 也可以使用 ChatGPT 套餐。远程服务器和套餐在收到任何内容之前都需要你批准。
+先用内置模型，之后可以在 **Settings > Models** 中更换。LokalBot 支持内置的 llama.cpp 运行时、Ollama、OpenAI 兼容服务器，以及 macOS 26 及以上受支持 Mac 上的 Apple Intelligence。Think 角色也可以使用你自己的 ChatGPT 套餐（Sign in with ChatGPT）、Claude 套餐（通过已登录的 Claude Code）、Antigravity 套餐（通过已登录的 `agy` CLI）或 Gemini 套餐（通过已登录的 `gemini` CLI），不需要 API Key；Agent Mode 也可以使用 ChatGPT 套餐。远程服务器和套餐在收到任何内容之前都需要你批准。
 
-不同的任务使用不同的模型。下面是 Mac 上全新安装时的默认模型，全部角色加起来约 9.6 GB 模型文件，这不是内存要求：
+不同的任务使用不同的模型。Mac 默认搭载我们开源的 4 个 Apache-2.0 微调模型（Hugging Face 上的 `stevyhacker/*-LokalBot-GGUF`），全部角色加起来约 9.6 GB 模型文件（上游原版模型仍可在设置中选择），这不是内存要求：
 
 | 角色 | 默认模型 | 格式 | 模型文件约 |
 | --- | --- | --- | ---: |
-| 转写 | Qwen3-ASR 1.7B | GGUF Q8_0 | 2.52 GB |
-| 纪要与对话 | Qwen3.5 4B | `Q4_K_M` | 2.74 GB |
-| 自动补全 | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
+| 转写 | [Qwen3-ASR 1.7B (LokalBot v3)](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) | GGUF Q8_0 | 2.52 GB |
+| 纪要与对话 | [Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) | `Q4_K_M` | 2.74 GB |
+| 自动补全 | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q6_K` | 3.85 GB |
 | 语义搜索 | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | 发言人分离 | Nemotron 3（预览），通过 FluidAudio | Core ML | ~0.20 GB |
 
-表中不包括辅助模型，它们会在功能第一次需要时下载：使用 Qwen3-ASR 时，发言人分离会另外下载一个约 1 GB 的逐词对齐模型；开启文件搜索（Files）会另外下载一个 555 MB 的图像和音频投影器。
+Mac 上的紧凑转写档位使用 [Qwen3-ASR 0.6B (LokalBot v1)](https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF)（`1.02 GB` GGUF Q8_0，Apache-2.0）。表中不包括辅助模型，它们会在功能第一次需要时下载：使用 Qwen3-ASR 时，发言人分离会另外下载一个约 1 GB 的逐词对齐模型；开启文件搜索（Files）会另外下载一个 555 MB 的图像和音频投影器。
 
 Qwen3-ASR 支持 52 种语言和方言。转写的其他选择包括 Parakeet、Granite Speech、Whisper large-v3 turbo、用于中日韩语的 SenseVoice，以及用于俄语的 GigaAM；发言人分离也可以继续使用 Pyannote Community-1。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。不同版本的模型选择可能变化，以 Settings 中显示的为准。速度和内存占用取决于你的电脑、模型、上下文长度和其他负载。
 
-在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3 和 v2、SenseVoice、俄语的 GigaAM 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 Gemma 4 E2B，与 Mac 相同。纪要（Qwen3.5 4B）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU 或 CPU 上。
+在 Windows 和 Linux 上，转写默认通过 sherpa-onnx 使用 Qwen3-ASR 0.6B（可选 Parakeet v3 和 v2、SenseVoice、俄语的 GigaAM 和 Whisper turbo），发言人分离使用 pyannote 分割和 TitaNet，自动补全默认使用 [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF)，与 Mac 相同。纪要（[Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF)）和搜索（EmbeddingGemma 2）使用和 Mac 相同的模型。默认下载约 4 GB，llama.cpp 运行在 Vulkan GPU、实验性 CUDA 或 CPU 上。
 
-[项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/Search/EmbeddingIndex.swift) · [模型与运行时细节](Docs/development/llm-runtime.md)
+[交互式基准榜单](https://www.lokalbot.com/benchmarks) · [硬件与内存计算器](https://www.lokalbot.com/hardware) · [云端费用计算器](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [Hugging Face 基准 Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) · [Hugging Face 模型合集](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) · [项目基准测试](Benchmarks/README.md) · [模型目录](LokalBot/Engines/ModelCatalog.swift) · [搜索实现](LokalBot/Services/Search/EmbeddingIndex.swift) · [模型与运行时细节](Docs/development/llm-runtime.md)
 
 <a id="privacy"></a>
 
@@ -368,7 +383,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 | | macOS | Windows（alpha） | Linux（alpha） |
 | --- | --- | --- | --- |
 | 系统要求 | Apple Silicon（M1 或更新），macOS 15 及以上 | Windows 10 或 11，x64 | x86_64，glibc 2.39 或更新（Ubuntu 24.04、Debian 13、Fedora 40 或更新），PulseAudio 或 PipeWire，以及 Vulkan 或 OpenGL 驱动 |
-| 安装 | [`LokalBot-<version>-macos-arm64.dmg`](https://github.com/stevyhacker/lokalbot/releases/latest)：把 LokalBot 拖进“应用程序”文件夹；或者运行 `brew install --cask stevyhacker/tap/lokalbot`。 | [`LokalBot-<version>-windows-x86_64-setup.exe`](https://github.com/stevyhacker/lokalbot/releases/latest)：运行它即可为当前用户安装 LokalBot，会添加开始菜单快捷方式，不需要管理员权限。它还没有代码签名，SmartScreen 会先询问：选择**更多信息 → 仍要运行**。同一版本中也有免安装的 zip。 | [`LokalBot-<version>-linux-x86_64.tar.gz`](https://github.com/stevyhacker/lokalbot/releases/latest)：解压后运行 `./install.sh`，它会把 LokalBot 添加到应用程序菜单。也可以安装同一版本中的 `.deb`（Debian、Ubuntu）、`.rpm`（Fedora、openSUSE）或 Arch 软件包。`.deb` 和 Fedora 上的 `.rpm` 会添加 LokalBot 软件源，之后运行 `sudo apt upgrade` 或 `sudo dnf upgrade` 即可获得新版本；用 Arch 软件包安装时，有新版本会提示你，但不会自动安装。 |
+| 安装 | [`LokalBot-<version>-macos-arm64.dmg`](https://github.com/stevyhacker/lokalbot/releases/latest)：把 LokalBot 拖进“应用程序”文件夹；或者运行 `brew install --cask stevyhacker/tap/lokalbot`。 | [`LokalBot-<version>-windows-x86_64-setup.exe`](https://github.com/stevyhacker/lokalbot/releases/latest)：运行它即可为当前用户安装 LokalBot，会添加开始菜单快捷方式并把 `lokalbot-cli` 加入 `PATH`，不需要管理员权限（IT 整机静默部署可传 `/ALLUSERS /VERYSILENT`）。也可以通过 [Scoop](https://github.com/stevyhacker/scoop-bucket) 安装：`scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot`。目前尚未完成正式代码签名，SmartScreen 会先提示，选择**更多信息 > 仍要运行**。同一版本中也有免安装的 zip。 | [`LokalBot-<version>-linux-x86_64.tar.gz`](https://github.com/stevyhacker/lokalbot/releases/latest)：解压后运行 `./install.sh`，它会把 LokalBot 添加到应用程序菜单。也可以直接通过 `pkg.lokalbot.com` 的 `apt` / `dnf` 软件源安装，或下载同一版本中的 `.deb`（Debian、Ubuntu）、`.rpm`（Fedora、openSUSE）和 Arch 软件包。`.deb` 和 Fedora 上的 `.rpm` 会自动添加 LokalBot 软件源，之后运行 `sudo apt upgrade` 或 `sudo dnf upgrade` 即可获得新版本；用 Arch 软件包安装时，有新版本会提示你，但不会自动安装。 |
 | 资料库位置 | `~/Library/Application Support/me.dotenv.LokalBot` | `%LOCALAPPDATA%\LokalBot` | `~/.local/share/LokalBot` |
 
 在一个平台上录制的资料库可以在其他平台上打开。并非所有 Mac 功能都已移植到 Windows 和 Linux，详见[各平台功能对照（英文）](LinuxWindows/README.md#what-works-where)。
@@ -430,7 +445,7 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 有问题、想法，或者想分享你的用法？欢迎到 [Discussions](https://github.com/stevyhacker/lokalbot/discussions) 发帖。
 
-较大的改动请先[开一个 Issue](https://github.com/stevyhacker/lokalbot/issues) 讨论思路。请遵循[协作约定](AGENTS.md)和[开发指南](DEVELOPMENT.md)，保持 PR 聚焦，并按照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 记录你做过的检查。UI 改动请附上截图；UI 测试请在托管 CI 或远程运行器上运行。
+较大的改动请先[开一个 Issue](https://github.com/stevyhacker/lokalbot/issues) 讨论思路。请阅读 [CONTRIBUTING.md](CONTRIBUTING.md)、[行为准则](CODE_OF_CONDUCT.md)、[协作约定](AGENTS.md)和[开发指南](DEVELOPMENT.md)，保持 PR 聚焦，并按照 [PR 模板](.github/PULL_REQUEST_TEMPLATE.md) 记录你做过的检查。UI 改动请附上截图；UI 测试请在托管 CI 或远程运行器上运行。也欢迎提交 M1、M2、M3、Windows 和 Linux 硬件基准数据，详见 [Benchmarks/README.md](Benchmarks/README.md#contribute-hardware-benchmarks)。
 
 <a id="build-from-source"></a>
 
@@ -440,6 +455,15 @@ LokalBot 支持 macOS 15 或更新版本的 Apple Silicon Mac；Windows 和 Linu
 
 LokalBot 是基于 [GPLv3](LICENSE) 协议的自由软件。自动补全引擎中移植自 [Cotabby](https://github.com/FuJacob/cotabby) 的代码仍采用 [AGPLv3](LICENSES/AGPL-3.0.txt) 协议。其他第三方组件和模型保留各自的许可证，详见[第三方声明](THIRD_PARTY_NOTICES.md)。
 
+### 代码签名政策
+
+免费代码签名由 [SignPath.io](https://signpath.io) 提供，证书由 [SignPath Foundation](https://signpath.org) 签发。
+
+- **范围：** 在本仓库 GitHub Actions 中构建的 Windows 发行版可执行文件（`lokalbot.exe`、`lokalbot-cli.exe`）以及 Inno Setup 安装程序（`LokalBot-<version>-windows-x86_64-setup.exe`）；上游第三方运行时 DLL 不会重新签名。
+- **提交者与审核者：** `stevyhacker/LokalBot` 仓库维护者。
+- **批准者：** 仓库所有者（`@stevyhacker`），在 SignPath 中人工审核并批准正式版签名请求。
+- **隐私政策：** 除非用户或安装、操作本程序的人员明确请求，否则本程序不会向其他网络系统传输任何信息。详见 [PRIVACY.md](PRIVACY.md) 和 [lokalbot.com/privacy](https://www.lokalbot.com/privacy)。
+
 基于 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[speech-swift](https://github.com/soniqo/speech-swift)、[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx)、[WhisperKit](https://github.com/argmaxinc/WhisperKit)、[FluidAudio](https://github.com/FluidInference/FluidAudio)、[Sparkle](https://github.com/sparkle-project/Sparkle)、[XcodeGen](https://github.com/yonaskolb/XcodeGen)、[GPUI](https://github.com/zed-industries/zed/tree/main/crates/gpui)、[GPUI Kit](https://github.com/longbridge/gpui-kit) 和 [ONNX Runtime](https://github.com/microsoft/onnxruntime) 构建，使用的模型包括 [Qwen3-ASR](https://huggingface.co/Qwen)、[IBM Granite Speech](https://huggingface.co/ibm-granite)、[Parakeet](https://huggingface.co/nvidia) 和 [LFM2.5](https://huggingface.co/LiquidAI)。自动补全引擎最初基于 [Cotabby](https://cotabby.app) 的开源代码。
 
-<sub>本文译自英文版 README（2026 年 11 月 17 日），如有出入，以英文版为准。</sub>
+<sub>本文译自英文版 README（2026 年 11 月 26 日），如有出入，以英文版为准。</sub>

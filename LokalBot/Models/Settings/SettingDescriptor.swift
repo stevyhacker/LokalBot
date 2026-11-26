@@ -170,6 +170,7 @@ struct SettingDescriptor: Identifiable {
         .init(id: "settings.meetingNoteExportEnabled", title: "Export a note for each meeting", category: .recording, aliases: "meetingNoteExportEnabled obsidian logseq markdown vault meeting notes export folder"),
         .init(id: "settings.meetingNoteExportFormat", title: "Format", category: .recording, aliases: "meetingNoteExportFormat obsidian logseq markdown meeting notes"),
         .init(id: "settings.meetingNoteExportIncludesTranscript", title: "Include the transcript", category: .recording, aliases: "meetingNoteExportIncludesTranscript meeting notes export transcript"),
+        .init(id: "settings.includeRecapAttribution", title: MeetingRecapExporter.attributionToggleLabel, category: .recording, aliases: "includeRecapAttribution recap attribution footer slack email follow up no meeting bot"),
         .init(id: "settings.summaryLanguage", title: "Notes language", category: .recording, aliases: "summaryLanguage"),
         .init(id: "settings.trackingEnabled", title: "Track app & window activity", category: .dayMemory, aliases: "trackingEnabled"),
         .init(id: "settings.effectiveScreenContextCaptureMode", title: "Screen context", category: .dayMemory, aliases: "effectiveScreenContextCaptureMode"),
