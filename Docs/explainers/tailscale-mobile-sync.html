@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LokalBot: Sync your meetings to your phone with zero cloud</title>
+<style>
+@page { size: 210mm 297mm; margin: 0; }
+:root {
+  --bg: #080d14; --surface: #121a25; --surface-2: #16212e;
+  --line: rgba(150, 180, 200, 0.16); --line-strong: rgba(150, 180, 200, 0.28);
+  --text: #ecf3f7; --text-dim: #a9bcc9; --text-faint: #8ba2b0;
+  --accent: #23c4ae; --accent-text: #6ef2dc; --accent-soft: rgba(35, 196, 174, 0.14);
+  --warn: #fbbf24; --warn-soft: rgba(251, 191, 36, 0.14);
+  --no: #f59a93; --no-soft: rgba(240, 129, 122, 0.12);
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); }
+body { color: var(--text); font-family: var(--font); font-size: 12px; line-height: 1.4; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+.page { width: 210mm; height: 297mm; overflow: hidden; padding: 10mm 14mm 8mm; display: flex; flex-direction: column; gap: 10px; background: radial-gradient(120% 60% at 80% 0%, #0d1f29 0%, var(--bg) 62%); }
+@media screen { .page { margin: 0 auto 24px; } }
+h1, h2, h3, p { margin: 0; }
+h1 { font-size: 28px; line-height: 1.08; letter-spacing: -0.025em; font-weight: 780; }
+.lede { font-size: 13.5px; color: var(--text-dim); max-width: 68ch; }
+.eyebrow, .label { font-family: var(--mono); font-size: 10px; letter-spacing: 0.09em; text-transform: uppercase; color: var(--accent-text); }
+.label { display: flex; align-items: center; gap: 8px; }
+.label::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; color: var(--text); }
+.diagram { background: var(--surface); border: 1px solid var(--line-strong); border-radius: 12px; padding: 12px; }
+.diagram svg { display: block; width: 100%; height: auto; }
+.g3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.g4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.step-card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 11px; display: grid; gap: 5px; align-content: start; }
+.step-head { display: flex; align-items: center; gap: 8px; }
+.num { width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-text); border: 1px solid rgba(110, 242, 220, 0.55); font-family: var(--mono); font-weight: 700; font-size: 11px; flex: none; }
+.step-card h3 { font-size: 12.5px; font-weight: 700; }
+.step-card p { font-size: 10.8px; color: var(--text-dim); line-height: 1.38; }
+.split { border-radius: 10px; padding: 10px 12px; display: grid; gap: 6px; align-content: start; }
+.split.yes { background: var(--accent-soft); border: 1px solid rgba(110, 242, 220, 0.28); }
+.split.no { background: var(--no-soft); border: 1px solid rgba(245, 154, 147, 0.28); }
+.split h3 { font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; }
+.split.yes h3 { color: var(--accent-text); }
+.split.no h3 { color: var(--no); }
+.split ul { margin: 0; padding-left: 15px; display: grid; gap: 4px; font-size: 10.8px; color: var(--text-dim); }
+.split b { color: var(--text); }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 9px 10px; display: grid; gap: 4px; align-content: start; }
+.tile h3 { font-size: 11.5px; font-weight: 700; color: var(--accent-text); }
+.tile p { font-size: 10.2px; color: var(--text-dim); line-height: 1.35; }
+.chips { display: flex; flex-wrap: nowrap; gap: 5px; }
+.chip { font-family: var(--mono); font-size: 9px; padding: 2.5px 7px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line-strong); color: var(--text-dim); white-space: nowrap; }
+.chip.hi { border-color: rgba(110, 242, 220, 0.55); color: var(--accent-text); background: var(--accent-soft); }
+.chip.warn { border-color: rgba(251, 191, 36, 0.55); color: var(--warn); background: var(--warn-soft); }
+.foot { margin-top: auto; display: flex; justify-content: space-between; font-family: var(--mono); font-size: 10px; color: var(--text-faint); border-top: 1px solid var(--line); padding-top: 8px; }
+</style>
+</head>
+<body>
+<section class="page">
+  <div class="eyebrow">LokalBot · Mac, Windows, Linux + iOS &amp; Android · Off by default</div>
+  <h1>Sync your meetings to your phone with zero cloud</h1>
+  <p class="lede">Your computer stays the source of truth. Paired phones and tablets hold an encrypted offline copy synced directly over local Wi-Fi or your Tailscale network, with no LokalBot server or relay.</p>
+  <div class="chips">
+    <span class="chip hi">Noise_IK_25519_ChaChaPoly_BLAKE2s</span>
+    <span class="chip hi">TCP :17890 · Private &amp; Tailscale</span>
+    <span class="chip warn">No account · No relay</span>
+    <span class="chip">Rust lokalbot-sync</span>
+  </div>
+
+  <div class="label">Zero-cloud sync topology</div>
+  <div class="diagram">
+    <svg viewBox="0 0 700 264" xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="14" width="214" height="236" rx="12" fill="#0d1520" stroke="#2f4a5e" stroke-width="1.5"/>
+      <text x="20" y="37" fill="#6ef2dc" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">HOST · YOUR COMPUTER</text>
+      <text x="20" y="55" fill="#ecf3f7" font-family="-apple-system, Arial, sans-serif" font-size="14" font-weight="700">Mac, Windows or Linux</text>
+      <rect x="20" y="68" width="186" height="44" rx="7" fill="#16212e" stroke="#283d4e"/>
+      <text x="30" y="86" fill="#ecf3f7" font-family="ui-monospace, Menlo, monospace" font-size="10.5" font-weight="700">lokalbotv3.sqlite</text>
+      <text x="30" y="102" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">Source of truth + local models</text>
+      <rect x="20" y="120" width="186" height="58" rx="7" fill="#16212e" stroke="#23c4ae" stroke-opacity="0.6"/>
+      <text x="30" y="138" fill="#6ef2dc" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">TCP :17890 · IP ALLOWLIST</text>
+      <text x="30" y="153" fill="#d3e3ec" font-family="ui-monospace, Menlo, monospace" font-size="9.2">RFC 1918 · 100.64.0.0/10</text>
+      <text x="30" y="167" fill="#a9bcc9" font-family="ui-monospace, Menlo, monospace" font-size="9.2">fd7a:115c:a1e0::/48 · LAN</text>
+      <rect x="20" y="186" width="186" height="50" rx="7" fill="#1b1822" stroke="#f59a93" stroke-opacity="0.5"/>
+      <text x="30" y="204" fill="#f59a93" font-family="ui-monospace, Menlo, monospace" font-size="9.5" font-weight="700">PRE-HANDSHAKE DROP</text>
+      <text x="30" y="219" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">Public IPs and unknown keys</text>
+      <text x="30" y="231" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">closed before Noise reply</text>
+
+      <rect x="242" y="14" width="216" height="52" rx="10" fill="#18151d" stroke="#f59a93" stroke-dasharray="5 4" stroke-width="1.2"/>
+      <text x="350" y="35" text-anchor="middle" fill="#f59a93" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">NO LOKALBOT CLOUD</text>
+      <text x="350" y="52" text-anchor="middle" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">No server · No relay · No account</text>
+      <line x1="254" y1="22" x2="446" y2="58" stroke="#f59a93" stroke-width="1.5" stroke-opacity="0.45"/>
+
+      <rect x="242" y="84" width="216" height="74" rx="10" fill="#102527" stroke="#6ef2dc" stroke-width="1.5"/>
+      <text x="350" y="104" text-anchor="middle" fill="#6ef2dc" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">E2E NOISE TUNNEL</text>
+      <text x="350" y="121" text-anchor="middle" fill="#ecf3f7" font-family="ui-monospace, Menlo, monospace" font-size="10">X25519 · ChaChaPoly · BLAKE2s</text>
+      <text x="350" y="138" text-anchor="middle" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">1. Same Wi-Fi: Bonjour _lokalbot._tcp</text>
+      <text x="350" y="151" text-anchor="middle" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">2. Away: Tailscale IP or MagicDNS</text>
+
+      <path d="M 220 120 L 240 120" stroke="#6ef2dc" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="242,120 235,116 235,124" fill="#6ef2dc"/>
+      <path d="M 458 120 L 478 120" stroke="#6ef2dc" stroke-width="2.5" stroke-linecap="round"/>
+      <polygon points="480,120 473,116 473,124" fill="#6ef2dc"/>
+      <path d="M 478 134 L 460 134" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="458,134 465,130 465,138" fill="#fbbf24"/>
+      <path d="M 240 134 L 222 134" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"/>
+      <polygon points="220,134 227,130 227,138" fill="#fbbf24"/>
+
+      <rect x="242" y="172" width="216" height="78" rx="10" fill="#16212e" stroke="#2f4a5e" stroke-width="1.2"/>
+      <text x="350" y="191" text-anchor="middle" fill="#fbbf24" font-family="ui-monospace, Menlo, monospace" font-size="9.8" font-weight="700">DELTA SYNC + UPLOADS</text>
+      <text x="255" y="208" fill="#ecf3f7" font-family="-apple-system, Arial, sans-serif" font-size="10">Down: newest changed records first</text>
+      <text x="255" y="223" fill="#ecf3f7" font-family="-apple-system, Arial, sans-serif" font-size="10">Up: action ticks, queued Ask queries</text>
+      <text x="255" y="238" fill="#ecf3f7" font-family="-apple-system, Arial, sans-serif" font-size="10">Up: resumable ADTS AAC recordings</text>
+
+      <rect x="480" y="14" width="214" height="236" rx="12" fill="#0d1520" stroke="#2f4a5e" stroke-width="1.5"/>
+      <text x="494" y="37" fill="#6ef2dc" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">CLIENTS · PAIRED DEVICES</text>
+      <text x="494" y="55" fill="#ecf3f7" font-family="-apple-system, Arial, sans-serif" font-size="14" font-weight="700">iPhone, iPad &amp; Android</text>
+      <rect x="494" y="68" width="186" height="50" rx="7" fill="#16212e" stroke="#283d4e"/>
+      <text x="504" y="86" fill="#ecf3f7" font-family="ui-monospace, Menlo, monospace" font-size="10.2" font-weight="700">Offline local copy</text>
+      <text x="504" y="101" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">Read &amp; search meetings, actions,</text>
+      <text x="504" y="113" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">Day Digests, People &amp; Projects</text>
+      <rect x="494" y="126" width="186" height="48" rx="7" fill="#16212e" stroke="#283d4e"/>
+      <text x="504" y="144" fill="#6ef2dc" font-family="ui-monospace, Menlo, monospace" font-size="10.2" font-weight="700">Ask your computer</text>
+      <text x="504" y="159" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">Uses desktop Think model; queues</text>
+      <text x="504" y="170" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">questions while away from host</text>
+      <rect x="494" y="182" width="186" height="54" rx="7" fill="#16212e" stroke="#fbbf24" stroke-opacity="0.5"/>
+      <text x="504" y="200" fill="#fbbf24" font-family="ui-monospace, Menlo, monospace" font-size="10.2" font-weight="700">Background recorder</text>
+      <text x="504" y="215" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">Screen-locked ADTS AAC capture;</text>
+      <text x="504" y="228" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="9.8">deleted once desktop confirms</text>
+    </svg>
+  </div>
+
+  <div class="label">How pairing works</div>
+  <div class="g3">
+    <div class="step-card">
+      <div class="step-head"><span class="num">1</span><h3>Enable hosting on desktop</h3></div>
+      <p>Open <b>Settings › Phones &amp; tablets</b>. Nothing listens until you switch sharing on. Pick exact data classes and a 30, 90, or 365-day retention window.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-head"><span class="num">2</span><h3>Scan one-time QR code</h3></div>
+      <p>Click <b>Add a device</b> to open a single-use offer (<code>Noise_XXpsk3</code>, 32-byte PSK expiring in 5 min). Scan with the app and approve the device on desktop.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-head"><span class="num">3</span><h3>Reconnect over LAN or Tailscale</h3></div>
+      <p>Clients try Bonjour on Wi-Fi first, then the last working host, then saved Tailscale IPs and MagicDNS names with a 2-second timeout each.</p>
+    </div>
+  </div>
+
+  <div class="label">Strict data boundary</div>
+  <div class="g2">
+    <div class="split yes">
+      <h3>Shared only when toggled on</h3>
+      <ul>
+        <li><b>Meetings &amp; transcripts:</b> titles, summaries, notes, actions, decisions, speaker display names.</li>
+        <li><b>Day Digests &amp; Timeline:</b> work sessions, app time per project, coding-agent sessions (no raw screen quotes).</li>
+        <li><b>People &amp; Projects:</b> display names, open actions, decisions, and project status notes.</li>
+        <li><b>Phone recordings:</b> sent to desktop to transcribe, then removed from phone storage.</li>
+      </ul>
+    </div>
+    <div class="split no">
+      <h3>Never leaves your computer</h3>
+      <ul>
+        <li><b>Screen capture:</b> screenshots, file paths, and captured screen text stay off phones.</li>
+        <li><b>Private stores:</b> indexed Files folders, coding-agent notes, Gmail mail, and Personal Context.</li>
+        <li><b>Identity &amp; secrets:</b> attendee emails, voice profiles, speaker evidence, settings, and API keys.</li>
+        <li><b>Desktop Ask &amp; Dream:</b> local Ask chats and overnight Dream memory never sync.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="label">Security properties</div>
+  <div class="g4">
+    <div class="tile"><h3>IP-gated listener</h3><p>Drops non-private, non-Tailscale peers before any Noise byte. Caps active sockets at 64.</p></div>
+    <div class="tile"><h3>Non-syncable keys</h3><p>Static X25519 keys stay in Apple Keychain (<code>ThisDeviceOnly</code>) and Android hardware Keystore.</p></div>
+    <div class="tile"><h3>Neutral Bonjour</h3><p>Advertises <code>LokalBot-XXXX</code> from 4 hex chars of the key hash; can be turned off for Tailscale-only.</p></div>
+    <div class="tile"><h3>Revoke anytime</h3><p>Remove a device in Settings to reject its key immediately. App Store (iOS 18+) &amp; Google Play (Android 10+).</p></div>
+  </div>
+
+  <div class="foot"><span>LokalBot · Tailscale &amp; LAN Companion Sync</span><span>lokalbot.com · GPLv3 · Full contract: Companion/protocol/protocol.md &amp; PRIVACY.md</span></div>
+</section>
+</body>
+</html>
