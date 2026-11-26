@@ -18,12 +18,25 @@ Autocomplete and dictation in any app. Local by default.
 
 <sub>The real app on fictional data. Waits are cut and some typing is sped up.</sub>
 
-**Install on a Mac** (Apple Silicon, macOS 15+):
+**Install on macOS, Windows, or Linux** (or try [Agent Wrapped 2026](https://www.lokalbot.com/wrapped) with zero install):
 
 </div>
 
 ```bash
+# macOS (Apple Silicon, macOS 15+)
 brew install --cask stevyhacker/tap/lokalbot
+
+# Windows (10/11 x64, alpha)
+scoop bucket add lokalbot https://github.com/stevyhacker/scoop-bucket && scoop install lokalbot/lokalbot
+
+# Debian / Ubuntu (x86_64, alpha)
+curl -fsSL https://pkg.lokalbot.com/lokalbot.gpg | sudo tee /usr/share/keyrings/lokalbot-archive-keyring.gpg > /dev/null && printf 'Types: deb\nURIs: https://pkg.lokalbot.com/apt\nSuites: stable\nComponents: main\nArchitectures: amd64\nSigned-By: /usr/share/keyrings/lokalbot-archive-keyring.gpg\n' | sudo tee /etc/apt/sources.list.d/lokalbot.sources > /dev/null && sudo apt update && sudo apt install lokalbot
+
+# Fedora (x86_64, alpha)
+curl -fsSL https://pkg.lokalbot.com/lokalbot.asc | sudo tee /etc/pki/rpm-gpg/RPM-GPG-KEY-lokalbot > /dev/null && printf '[lokalbot]\nname=LokalBot (alpha)\nbaseurl=https://pkg.lokalbot.com/rpm\nenabled=1\ngpgcheck=1\nrepo_gpgcheck=1\ngpgkey=file:///etc/pki/rpm-gpg/RPM-GPG-KEY-lokalbot\n' | sudo tee /etc/yum.repos.d/lokalbot.repo > /dev/null && sudo dnf install lokalbot
+
+# Agent Wrapped 2026 (zero install, local coding-agent logs only)
+npx lokalbot
 ```
 
 <div align="center">
@@ -34,7 +47,7 @@ brew install --cask stevyhacker/tap/lokalbot
 [![Download LokalBot for iPhone and iPad on the App Store](https://img.shields.io/badge/%E2%80%82Download%20on%20the%20App%20Store%E2%80%82-iOS%20%26%20iPadOS-0969da?style=for-the-badge&logo=apple&logoColor=white)](https://apps.apple.com/app/id6836773709)
 [![Get the LokalBot companion app for Android on Google Play](https://img.shields.io/badge/%E2%80%82Get%20it%20on%20Google%20Play%E2%80%82-Android-0969da?style=for-the-badge&logo=googleplay&logoColor=white)](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion)
 
-<sub>macOS: <code>.dmg</code> or Homebrew · Windows 10/11 x64: <code>setup.exe</code> or portable zip (alpha) · Linux x86_64: <code>.deb</code>, <code>.rpm</code>, Arch, or <code>.tar.gz</code> (alpha) · iOS/iPadOS 18+ &amp; Android 10+ companions. <a href="#download">Install details</a></sub>
+<sub>macOS: <code>.dmg</code> or Homebrew · Windows 10/11 x64: <code>setup.exe</code>, Scoop, or portable zip (alpha) · Linux x86_64: <code>apt</code>/<code>dnf</code>, <code>.deb</code>, <code>.rpm</code>, Arch, or <code>.tar.gz</code> (alpha) · iOS/iPadOS 18+ &amp; Android 10+ companions. <a href="#download">Install details</a></sub>
 
 **Free and open source (GPLv3) · No account · No analytics or telemetry · Notarized Mac app · Built-in AI works offline once the models are downloaded**
 
@@ -42,13 +55,15 @@ brew install --cask stevyhacker/tap/lokalbot
 [![Downloads](https://img.shields.io/github/downloads/stevyhacker/lokalbot/total?color=1f6feb&label=downloads)](https://github.com/stevyhacker/lokalbot/releases)
 [![License: GPLv3](https://img.shields.io/badge/license-GPLv3-2ea043)](LICENSE)
 [![MCP: read-only server](https://img.shields.io/badge/MCP-read--only%20server-8250df)](#for-developers--agents)
+[![stevyhacker/LokalBot MCP server](https://glama.ai/mcp/servers/stevyhacker/LokalBot/badges/score.svg)](https://glama.ai/mcp/servers/stevyhacker/LokalBot)
+[![Raycast Store](https://img.shields.io/badge/Raycast-Store-FF6363?logo=raycast&logoColor=white)](https://www.raycast.com/stevan_bogosavljevic/lokalbot)
 [![GitHub Discussions](https://img.shields.io/github/discussions/stevyhacker/lokalbot?color=8250df&label=discussions)](https://github.com/stevyhacker/lokalbot/discussions)
 
 <sub>⭐ If LokalBot is useful to you, star the repo. It's built by one developer, and stars are how other people find it.</sub>
 
 **English** · [简体中文](README.zh-CN.md)
 
-[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [iOS & Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
+[Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [iOS & Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Cost calculator](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
 
 </div>
 
@@ -105,7 +120,7 @@ Screen-memory MCP tools require separate permission scoped to today, the last se
 
 The app also has an optional **Agent Mode** for working with reviewed context. File and shell actions follow its approval settings; it is separate from the read-only CLI/MCP interface.
 
-[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [MCP architecture](Docs/development/agent-cli.md)
+[CLI examples](.agents/skills/lokalbot-cli/SKILL.md) · [Claude Code plugin](Distribution/claude-plugin/README.md) · [Raycast extension](https://www.raycast.com/stevan_bogosavljevic/lokalbot) · [Agent Wrapped (`npx lokalbot`)](https://www.lokalbot.com/wrapped) · [MCP architecture](Docs/development/agent-cli.md)
 
 ## Features
 
@@ -278,29 +293,29 @@ Measured on Apple M4 Max Macs (48 GB of memory where the report records it), usi
 | Autocomplete | 56 ms median per keystroke (102 ms p95) |
 | Screen text (Apple Vision) | about 120 ms per synthetic screenshot, 243 ms on average for real ones |
 
-The default models take about 9.6 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement — check exact disk, resident RAM, and GPU VRAM fit for your machine in the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware). The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Full interactive tables and reproducible JSON live on the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)), mirrored on the [Hugging Face Benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks), with raw harnesses in the [benchmark reports](Benchmarks/README.md).
+The default models take about 9.6 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement. Check exact disk, resident RAM, and GPU VRAM fit for your machine in the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware), or estimate annual cloud SaaS savings in the [SaaS AI Cost Calculator](https://www.lokalbot.com/calculator). The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Full interactive tables and reproducible JSON live on the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)), mirrored on the [Hugging Face Benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks), with raw harnesses in the [benchmark reports](Benchmarks/README.md).
 
 ## Local AI, your choice
 
-Start with the built-in models, then change them in **Settings → Models**. LokalBot supports its bundled llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Think can also run on your own ChatGPT plan (Sign in with ChatGPT), Claude plan (through your signed-in Claude Code), Antigravity plan (through your signed-in `agy` CLI), or Gemini plan (through your signed-in `gemini` CLI), without an API key, and Agent Mode can run on the ChatGPT plan. Remote servers and plans require approval before receiving context.
+Start with the built-in models, then change them in **Settings > Models**. LokalBot supports its bundled llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Think can also run on your own ChatGPT plan (Sign in with ChatGPT), Claude plan (through your signed-in Claude Code), Antigravity plan (through your signed-in `agy` CLI), or Gemini plan (through your signed-in `gemini` CLI), without an API key, and Agent Mode can run on the ChatGPT plan. Remote servers and plans require approval before receiving context.
 
-Different jobs use different models. These are the Mac defaults on a fresh install, about 9.6 GB of model files if you use every role. They are not a RAM requirement:
+Different jobs use different models. Mac defaults ship our four open-weight Apache-2.0 fine-tunes (`stevyhacker/*-LokalBot-GGUF` on Hugging Face), about 9.6 GB of model files if you use every role (stock upstream checkpoints remain selectable in Settings). File sizes are disk usage, not a RAM requirement:
 
 | Role | Default model | Format | Approx. model files |
 | --- | --- | --- | ---: |
-| Transcription | Qwen3-ASR 1.7B | GGUF Q8_0 | 2.52 GB |
-| Summaries and chat | Qwen3.5 4B | `Q4_K_M` | 2.74 GB |
-| Autocomplete | Gemma 4 E2B Base | `Q6_K` | 3.85 GB |
+| Transcription | [Qwen3-ASR 1.7B (LokalBot v3)](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) | GGUF Q8_0 | 2.52 GB |
+| Summaries and chat | [Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) | `Q4_K_M` | 2.74 GB |
+| Autocomplete | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q6_K` | 3.85 GB |
 | Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | Speaker diarization | Nemotron 3 (preview) via FluidAudio | Core ML | ~0.20 GB |
 
-The table leaves out helper models, which download when a feature first needs them: with Qwen3-ASR, speaker separation adds a word-timing model of about 1 GB, and turning on Files adds a 555 MB image and audio projector.
+The compact Mac transcription tier uses [Qwen3-ASR 0.6B (LokalBot v1)](https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF) (`1.02 GB` GGUF Q8_0, Apache-2.0). The table leaves out helper models, which download when a feature first needs them: with Qwen3-ASR, speaker separation adds a word-timing model of about 1 GB, and turning on Files adds a 555 MB image and audio projector.
 
 Qwen3-ASR covers 52 languages and dialects. Transcription alternatives include Parakeet, Granite Speech, Whisper large-v3 turbo, SenseVoice for Chinese, Japanese, and Korean, and GigaAM for Russian; Pyannote Community-1 remains available for diarization. The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Model choices can vary by release; Settings shows the active selections and available presets. Speed and memory use depend on your computer, model, context length, and other workloads.
 
-On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses Gemma 4 E2B by default, as on Mac. Summaries (Qwen3.5 4B) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU or the CPU.
+On Windows and Linux, transcription uses Qwen3-ASR 0.6B through sherpa-onnx (Parakeet v3 and v2, SenseVoice, GigaAM Russian, and Whisper turbo are optional), speakers are separated with pyannote segmentation and TitaNet, and autocomplete uses [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) by default, as on Mac. Summaries ([Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF)) and search (EmbeddingGemma 2) use the same models as on Mac. The default download is about 4 GB, and llama.cpp runs on a Vulkan GPU, experimental CUDA, or the CPU.
 
-[Interactive leaderboard](https://www.lokalbot.com/benchmarks) · [Hardware & RAM calculator](https://www.lokalbot.com/hardware) · [Hugging Face benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) · [Hugging Face model Collection](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) · [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/Search/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
+[Interactive leaderboard](https://www.lokalbot.com/benchmarks) · [Hardware & RAM calculator](https://www.lokalbot.com/hardware) · [SaaS cost calculator](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [Hugging Face benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) · [Hugging Face model Collection](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) · [Project benchmarks](Benchmarks/README.md) · [Model catalog](LokalBot/Engines/ModelCatalog.swift) · [Search implementation](LokalBot/Services/Search/EmbeddingIndex.swift) · [Model and runtime details](Docs/development/llm-runtime.md)
 
 <a id="privacy--verify-it"></a>
 
@@ -404,7 +419,7 @@ Bug reports, documentation improvements, and code contributions are welcome. [Re
 
 Questions, ideas, or a workflow worth sharing? Start a thread in [Discussions](https://github.com/stevyhacker/lokalbot/discussions).
 
-For larger changes, [open an issue](https://github.com/stevyhacker/lokalbot/issues) to discuss the approach first. Follow the [working agreements](AGENTS.md) and [development guide](DEVELOPMENT.md), keep pull requests focused, and record your checks in the [PR template](.github/PULL_REQUEST_TEMPLATE.md). For a change people can see, attach before and after recordings of the same steps on master and on your branch, using sample data rather than your own meetings or messages ([example](https://github.com/stevyhacker/lokalbot/pull/578#issuecomment-7078094930)). Run UI tests on hosted CI or a remote runner.
+For larger changes, [open an issue](https://github.com/stevyhacker/lokalbot/issues) to discuss the approach first. See [CONTRIBUTING.md](CONTRIBUTING.md), our [Code of Conduct](CODE_OF_CONDUCT.md), the [working agreements](AGENTS.md), and the [development guide](DEVELOPMENT.md). Keep pull requests focused, and record your checks in the [PR template](.github/PULL_REQUEST_TEMPLATE.md). For a change people can see, attach before and after recordings of the same steps on master and on your branch, using sample data rather than your own meetings or messages ([example](https://github.com/stevyhacker/lokalbot/pull/578#issuecomment-7078094930)). Run UI tests on hosted CI or a remote runner. Hardware benchmark submissions (M1, M2, M3, Windows, and Linux) are welcome too; see [Benchmarks/README.md](Benchmarks/README.md#contribute-hardware-benchmarks).
 
 <a id="build-from-source"></a>
 
