@@ -1,0 +1,83 @@
+{
+  "appSHA256": "1e2f080b3316dd4c22cb0d271995a5ba6fc8830323e112cb0553befb6733d5db",
+  "serverSHA256": "8a76e37c6b8e74c71fe6d6c33a27d8ed022ba6fd43b1993c8243fca805b25a58",
+  "modelSHA256": "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+  "modelFile": "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+  "corpusSHA256": "73742d72b68ed5464448bd666a381e2a06cc169d6e93e260c0a686c3dae401b4",
+  "scriptSHA256": "3a1093daa6d4c3f10457adfaece09b1b7f624145192a0f4ce6f1ca8872e58af3",
+  "split": "heldout",
+  "caseIDs": [
+    "w1-digits-time",
+    "w1-digits-count",
+    "w1-digits-money",
+    "w1-digits-percent",
+    "w1-digits-small",
+    "w1-digits-sr",
+    "w1-digits-filler",
+    "w1-digits-repeat",
+    "w1-neg-not",
+    "w1-neg-dont",
+    "w1-neg-never",
+    "w1-neg-no",
+    "w1-neg-cant",
+    "w1-neg-filler",
+    "w1-neg-double",
+    "w1-name-person",
+    "w1-name-product",
+    "w1-name-place",
+    "w1-name-pair",
+    "w1-name-lowercase",
+    "w1-name-start",
+    "w1-fix-digit",
+    "w1-fix-name",
+    "w1-fix-actually",
+    "w1-fix-sorry",
+    "w1-fix-scratch",
+    "w1-fluent-filler",
+    "w1-fluent-stutter",
+    "w1-fluent-question",
+    "w1-fluent-plain",
+    "w1-transcribe"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/app-wl1126/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "~/Code/LokalBot-build/models/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "57276",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "wordLock": "off",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}

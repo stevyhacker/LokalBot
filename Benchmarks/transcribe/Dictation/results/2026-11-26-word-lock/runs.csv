@@ -1,0 +1,15 @@
+run,corpus,model,word_lock,outputs,correct,accuracy,lock_fired,median_ms,p90_ms,p95_ms
+cases-digitsNamesNegation,context-cases,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,20,20,1.000,0,263,355,534
+cases-off,context-cases,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,20,20,1.000,0,264,355,532
+heldout-digitsNamesNegation,context-routing-heldout,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,40,40,1.000,0,299,338,348
+heldout-off,context-routing-heldout,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,40,40,1.000,0,297,337,347
+speed-digitsNamesNegation,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,40,25,0.625,15,2005,3938,3961
+speed-off,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,40,10,0.250,0,2004,3943,3947
+v2-digitsNamesNegation,context-routing-v2,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,65,65,1.000,0,244,295,336
+v2-off,context-routing-v2,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,65,65,1.000,0,244,294,338
+v3-digitsNamesNegation,context-cleanup-v3,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,80,70,0.875,0,251,355,358
+v3-off,context-cleanup-v3,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,80,70,0.875,0,251,356,357
+v4-digitsNamesNegation,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,80,80,1.000,0,260,306,323
+v4-off,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,80,80,1.000,0,262,306,321
+wordlock-v1-digitsNamesNegation,context-wordlock-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,digitsNamesNegation,150,150,1.000,5,228,280,308
+wordlock-v1-off,context-wordlock-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,off,150,145,0.967,0,226,290,332
