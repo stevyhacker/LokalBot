@@ -403,7 +403,8 @@ struct ModelPickerSheet: View {
                 if role == .dictation, query.isEmpty {
                     ModelChoiceRow(title: "Use Think", detail: ModelSettingsPresentation.destination(app.settings),
                                    inUse: app.settings.dictationCompositionBuiltInModelID.isEmpty,
-                                   available: true, progress: nil)
+                                   available: true, progress: nil,
+                                   language: app.settings.appLanguage)
                         .tag("")
                 }
                 if role == .transcription {
@@ -419,7 +420,8 @@ struct ModelPickerSheet: View {
                             progress: status.progress,
                             blocked: choice == .appleSpeech && !appleAvailable,
                             builtInSystem: choice.isBuiltInSystem,
-                            unavailableText: "Unavailable")
+                            unavailableText: "Unavailable",
+                            language: app.settings.appLanguage)
                         .tag(choice.id)
                     }
                 } else {
@@ -431,7 +433,8 @@ struct ModelPickerSheet: View {
                                 && (role != .autocomplete || app.settings.cotypingBackend == .onDevice),
                             available: isDownloaded(entry),
                             progress: downloads.progress[entry.id],
-                            blocked: downloadBlocker(entry) != nil)
+                            blocked: downloadBlocker(entry) != nil,
+                            language: app.settings.appLanguage)
                         .tag(entry.id)
                     }
                 }
@@ -1053,11 +1056,12 @@ private struct ModelChoiceRow: View {
     var blocked = false
     var builtInSystem = false
     var unavailableText = "Needs re-adding"
+    let language: AppLanguage
 
     private var status: String {
         if inUse { return "In use" }
         if available { return builtInSystem ? "Available" : "Downloaded" }
-        return blocked ? unavailableText : "Available"
+        return blocked ? unavailableText : "Not downloaded"
     }
 
     var body: some View {
@@ -1068,7 +1072,7 @@ private struct ModelChoiceRow: View {
             }
             Spacer()
             if let progress { ProgressView(value: progress).frame(width: 70) }
-            Text(status)
+            Text(language.localized(status))
                 .font(.scaled(.callout))
                 .foregroundStyle(blocked && !inUse ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
         }
