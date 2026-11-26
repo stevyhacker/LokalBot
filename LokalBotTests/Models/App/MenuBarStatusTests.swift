@@ -203,7 +203,7 @@ final class MenuBarStatusTests: XCTestCase {
             TodayAgenda.nextMeeting(in: [close, later], now: now, window: window)?.externalID, "Roadmap")
         XCTAssertNil(TodayAgenda.nextMeeting(in: [later], now: now, window: window))
         XCTAssertEqual(TodayAgenda.nextMeeting(in: [later], now: now)?.externalID, "Review",
-                       "Today still shows it within the hour")
+                       "Today shows the next meeting however far ahead it is")
     }
 
     func testAMeetingUnderWayKeepsTheBlockUntilItIsRecordedOrOver() {

@@ -111,13 +111,14 @@ final class TodayAgendaTests: XCTestCase {
         XCTAssertEqual(TodayAgenda.rows(ahead, now: now).first, .now(now))
     }
 
-    func testNextMeetingAppearsWithinTheHourOnly() {
-        XCTAssertEqual(TodayAgenda.nextMeetingWindow, 3_600)
-        let inAnHour = event("edge", start: now.addingTimeInterval(TodayAgenda.nextMeetingWindow))
-        let justOver = event("over", start: now.addingTimeInterval(TodayAgenda.nextMeetingWindow + 60))
+    func testNextMeetingShowsHoursAheadAndAWindowStillLimitsIt() {
+        let inAnHour = event("edge", start: now.addingTimeInterval(3_600))
+        let later = event("later", start: now.addingTimeInterval(5 * 3_600))
 
-        XCTAssertEqual(TodayAgenda.nextMeeting(in: [justOver, inAnHour], now: now)?.externalID, "edge")
-        XCTAssertNil(TodayAgenda.nextMeeting(in: [justOver], now: now))
+        XCTAssertEqual(TodayAgenda.nextMeeting(in: [later, inAnHour], now: now)?.externalID, "edge")
+        XCTAssertEqual(TodayAgenda.nextMeeting(in: [later], now: now)?.externalID, "later")
+        XCTAssertEqual(TodayAgenda.nextMeeting(in: [later], now: now, window: 3_600 * 6)?.externalID, "later")
+        XCTAssertNil(TodayAgenda.nextMeeting(in: [later], now: now, window: 3_600))
         XCTAssertNil(TodayAgenda.nextMeeting(in: [], now: now))
     }
 
