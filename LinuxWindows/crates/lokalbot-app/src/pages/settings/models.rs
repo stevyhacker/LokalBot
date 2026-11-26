@@ -1576,11 +1576,7 @@ mod tests {
     #[test]
     fn the_change_menu_marks_only_models_that_still_need_a_download() {
         let installed = ["qwen3.5-0.8b".to_string()];
-        assert!(!shows_download_mark(
-            true,
-            Some("qwen3.5-0.8b"),
-            &installed
-        ));
+        assert!(!shows_download_mark(true, Some("qwen3.5-0.8b"), &installed));
         assert!(!shows_download_mark(
             false,
             Some("qwen3.5-0.8b"),
