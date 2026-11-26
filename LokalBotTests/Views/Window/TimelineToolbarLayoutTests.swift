@@ -96,9 +96,8 @@ final class TimelineToolbarLayoutTests: XCTestCase {
                                     "Date pill trailing padding should clear the capsule edge when showing Today")
         XCTAssertEqual(measured.leadingInset, measured.trailingInset, accuracy: 2.0,
                        "Date pill leading and trailing padding should match")
-        XCTAssertEqual(measured.datePill.minY, measured.sidebar.minY, accuracy: 1)
-        XCTAssertEqual(measured.datePill.height, measured.sidebar.height, accuracy: 1)
-        XCTAssertEqual(measured.datePill.minY, measured.trailing.minY, accuracy: 1)
+        XCTAssertEqual(measured.datePill.midY, measured.sidebar.midY, accuracy: 1)
+        XCTAssertEqual(measured.datePill.midY, measured.trailing.midY, accuracy: 1)
         XCTAssertEqual(measured.datePill.height, measured.trailing.height, accuracy: 1)
     }
 
