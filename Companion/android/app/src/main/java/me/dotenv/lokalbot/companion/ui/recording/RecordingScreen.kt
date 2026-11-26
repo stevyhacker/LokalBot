@@ -78,7 +78,7 @@ private val SIDEWAYS_MAX_HEIGHT = 480.dp
 private val SIDEWAYS_MIN_WIDTH = 600.dp
 
 @Composable
-fun RecordingScreen(recorder: MeetingRecorder) {
+fun RecordingScreen(recorder: MeetingRecorder, isPaired: Boolean = true) {
     val state by recorder.state.collectAsStateWithLifecycle()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val startedAt = (state as? RecorderState.Recording)?.startedAtElapsedMillis
@@ -108,6 +108,7 @@ fun RecordingScreen(recorder: MeetingRecorder) {
         onDiscard = { recorder.discard() },
         onHide = recorder::hideScreen,
         onDismissProblem = recorder::dismissProblem,
+        isPaired = isPaired,
     )
 }
 
@@ -121,6 +122,7 @@ fun RecordingContent(
     onDiscard: () -> Unit,
     onHide: () -> Unit,
     onDismissProblem: () -> Unit,
+    isPaired: Boolean = true,
 ) {
     val palette = LokalBotTheme.palette
     val failed = state as? RecorderState.Failed
@@ -129,7 +131,7 @@ fun RecordingContent(
         if (failed != null) {
             ProblemContent(failed.problem, onDismissProblem)
         } else {
-            RecordingControls(state, elapsedSeconds, level, onTitleChange, onStop, onDiscard, onHide)
+            RecordingControls(state, elapsedSeconds, level, onTitleChange, onStop, onDiscard, onHide, isPaired)
         }
     }
 }
@@ -143,6 +145,7 @@ private fun RecordingControls(
     onStop: () -> Unit,
     onDiscard: () -> Unit,
     onHide: () -> Unit,
+    isPaired: Boolean,
 ) {
     val palette = LokalBotTheme.palette
     val recording = state as? RecorderState.Recording
@@ -159,7 +162,14 @@ private fun RecordingControls(
             onTitleChange(it)
         }
     }
-    val actions = @Composable { RecordingActions(enabled = recording != null, onStop, onAskToDiscard = { confirmDiscard = true }) }
+    val actions = @Composable {
+        RecordingActions(
+            enabled = recording != null,
+            isPaired = isPaired,
+            onStop = onStop,
+            onAskToDiscard = { confirmDiscard = true },
+        )
+    }
     BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         val height = maxHeight
         if (height < SIDEWAYS_MAX_HEIGHT && maxWidth >= SIDEWAYS_MIN_WIDTH) {
@@ -249,7 +259,7 @@ private fun RecordingProgress(
 }
 
 @Composable
-private fun RecordingActions(enabled: Boolean, onStop: () -> Unit, onAskToDiscard: () -> Unit) {
+private fun RecordingActions(enabled: Boolean, isPaired: Boolean, onStop: () -> Unit, onAskToDiscard: () -> Unit) {
     val palette = LokalBotTheme.palette
     Column(
         Modifier.fillMaxWidth().padding(top = 20.dp),
@@ -269,7 +279,7 @@ private fun RecordingActions(enabled: Boolean, onStop: () -> Unit, onAskToDiscar
             Text(stringResource(R.string.recording_discard), color = palette.recordingText)
         }
         Text(
-            stringResource(R.string.recording_caption),
+            stringResource(if (isPaired) R.string.recording_caption else R.string.recording_caption_unpaired),
             style = LokalBotType.caption,
             color = LokalBotTheme.supportingText,
             textAlign = TextAlign.Center,

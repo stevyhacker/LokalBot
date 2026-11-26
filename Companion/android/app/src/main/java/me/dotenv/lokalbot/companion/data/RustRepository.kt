@@ -48,6 +48,7 @@ class RustRepository(
     private val onQueuedAnswer: (AskRequest, AskResult) -> Unit = { _, _ -> },
     private val onRevoked: () -> Unit = {},
     private val onRecordingsWaiting: () -> Unit = {},
+    private val unpairedStore: UnpairedRecordingsStore? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : CompanionRepository {
 
@@ -70,7 +71,7 @@ class RustRepository(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle(statusInfo()))
     override val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    override val canRecord: Boolean = !isSample && macKey != null
+    override val canRecord: Boolean = (!isSample && macKey != null) || unpairedStore != null
 
     private val _recordings = MutableStateFlow(loadRecordings())
     override val recordings: StateFlow<List<DeviceRecording>> = _recordings.asStateFlow()
@@ -248,6 +249,11 @@ class RustRepository(
     }
 
     override suspend fun beginRecording(title: String?): DeviceRecording? {
+        if (macKey == null || isSample) {
+            val local = unpairedStore?.beginRecording(title) ?: return null
+            recordingsChanged()
+            return local
+        }
         val recording = try {
             core { client.beginRecording(title) }
         } catch (e: SyncException) {
@@ -259,6 +265,11 @@ class RustRepository(
     }
 
     override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean {
+        if (unpairedStore?.contains(id) == true) {
+            val kept = unpairedStore.finishRecording(id, durationSeconds)
+            recordingsChanged()
+            return kept
+        }
         val kept = try {
             core { client.finishRecording(id, durationSeconds) }
             true
@@ -271,23 +282,33 @@ class RustRepository(
     }
 
     override suspend fun recoverRecordings(): Int {
-        val kept = core { client.recoverRecordings() }.toInt()
+        val keptCore = core { client.recoverRecordings() }.toInt()
+        val keptLocal = unpairedStore?.recoverRecordings() ?: 0
         recordingsChanged()
-        if (kept > 0) sendWaitingRecordings()
-        return kept
+        if (keptCore > 0) sendWaitingRecordings()
+        return keptCore + keptLocal
     }
 
     override suspend fun discardRecording(id: String) {
-        core { client.discardRecording(id) }
+        if (unpairedStore?.contains(id) == true) {
+            unpairedStore.discardRecording(id)
+        } else {
+            core { client.discardRecording(id) }
+        }
         recordingsChanged()
     }
 
     override suspend fun setRecordingTitle(id: String, title: String) {
-        core { client.setRecordingTitle(id, title) }
+        if (unpairedStore?.contains(id) == true) {
+            unpairedStore.setRecordingTitle(id, title)
+        } else {
+            core { client.setRecordingTitle(id, title) }
+        }
         recordingsChanged()
     }
 
     override suspend fun retryRecording(id: String) {
+        if (unpairedStore?.contains(id) == true) return
         core { client.retryRecording(id) }
         recordingsChanged()
         sendWaitingRecordings()
@@ -341,8 +362,11 @@ class RustRepository(
         changed()
     }
 
-    private fun loadRecordings(): List<DeviceRecording> =
-        runCatching { client.recordings().map(::deviceRecording) }.getOrDefault(emptyList())
+    private fun loadRecordings(): List<DeviceRecording> {
+        val coreRows = runCatching { client.recordings().map(::deviceRecording) }.getOrDefault(emptyList())
+        val localRows = unpairedStore?.recordings?.value.orEmpty()
+        return (coreRows + localRows).sortedByDescending { it.startedAt }
+    }
 
     private fun deviceRecording(info: RecordingInfo) = DeviceRecording(
         id = info.id,

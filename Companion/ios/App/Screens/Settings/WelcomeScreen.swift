@@ -4,6 +4,7 @@ import SwiftUI
 struct WelcomeScreen: View {
     @Environment(CompanionSession.self) private var session
     @Environment(AppNavigator.self) private var navigator
+    @Environment(RecordingModel.self) private var recording
     @State private var showingPairing = false
     @State private var error: String?
 
@@ -20,26 +21,35 @@ struct WelcomeScreen: View {
                     Text("Your work memory, on the go")
                         .font(LBTokens.Typography.pageTitle)
                         .fixedSize(horizontal: false, vertical: true)
-                    Text("Read your meetings, action items, Timeline and Day Digests from LokalBot on your computer, and ask it questions.")
+                    Text("Record meetings privately right away, or pair with LokalBot on Mac, Windows, or Linux to read your meetings, action items, Timeline, and Day Digests.")
                         .font(LBTokens.Typography.body)
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 VStack(alignment: .leading, spacing: 14) {
+                    point("mic", "Record offline right now",
+                          "Recordings stay strictly on this device until you pair with LokalBot on your computer to transcribe and summarize.")
                     point("lock.shield", "Only between your devices",
                           "Your computer sends its shared library straight to this device, end-to-end encrypted. LokalBot runs no server.")
                     point("wifi", "On your Wi-Fi or Tailscale",
                           "Syncs when both are on the same network, or from anywhere with Tailscale on both.")
-                    point("checklist", "Mark actions done",
-                          "Changes go back to your computer on the next sync.")
                 }
                 VStack(spacing: 10) {
+                    Button {
+                        Task { await recording.begin() }
+                    } label: {
+                        Label(recording.isActive ? "Return to Recording" : "Record a Meeting",
+                              systemImage: recording.isActive ? "record.circle.fill" : "mic")
+                            .frame(maxWidth: .infinity)
+                    }
+                    .primaryActionButton()
+                    .controlSize(.large)
                     Button {
                         showingPairing = true
                     } label: {
                         Label("Pair with Your Computer", systemImage: "qrcode.viewfinder")
                             .frame(maxWidth: .infinity)
                     }
-                    .primaryActionButton()
+                    .buttonStyle(.bordered)
                     .controlSize(.large)
                     Button {
                         Task {
@@ -58,7 +68,7 @@ struct WelcomeScreen: View {
                         Text(error).workspaceTextRole(.warning)
                     }
                 }
-                Text("On your computer, open LokalBot Settings → Phones & tablets → Add a Device to show the pairing code.")
+                Text("On Mac, Windows, or Linux, open LokalBot Settings > Phones & tablets > Add a Device to show the pairing code.")
                     .font(LBTokens.Typography.caption)
                     .workspaceSupportingForeground()
             }

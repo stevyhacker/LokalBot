@@ -28,6 +28,7 @@ import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import java.time.ZoneId
 import kotlinx.coroutines.launch
 import me.dotenv.lokalbot.companion.AppContainer
 import me.dotenv.lokalbot.companion.R
@@ -36,6 +37,8 @@ import me.dotenv.lokalbot.companion.ui.onboarding.AppMark
 import me.dotenv.lokalbot.companion.ui.onboarding.PairingScreen
 import me.dotenv.lokalbot.companion.ui.onboarding.PairingViewModel
 import me.dotenv.lokalbot.companion.ui.onboarding.WelcomeScreen
+import me.dotenv.lokalbot.companion.ui.recording.LocalRecordAction
+import me.dotenv.lokalbot.companion.ui.recording.RecordingHost
 import me.dotenv.lokalbot.companion.ui.settings.SettingsActions
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotTheme
 import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
@@ -77,14 +80,20 @@ fun CompanionRoot(container: AppContainer, actions: RootActions) {
                 },
             )
         }
-        repository == null -> WelcomeScreen(
-            onPair = { pairing = true },
-            onTrySample = { scope.launch { container.openSample() } },
-            removedByMac = removedByMac,
-            onDismissRemoved = container::dismissRemovedNotice,
-            heldRecordings = heldRecordings,
-            onDeleteHeldRecordings = { scope.launch { container.discardHeldRecordings() } },
-        )
+        repository == null -> CompositionLocalProvider(LocalFormats provides rememberFormats(ZoneId.systemDefault())) {
+            RecordingHost(container.recorder, isPaired = false) {
+                WelcomeScreen(
+                    onPair = { pairing = true },
+                    onTrySample = { scope.launch { container.openSample() } },
+                    onRecord = LocalRecordAction.current,
+                    removedByMac = removedByMac,
+                    onDismissRemoved = container::dismissRemovedNotice,
+                    heldRecordings = heldRecordings,
+                    onDeleteHeldRecording = { id -> scope.launch { container.discardHeldRecording(id) } },
+                    onDeleteHeldRecordings = { scope.launch { container.discardHeldRecordings() } },
+                )
+            }
+        }
         else -> {
             val library = repository!!
             LibraryScope(library) {

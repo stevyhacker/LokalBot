@@ -131,7 +131,7 @@ struct AskTurnView: View {
                 Label(copied ? "Copied" : "Copy", systemImage: copied ? "checkmark" : "doc.on.doc")
                     .contentTransition(.symbolEffect(.replace))
             }
-            ShareLink(item: AskCitationParser.plainText(result.answer)) {
+            ShareLink(item: AskCitationParser.shareText(answer: result.answer, citations: result.citations)) {
                 Label("Share", systemImage: "square.and.arrow.up")
             }
         }

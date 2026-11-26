@@ -2,12 +2,16 @@
 
 Published on the [App Store](https://apps.apple.com/app/id6836773709) (iOS and iPadOS 18 or later).
 
-The companion app reads the library the Mac shares (meetings, actions, the
-Timeline and Day Digests, people and projects), asks the Mac questions and
-records meetings for it to process. It syncs only with the paired Mac, over the local network or Tailscale,
-end-to-end encrypted. See
-[the plan](../../Docs/plans/companion-apps-plan-2026-10-30.md) and
-[the protocol](../protocol/).
+The companion app lets you record meetings privately right after install and
+reads the library your Mac, Windows, or Linux computer shares (meetings,
+actions, the Timeline and Day Digests, people, and projects), asks your
+computer questions, and transfers recordings for it to transcribe and
+summarize. It syncs only with the paired computer over your local network or
+Tailscale, end-to-end encrypted. Unpaired recordings remain strictly in private
+on-device storage until you pair. See
+[the plan](../../Docs/plans/companion-apps-plan-2026-10-30.md),
+[the protocol](../protocol/), and
+[App Store metadata](../store-metadata/ios/en-US/).
 
 - `LokalBotCompanionKit/`: Swift package with the record models, design
   tokens and components, the store protocol, view models and their tests.
@@ -74,14 +78,15 @@ xcrun simctl launch booted me.dotenv.LokalBot.companion
 
 ## Pair
 
-**With the Mac app.** On the Mac, open LokalBot Settings → Phones &
-tablets, turn sharing on, and choose Add a Device. On the phone, tap Pair
-with Your Computer, then scan the code or paste its link. Name the device (the
-Mac shows this name), tap Pair, and allow it on the Mac. Both devices must be
-on the same Wi-Fi or on Tailscale.
+**With the desktop app (Mac, Windows, or Linux).** On your computer, open
+LokalBot Settings > Phones & tablets, turn sharing on, and choose Add a Device.
+On the phone, tap Pair with Your Computer, then scan the code or paste its
+link. Name the device (your computer shows this name), tap Pair, and allow it
+on your computer. Both devices must be on the same Wi-Fi or on Tailscale. Any
+recordings already saved on the phone transfer automatically once paired.
 
-**With the stand-in host**, when the Mac app isn't needed. It serves the
-built-in sample library, applies action changes and answers questions with a
+**With the stand-in host**, when a desktop app isn't needed. It serves the
+built-in sample library, applies action changes, and answers questions with a
 canned reply. Run it from `LinuxWindows/`:
 
 ```sh
@@ -136,11 +141,13 @@ or add them under the scheme's Arguments.
 - By hand, for a TestFlight build outside a release: Product → Archive
   (Release, team `3N8B4562P4`), then Distribute App → App Store Connect, and
   add testers in App Store Connect.
-- App Review can't pair with a Mac. Point the review notes to **Try It
-  Without a Computer** on the welcome screen, which opens the built-in sample
-  library. Explain there that the app syncs with LokalBot on the person's
-  Mac over the local network or Tailscale, and that recording needs a paired
-  Mac, so the microphone and background audio are only used once paired.
+- App Review can test recording immediately on the welcome screen via **Record
+  a Meeting** (recordings stay strictly on-device with zero network traffic
+  until paired), and can tap **Try It Without a Computer** to browse the
+  built-in sample library. Review notes live in
+  [Companion/store-metadata/ios/en-US/review_notes.txt](../store-metadata/ios/en-US/review_notes.txt).
+- Store listing metadata and the 10-shot screenshot plan live in
+  [Companion/store-metadata/ios/en-US/](../store-metadata/ios/en-US/).
 - Export compliance is answered in the app. Sync traffic is encrypted (Noise:
   X25519, ChaChaPoly, BLAKE2s), and `ITSAppUsesNonExemptEncryption` is
   `false` in `project.yml`, so App Store Connect does not ask on upload.

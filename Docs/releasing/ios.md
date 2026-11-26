@@ -156,11 +156,39 @@ Review with the tag's build attached. The public listing follows once approved:
 curl -s 'https://itunes.apple.com/lookup?id=6836773709' | python3 -c 'import json,sys; print(json.load(sys.stdin)["results"][0]["version"])'
 ```
 
+## Store listing metadata and screenshots
+
+`Scripts/release/publish_app_store.py` uploads the `.ipa` and updates What's
+New, while versioned ASO store listing fields live in
+[Companion/store-metadata/ios/en-US/](../../Companion/store-metadata/ios/en-US/)
+so App Store Connect updates stay tracked in git:
+
+| Field | Limit | Current value / file |
+| --- | --- | --- |
+| Name | 30 chars | `LokalBot: Private Meeting AI` (`name.txt`, 28 chars) |
+| Subtitle | 30 chars | `Offline Notes, Recall & Sync` (`subtitle.txt`, 28 chars) |
+| Promotional Text | 170 chars | `promotional_text.txt` (160 chars) |
+| Keywords | 100 chars | `keywords.txt` (99 chars, zero duplicates with Name/Subtitle) |
+| Description | 4,000 chars | `description.txt` (Mac, Windows, Linux pairing + offline recording) |
+| Screenshot plan | 8 to 10 shots | [screenshots.md](../../Companion/store-metadata/ios/en-US/screenshots.md) |
+
+Keep all iOS store metadata free of Android or Google Play mentions.
+
 ## App Review notes
 
-App Review cannot pair with a computer. Keep the review notes in App Store
-Connect pointing to **Try It Without a Computer** on the welcome screen, which
-opens the built-in sample library, and explaining that the app syncs with
-LokalBot on the person's computer over the local network or Tailscale and that
-recording needs a paired computer. The job does not write review notes; App
-Store Connect carries them from one version to the next.
+App Review cannot pair with a desktop computer, so keep the review notes in App
+Store Connect synced with
+[Companion/store-metadata/ios/en-US/review_notes.txt](../../Companion/store-metadata/ios/en-US/review_notes.txt):
+
+- Point reviewers to **Record a Meeting** right on the welcome screen, which
+  records immediately onto private on-device storage with zero network traffic
+  and continues with the screen locked (`UIBackgroundModes: audio`).
+- Point reviewers to **Try It Without a Computer** on the welcome screen, which
+  opens the built-in sample library (Today, Meetings, Actions, Timeline,
+  People, Projects, and Ask with clickable citations and Share).
+- Explain that pairing connects directly to LokalBot on the person's own Mac,
+  Windows, or Linux computer over Wi-Fi (Bonjour) or Tailscale using Noise
+  end-to-end encryption, with no LokalBot server in between.
+
+`publish_app_store.py` does not overwrite App Review notes; App Store Connect
+carries them from one version to the next.

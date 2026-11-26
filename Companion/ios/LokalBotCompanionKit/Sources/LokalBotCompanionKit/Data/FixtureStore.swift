@@ -312,7 +312,6 @@ public actor FixtureStore: CompanionStore {
     }
 
     public func beginRecording(title: String?) throws -> RecordingItem {
-        guard syncStatus.paired else { throw CompanionStoreError.notPaired }
         let id = UUID().uuidString.lowercased()
         let item = RecordingItem(id: id, title: title ?? "", state: .recording, startedAt: configuration.now(),
                                  filePath: FileManager.default.temporaryDirectory.appendingPathComponent("\(id).aac").path)
@@ -385,8 +384,16 @@ public actor FixtureStore: CompanionStore {
         recordingItems = kept
     }
 
+    public func simulatePairing(macName: String = "Dev Mac", address: String = "192.168.1.20:17890") {
+        let status = SyncStatus(paired: true, lastSyncAt: configuration.now(), lastAddress: address, macName: macName)
+        syncStatus = status
+        configuration.pairedStatus = status
+    }
+
     public func unpair() {
-        recordingItems = []
+        if syncStatus.paired {
+            recordingItems = []
+        }
         records = [:]
         pendingActions = []
         queue = []

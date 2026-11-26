@@ -1,6 +1,9 @@
 package me.dotenv.lokalbot.companion.recording
 
 import com.google.common.truth.Truth.assertThat
+import java.io.File
+import java.nio.file.Files
+import java.time.Instant
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -15,6 +18,7 @@ import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.DeviceRecording
 import me.dotenv.lokalbot.companion.data.RecordingState
 import me.dotenv.lokalbot.companion.data.SyncFailure
+import me.dotenv.lokalbot.companion.data.UnpairedRecordingsStore
 import me.dotenv.lokalbot.companion.data.UploadOutcome
 import me.dotenv.lokalbot.companion.data.UploadProgress
 import me.dotenv.lokalbot.companion.sync.UploadWorker
@@ -267,13 +271,62 @@ class RecordingTest {
     }
 
     @Test
-    fun `the sample library can't record`() = runBlocking {
-        val sample = TestLibrary.repository()
-        assertThat(sample.canRecord).isFalse()
-        assertThat(sample.recordings.value).isEmpty()
-        assertThat(sample.beginRecording()).isNull()
-        assertThat(sample.uploadRecordings()).isEqualTo(UploadOutcome.Finished(0, 0, 0))
-        assertThat(MeetingsViewModel(sample).recordings.value).isEmpty()
+    fun `the sample library records locally onto this device when backed by the unpaired store`() = runBlocking {
+        val dir = Files.createTempDirectory("lokalbot-sample-rec").toFile()
+        try {
+            val store = UnpairedRecordingsStore(dir, now = { TestLibrary.now })
+            val sample = TestLibrary.repository(localRecordings = store)
+            assertThat(sample.canRecord).isTrue()
+            val draft = sample.beginRecording("Walkthrough")!!
+            File(draft.filePath).writeBytes(byteArrayOf(0xFF.toByte(), 0xF1.toByte(), 0x50))
+            assertThat(sample.finishRecording(draft.id, 42.0)).isTrue()
+            assertThat(sample.recordings.value).hasSize(1)
+            assertThat(sample.recordings.value.single().state).isEqualTo(RecordingState.Waiting)
+            assertThat(sample.uploadRecordings()).isEqualTo(UploadOutcome.Finished(0, 1, 0))
+            assertThat(MeetingsViewModel(sample).recordings.value.single().status)
+                .isEqualTo(RecordingStatus.Waiting(null, unpaired = true))
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `unpaired recordings store persists, recovers, renames, orders for migration, and deletes`() = runBlocking {
+        val dir = Files.createTempDirectory("lokalbot-unpaired-store").toFile()
+        try {
+            var tick = Instant.parse("2026-11-26T10:00:00Z")
+            val store = UnpairedRecordingsStore(dir, now = { tick })
+
+            val first = store.beginRecording("Kickoff")
+            File(first.filePath).writeBytes(byteArrayOf(1, 2, 3))
+            assertThat(store.finishRecording(first.id, 30.0)).isTrue()
+
+            tick = tick.plusSeconds(60)
+            val crashed = store.beginRecording(null)
+            File(crashed.filePath).writeBytes(byteArrayOf(4, 5, 6, 7))
+
+            tick = tick.plusSeconds(60)
+            val empty = store.beginRecording("Empty")
+            assertThat(store.finishRecording(empty.id, 5.0)).isFalse()
+
+            val reopened = UnpairedRecordingsStore(dir, now = { tick })
+            assertThat(reopened.recoverRecordings()).isEqualTo(1)
+            assertThat(reopened.recordings.value.map { it.id }).containsExactly(crashed.id, first.id).inOrder()
+            assertThat(reopened.waitingForMigration().map { it.id }).containsExactly(first.id, crashed.id).inOrder()
+
+            reopened.setRecordingTitle(crashed.id, "Recovered")
+            assertThat(reopened.recordings.value.first().title).isEqualTo("Recovered")
+
+            reopened.discardRecording(first.id)
+            assertThat(File(first.filePath).exists()).isFalse()
+            assertThat(reopened.recordings.value.map { it.id }).containsExactly(crashed.id)
+
+            reopened.clearAll()
+            assertThat(reopened.recordings.value).isEmpty()
+            assertThat(dir.exists()).isFalse()
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     @Test

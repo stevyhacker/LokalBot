@@ -137,13 +137,13 @@ class ScreenshotTest {
 
     @Test
     fun phoneWelcome() {
-        compose.setContent { Themed(dark = false) { WelcomeScreen(onPair = {}, onTrySample = {}) } }
+        compose.setContent { Themed(dark = false) { WelcomeScreen(onPair = {}, onTrySample = {}, onRecord = {}) } }
         compose.onRoot().captureRoboImage("src/test/screenshots/phone_welcome.png")
     }
 
     @Test
     fun phoneWelcomeDark() {
-        compose.setContent { Themed(dark = true) { WelcomeScreen(onPair = {}, onTrySample = {}) } }
+        compose.setContent { Themed(dark = true) { WelcomeScreen(onPair = {}, onTrySample = {}, onRecord = {}) } }
         compose.onRoot().captureRoboImage("src/test/screenshots/phone_welcome_dark.png")
     }
 

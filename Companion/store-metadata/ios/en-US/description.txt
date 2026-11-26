@@ -1,0 +1,31 @@
+LokalBot brings your private meeting recorder and work memory to iPhone and iPad, with no account, no cloud server, and no third-party tracking.
+
+RECORD MEETINGS RIGHT AWAY
+Open the app and start recording an in-person meeting or voice memo immediately, even before pairing with a computer.
+- Continues recording cleanly with the screen locked or while switching apps.
+- Writes directly to a crash-safe AAC stream inside private app storage excluded from iCloud backups.
+- Makes zero network requests while unpaired. Review, rename, or delete saved recordings on your device anytime.
+- Pair with LokalBot on Mac, Windows, or Linux whenever you are ready. Held recordings transfer straight to your computer over an end-to-end encrypted connection, get transcribed and summarized locally on your desktop, and leave your phone once your computer confirms receipt.
+
+DIRECT, END-TO-END ENCRYPTED DESKTOP SYNC
+Your computer stays the source of truth. Pair by scanning a one-time QR code in LokalBot on macOS, Windows, or Linux and approving the device on your computer.
+- Syncs directly over your local Wi-Fi network or from anywhere over Tailscale.
+- Every connection uses mutual authentication and Noise Protocol encryption (X25519, ChaChaPoly, BLAKE2s).
+- LokalBot operates no sync server, relay, or cloud database.
+- You choose on your computer which data classes and how many days of history to share.
+
+YOUR WORK MEMORY, READABLE OFFLINE
+- Today and Day Digests: see overdue actions, today's meetings, time tracked, and your latest digest even on a flight.
+- Meetings and Transcripts: read summaries, your notes, decisions, open questions, and timestamped speaker transcripts.
+- Actions: filter by mine, others, or unclear owner, jump straight to the transcript evidence, and mark items done or deferred offline. Changes sync back on the next connection.
+- Timeline, People, and Projects: browse work sessions, coding-agent milestones, shared history with each teammate, and where tracked projects stand.
+- Ask with Citations: query your desktop's Ask engine from your phone, jump directly to cited meeting moments, queue questions when your computer is asleep, and share answers complete with their cited meeting titles.
+
+TRY BEFORE YOU PAIR
+Tap Try It Without a Computer to explore a built-in sample library right on your device, or start recording a real meeting immediately.
+
+BUILT FOR PRIVACY
+- Zero accounts, ads, analytics SDKs, or telemetry.
+- Optional Face ID, Touch ID, or passcode App Lock that hides your library in the app switcher.
+- Local copies and saved recordings stay out of device backups.
+- Open-source desktop and mobile companion code you can inspect at github.com/stevyhacker/LokalBot.

@@ -39,6 +39,7 @@ public final class RecordingModel {
     private let session: CompanionSession
     private let capture: AudioCapture
     private var currentID: String?
+    private var startedWhilePaired = false
     private var isStarting = false
 
     public init(session: CompanionSession, capture: AudioCapture) {
@@ -72,6 +73,7 @@ public final class RecordingModel {
             }
             title = ""
             currentID = item.id
+            startedWhilePaired = session.mode == .paired
             phase = .recording
             await session.recordingsDidChange()
         } catch {
@@ -86,6 +88,7 @@ public final class RecordingModel {
         }
         let duration = capture.stop()
         currentID = nil
+        startedWhilePaired = false
         phase = .idle
         let name = title.trimmingCharacters(in: .whitespacesAndNewlines)
         if !name.isEmpty { try? await session.store.setRecordingTitle(id: id, title: name) }
@@ -104,6 +107,7 @@ public final class RecordingModel {
         if let id = currentID {
             _ = capture.stop()
             currentID = nil
+            startedWhilePaired = false
             phase = .idle
             await session.discardRecording(id: id)
         }
@@ -122,9 +126,10 @@ public final class RecordingModel {
     }
 
     public func sessionModeChanged() {
-        guard session.mode != .paired, let id = currentID else { return }
+        guard startedWhilePaired, session.mode != .paired, let id = currentID else { return }
         let duration = capture.stop()
         currentID = nil
+        startedWhilePaired = false
         phase = .idle
         isPresented = false
         Task {

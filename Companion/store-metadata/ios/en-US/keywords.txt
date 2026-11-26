@@ -1,0 +1,1 @@
+transcribe,voice,memo,recorder,dictation,local,summary,action,items,granola,otter,whisper,tailscale

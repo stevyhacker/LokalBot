@@ -6,14 +6,16 @@ import UIKit
 final class RustStore: CompanionStore, @unchecked Sendable {
     let deviceName: String
     private let client: SyncClient
+    private let unpaired: UnpairedRecordingsVault
     private let local = DispatchQueue(label: "me.dotenv.LokalBot.companion.store", qos: .userInitiated)
     private let network = DispatchQueue(label: "me.dotenv.LokalBot.companion.network", qos: .utility)
     private let uploads = DispatchQueue(label: "me.dotenv.LokalBot.companion.uploads", qos: .utility)
     private let asking = DispatchQueue(label: "me.dotenv.LokalBot.companion.ask", qos: .userInitiated, attributes: .concurrent)
 
-    init(client: SyncClient, deviceName: String) {
+    init(client: SyncClient, deviceName: String, unpaired: UnpairedRecordingsVault) {
         self.client = client
         self.deviceName = deviceName
+        self.unpaired = unpaired
     }
 
     @MainActor
@@ -25,7 +27,8 @@ final class RustStore: CompanionStore, @unchecked Sendable {
             deviceName: deviceName,
             platform: UIDevice.current.userInterfaceIdiom == .pad ? "ipados" : "ios",
             staticPrivateKey: key)
-        return RustStore(client: try SyncClient(config: config), deviceName: deviceName)
+        let vault = UnpairedRecordingsVault(directory: try UnpairedRecordingsVault.defaultDirectory())
+        return RustStore(client: try SyncClient(config: config), deviceName: deviceName, unpaired: vault)
     }
 
     private func run<T: Sendable>(on queue: DispatchQueue, _ work: @escaping @Sendable (SyncClient) throws -> T) async throws -> T {
@@ -166,35 +169,61 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     }
 
     func beginRecording(title: String?) async throws -> RecordingItem {
-        try await read { Self.converted(try $0.beginRecording(title: title)) }
+        let isPaired = (try? await read { try $0.pairedMac() != nil }) ?? false
+        if isPaired {
+            return try await read { Self.converted(try $0.beginRecording(title: title)) }
+        }
+        return try await unpaired.begin(title: title)
     }
 
     func finishRecording(id: String, durationSeconds: Double) async throws -> RecordingItem {
-        try await read { Self.converted(try $0.finishRecording(id: id, durationSeconds: durationSeconds)) }
+        if await unpaired.contains(id) {
+            return try await unpaired.finish(id: id, durationSeconds: durationSeconds)
+        }
+        return try await read { Self.converted(try $0.finishRecording(id: id, durationSeconds: durationSeconds)) }
     }
 
     func recoverRecordings() async throws {
-        _ = try await read { try $0.recoverRecordings() }
+        try await read { _ = try $0.recoverRecordings() }
+        _ = try? await unpaired.recover()
+        let isPaired = (try? await read { try $0.pairedMac() != nil }) ?? false
+        if isPaired {
+            await migrateUnpairedToClient()
+        }
     }
 
     func discardRecording(id: String) async throws {
+        if await unpaired.contains(id) {
+            try await unpaired.discard(id: id)
+            return
+        }
         try await read { try $0.discardRecording(id: id) }
     }
 
     func setRecordingTitle(id: String, title: String) async throws {
+        if await unpaired.contains(id) {
+            try await unpaired.setTitle(id: id, title: title)
+            return
+        }
         try await read { try $0.setRecordingTitle(id: id, title: title) }
     }
 
     func retryRecording(id: String) async throws {
+        if await unpaired.contains(id) {
+            return
+        }
         try await read { try $0.retryRecording(id: id) }
     }
 
     func recordings() async throws -> [RecordingItem] {
-        try await read { try $0.recordings().map(Self.converted) }
+        let synced = try await read { try $0.recordings().map(Self.converted) }
+        let localOnly = await unpaired.recordings()
+        return (synced + localOnly).sorted { $0.startedAt > $1.startedAt }
     }
 
     func uploadRecordings(extraAddresses: [String],
                           onProgress: @escaping @Sendable (String, Int64, Int64) -> Void) async throws -> LokalBotCompanionKit.UploadReport {
+        await migrateUnpairedToClient()
         let listener = ProgressListener(onProgress)
         return try await run(on: uploads) { client in
             let report = try client.uploadRecordings(extraAddresses: extraAddresses, listener: listener)
@@ -204,7 +233,9 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     }
 
     func pair(payload: String) async throws -> LokalBotCompanionKit.PairedMac {
-        try await run(on: network) { Self.converted(try $0.pair(payload: payload)) }
+        let mac = try await run(on: network) { Self.converted(try $0.pair(payload: payload)) }
+        await migrateUnpairedToClient()
+        return mac
     }
 
     func pairedMac() async throws -> LokalBotCompanionKit.PairedMac? {
@@ -222,7 +253,37 @@ final class RustStore: CompanionStore, @unchecked Sendable {
     }
 
     func unpair() async throws {
+        let wasPaired = (try? await read { try $0.pairedMac() != nil }) ?? false
         try await run(on: network) { try $0.unpair() }
+        if wasPaired {
+            try? await unpaired.removeAll()
+        }
+    }
+
+    private func migrateUnpairedToClient() async {
+        let pending = await unpaired.waitingForMigration()
+        guard !pending.isEmpty else { return }
+        for item in pending {
+            guard FileManager.default.fileExists(atPath: item.filePath) else {
+                try? await unpaired.discard(id: item.id)
+                continue
+            }
+            do {
+                try await read { client in
+                    let queued = try client.beginRecording(title: item.title.isEmpty ? nil : item.title)
+                    let destination = URL(fileURLWithPath: queued.filePath)
+                    try FileManager.default.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+                    if FileManager.default.fileExists(atPath: destination.path) {
+                        try FileManager.default.removeItem(at: destination)
+                    }
+                    try FileManager.default.copyItem(atPath: item.filePath, toPath: destination.path)
+                    _ = try client.finishRecording(id: queued.id, durationSeconds: item.durationSeconds ?? 0)
+                }
+                try? await unpaired.discard(id: item.id)
+            } catch {
+                break
+            }
+        }
     }
 
     func status() async throws -> LokalBotCompanionKit.SyncStatus {

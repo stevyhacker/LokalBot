@@ -69,4 +69,19 @@ class MarkdownTest {
     fun `plain text drops markers`() {
         assertThat(Markdown.plainText("## Highlights\n- **Agreed** a flow")).isEqualTo("Highlights Agreed a flow")
     }
+
+    @Test
+    fun `share text strips markers and appends unique cited meeting titles`() {
+        val citations = listOf(
+            AskCitation(index = 1, meetingId = "m1", at = 724.0, label = "Design review · 12:04"),
+            AskCitation(index = 2, meetingId = "m1", at = 910.0, label = "Design review · 15:10"),
+            AskCitation(index = 3, meetingId = null, at = null, label = "Figma · 11:02"),
+            AskCitation(index = 4, meetingId = "m2", at = 120.0, label = "Call with Northwind · 02:00"),
+        )
+        val shared = Citations.shareText("Cut onboarding to three steps [1] and confirm pricing [2][4].", citations)
+        assertThat(shared).isEqualTo(
+            "Cut onboarding to three steps and confirm pricing.\n\nSources:\n- Design review\n- Call with Northwind",
+        )
+        assertThat(Citations.shareText("Nothing cited.", emptyList())).isEqualTo("Nothing cited.")
+    }
 }

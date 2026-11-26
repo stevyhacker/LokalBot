@@ -48,7 +48,11 @@ import me.dotenv.lokalbot.companion.ui.theme.LokalBotType
 sealed interface RecordingStatus {
     data object Recording : RecordingStatus
 
-    data class Waiting(val message: String?, val computerTurnedItOff: Boolean = false) : RecordingStatus
+    data class Waiting(
+        val message: String?,
+        val computerTurnedItOff: Boolean = false,
+        val unpaired: Boolean = false,
+    ) : RecordingStatus
     data class Sending(val percent: Int) : RecordingStatus
 
     data object Processing : RecordingStatus
@@ -57,15 +61,20 @@ sealed interface RecordingStatus {
 
 data class RecordingRowState(val recording: DeviceRecording, val status: RecordingStatus)
 
-fun recordingStatus(recording: DeviceRecording, progress: UploadProgress?, computerTurnedItOff: Boolean): RecordingStatus = when (recording.state) {
+fun recordingStatus(
+    recording: DeviceRecording,
+    progress: UploadProgress?,
+    computerTurnedItOff: Boolean,
+    unpaired: Boolean = false,
+): RecordingStatus = when (recording.state) {
     RecordingState.Recording -> RecordingStatus.Recording
     RecordingState.Uploaded -> RecordingStatus.Processing
     RecordingState.Failed -> RecordingStatus.Failed(recording.message)
     RecordingState.Waiting ->
-        if (progress?.recordingId == recording.id) {
+        if (!unpaired && progress?.recordingId == recording.id) {
             RecordingStatus.Sending(sentPercent(progress.sentBytes, progress.totalBytes))
         } else {
-            RecordingStatus.Waiting(recording.message, computerTurnedItOff)
+            RecordingStatus.Waiting(recording.message, computerTurnedItOff, unpaired)
         }
 }
 
@@ -76,11 +85,15 @@ data class RecordingStatusText(val headline: String, val detail: String? = null)
 
 fun RecordingStatus.text(resources: Resources, computer: String?): RecordingStatusText = when (this) {
     RecordingStatus.Recording -> RecordingStatusText(resources.getString(R.string.recording_status_recording))
-    is RecordingStatus.Waiting -> RecordingStatusText(
-        computer?.let { resources.getString(R.string.recording_status_waiting, it) }
-            ?: resources.getString(R.string.recording_status_waiting_unnamed),
-        message ?: resources.getString(R.string.recording_turned_off).takeIf { computerTurnedItOff },
-    )
+    is RecordingStatus.Waiting -> if (unpaired) {
+        RecordingStatusText(resources.getString(R.string.recording_unpaired_prompt))
+    } else {
+        RecordingStatusText(
+            computer?.let { resources.getString(R.string.recording_status_waiting, it) }
+                ?: resources.getString(R.string.recording_status_waiting_unnamed),
+            message ?: resources.getString(R.string.recording_turned_off).takeIf { computerTurnedItOff },
+        )
+    }
     is RecordingStatus.Sending -> RecordingStatusText(resources.getString(R.string.recording_status_sending, percent))
     RecordingStatus.Processing -> RecordingStatusText(
         computer?.let { resources.getString(R.string.recording_status_processing, it) }
