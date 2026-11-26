@@ -657,7 +657,7 @@ GUIDES = [
         <ol>
           <li>Install LokalBot on Mac, Windows, or Linux (alpha), let the models finish downloading, and record a test call.</li>
           <li>On Mac, open <strong>Settings &gt; External Agents</strong>, enable <strong>Allow external agents to read your LokalBot data</strong>, and check <strong>Meetings</strong>. On Windows and Linux, enable <strong>Allow external agents to read your meeting library</strong> in <strong>Settings &gt; Privacy &amp; Data</strong>.</li>
-          <li>Choose <strong>Install for your coding agent...</strong> to install the skill and the <code>lokalbot-cli</code> binary (<code>~/.local/bin</code> on Mac/Linux, <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code> on Windows). Add that folder to your PATH if it isn't there already, then restart your terminal. Apps opened from the Dock or Finder, such as Cursor or Claude Desktop, don't read your shell's PATH, so give them the full binary path shown below.</li>
+          <li>In <strong>Settings &gt; External Agents &gt; Agent CLI</strong> on a Mac, or <strong>Settings &gt; Advanced &gt; Agent CLI</strong> on Windows and Linux, choose <strong>Install for your coding agent...</strong> to install the skill and the <code>lokalbot-cli</code> binary (<code>~/.local/bin</code> on Mac/Linux, <code>%LOCALAPPDATA%\\Programs\\LokalBot\\bin</code> on Windows). Add that folder to your PATH if it isn't there already, then restart your terminal. Apps opened from the Dock or Finder, such as Cursor or Claude Desktop, don't read your shell's PATH, so give them the full binary path shown below.</li>
         </ol>
 
         <h2>Step 2: connect your MCP client</h2>
