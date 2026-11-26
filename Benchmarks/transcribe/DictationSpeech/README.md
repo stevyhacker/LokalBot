@@ -34,4 +34,9 @@ $BENCH/.venv/bin/python score.py --cases $BENCH/data/cases.json --runs $BENCH/ru
 `run.py` gives the app a disposable home (`--root`) and clones the speech models already downloaded on this Mac into it, so
 nothing in the real library is read or written; a model that isn't there is downloaded by the app as usual. Its default order
 is Qwen3-ASR on automatic language, Parakeet v3, Parakeet Ultra, Qwen3-ASR with English set, and Qwen3-ASR on automatic again
-as a drift check.
+as a drift check. `qwen-v3-auto` and `qwen-v3-en` are the same two settings on the LokalBot v3 weights (`qwen3-asr-1.7b-lokalbot-v3`),
+the app's current default; they are not in the default order.
+Each manifest's `commit` is this checkout's HEAD; when the app was built from another checkout, pass `--app-commit` with
+its commit and the manifest records it as `appCommit`. `appSHA256` is the SHA-256 of the app's executable, so a run can always be
+tied to the build that made it. `score.py` stops on a run whose manifest records a failed replay (a nonzero `exit` or
+`appChangedDuringReplay`).

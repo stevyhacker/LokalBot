@@ -70,7 +70,8 @@ final class QwenLanguageSampleReplayTests: XCTestCase {
         handle.seekToEndOfFile()
 
         let models = URL(fileURLWithPath: modelPath, isDirectory: true)
-        let weights = QwenLlamaASR.accuracy
+        let weights = environment["LOKALBOT_QWEN_SAMPLE_WEIGHTS"] == "lokalbot-v3" ? QwenLlamaASR.accuracyLokalBotV3 : QwenLlamaASR.accuracy
+        print("qwen-sample weights \(weights.model.name) \(weights.projector.name)")
         let server = weights.makeServer(projector: models.appendingPathComponent(weights.projector.name))
         guard LocalLlamaServerAuthentication.readMarker(port: server.port) == nil else {
             throw XCTSkip("Needs the unused port \(server.port).")

@@ -1,5 +1,6 @@
 """Run LokalBot's dictation transcription on the prepared recordings, one model configuration at a time."""
 import argparse
+import hashlib
 import json
 import os
 import platform
@@ -11,6 +12,8 @@ from pathlib import Path
 CONFIGS = {
     'qwen-auto': ('qwen3-asr-1.7b', 'auto'),
     'qwen-en': ('qwen3-asr-1.7b', 'en'),
+    'qwen-v3-auto': ('qwen3-asr-1.7b-lokalbot-v3', 'auto'),
+    'qwen-v3-en': ('qwen3-asr-1.7b-lokalbot-v3', 'en'),
     'parakeet-v3': ('parakeet-v3', 'auto'),
     'parakeet-ultra': ('parakeet-ultra', 'auto'),
 }
@@ -20,6 +23,17 @@ MODEL_FOLDERS = ['me.dotenv.LokalBot.dev/qwen3-asr-models', 'FluidAudio/Models']
 
 def output(command):
     return subprocess.run(command, capture_output=True, text=True).stdout.strip()
+
+
+def digest(path):
+    h = hashlib.sha256()
+    try:
+        with Path(path).open('rb') as source:
+            for chunk in iter(lambda: source.read(1024 * 1024), b''):
+                h.update(chunk)
+    except OSError:
+        return None
+    return h.hexdigest()
 
 
 def passes_argument(value):
@@ -35,6 +49,7 @@ def main():
     parser.add_argument('--cases', type=Path, required=True, help="prepare.py's cases.json")
     parser.add_argument('--out', type=Path, required=True)
     parser.add_argument('--root', type=Path, required=True, help='a disposable home for the app')
+    parser.add_argument('--app-commit', help="the commit the app was built from, when it is not this checkout's HEAD")
     parser.add_argument('--configs', nargs='+', default=DEFAULT_ORDER)
     parser.add_argument('--passes', type=passes_argument, default=3)
     args = parser.parse_args()
@@ -55,18 +70,27 @@ def main():
                    '--language', language, '--passes', str(args.passes)]
         env = dict(os.environ, CFFIXED_USER_HOME=str(home), LOKALBOT_STORAGE_ROOT=str(args.root / 'storage'),
                    LOKALBOT_DEFAULTS_SUITE='me.dotenv.LokalBot.speech-replay.' + uuid.uuid4().hex)
+        (folder / 'manifest.json').unlink(missing_ok=True)
+        app_digest = digest(binary)
         started = time.time()
         with open(folder / 'replay.jsonl', 'w') as stdout, open(folder / 'stderr.log', 'w') as stderr:
-            status = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
+            try:
+                status = subprocess.run(command, env=env, stdout=stdout, stderr=stderr).returncode
+            except OSError:
+                status = 127
+        app_changed = app_digest is None or digest(binary) != app_digest
         (folder / 'manifest.json').write_text(json.dumps({
             'config': name, 'model': model, 'language': language, 'passes': args.passes, 'exit': status,
             'wallSeconds': round(time.time() - started, 1),
             'command': ['LokalBot Dev'] + command[1:2] + ['cases.json'] + command[3:],
             'commit': output(['git', '-C', str(Path(__file__).parent), 'rev-parse', 'HEAD']),
+            'appSHA256': app_digest,
+            **({'appChangedDuringReplay': True} if app_changed else {}),
+            **({'appCommit': args.app_commit} if args.app_commit else {}),
             'machine': {'model': output(['sysctl', '-n', 'hw.model']), 'chip': output(['sysctl', '-n', 'machdep.cpu.brand_string']),
                         'memoryBytes': int(output(['sysctl', '-n', 'hw.memsize']) or 0), 'macOS': platform.mac_ver()[0]},
         }, indent=1) + '\n')
-        if status:
+        if status or app_changed:
             failed.append(name)
         print(f'{name}: exit {status}, {time.time() - started:.0f} s', flush=True)
     if failed:
