@@ -393,18 +393,27 @@ final class OnboardingFlowTests: XCTestCase {
         addTeardownBlock { try? FileManager.default.removeItem(at: root) }
 
         let app = AppState(storage: StorageManager(rootURL: root))
-        XCTAssertFalse(app.modelRoles.snapshot.meetingReady)
-        app.openSampleMeetingWhenReady()
-        for _ in 0..<100 where app.sampleMeeting == nil {
-            try await Task.sleep(for: .milliseconds(50))
+        var testError: Error?
+        do {
+            XCTAssertFalse(app.modelRoles.snapshot.meetingReady)
+            app.openSampleMeetingWhenReady()
+            for _ in 0..<100 where app.sampleMeeting == nil {
+                try await Task.sleep(for: .milliseconds(50))
+            }
+            let sample = try XCTUnwrap(
+                app.sampleMeeting,
+                "sample meeting must hydrate immediately without downloaded models")
+            XCTAssertFalse(app.sampleMeetingWaitsForModels)
+            XCTAssertFalse(app.showsSampleSetup)
+            let folder = sample.folderURL(in: app.storage)
+            let transcriptData = try Data(contentsOf: folder.appendingPathComponent("transcript.json"))
+            let transcript = try JSONDecoder().decode(Transcript.self, from: transcriptData)
+            XCTAssertEqual(transcript.engine, SampleMeeting.precomputedEngine)
+        } catch {
+            testError = error
         }
-        let sample = try XCTUnwrap(app.sampleMeeting, "sample meeting must hydrate immediately without downloaded models")
-        XCTAssertFalse(app.sampleMeetingWaitsForModels)
-        XCTAssertFalse(app.showsSampleSetup)
-        let folder = sample.folderURL(in: app.storage)
-        let transcriptData = try Data(contentsOf: folder.appendingPathComponent("transcript.json"))
-        let transcript = try JSONDecoder().decode(Transcript.self, from: transcriptData)
-        XCTAssertEqual(transcript.engine, SampleMeeting.precomputedEngine)
+        await app.finishSearchIndexingForTesting()
+        if let testError { throw testError }
     }
 
     func testTimeLeftWaitsForASteadySpeed() {

@@ -1267,6 +1267,7 @@ final class AppState: ObservableObject {
     private lazy var searchIndexWorkQueue = SearchIndexWorkQueue(
         databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
         rootURL: storage.rootURL)
+    private var searchIndexEnqueueTask: Task<Void, Never>?
 
     var isRecording: Bool { recording.isRecording }
     var currentMeeting: Meeting? { recording.currentMeeting }
@@ -1618,8 +1619,7 @@ final class AppState: ObservableObject {
     }
 
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
-        let worker = searchIndexWorkQueue
-        Task { await worker.enqueue(meetings) }
+        enqueueSearchIndex { await $0.enqueue(meetings) }
     }
 
     private var notesEmbeddingDebounce: [Meeting.ID: Task<Void, Never>] = [:]
@@ -1647,8 +1647,28 @@ final class AppState: ObservableObject {
     }
 
     private func reindexSearchInBackground(_ meeting: Meeting) {
+        enqueueSearchIndex { await $0.enqueue(meeting) }
+    }
+
+    private func enqueueSearchIndex(_ work: @escaping @Sendable (SearchIndexWorkQueue) async -> Void) {
         let worker = searchIndexWorkQueue
-        Task { await worker.enqueue(meeting) }
+        let previous = searchIndexEnqueueTask
+        searchIndexEnqueueTask = Task {
+            await previous?.value
+            await work(worker)
+        }
+    }
+
+    func finishSearchIndexingForTesting() async {
+        while let task = searchIndexEnqueueTask {
+            await task.value
+            if searchIndexEnqueueTask == task {
+                searchIndexEnqueueTask = nil
+                break
+            }
+        }
+        await searchIndexWorkQueue.waitUntilIdle()
+        await searchIndexWorkQueue.stop()
     }
 
     private func reindexEmbeddingLibraryInBackground(_ meetings: [Meeting]) {

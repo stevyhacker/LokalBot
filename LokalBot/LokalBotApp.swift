@@ -488,6 +488,7 @@ actor SearchIndexWorkQueue {
         pending.removeAll()
         drainTask?.cancel()
         drainTask = nil
+        index = nil
     }
 
     func waitUntilIdle() async {
