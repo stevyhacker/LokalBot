@@ -337,10 +337,15 @@ class RustRepository(
             val queued = core {
                 runCatching {
                     val created = client.beginRecording(item.title.ifBlank { null })
-                    val destination = File(created.filePath)
-                    destination.parentFile?.mkdirs()
-                    source.copyTo(destination, overwrite = true)
-                    client.finishRecording(created.id, item.durationSeconds ?: 0.0)
+                    try {
+                        val destination = File(created.filePath)
+                        destination.parentFile?.mkdirs()
+                        source.copyTo(destination, overwrite = true)
+                        client.finishRecording(created.id, item.durationSeconds ?: 0.0)
+                    } catch (error: Throwable) {
+                        runCatching { client.discardRecording(created.id) }
+                        throw error
+                    }
                 }.onFailure { Log.w(TAG, "local recording migration failed: ${it::class.simpleName}: ${it.message}") }
                     .isSuccess
             }
