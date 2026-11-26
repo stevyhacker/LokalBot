@@ -31,7 +31,7 @@ Key facts (v0.14.0, updated 2026-11-26):
 - [SaaS AI Subscription & Cloud Audio Calculator](https://www.lokalbot.com/calculator): calculate 1-year and 3-year meeting/dictation SaaS costs and uploaded audio hours vs $0 and 0 bytes on-device
 - [About LokalBot](https://www.lokalbot.com/about): fact sheet, what it does and does not do
 - [System requirements](https://www.lokalbot.com/system-requirements): Mac, Windows, Linux, iOS, and Android requirements and feature parity
-- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): reproducible benchmarks across 7 roles and 17 suites with JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
+- [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks): reproducible benchmarks across 7 roles and 20 suites with JSON at [benchmarks.json](https://www.lokalbot.com/benchmarks.json)
 - [Privacy policy](https://www.lokalbot.com/privacy): complete data and network contract
 
 ## Blog
