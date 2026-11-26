@@ -1,0 +1,856 @@
+{
+  "meeting": {
+    "id": "orders-api-sample",
+    "title": "Sample: Orders API delivery window",
+    "meta": "3m 30s · 2 speakers (Maya, Daniel) · Synthetic sample recording",
+    "audioUrl": "assets/demo-sandbox/orders-api.en.m4a",
+    "duration": 210.4,
+    "recap": "Keep Orders API on v2 with ETA unchanged and add delivery_window as a new optional field (left out when unknown), shipping on November 11. This replaced the earlier v3 plan after Daniel found 19 of 42 partner integrations use generated clients that would break without ETA.",
+    "decisions": [
+      {
+        "text": "No version 3. The response stays backward-compatible: ETA is unchanged, and delivery window is a new optional field that is left out when unknown. Ship on version 2 by November 11.",
+        "turnId": "t18",
+        "start": 119.84,
+        "timeLabel": "01:59",
+        "speaker": "Maya",
+        "tag": "Final decision"
+      },
+      {
+        "text": "Ship version 2 update by November 11 instead of November 18.",
+        "turnId": "t19",
+        "start": 135.74,
+        "timeLabel": "02:15",
+        "speaker": "Daniel",
+        "tag": "Schedule"
+      },
+      {
+        "text": "Replaced earlier plan: Ship version 3 of the API, with a delivery window object replacing the ETA field, by November 18.",
+        "turnId": "t09",
+        "start": 56.75,
+        "timeLabel": "00:56",
+        "speaker": "Maya",
+        "tag": "Superseded"
+      }
+    ],
+    "actions": [
+      {
+        "owner": "Daniel",
+        "text": "Notify Lena that the schema is frozen so she can add contract tests",
+        "due": "Today",
+        "turnId": "t21",
+        "start": 159.43,
+        "timeLabel": "02:39"
+      },
+      {
+        "owner": "Priya",
+        "text": "Email the three partners who asked for delivery windows",
+        "due": "Next",
+        "turnId": "t22",
+        "start": 162.97,
+        "timeLabel": "02:42"
+      },
+      {
+        "owner": "Daniel",
+        "text": "Update the API spec and changelog",
+        "due": "By Friday",
+        "turnId": "t23",
+        "start": 172.19,
+        "timeLabel": "02:52"
+      },
+      {
+        "owner": "Maya",
+        "text": "Ask Priya whether partners need delivery windows backfilled on old orders",
+        "due": "Open",
+        "turnId": "t27",
+        "start": 197.28,
+        "timeLabel": "03:17"
+      }
+    ],
+    "openQuestions": [
+      {
+        "text": "Whether to backfill delivery windows for orders created before the change (about two million open orders). Maya will ask Priya; nothing was decided.",
+        "turnId": "t24",
+        "start": 174.65,
+        "timeLabel": "02:54",
+        "speaker": "Daniel"
+      }
+    ],
+    "turns": [
+      {
+        "id": "t01",
+        "speaker": "Maya",
+        "start": 0.6,
+        "end": 6.96,
+        "timeLabel": "00:00",
+        "text": "This is the LokalBot sample meeting. The voices are synthetic, and the company and the people in it are made up."
+      },
+      {
+        "id": "t02",
+        "speaker": "Maya",
+        "start": 7.41,
+        "end": 9.25,
+        "timeLabel": "00:07",
+        "text": "Hi Daniel. Can you hear me okay?"
+      },
+      {
+        "id": "t03",
+        "speaker": "Daniel",
+        "start": 9.92,
+        "end": 13.98,
+        "timeLabel": "00:09",
+        "text": "Loud and clear, Maya. Sorry I'm a minute late, my build was still running."
+      },
+      {
+        "id": "t04",
+        "speaker": "Maya",
+        "start": 14.53,
+        "end": 18.53,
+        "timeLabel": "00:14",
+        "text": "No problem. Let's sort out the delivery window for the Orders API."
+      },
+      {
+        "id": "t05",
+        "speaker": "Daniel",
+        "start": 19.25,
+        "end": 30.11,
+        "timeLabel": "00:19",
+        "text": "Sure. Quick context: support wants customers to see a delivery window, like between two and four in the afternoon, instead of the single ETA time we return today."
+      },
+      {
+        "id": "t06",
+        "speaker": "Maya",
+        "start": 30.68,
+        "end": 36.8,
+        "timeLabel": "00:30",
+        "text": "Right. And Priya from partner success says three of our biggest partners asked for the same thing."
+      },
+      {
+        "id": "t07",
+        "speaker": "Maya",
+        "start": 37.25,
+        "end": 46.13,
+        "timeLabel": "00:37",
+        "text": "So, the plan from last week: we replace the ETA field with a new delivery window object, and we ship it as version three of the API."
+      },
+      {
+        "id": "t08",
+        "speaker": "Daniel",
+        "start": 46.83,
+        "end": 56.06,
+        "timeLabel": "00:46",
+        "text": "That was the plan. The window would be two timestamps, a start and an end, both in UTC. I can have version three ready by November eighteenth."
+      },
+      {
+        "id": "t09",
+        "speaker": "Maya",
+        "start": 56.75,
+        "end": 64.57,
+        "timeLabel": "00:56",
+        "text": "Okay. Decision for now: version three, the delivery window replaces ETA, and we target November eighteenth."
+      },
+      {
+        "id": "t10",
+        "speaker": "Daniel",
+        "start": 65.42,
+        "end": 72.82,
+        "timeLabel": "01:05",
+        "text": "Performance is fine either way. I measured it yesterday, and p95 latency stays at about a hundred and eighty milliseconds."
+      },
+      {
+        "id": "t11",
+        "speaker": "Maya",
+        "start": 73.49,
+        "end": 75.52,
+        "timeLabel": "01:13",
+        "text": "Good. What about the mobile app?"
+      },
+      {
+        "id": "t12",
+        "speaker": "Daniel",
+        "start": 76.35,
+        "end": 80.92,
+        "timeLabel": "01:16",
+        "text": "Tomás says the mobile team can pick it up in release four point two, but not earlier."
+      },
+      {
+        "id": "t13",
+        "speaker": "Maya",
+        "start": 81.67,
+        "end": 83.59,
+        "timeLabel": "01:21",
+        "text": "That's fine. And testing?"
+      },
+      {
+        "id": "t14",
+        "speaker": "Daniel",
+        "start": 84.32,
+        "end": 88.88,
+        "timeLabel": "01:24",
+        "text": "Lena will add contract tests. She needs two days once the schema is frozen."
+      },
+      {
+        "id": "t15",
+        "speaker": "Daniel",
+        "start": 89.33,
+        "end": 106.29,
+        "timeLabel": "01:29",
+        "text": "Actually, before we lock this in. I went through the partner integrations last night. Forty-two partners call the orders endpoint, and nineteen of them use generated clients that fail when a field they expect is missing. If we remove ETA, those nineteen break the day we ship."
+      },
+      {
+        "id": "t16",
+        "speaker": "Maya",
+        "start": 106.87,
+        "end": 114.27,
+        "timeLabel": "01:46",
+        "text": "Nineteen out of forty-two. That's almost half of them. And a version three means every single partner has to migrate."
+      },
+      {
+        "id": "t17",
+        "speaker": "Daniel",
+        "start": 114.95,
+        "end": 119.06,
+        "timeLabel": "01:54",
+        "text": "Exactly. Fernhill alone took four months to move to version two."
+      },
+      {
+        "id": "t18",
+        "speaker": "Maya",
+        "start": 119.84,
+        "end": 135.1,
+        "timeLabel": "01:59",
+        "text": "Then let's change the decision. No version three. The response stays backward-compatible: ETA stays exactly as it is, and the delivery window is added as a new, optional field. If we don't know the window, we leave the field out."
+      },
+      {
+        "id": "t19",
+        "speaker": "Daniel",
+        "start": 135.74,
+        "end": 146.84,
+        "timeLabel": "02:15",
+        "text": "Optional, left out when it's unknown, ETA unchanged, and we stay on version two. That's less work, too. I can ship it by November eleventh instead of the eighteenth."
+      },
+      {
+        "id": "t20",
+        "speaker": "Maya",
+        "start": 147.65,
+        "end": 158.84,
+        "timeLabel": "02:27",
+        "text": "Great. So, for the notes: this replaces what we said at the start. The response stays backward-compatible, the delivery window is optional, and we ship on November eleventh."
+      },
+      {
+        "id": "t21",
+        "speaker": "Daniel",
+        "start": 159.43,
+        "end": 162.13,
+        "timeLabel": "02:39",
+        "text": "Should I tell Lena the schema is frozen, then?"
+      },
+      {
+        "id": "t22",
+        "speaker": "Maya",
+        "start": 162.97,
+        "end": 171.34,
+        "timeLabel": "02:42",
+        "text": "Yes, go ahead. And Priya will email the three partners who asked for it. Daniel, can you update the API spec and the changelog?"
+      },
+      {
+        "id": "t23",
+        "speaker": "Daniel",
+        "start": 172.19,
+        "end": 174.2,
+        "timeLabel": "02:52",
+        "text": "Yes, I'll have both done by Friday."
+      },
+      {
+        "id": "t24",
+        "speaker": "Daniel",
+        "start": 174.65,
+        "end": 183.42,
+        "timeLabel": "02:54",
+        "text": "One thing we still haven't figured out: do we backfill delivery windows for orders that were created before the change, or only for new orders?"
+      },
+      {
+        "id": "t25",
+        "speaker": "Maya",
+        "start": 183.94,
+        "end": 192.18,
+        "timeLabel": "03:03",
+        "text": "Hm. A backfill means rerunning the estimator on about two million open orders. I honestly don't know if that's worth it."
+      },
+      {
+        "id": "t26",
+        "speaker": "Daniel",
+        "start": 192.98,
+        "end": 196.74,
+        "timeLabel": "03:12",
+        "text": "Me neither. It depends on whether partners even look at old orders."
+      },
+      {
+        "id": "t27",
+        "speaker": "Maya",
+        "start": 197.28,
+        "end": 202.02,
+        "timeLabel": "03:17",
+        "text": "Let's leave it open for now. I'll ask Priya whether partners need it for old orders."
+      },
+      {
+        "id": "t28",
+        "speaker": "Daniel",
+        "start": 202.54,
+        "end": 205.47,
+        "timeLabel": "03:22",
+        "text": "Okay. So the backfill is still open."
+      },
+      {
+        "id": "t29",
+        "speaker": "Maya",
+        "start": 206.26,
+        "end": 209.2,
+        "timeLabel": "03:26",
+        "text": "Yes. Thanks, Daniel. That's it for today."
+      }
+    ]
+  },
+  "searchItems": [
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 00:07 · Sample recording",
+      "snippet": "Hi Daniel. Can you hear me okay?",
+      "turnId": "t02",
+      "start": 7.41,
+      "timeLabel": "00:07"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 00:09 · Sample recording",
+      "snippet": "Loud and clear, Maya. Sorry I'm a minute late, my build was still running.",
+      "turnId": "t03",
+      "start": 9.92,
+      "timeLabel": "00:09"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 00:14 · Sample recording",
+      "snippet": "No problem. Let's sort out the delivery window for the Orders API.",
+      "turnId": "t04",
+      "start": 14.53,
+      "timeLabel": "00:14"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 00:19 · Sample recording",
+      "snippet": "Sure. Quick context: support wants customers to see a delivery window, like between two and four in the afternoon, instead of the single ETA time we return today.",
+      "turnId": "t05",
+      "start": 19.25,
+      "timeLabel": "00:19"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 00:30 · Sample recording",
+      "snippet": "Right. And Priya from partner success says three of our biggest partners asked for the same thing.",
+      "turnId": "t06",
+      "start": 30.68,
+      "timeLabel": "00:30"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 00:37 · Sample recording",
+      "snippet": "So, the plan from last week: we replace the ETA field with a new delivery window object, and we ship it as version three of the API.",
+      "turnId": "t07",
+      "start": 37.25,
+      "timeLabel": "00:37"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 00:46 · Sample recording",
+      "snippet": "That was the plan. The window would be two timestamps, a start and an end, both in UTC. I can have version three ready by November eighteenth.",
+      "turnId": "t08",
+      "start": 46.83,
+      "timeLabel": "00:46"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 00:56 · Sample recording",
+      "snippet": "Okay. Decision for now: version three, the delivery window replaces ETA, and we target November eighteenth.",
+      "turnId": "t09",
+      "start": 56.75,
+      "timeLabel": "00:56"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 01:05 · Sample recording",
+      "snippet": "Performance is fine either way. I measured it yesterday, and p95 latency stays at about a hundred and eighty milliseconds.",
+      "turnId": "t10",
+      "start": 65.42,
+      "timeLabel": "01:05"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 01:13 · Sample recording",
+      "snippet": "Good. What about the mobile app?",
+      "turnId": "t11",
+      "start": 73.49,
+      "timeLabel": "01:13"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 01:16 · Sample recording",
+      "snippet": "Tomás says the mobile team can pick it up in release four point two, but not earlier.",
+      "turnId": "t12",
+      "start": 76.35,
+      "timeLabel": "01:16"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 01:21 · Sample recording",
+      "snippet": "That's fine. And testing?",
+      "turnId": "t13",
+      "start": 81.67,
+      "timeLabel": "01:21"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 01:24 · Sample recording",
+      "snippet": "Lena will add contract tests. She needs two days once the schema is frozen.",
+      "turnId": "t14",
+      "start": 84.32,
+      "timeLabel": "01:24"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 01:29 · Sample recording",
+      "snippet": "Actually, before we lock this in. I went through the partner integrations last night. Forty-two partners call the orders endpoint, and nineteen of them use generated clients that fail when a field they expect is missing. If we remove ETA, those nineteen break the day we ship.",
+      "turnId": "t15",
+      "start": 89.33,
+      "timeLabel": "01:29"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 01:46 · Sample recording",
+      "snippet": "Nineteen out of forty-two. That's almost half of them. And a version three means every single partner has to migrate.",
+      "turnId": "t16",
+      "start": 106.87,
+      "timeLabel": "01:46"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 01:54 · Sample recording",
+      "snippet": "Exactly. Fernhill alone took four months to move to version two.",
+      "turnId": "t17",
+      "start": 114.95,
+      "timeLabel": "01:54"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 01:59 · Sample recording",
+      "snippet": "Then let's change the decision. No version three. The response stays backward-compatible: ETA stays exactly as it is, and the delivery window is added as a new, optional field. If we don't know the window, we leave the field out.",
+      "turnId": "t18",
+      "start": 119.84,
+      "timeLabel": "01:59"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 02:15 · Sample recording",
+      "snippet": "Optional, left out when it's unknown, ETA unchanged, and we stay on version two. That's less work, too. I can ship it by November eleventh instead of the eighteenth.",
+      "turnId": "t19",
+      "start": 135.74,
+      "timeLabel": "02:15"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 02:27 · Sample recording",
+      "snippet": "Great. So, for the notes: this replaces what we said at the start. The response stays backward-compatible, the delivery window is optional, and we ship on November eleventh.",
+      "turnId": "t20",
+      "start": 147.65,
+      "timeLabel": "02:27"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 02:39 · Sample recording",
+      "snippet": "Should I tell Lena the schema is frozen, then?",
+      "turnId": "t21",
+      "start": 159.43,
+      "timeLabel": "02:39"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 02:42 · Sample recording",
+      "snippet": "Yes, go ahead. And Priya will email the three partners who asked for it. Daniel, can you update the API spec and the changelog?",
+      "turnId": "t22",
+      "start": 162.97,
+      "timeLabel": "02:42"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 02:52 · Sample recording",
+      "snippet": "Yes, I'll have both done by Friday.",
+      "turnId": "t23",
+      "start": 172.19,
+      "timeLabel": "02:52"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 02:54 · Sample recording",
+      "snippet": "One thing we still haven't figured out: do we backfill delivery windows for orders that were created before the change, or only for new orders?",
+      "turnId": "t24",
+      "start": 174.65,
+      "timeLabel": "02:54"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 03:03 · Sample recording",
+      "snippet": "Hm. A backfill means rerunning the estimator on about two million open orders. I honestly don't know if that's worth it.",
+      "turnId": "t25",
+      "start": 183.94,
+      "timeLabel": "03:03"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 03:12 · Sample recording",
+      "snippet": "Me neither. It depends on whether partners even look at old orders.",
+      "turnId": "t26",
+      "start": 192.98,
+      "timeLabel": "03:12"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 03:17 · Sample recording",
+      "snippet": "Let's leave it open for now. I'll ask Priya whether partners need it for old orders.",
+      "turnId": "t27",
+      "start": 197.28,
+      "timeLabel": "03:17"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Daniel · 03:22 · Sample recording",
+      "snippet": "Okay. So the backfill is still open.",
+      "turnId": "t28",
+      "start": 202.54,
+      "timeLabel": "03:22"
+    },
+    {
+      "kind": "meeting",
+      "title": "Sample: Orders API delivery window",
+      "meta": "Maya · 03:26 · Sample recording",
+      "snippet": "Yes. Thanks, Daniel. That's it for today.",
+      "turnId": "t29",
+      "start": 206.26,
+      "timeLabel": "03:26"
+    },
+    {
+      "kind": "meeting",
+      "title": "Product standup",
+      "meta": "Google Meet · 2026-10-30 · Maya Chen, Ben Ortiz, Priya Nair",
+      "snippet": "Onboarding is on track and the customer study runs next week. The export PR is ready for review."
+    },
+    {
+      "kind": "meeting",
+      "title": "Product standup",
+      "meta": "Action (You) · 2026-10-30",
+      "snippet": "Review the export PR: \"Could you review the export PR by Monday?\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Product standup",
+      "meta": "Action (Unassigned) · 2026-10-30",
+      "snippet": "Confirm the study participants: \"Someone needs to confirm the study participants.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Call with Northwind",
+      "meta": "Zoom · 2026-10-29 · Alex Romero",
+      "snippet": "Northwind accepted the annual plan at a 15% discount. Alex will take the pricing tiers to legal; you send a short follow-up with the annual numbers."
+    },
+    {
+      "kind": "meeting",
+      "title": "Call with Northwind",
+      "meta": "Action (You) · 2026-10-29",
+      "snippet": "Draft the Northwind follow-up: \"Send us a short follow-up with the annual numbers.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Call with Northwind",
+      "meta": "Action (Alex Romero) · 2026-10-29",
+      "snippet": "Share pricing tiers with legal: \"I'll take the tiers to legal early next week.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "1:1 with Maya",
+      "meta": "Google Meet · 2026-10-29 · Maya Chen",
+      "snippet": "Maya is happy with the study plan. You agreed to share your study notes before Friday."
+    },
+    {
+      "kind": "meeting",
+      "title": "1:1 with Maya",
+      "meta": "Action (You) · 2026-10-29",
+      "snippet": "Share study notes: \"I'll share my study notes before Friday.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Design review: onboarding",
+      "meta": "Zoom · 2026-10-29 · Maya Chen, Ben Ortiz",
+      "snippet": "The team cut onboarding from five steps to three and will test it with five customers before release. Ben simplifies the import step; Maya runs the study."
+    },
+    {
+      "kind": "meeting",
+      "title": "Design review: onboarding",
+      "meta": "Action (You) · 2026-10-29",
+      "snippet": "Send the revised pricing deck to Maya: \"Could you send me the revised deck today, so I can take it into the pricing call?\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Design review: onboarding",
+      "meta": "Action (Maya Chen) · 2026-10-29",
+      "snippet": "Book the study room for Tuesday: \"I'll book the study room for Tuesday.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Design review: onboarding",
+      "meta": "Action (Ben Ortiz) · 2026-10-29",
+      "snippet": "Simplify the import step: \"I can simplify the import step by next Thursday.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Pricing workshop",
+      "meta": "In person · 2026-10-28 · Priya Nair, Ben Ortiz",
+      "snippet": "The team kept three pricing tiers and dropped the usage-based option. Priya rewrites the pricing page copy."
+    },
+    {
+      "kind": "meeting",
+      "title": "Pricing workshop",
+      "meta": "Action (Priya Nair) · 2026-10-28",
+      "snippet": "Update the pricing page copy: \"I'll rewrite the pricing page copy by next Friday.\""
+    },
+    {
+      "kind": "meeting",
+      "title": "Product standup",
+      "meta": "Google Meet · 2026-10-26 · Maya Chen, Ben Ortiz, Priya Nair",
+      "snippet": "The week starts with the onboarding redesign. Maya drafts the study plan."
+    },
+    {
+      "kind": "meeting",
+      "title": "Product standup",
+      "meta": "Action (Maya Chen) · 2026-10-26",
+      "snippet": "Draft the onboarding study plan: \"I'll draft the study plan this week.\""
+    },
+    {
+      "kind": "screen",
+      "title": "Export PR review",
+      "meta": "Screen & activity · 2026-10-30 · Safari, Xcode",
+      "snippet": "Export rework · Pull Request #212 · ExportService.swift · Project: Onboarding"
+    },
+    {
+      "kind": "screen",
+      "title": "Onboarding prototype",
+      "meta": "Screen & activity · 2026-10-29 · Xcode, Terminal, Claude Code",
+      "snippet": "OnboardingFlow.swift · Terminal: swift test · Project: Onboarding"
+    },
+    {
+      "kind": "screen",
+      "title": "Pricing deck",
+      "meta": "Screen & activity · 2026-10-29 · Keynote, Mail",
+      "snippet": "Pricing 2027.key · Re: Northwind annual plan · Project: Pricing"
+    },
+    {
+      "kind": "screen",
+      "title": "Coding agent session",
+      "meta": "Screen & activity · 2026-10-29 · Claude Code",
+      "snippet": "Project: Onboarding"
+    },
+    {
+      "kind": "screen",
+      "title": "Saved screen moment: Pricing table idea",
+      "meta": "Saved moment · 2026-10-29",
+      "snippet": "Pinned screen capture from 2026-10-29 during Pricing deck and Northwind prep."
+    },
+    {
+      "kind": "screen",
+      "title": "Onboarding copy",
+      "meta": "Screen & activity · 2026-10-28 · Figma, Notion",
+      "snippet": "Onboarding v3: Figma · Copy deck · Project: Onboarding"
+    }
+  ],
+  "askPresets": [
+    {
+      "id": "delivery-window-required",
+      "question": "Is the delivery window field required in the Orders API response?",
+      "answer": "No. The delivery window is a new optional field on version 2 of the Orders API, and it is omitted when unknown. ETA stays unchanged so the response remains backward-compatible after Daniel found 19 of 42 partner integrations use generated clients that would break if ETA were removed.",
+      "keywords": [
+        "delivery",
+        "window",
+        "required",
+        "optional",
+        "eta",
+        "v2",
+        "v3",
+        "version",
+        "partner",
+        "orders",
+        "api",
+        "fernhill"
+      ],
+      "citations": [
+        {
+          "label": "01:59 Maya",
+          "quote": "Then let's change the decision. No version three. The response stays backward-compatible: ETA stays exactly as it is, and the delivery window is added as a new, optional field. If we don't know the window, we leave the field out.",
+          "turnId": "t18",
+          "start": 119.84,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "02:15 Daniel",
+          "quote": "Optional, left out when it's unknown, ETA unchanged, and we stay on version two. That's less work, too. I can ship it by November eleventh instead of the eighteenth.",
+          "turnId": "t19",
+          "start": 135.74,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "01:29 Daniel",
+          "quote": "Actually, before we lock this in. I went through the partner integrations last night. Forty-two partners call the orders endpoint, and nineteen of them use generated clients that fail when a field they expect is missing. If we remove ETA, those nineteen break the day we ship.",
+          "turnId": "t15",
+          "start": 89.33,
+          "source": "Sample: Orders API delivery window"
+        }
+      ]
+    },
+    {
+      "id": "northwind-pricing",
+      "question": "What was decided about Northwind pricing and tiers?",
+      "answer": "Northwind accepted the annual plan at a 15% discount, keeping the three pricing tiers and dropping the usage-based option. Alex Romero is sharing the tiers with legal early next week, and your action item is to send a short follow-up with the annual numbers by Wednesday.",
+      "keywords": [
+        "northwind",
+        "pricing",
+        "discount",
+        "15",
+        "annual",
+        "tier",
+        "tiers",
+        "legal",
+        "alex",
+        "deck"
+      ],
+      "citations": [
+        {
+          "label": "Call with Northwind (Zoom, Oct 29)",
+          "quote": "Let's make it fifteen percent off for annual. Send us a short follow-up with the annual numbers.",
+          "source": "Sample library"
+        },
+        {
+          "label": "Pricing workshop (Oct 28)",
+          "quote": "So we keep three tiers. Priya rewrites the pricing page copy by next Friday.",
+          "source": "Sample library"
+        },
+        {
+          "label": "Screen moment (Oct 29)",
+          "quote": "Keynote: Pricing 2027.key · Mail: Re: Northwind annual plan · Saved moment: Pricing table idea",
+          "source": "Screen memory"
+        }
+      ]
+    },
+    {
+      "id": "open-backfill",
+      "question": "What question is still open from the Orders API call?",
+      "answer": "Whether to backfill delivery windows for roughly 2 million existing open orders or only populate them for new orders. Maya will ask Priya if partners check older orders before deciding.",
+      "keywords": [
+        "open",
+        "backfill",
+        "million",
+        "old",
+        "unresolved",
+        "priya",
+        "estimator"
+      ],
+      "citations": [
+        {
+          "label": "02:54 Daniel",
+          "quote": "One thing we still haven't figured out: do we backfill delivery windows for orders that were created before the change, or only for new orders?",
+          "turnId": "t24",
+          "start": 174.65,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "03:03 Maya",
+          "quote": "Hm. A backfill means rerunning the estimator on about two million open orders. I honestly don't know if that's worth it.",
+          "turnId": "t25",
+          "start": 183.94,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "03:17 Maya",
+          "quote": "Let's leave it open for now. I'll ask Priya whether partners need it for old orders.",
+          "turnId": "t27",
+          "start": 197.28,
+          "source": "Sample: Orders API delivery window"
+        }
+      ]
+    },
+    {
+      "id": "mobile-and-latency",
+      "question": "When can mobile pick up delivery windows, and what is the p95 latency?",
+      "answer": "Tomás said the mobile team can pick it up in release 4.2, not earlier. Daniel measured p95 latency at about 180 ms either way, and Lena needs two days for contract tests once the schema is frozen.",
+      "keywords": [
+        "mobile",
+        "4.2",
+        "tomas",
+        "latency",
+        "p95",
+        "180",
+        "lena",
+        "contract",
+        "test",
+        "performance",
+        "ship",
+        "november"
+      ],
+      "citations": [
+        {
+          "label": "01:16 Daniel",
+          "quote": "Tomás says the mobile team can pick it up in release four point two, but not earlier.",
+          "turnId": "t12",
+          "start": 76.35,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "01:05 Daniel",
+          "quote": "Performance is fine either way. I measured it yesterday, and p95 latency stays at about a hundred and eighty milliseconds.",
+          "turnId": "t10",
+          "start": 65.42,
+          "source": "Sample: Orders API delivery window"
+        },
+        {
+          "label": "01:24 Daniel",
+          "quote": "Lena will add contract tests. She needs two days once the schema is frozen.",
+          "turnId": "t14",
+          "start": 84.32,
+          "source": "Sample: Orders API delivery window"
+        }
+      ]
+    }
+  ]
+}

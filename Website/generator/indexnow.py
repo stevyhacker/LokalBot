@@ -2,8 +2,9 @@
 """Tell IndexNow search engines (Bing, Yandex, Naver, Seznam) which pages changed.
 
 The key is the name and content of Website/public/<key>.txt, which the site serves at
-https://www.lokalbot.com/<key>.txt so the engines can verify ownership. Run
-this after a deploy that adds or changes pages; it is never run automatically.
+https://www.lokalbot.com/<key>.txt so the engines can verify ownership.
+.github/workflows/indexnow.yml runs this automatically on pushes to master touching
+Website/public/**, and you can also run it manually after a deploy.
 
 Usage:
     python3 Website/generator/indexnow.py --dry-run            # list what would be sent

@@ -9,9 +9,9 @@
     "binding": "ASSETS",
     "html_handling": "auto-trailing-slash",
     "not_found_handling": "404-page",
-    "run_worker_first": ["/*.mp4", "/*.m4a", "/*.mp3", "/*.webm", "/*.mov"]
+    "run_worker_first": ["/*.mp4", "/*.m4a", "/*.mp3", "/*.webm", "/*.mov", "/dl/*"]
   },
-  "workers_dev": true,
+  "workers_dev": false,
   "routes": [
     {
       "pattern": "www.lokalbot.com",

@@ -15,19 +15,23 @@
   <link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
   <link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
   <link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+  <link rel="alternate" hreflang="fr" href="https://www.lokalbot.com/fr" />
+  <link rel="alternate" hreflang="es" href="https://www.lokalbot.com/es" />
+  <link rel="alternate" hreflang="ko" href="https://www.lokalbot.com/ko" />
+  <link rel="alternate" hreflang="pt" href="https://www.lokalbot.com/pt" />
   <link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
   <link rel="alternate" type="application/atom+xml" title="LokalBot Blog" href="https://www.lokalbot.com/blog/feed.xml" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/" />
-  <meta property="og:title" content="LokalBot — Your personal context engine" />
+  <meta property="og:title" content="LokalBot: Local AI meeting notes, recall &amp; dictation (Mac, Win, Linux)" />
   <meta property="og:description" content="Search your meetings and, if you turn it on, what you saw on screen. Free and open source. Runs locally by default." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="The local models behind LokalBot, from speaker separation to screen text, arranged around a meeting summary. Every model runs on your computer." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="LokalBot — Your personal context engine" />
+  <meta name="twitter:title" content="LokalBot: Local AI meeting notes, recall &amp; dictation (Mac, Win, Linux)" />
   <meta name="twitter:description" content="Search your meetings and, if you turn it on, what you saw on screen. A free, open-source app for Mac, with Windows and Linux in alpha, that runs locally by default." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
   <meta name="twitter:image:alt" content="The local models behind LokalBot, from speaker separation to screen text, arranged around a meeting summary. Every model runs on your computer." />
@@ -103,7 +107,7 @@
         "publisher": {
           "@id": "https://www.lokalbot.com/#organization"
         },
-        "dateModified": "2026-11-21",
+        "dateModified": "2026-11-26",
         "image": "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
         "screenshot": [
           "https://www.lokalbot.com/assets/demos/meetings-wide-light.webp",
@@ -259,12 +263,13 @@
     </a>
     <nav class="nav__links" aria-label="Primary">
       <a href="#demo">Demo</a>
-      <a href="#features">What it does</a>
       <a href="#compare">Compare</a>
-      <a href="#proof">Privacy</a>
       <a href="benchmarks">Benchmarks</a>
       <a href="guides">Guides</a>
       <a href="blog">Blog</a>
+      <a href="migrate">Migrate</a>
+      <a href="hardware">Hardware</a>
+      <a href="calculator">Calculator</a>
       <a href="wrapped">Wrapped</a>
     </nav>
     <div class="nav__actions">
@@ -296,8 +301,8 @@
             Watch the demo
           </a>
         </div>
-        <p class="home-install" data-desktop-only data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so if SmartScreen stops it, choose More info, then Run anyway." data-req-linux="Extract the archive and run ./install.sh, or use the .deb, .rpm, or Arch package from the same release.">Or with Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span></p>
-        <p class="home-platform-links" data-desktop-only>Other downloads: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="#download">All options</a></p>
+        <p class="home-install" data-desktop-only data-download-req data-linux-packages data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so if SmartScreen stops it, choose More info, then Run anyway." data-req-linux="Extract the archive and run ./install.sh, or use the .deb, .rpm, or Arch package from the same release.">Or with Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span></p>
+        <p class="home-platform-links" data-desktop-only>Other downloads: <a href="/dl/mac" data-download-alt data-asset="mac">macOS</a> &middot; <a href="/dl/windows" data-download-alt data-asset="windows">Windows</a> (alpha) &middot; Linux (alpha): <a href="/dl/linux-deb" data-download-alt data-asset="linux-deb">.deb</a>, <a href="/dl/linux-rpm" data-download-alt data-asset="linux-rpm">.rpm</a>, <a href="/dl/linux" data-download-alt data-asset="linux">.tar.gz</a> &middot; <a href="#download">All options</a></p>
         <p class="home-handoff" data-handoff hidden>
           <i class="ph ph-monitor" aria-hidden="true"></i>
           <span>LokalBot is a desktop app for Mac, with Windows and Linux in alpha. <span data-handoff-share>Send this page to your computer with <span data-handoff-methods>AirDrop, Messages, or Notes</span>, or <button type="button" class="text-button" data-copy-link>copy the link</button>.</span><span data-handoff-copy hidden>Copy the link and open it on your computer.</span><span data-handoff-ios hidden> The iPhone and iPad companion app is on the <a href="https://apps.apple.com/app/id6836773709" target="_blank" rel="noopener">App Store</a>.</span><span data-handoff-android hidden> The Android companion app is on <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">Google Play</a>.</span></span>
@@ -307,32 +312,98 @@
         <p class="home-requirements" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon, macOS 15+.</p>
       </div>
       <figure class="demo-stage" id="demo" data-demo-stage>
-        <div class="demo-tabs" role="group" aria-label="Choose a demo">
-          <button type="button" class="demo-tab is-active" aria-current="true" data-demo="meetings" data-start="0" data-label="A call is recorded with no bot in it. The live transcript fills in, notes appear with a recap and action items, and clicking an action's timestamp opens the transcript at that line."><i class="ph ph-waveform" aria-hidden="true"></i><span>Meetings</span><span class="demo-tab__bar"></span></button>
-          <button type="button" class="demo-tab" data-demo="search" data-start="11.4" data-label="Typing a few letters of a half-remembered phrase into search finds the pages seen on screen and the meetings where it came up."><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>Search</span><span class="demo-tab__bar"></span></button>
-          <button type="button" class="demo-tab" data-demo="autocomplete" data-start="16.7" data-label="Typing an email in TextEdit. Gray text suggests the rest of the sentence using a price decided in a meeting, and Tab accepts it a word at a time."><i class="ph ph-keyboard" aria-hidden="true"></i><span>Autocomplete</span><span class="demo-tab__bar"></span></button>
-          <button type="button" class="demo-tab" data-demo="dictation" data-start="24.6" data-label="Holding Option and Space, someone asks for a short team update with the launch pricing. On release, LokalBot transcribes the request and writes the update at the cursor, with the price from a meeting."><i class="ph ph-microphone" aria-hidden="true"></i><span>Dictation</span><span class="demo-tab__bar"></span></button>
-          <button type="button" class="demo-tab" data-demo="ask" data-start="29.3" data-label="A question typed into Ask gets an answer with a numbered citation and its source meeting."><i class="ph ph-chat" aria-hidden="true"></i><span>Ask</span><span class="demo-tab__bar"></span></button>
-          <button type="button" class="demo-tab" data-demo="agents" data-start="37.3" data-label="In a terminal, Claude Code asks LokalBot what a meeting decided through its read-only MCP server and answers from the transcript."><i class="ph ph-terminal-window" aria-hidden="true"></i><span>Agents</span><span class="demo-tab__bar"></span></button>
+        <div class="demo-mode-switch" role="tablist" aria-label="Demo mode">
+          <button type="button" class="demo-mode-btn is-active" role="tab" aria-selected="true" data-demo-mode="video"><i class="ph ph-play" aria-hidden="true"></i><span>Watch 43s tour</span></button>
+          <button type="button" class="demo-mode-btn" role="tab" aria-selected="false" data-demo-mode="sandbox"><i class="ph ph-waveform" aria-hidden="true"></i><span>Try interactive demo</span></button>
         </div>
-        <div class="demo-frame">
-          <picture class="demo-poster">
-            <source srcset="assets/demos/meetings-tall-dark.webp" media="(max-width: 640px) and (prefers-color-scheme: dark)" />
-            <source srcset="assets/demos/meetings-tall-light.webp" media="(max-width: 640px)" />
-            <source srcset="assets/demos/meetings-wide-dark.webp" media="(prefers-color-scheme: dark)" />
-            <img src="assets/demos/meetings-wide-light.webp" width="1920" height="1200" alt="" fetchpriority="high" />
-          </picture>
-          <video class="demo-video is-front" controls muted playsinline preload="none" poster="assets/demos/meetings-wide-light.webp" src="assets/demos/full-wide-light.mp4" aria-label="A call is recorded with no bot in it. The live transcript fills in, notes appear with a recap and action items, and clicking an action's timestamp opens the transcript at that line."></video>
-          <button type="button" class="demo-toggle" aria-label="Pause the demo" hidden><i class="ph ph-pause" aria-hidden="true"></i></button>
+        <div class="demo-panel" data-demo-panel="video">
+          <div class="demo-tabs" role="group" aria-label="Choose a demo">
+            <button type="button" class="demo-tab is-active" aria-current="true" data-demo="meetings" data-start="0" data-label="A call is recorded with no bot in it. The live transcript fills in, notes appear with a recap and action items, and clicking an action's timestamp opens the transcript at that line."><i class="ph ph-waveform" aria-hidden="true"></i><span>Meetings</span><span class="demo-tab__bar"></span></button>
+            <button type="button" class="demo-tab" data-demo="search" data-start="11.4" data-label="Typing a few letters of a half-remembered phrase into search finds the pages seen on screen and the meetings where it came up."><i class="ph ph-magnifying-glass" aria-hidden="true"></i><span>Search</span><span class="demo-tab__bar"></span></button>
+            <button type="button" class="demo-tab" data-demo="autocomplete" data-start="16.7" data-label="Typing an email in TextEdit. Gray text suggests the rest of the sentence using a price decided in a meeting, and Tab accepts it a word at a time."><i class="ph ph-keyboard" aria-hidden="true"></i><span>Autocomplete</span><span class="demo-tab__bar"></span></button>
+            <button type="button" class="demo-tab" data-demo="dictation" data-start="24.6" data-label="Holding Option and Space, someone asks for a short team update with the launch pricing. On release, LokalBot transcribes the request and writes the update at the cursor, with the price from a meeting."><i class="ph ph-microphone" aria-hidden="true"></i><span>Dictation</span><span class="demo-tab__bar"></span></button>
+            <button type="button" class="demo-tab" data-demo="ask" data-start="29.3" data-label="A question typed into Ask gets an answer with a numbered citation and its source meeting."><i class="ph ph-chat" aria-hidden="true"></i><span>Ask</span><span class="demo-tab__bar"></span></button>
+            <button type="button" class="demo-tab" data-demo="agents" data-start="37.3" data-label="In a terminal, Claude Code asks LokalBot what a meeting decided through its read-only MCP server and answers from the transcript."><i class="ph ph-terminal-window" aria-hidden="true"></i><span>Agents</span><span class="demo-tab__bar"></span></button>
+          </div>
+          <div class="demo-frame">
+            <picture class="demo-poster">
+              <source srcset="assets/demos/meetings-tall-dark.webp" media="(max-width: 640px) and (prefers-color-scheme: dark)" />
+              <source srcset="assets/demos/meetings-tall-light.webp" media="(max-width: 640px)" />
+              <source srcset="assets/demos/meetings-wide-dark.webp" media="(prefers-color-scheme: dark)" />
+              <img src="assets/demos/meetings-wide-light.webp" width="1920" height="1200" alt="" fetchpriority="high" />
+            </picture>
+            <video class="demo-video is-front" controls muted playsinline preload="none" poster="assets/demos/meetings-wide-light.webp" src="assets/demos/full-wide-light.mp4" aria-label="A call is recorded with no bot in it. The live transcript fills in, notes appear with a recap and action items, and clicking an action's timestamp opens the transcript at that line."></video>
+            <button type="button" class="demo-toggle" aria-label="Pause the demo" hidden><i class="ph ph-pause" aria-hidden="true"></i></button>
+          </div>
+          <figcaption class="demo-notes">
+            <p class="demo-note is-active" data-demo-note="meetings">Nothing joins the call, and every action links back to the moment it was said. <a href="record-both-sides-mac-meeting-without-bot">How recording works</a></p>
+            <p class="demo-note" data-demo-note="search">One search across your meetings and, if you turn it on, what you saw on screen.</p>
+            <p class="demo-note" data-demo-note="autocomplete">Gray text finishes your sentence in any app, using what your meetings decided. <kbd>Tab</kbd> takes a word.</p>
+            <p class="demo-note" data-demo-note="dictation">Hold <kbd>⌥ Space</kbd> and say what you need. Compose mode writes it at your cursor.</p>
+            <p class="demo-note" data-demo-note="ask">Ask your own work a question. Answers cite their sources.</p>
+            <p class="demo-note" data-demo-note="agents">Claude Code, Codex, or any MCP client can search your meetings. Read-only, and off until you turn it on.</p>
+          </figcaption>
         </div>
-        <figcaption class="demo-notes">
-          <p class="demo-note is-active" data-demo-note="meetings">Nothing joins the call, and every action links back to the moment it was said. <a href="record-both-sides-mac-meeting-without-bot">How recording works</a></p>
-          <p class="demo-note" data-demo-note="search">One search across your meetings and, if you turn it on, what you saw on screen.</p>
-          <p class="demo-note" data-demo-note="autocomplete">Gray text finishes your sentence in any app, using what your meetings decided. <kbd>Tab</kbd> takes a word.</p>
-          <p class="demo-note" data-demo-note="dictation">Hold <kbd>⌥ Space</kbd> and say what you need. Compose mode writes it at your cursor.</p>
-          <p class="demo-note" data-demo-note="ask">Ask your own work a question. Answers cite their sources.</p>
-          <p class="demo-note" data-demo-note="agents">Claude Code, Codex, or any MCP client can search your meetings. Read-only, and off until you turn it on.</p>
-        </figcaption>
+        <div class="demo-panel demo-sandbox" data-demo-panel="sandbox" hidden>
+          <div class="sandbox-bar">
+            <div class="sandbox-tabs" role="tablist" aria-label="Interactive demo views">
+              <button type="button" class="sandbox-tab is-active" role="tab" aria-selected="true" data-sandbox-tab="meeting"><i class="ph ph-waveform" aria-hidden="true"></i>Meeting &amp; audio</button>
+              <button type="button" class="sandbox-tab" role="tab" aria-selected="false" data-sandbox-tab="search"><i class="ph ph-magnifying-glass" aria-hidden="true"></i>Search</button>
+              <button type="button" class="sandbox-tab" role="tab" aria-selected="false" data-sandbox-tab="ask"><i class="ph ph-chat" aria-hidden="true"></i>Cited Ask</button>
+            </div>
+            <span class="sandbox-badge">Zero install &middot; Sample library</span>
+          </div>
+          <p class="sandbox-status" data-sandbox-status>Loading sample library...</p>
+          <div class="sandbox-view" data-sandbox-view="meeting">
+            <div class="sandbox-audio-bar">
+              <div class="sandbox-audio-head">
+                <span class="sandbox-audio-title" data-sandbox-title>Sample: Orders API delivery window</span>
+                <span class="sandbox-audio-meta" data-sandbox-meta>3m 30s &middot; 2 speakers &middot; Click any timestamp to jump audio</span>
+              </div>
+              <audio class="sandbox-audio" controls preload="none" data-sandbox-audio></audio>
+              <p class="visually-hidden" role="status" aria-live="polite" data-sandbox-audio-status></p>
+            </div>
+            <div class="sandbox-meeting-grid">
+              <div class="sandbox-card">
+                <h3>Recap</h3>
+                <p class="sandbox-recap" data-sandbox-recap></p>
+                <h3>Decisions</h3>
+                <ul class="sandbox-note-list" data-sandbox-decisions></ul>
+                <h3>Action items</h3>
+                <ul class="sandbox-note-list" data-sandbox-actions></ul>
+                <h3>Open question</h3>
+                <ul class="sandbox-note-list" data-sandbox-open></ul>
+              </div>
+              <div class="sandbox-card">
+                <h3>Timestamped transcript</h3>
+                <div class="sandbox-transcript" data-sandbox-turns></div>
+              </div>
+            </div>
+          </div>
+          <div class="sandbox-view" data-sandbox-view="search" hidden>
+            <div class="sandbox-search-controls">
+              <input type="search" class="sandbox-input" data-sandbox-search placeholder="Search sample meetings and screen moments (try ETA, Northwind, Figma, backfill)" aria-label="Search sample library" />
+              <div class="sandbox-chips">
+                <button type="button" class="sandbox-chip is-active" data-sandbox-filter="all">All</button>
+                <button type="button" class="sandbox-chip" data-sandbox-filter="meeting">Meetings</button>
+                <button type="button" class="sandbox-chip" data-sandbox-filter="screen">Screen moments</button>
+                <button type="button" class="sandbox-chip" data-sandbox-query="ETA">ETA</button>
+                <button type="button" class="sandbox-chip" data-sandbox-query="Northwind">Northwind</button>
+                <button type="button" class="sandbox-chip" data-sandbox-query="Figma">Figma</button>
+                <button type="button" class="sandbox-chip" data-sandbox-query="backfill">backfill</button>
+              </div>
+            </div>
+            <div class="sandbox-results" data-sandbox-results></div>
+          </div>
+          <div class="sandbox-view" data-sandbox-view="ask" hidden>
+            <div class="sandbox-chips" data-sandbox-ask-presets></div>
+            <form class="sandbox-ask-form" data-sandbox-ask-form>
+              <input type="text" class="sandbox-input" data-sandbox-ask-input placeholder="Ask about the sample meetings (e.g. latency, 15% discount, backfill)" aria-label="Ask the sample library" />
+              <button type="submit" class="btn btn--primary btn--sm">Ask</button>
+            </form>
+            <div class="sandbox-answer" data-sandbox-answer></div>
+          </div>
+        </div>
       </figure>
     </section>
 
@@ -416,7 +487,7 @@
           <p>Free local dictation, plus meeting notes and recall. For transcribing existing files, MacWhisper is better.</p>
         </article>
       </div>
-      <p class="home-compare__note">Competitor details were last verified on October 26, 2026. <a href="guides#compare">All comparisons</a> &middot; <a href="granola-otter-alternatives-linux-windows">Alternatives for Linux and Windows</a></p>
+      <p class="home-compare__note">Competitor details were last verified on October 26, 2026. <a href="migrate">Migrate exports offline</a> &middot; <a href="calculator">Calculate SaaS savings</a> &middot; <a href="guides#compare">All comparisons</a> &middot; <a href="granola-otter-alternatives-linux-windows">Alternatives for Linux and Windows</a></p>
     </section>
 
     <section class="section home-privacy" id="proof" aria-labelledby="privacy-title">
@@ -506,25 +577,25 @@
 <span class="c-op"># Or search from any shell or agent</span>
 <span class="c-prompt">$</span> lokalbot-cli search <span class="c-str">"database decision"</span>
 <span class="c-prompt">$</span> lokalbot-cli actions <span class="c-flag">--owner</span> me</pre>
-        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="claude-code-codex-plugins">Claude Code and Codex plugins</a> <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">Raycast extension</a></p>
+        <p class="home-agents__links"><a href="claude-code-codex-meeting-notes">Set up agent access</a> <a href="claude-code-codex-plugins">Claude Code and Codex plugins</a> <a href="wrapped">Agent Wrapped 2026</a> <a href="https://www.raycast.com/stevan_bogosavljevic/lokalbot" target="_blank" rel="noopener">Raycast extension</a></p>
       </div>
     </section>
 
     <section class="section home-how" id="how" aria-labelledby="how-title">
       <header class="section__head">
-        <p class="eyebrow">Under the hood</p>
+        <p class="eyebrow">Local models</p>
         <h2 class="section__title" id="how-title">A small AI team on your computer.</h2>
-        <p class="section__lead">Each job has its own local model, downloaded when its job needs it. Setup fetches speech and notes, about 5.3 GB on a Mac. Autocomplete is optional, search by meaning downloads on first use, and screen text uses Apple Vision, built into macOS. With every role on, the Mac defaults come to about 9.6 GB. Windows and Linux use their own, about 4 GB by default.</p>
+        <p class="section__lead">Each job has its own local model, downloaded when its job needs it. Setup fetches our Apache-2.0 fine-tuned speech and notes models, about 5.3 GB on a Mac. Autocomplete is optional, search by meaning downloads on first use, and screen text uses Apple Vision, built into macOS. With every role on, the Mac defaults come to about 9.6 GB. Windows and Linux use about 4 GB by default.</p>
       </header>
       <ul class="home-models">
         <li><span class="home-models__job">Knows who's talking</span><strong>Nemotron 3</strong><span class="home-models__size">0.2 GB</span></li>
-        <li><span class="home-models__job">Turns speech into text</span><strong>Qwen3-ASR 1.7B</strong><span class="home-models__size">2.52 GB &middot; at setup</span></li>
-        <li><span class="home-models__job">Writes the recap and answers</span><strong>Qwen3.5 4B</strong><span class="home-models__size">2.74 GB &middot; at setup</span></li>
-        <li><span class="home-models__job">Finishes your sentences</span><strong>Gemma 4 E2B</strong><span class="home-models__size">3.85 GB &middot; optional</span></li>
+        <li><span class="home-models__job">Turns speech into text</span><strong>Qwen3-ASR 1.7B LokalBot v3</strong><span class="home-models__size">2.52 GB &middot; at setup</span></li>
+        <li><span class="home-models__job">Writes the recap and answers</span><strong>Qwen3.5 4B LokalBot v4</strong><span class="home-models__size">2.74 GB &middot; at setup</span></li>
+        <li><span class="home-models__job">Finishes your sentences</span><strong>Gemma 4 E2B LokalBot v4</strong><span class="home-models__size">3.85 GB &middot; optional</span></li>
         <li><span class="home-models__job">Searches by meaning</span><strong>EmbeddingGemma 2</strong><span class="home-models__size">0.31 GB &middot; on first use</span></li>
         <li><span class="home-models__job">Reads screen text, if you opt in</span><strong>Apple Vision</strong><span class="home-models__size">Built into macOS</span></li>
       </ul>
-      <p class="home-how__links"><a href="https://github.com/stevyhacker/lokalbot/blob/master/DEVELOPMENT.md" target="_blank" rel="noopener">Technical deep dive</a> <a href="benchmarks">Model benchmarks</a></p>
+      <p class="home-how__links"><a href="hardware">Check what fits your RAM</a> <a href="benchmarks">Model benchmarks</a> <a href="calculator">SaaS cost calculator</a> <a href="https://github.com/stevyhacker/lokalbot/blob/master/DEVELOPMENT.md" target="_blank" rel="noopener">Technical deep dive</a></p>
     </section>
 
     <section class="section home-platforms" id="windows-linux" aria-labelledby="platforms-title">
@@ -637,8 +708,8 @@
           <i class="ph ph-apple-logo" aria-hidden="true"></i>
           Download for Mac
         </a>
-        <p class="download__sub" data-download-req data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh; updates then come through the app. The release page also has a .deb, an .rpm for Fedora, which apt or dnf keep updated, and an Arch package.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
-        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
+        <p class="download__sub" data-download-req data-linux-packages data-req-windows="Run the installer; it needs no administrator rights. It isn't code-signed yet, so Windows asks first." data-req-linux="Extract the archive and run ./install.sh; updates then come through the app. The release page also has a .deb, an .rpm for Fedora, which apt or dnf keep updated, and an Arch package.">.dmg installer &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="/dl/mac" data-download-alt data-asset="mac">macOS</a> &middot; <a href="/dl/windows" data-download-alt data-asset="windows">Windows</a> &middot; Linux (alpha): <a href="/dl/linux-deb" data-download-alt data-asset="linux-deb">.deb</a>, <a href="/dl/linux-rpm" data-download-alt data-asset="linux-rpm">.rpm</a>, <a href="/dl/linux" data-download-alt data-asset="linux">.tar.gz</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Release notes</a></p>
         <p class="home-download__setup">Apple Silicon (M1 or later) with macOS 15+ &middot; Windows 10 or 11, x64 &middot; Linux x86_64<br />Windows and Linux are in alpha. Models download during setup. <strong>Try a sample meeting</strong> before you record.</p>
         <p class="home-download__help"><a href="system-requirements">System requirements</a> &middot; <a href="migrate">Import from Granola, Otter &amp; Fireflies</a> &middot; <a href="support">Setup help and feedback</a></p>
       </div>
@@ -688,6 +759,7 @@
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
@@ -722,6 +794,17 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span class="footer__langs-label">Languages</span>
+      <a href="/de" hreflang="de">Deutsch</a>
+      <a href="/zh" hreflang="zh-Hans">中文</a>
+      <a href="/ja" hreflang="ja">日本語</a>
+      <a href="/ru" hreflang="ru">Русский</a>
+      <a href="/fr" hreflang="fr">Français</a>
+      <a href="/es" hreflang="es">Español</a>
+      <a href="/ko" hreflang="ko">한국어</a>
+      <a href="/pt" hreflang="pt">Português</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>
