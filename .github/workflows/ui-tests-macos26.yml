@@ -6,7 +6,8 @@
 # runs, 2 green) and competed with the required gates for macOS 26 runners.
 # Run it for a branch with `gh workflow run ui-tests-macos26.yml --ref BRANCH`.
 # Restore the pull_request and push triggers, and make it required, once the
-# known failures are fixed.
+# known failures are fixed. Weekly and dispatch runs are only on
+# stevyhacker/LokalBot.
 
 name: UI Tests (macOS 26)
 
@@ -25,6 +26,7 @@ permissions:
 jobs:
   macos26:
     name: macOS 26
+    if: github.repository == 'stevyhacker/LokalBot'
     uses: ./.github/workflows/ui-tests.yml
     with:
       runner: macos-26

@@ -4,7 +4,8 @@
 # directory's 50 MiB compressed limit. The directory follows that repository's
 # default branch, so each sync is picked up and scanned there.
 #
-# Runs on master pushes that change the plugin, and by hand:
+# Runs on master pushes that change the plugin, and by hand, only on
+# stevyhacker/LokalBot:
 #   gh workflow run claude-plugin-sync.yml
 #
 # CLAUDE_PLUGIN_DEPLOY_KEY is a deploy key with write access to that one
@@ -32,6 +33,7 @@ permissions:
 jobs:
   sync:
     name: Copy the plugin to its own repository
+    if: github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

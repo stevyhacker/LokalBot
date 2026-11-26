@@ -117,7 +117,7 @@ jobs:
             $url = [regex]::Match($installer, '(?m)^\s*InstallerUrl:\s*(\S+)').Groups[1].Value
             $sha = [regex]::Match($installer, '(?m)^\s*InstallerSha256:\s*(\S+)').Groups[1].Value
             $tag, $name = ($url -split '/')[-2, -1]
-            $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" | ConvertFrom-Json
+            $release = gh api "repos/stevyhacker/LokalBot/releases/tags/$tag" | ConvertFrom-Json
             $published = ($release.assets | Where-Object name -eq $name).digest -replace '^sha256:'
             if ($published -ne $sha) { throw "InstallerSha256 $sha is not the release's $published" }
             "$dir is valid; $url has SHA-256 $published"
@@ -188,7 +188,7 @@ jobs:
 
   submit:
     name: Submit to winget-pkgs
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
     runs-on: windows-2025
     timeout-minutes: 20
     defaults:

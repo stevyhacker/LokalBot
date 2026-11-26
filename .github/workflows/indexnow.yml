@@ -1,5 +1,6 @@
 # Notify IndexNow search engines (Bing / ChatGPT Search, Yandex, Naver, Seznam)
-# when production website assets change on master.
+# when production website assets change on master. Runs only on
+# stevyhacker/LokalBot so a fork's master push does not ping production.
 
 name: IndexNow
 
@@ -20,6 +21,7 @@ permissions:
 jobs:
   submit:
     name: Submit sitemap to IndexNow
+    if: github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

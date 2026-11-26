@@ -9,9 +9,9 @@
 # namespace, so there is no secret and nothing to set up. A version the
 # registry already has is skipped: published versions can't be changed.
 #
-# The bundle is always attached. The registry step is skipped, with a notice,
-# in a repository whose owner the entry's namespace doesn't name (a fork), or
-# while the MCP_REGISTRY_PUBLISH repository variable is `false`.
+# Non-PR jobs run only on stevyhacker/LokalBot. Pull request checks still run
+# on forks, against that repository's releases. The registry step is also
+# skipped, with a notice, while MCP_REGISTRY_PUBLISH is `false`.
 #
 #   gh workflow run mcp-registry.yml -f tag=v0.12.2   (publish a release by hand)
 #
@@ -84,20 +84,21 @@ jobs:
       - name: Check the bundle it names
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: stevyhacker/LokalBot
         run: |
           version=$(jq -r .version "$SERVER_JSON")
           url=$(jq -r '.packages[0].identifier' "$SERVER_JSON")
           sha=$(jq -r '.packages[0].fileSha256' "$SERVER_JSON")
-          expected="https://github.com/$GITHUB_REPOSITORY/releases/download/v$version/LokalBot.mcpb"
+          expected="https://github.com/$RELEASE_REPOSITORY/releases/download/v$version/LokalBot.mcpb"
           [ "$url" = "$expected" ] || { echo "::error::identifier is $url, not $expected"; exit 1; }
-          digest=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/v$version" \
+          digest=$(gh api "repos/$RELEASE_REPOSITORY/releases/tags/v$version" \
             --jq '.assets[] | select(.name == "LokalBot.mcpb") | .digest')
           [ "$digest" = "sha256:$sha" ] || { echo "::error::fileSha256 $sha is not the release's ${digest:-missing bundle}"; exit 1; }
           echo "$url has SHA-256 $sha"
 
   bundle:
     name: Attach LokalBot.mcpb
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
@@ -164,7 +165,7 @@ jobs:
   publish:
     name: Publish to the MCP Registry
     needs: bundle
-    if: needs.bundle.outputs.publish == 'true'
+    if: needs.bundle.outputs.publish == 'true' && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

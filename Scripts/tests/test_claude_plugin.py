@@ -104,6 +104,7 @@ class ClaudePluginTests(unittest.TestCase):
         self.assertIn('"Distribution/claude-plugin/**"', workflow)
         self.assertIn("rsync -a --delete --exclude .git Distribution/claude-plugin/", workflow)
         self.assertIn("git@github.com:stevyhacker/lokalbot-claude-plugin.git", workflow)
+        self.assertIn("if: github.repository == 'stevyhacker/LokalBot'", workflow)
         self.assertEqual(re.findall(r"runs-on: (.+)", workflow), ["ubuntu-24.04"])
 
     def test_readme_lists_every_mcp_tool(self):

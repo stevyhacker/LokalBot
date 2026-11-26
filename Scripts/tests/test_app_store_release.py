@@ -408,6 +408,9 @@ class AppStoreWorkflowTests(unittest.TestCase):
     def test_the_build_sees_no_secret_and_signing_runs_no_build(self):
         self.assertNotIn("secrets.", self.archive)
         self.assertIn("CODE_SIGNING_ALLOWED=NO", self.archive)
+        self.assertNotIn("github.repository == 'stevyhacker/LokalBot'", self.archive.split("    steps:", 1)[0])
+        self.assertIn("if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'",
+                      self.publish.split("    steps:", 1)[0])
         self.assertIn("runs-on: macos-26", self.archive)
         self.assertIn("runs-on: macos-26", self.publish)
         for build_tool in ("xcodegen", "cargo", "lokalbot-sync", "xcodebuild archive", "brew "):
@@ -496,7 +499,7 @@ class AppStoreWorkflowTests(unittest.TestCase):
 
     def test_release_calls_the_workflow_only_when_switched_on_for_stable_tags(self):
         call = self.release.split("\n  ios-app-store:\n", 1)[1].split("\n\n", 1)[0]
-        self.assertIn("if: github.event_name == 'push' && !contains(github.ref_name, '-') "
+        self.assertIn("if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-') "
                       "&& vars.APP_STORE_PUBLISH == 'true'", call)
         self.assertIn("needs: release", call)
         self.assertIn("uses: ./.github/workflows/app-store.yml", call)

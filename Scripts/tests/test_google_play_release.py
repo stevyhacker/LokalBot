@@ -514,6 +514,9 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
         self.assertIn("runs-on: ubuntu-24.04", bundle_job)
 
         publish_job = self.play_wf.split("\n  publish:\n", 1)[1]
+        self.assertIn("github.repository == 'stevyhacker/LokalBot'", publish_job.split("    steps:", 1)[0])
+        check_job = self.play_wf.split("\n  check:\n", 1)[1].split("\n  bundle:\n", 1)[0]
+        self.assertNotIn("github.repository == 'stevyhacker/LokalBot'", check_job.split("    steps:", 1)[0])
         self.assertIn("runs-on: ubuntu-24.04", publish_job)
         self.assertIn("Companion/android/play-upload-certificate.sha256", publish_job)
         self.assertIn("Scripts/release/sign-android-bundle.sh", publish_job)
@@ -704,7 +707,7 @@ class GooglePlayWorkflowBoundaryTests(unittest.TestCase):
 
     def test_release_workflow_wires_google_play_and_keeps_downstream_linux_windows_jobs_running(self):
         play_call = self.release_wf.split("\n  android-play:\n", 1)[1].split("\n\n", 1)[0]
-        self.assertIn("if: github.event_name == 'push' && !contains(github.ref_name, '-')", play_call)
+        self.assertIn("if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-')", play_call)
         self.assertIn("needs: [release, android]", play_call)
         self.assertIn("uses: ./.github/workflows/google-play.yml", play_call)
         self.assertIn("id-token: write", play_call)
