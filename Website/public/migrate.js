@@ -1007,12 +1007,13 @@
     const trimmed = String(content || "").trim();
     if (!trimmed) return [];
 
-    if (ext === "csv" || looksLikeKnownCsv(trimmed)) {
+    const looksLikeJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+    if (ext === "csv" || (ext !== "json" && !looksLikeJson && looksLikeKnownCsv(trimmed))) {
       const csvMeetings = parseCsvExport(content, fileName);
       if (csvMeetings.length > 0) return csvMeetings;
     }
 
-    if (ext === "json" || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    if (ext === "json" || looksLikeJson) {
       try {
         const parsed = JSON.parse(trimmed);
         if (
@@ -1090,7 +1091,8 @@
       /^#\s*screenpipe\b/im.test(trimmed) ||
       (/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(trimmed) && /\((?:microphone|system|output|input|speaker)/i.test(trimmed))
     ) {
-      return parseScreenpipeMarkdown(content, fileName);
+      const screenpipe = parseScreenpipeMarkdown(content, fileName);
+      if (screenpipe.some(function (meeting) { return meeting.transcript.length > 0; })) return screenpipe;
     }
 
     if (

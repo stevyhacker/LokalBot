@@ -1,6 +1,7 @@
 package me.dotenv.lokalbot.companion.data
 
 import android.util.Log
+import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Base64
@@ -308,14 +309,59 @@ class RustRepository(
     }
 
     override suspend fun retryRecording(id: String) {
-        if (unpairedStore?.contains(id) == true) return
+        if (unpairedStore?.contains(id) == true) {
+            if (migrateLocalRecordings() > 0) sendWaitingRecordings()
+            return
+        }
         core { client.retryRecording(id) }
         recordingsChanged()
         sendWaitingRecordings()
     }
 
+    suspend fun migrateLocalRecordings(): Int {
+        val migrated = uploadLock.withLock { migrateLocalLocked() }
+        if (migrated > 0) recordingsChanged()
+        return migrated
+    }
+
+    private suspend fun migrateLocalLocked(): Int {
+        val store = unpairedStore ?: return 0
+        if (macKey == null || isSample) return 0
+        var migrated = 0
+        for (item in store.waitingForMigration()) {
+            val source = File(item.filePath)
+            if (!source.isFile || source.length() <= 0L) {
+                store.discardRecording(item.id)
+                continue
+            }
+            val queued = core {
+                runCatching {
+                    val created = client.beginRecording(item.title.ifBlank { null })
+                    val destination = File(created.filePath)
+                    destination.parentFile?.mkdirs()
+                    source.copyTo(destination, overwrite = true)
+                    client.finishRecording(created.id, item.durationSeconds ?: 0.0)
+                }.onFailure { Log.w(TAG, "local recording migration failed: ${it::class.simpleName}: ${it.message}") }
+                    .isSuccess
+            }
+            if (!queued) break
+            store.discardRecording(item.id)
+            migrated += 1
+        }
+        return migrated
+    }
+
     override suspend fun uploadRecordings(): UploadOutcome {
-        val outcome = uploadLock.withLock { uploadWaiting() }
+        val outcome = uploadLock.withLock {
+            migrateLocalLocked()
+            val uploaded = uploadWaiting()
+            val unmigrated = if (macKey == null || isSample) 0 else unpairedStore?.waitingForMigration()?.size ?: 0
+            if (uploaded is UploadOutcome.Finished && unmigrated > 0) {
+                uploaded.copy(waiting = uploaded.waiting + unmigrated)
+            } else {
+                uploaded
+            }
+        }
         when {
             outcome is UploadOutcome.Finished && outcome.uploaded > 0 -> sync()
             outcome is UploadOutcome.Failed && outcome.reason == SyncFailure.Revoked -> onRevoked()

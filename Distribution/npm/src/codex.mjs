@@ -154,9 +154,9 @@ async function readRollout(file, meta, parent, collector) {
     const at = Date.parse(record.timestamp);
     const inWindow = collector.inWindow(at);
     if (type === 'token_usage_record') {
-      advance(totals.token_usage_record, payload.thread_token_usage, inWindow);
+      advance(totals.token_usage_record, payload.thread_token_usage, inWindow, currentModel);
     } else if (type === 'event_msg' && payload.type === 'token_count') {
-      advance(totals.token_count, payload.info?.total_token_usage, inWindow);
+      advance(totals.token_count, payload.info?.total_token_usage, inWindow, currentModel);
     }
     if (!inWindow) return;
     const current = touch(at);
@@ -178,7 +178,7 @@ async function readRollout(file, meta, parent, collector) {
   session.tokens.input += used.input;
   session.tokens.cached += used.cached;
   session.tokens.output += used.output;
-  addModelTokens(session, currentModel, used);
+  for (const [model, tokens] of modelShares(used)) addModelTokens(session, model, tokens);
   addActions(session, done.commands ? done.actions : asked.actions);
   session.edits += done.changes ? done.edits : asked.edits;
 }
@@ -263,10 +263,22 @@ function shellCommand(body) {
 }
 
 function newRunningTotal() {
-  return { seen: false, last: null, input: 0, cached: 0, output: 0 };
+  return { seen: false, last: null, input: 0, cached: 0, output: 0, byModel: new Map() };
 }
 
-function advance(running, reading, inWindow) {
+function modelShares(running) {
+  const shares = new Map(running.byModel);
+  const unknown = shares.get('');
+  const first = [...shares.keys()].find((model) => model !== '');
+  if (unknown && first !== undefined) {
+    const into = shares.get(first);
+    shares.set(first, { input: into.input + unknown.input, cached: into.cached + unknown.cached, output: into.output + unknown.output });
+    shares.delete('');
+  }
+  return shares;
+}
+
+function advance(running, reading, inWindow, model) {
   if (!reading || typeof reading !== 'object') return;
   const now = {
     input: number(reading.input_tokens),
@@ -279,9 +291,20 @@ function advance(running, reading, inWindow) {
   running.last = now;
   if (!inWindow) return;
   running.seen = true;
-  running.input += Math.max(0, now.input - base.input);
-  running.cached += Math.max(0, now.cached - base.cached);
-  running.output += Math.max(0, now.output - base.output);
+  const delta = {
+    input: Math.max(0, now.input - base.input),
+    cached: Math.max(0, now.cached - base.cached),
+    output: Math.max(0, now.output - base.output),
+  };
+  running.input += delta.input;
+  running.cached += delta.cached;
+  running.output += delta.output;
+  const key = typeof model === 'string' && model.length > 0 ? model : '';
+  const bucket = running.byModel.get(key) ?? { input: 0, cached: 0, output: 0 };
+  bucket.input += delta.input;
+  bucket.cached += delta.cached;
+  bucket.output += delta.output;
+  running.byModel.set(key, bucket);
 }
 
 function number(value) {

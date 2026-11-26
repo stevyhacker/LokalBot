@@ -14,12 +14,15 @@ public actor UnpairedRecordingsVault {
     private let indexURL: URL
     private let now: @Sendable () -> Date
     private var entries: [Entry]
+    private var loaded: Bool
 
     public init(directory: URL, now: @escaping @Sendable () -> Date = { Date() }) {
         self.directory = directory
         self.indexURL = directory.appendingPathComponent("index.json")
         self.now = now
-        self.entries = Self.loadEntries(from: directory.appendingPathComponent("index.json"))
+        let entries = try? Self.readEntries(from: directory.appendingPathComponent("index.json"))
+        self.entries = entries ?? []
+        self.loaded = entries != nil
     }
 
     public static func defaultDirectory() throws -> URL {
@@ -27,6 +30,7 @@ public actor UnpairedRecordingsVault {
     }
 
     public func begin(title: String?) throws -> RecordingItem {
+        try ensureLoaded()
         try ensureDirectory()
         let id = UUID().uuidString.lowercased()
         let entry = Entry(
@@ -42,11 +46,12 @@ public actor UnpairedRecordingsVault {
     }
 
     public func finish(id: String, durationSeconds: Double) throws -> RecordingItem {
+        try ensureLoaded()
         guard let index = entries.firstIndex(where: { $0.id == id }) else {
             throw CompanionStoreError.failed("There is no such recording.")
         }
         let path = fileURL(for: id).path
-        let size = Self.fileSize(atPath: path)
+        let size = try Self.fileSize(atPath: path)
         guard size > 0 else {
             entries.remove(at: index)
             try? FileManager.default.removeItem(atPath: path)
@@ -63,6 +68,7 @@ public actor UnpairedRecordingsVault {
     }
 
     public func recover() throws -> Int {
+        try ensureLoaded()
         var kept = 0
         var changed = false
         var remaining: [Entry] = []
@@ -71,9 +77,12 @@ public actor UnpairedRecordingsVault {
                 remaining.append(entry)
                 continue
             }
-            changed = true
             let path = fileURL(for: entry.id).path
-            let size = Self.fileSize(atPath: path)
+            guard let size = try? Self.fileSize(atPath: path) else {
+                remaining.append(entry)
+                continue
+            }
+            changed = true
             if size > 0 {
                 entry.state = .waiting
                 entry.byteCount = size
@@ -91,6 +100,7 @@ public actor UnpairedRecordingsVault {
     }
 
     public func discard(id: String) throws {
+        try ensureLoaded()
         entries.removeAll { $0.id == id }
         try? FileManager.default.removeItem(at: fileURL(for: id))
         if FileManager.default.fileExists(atPath: indexURL.path) || !entries.isEmpty {
@@ -99,23 +109,27 @@ public actor UnpairedRecordingsVault {
     }
 
     public func setTitle(id: String, title: String) throws {
+        try ensureLoaded()
         guard let index = entries.firstIndex(where: { $0.id == id }) else { return }
         entries[index].title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         try save()
     }
 
     public func contains(_ id: String) -> Bool {
-        entries.contains { $0.id == id }
+        try? ensureLoaded()
+        return entries.contains { $0.id == id }
     }
 
     public func recordings() -> [RecordingItem] {
-        entries
+        try? ensureLoaded()
+        return entries
             .sorted { $0.startedAt > $1.startedAt }
             .map(item(for:))
     }
 
     public func waitingForMigration() -> [RecordingItem] {
-        entries
+        try? ensureLoaded()
+        return entries
             .filter { $0.state == .waiting }
             .sorted { $0.startedAt < $1.startedAt }
             .map(item(for:))
@@ -123,6 +137,7 @@ public actor UnpairedRecordingsVault {
 
     public func removeAll() throws {
         entries = []
+        loaded = true
         if FileManager.default.fileExists(atPath: directory.path) {
             try FileManager.default.removeItem(at: directory)
         }
@@ -165,15 +180,24 @@ public actor UnpairedRecordingsVault {
         try data.write(to: indexURL, options: .atomic)
     }
 
-    private static func loadEntries(from url: URL) -> [Entry] {
-        guard let data = try? Data(contentsOf: url),
-              let decoded = try? CompanionJSON.decoder().decode([Entry].self, from: data) else {
-            return []
-        }
-        return decoded
+    private func ensureLoaded() throws {
+        guard !loaded else { return }
+        entries = try Self.readEntries(from: indexURL)
+        loaded = true
     }
 
-    private static func fileSize(atPath path: String) -> Int64 {
-        (try? FileManager.default.attributesOfItem(atPath: path)[.size] as? Int64) ?? 0
+    private static func readEntries(from url: URL) throws -> [Entry] {
+        guard FileManager.default.fileExists(atPath: url.path) else { return [] }
+        let data = try Data(contentsOf: url)
+        return try CompanionJSON.decoder().decode([Entry].self, from: data)
+    }
+
+    private static func fileSize(atPath path: String) throws -> Int64 {
+        guard FileManager.default.fileExists(atPath: path) else { return 0 }
+        let attributes = try FileManager.default.attributesOfItem(atPath: path)
+        guard let size = attributes[.size] as? NSNumber else {
+            throw CompanionStoreError.failed("The recording's size could not be read.")
+        }
+        return size.int64Value
     }
 }

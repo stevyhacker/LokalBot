@@ -92,8 +92,12 @@ class AppContainer(private val app: Application) {
                 runCatching { client.discardRecording(id) }
                 val remaining = unsentRecordings(client)
                 client.close()
-                _revokedRecordings.value = remaining
-                if (remaining.isEmpty()) eraseFiles()
+                if (remaining == null) {
+                    _revokedRecordings.value = _revokedRecordings.value.filterNot { it.id == id }
+                } else {
+                    _revokedRecordings.value = remaining
+                    if (remaining.isEmpty()) eraseFiles()
+                }
             }
         }
     }
@@ -156,8 +160,8 @@ class AppContainer(private val app: Application) {
                 val cutShort = recorder.isActive
                 if (cutShort) recorder.abort()
                 close(_repository.value)
-                migrateUnpairedRecordings(client)
                 val library = paired(client)
+                library.migrateLocalRecordings()
                 _repository.value = library
                 _revokedRecordings.value = emptyList()
                 preferences.setMode(LibraryMode.Paired)
@@ -222,15 +226,16 @@ class AppContainer(private val app: Application) {
     private suspend fun openPaired(): CompanionRepository? = withContext(Dispatchers.IO) {
         val client = runCatching { openClient(deviceName()) }.getOrNull() ?: return@withContext null
         if (client.pairedMac() == null) {
-            _revokedRecordings.value = unsentRecordings(client)
+            _revokedRecordings.value = unsentRecordings(client).orEmpty()
             client.close()
             preferences.setMode(LibraryMode.None)
             return@withContext null
         }
-        val migrated = migrateUnpairedRecordings(client)
+        val library = paired(client)
+        val migrated = library.migrateLocalRecordings()
         SyncWorker.schedule(app)
-        if (migrated > 0) UploadWorker.enqueue(app)
-        paired(client).also { recorder.recoverIfIdle(it) }
+        if (migrated > 0 || unpairedRecordings.waitingForMigration().isNotEmpty()) UploadWorker.enqueue(app)
+        library.also { recorder.recoverIfIdle(it) }
     }
 
     private fun paired(client: SyncClient): RustRepository {
@@ -255,9 +260,9 @@ class AppContainer(private val app: Application) {
             library.close()
             val held = runCatching { openClient(deviceName()) }.getOrNull()?.let { client ->
                 unsentRecordings(client).also { client.close() }
-            }.orEmpty()
-            _revokedRecordings.value = held
-            if (held.isEmpty()) eraseFiles()
+            }
+            _revokedRecordings.value = held.orEmpty()
+            if (held != null && held.isEmpty()) eraseFiles()
         }
         SyncWorker.cancel(app)
         UploadWorker.cancel(app)
@@ -265,39 +270,13 @@ class AppContainer(private val app: Application) {
         _removedByMac.value = true
     }
 
-    private suspend fun migrateUnpairedRecordings(client: SyncClient): Int {
-        var migrated = 0
-        for (item in unpairedRecordings.waitingForMigration()) {
-            val source = File(item.filePath)
-            if (!source.isFile || source.length() <= 0L) {
-                unpairedRecordings.discardRecording(item.id)
-                continue
-            }
-            val queued = runCatching {
-                val created = client.beginRecording(item.title.ifBlank { null })
-                val destination = File(created.filePath)
-                destination.parentFile?.mkdirs()
-                source.copyTo(destination, overwrite = true)
-                client.finishRecording(created.id, item.durationSeconds ?: 0.0)
-                true
-            }.getOrDefault(false)
-            if (queued) {
-                unpairedRecordings.discardRecording(item.id)
-                migrated += 1
-            } else {
-                break
-            }
-        }
-        return migrated
-    }
-
-    private fun unsentRecordings(client: SyncClient): List<DeviceRecording> {
+    private fun unsentRecordings(client: SyncClient): List<DeviceRecording>? {
         runCatching { client.recoverRecordings() }
         return runCatching {
             client.recordings()
                 .filter { it.state != "uploaded" }
                 .map(::toDeviceRecording)
-        }.getOrDefault(emptyList())
+        }.getOrNull()
     }
 
     private fun toDeviceRecording(info: RecordingInfo) = DeviceRecording(

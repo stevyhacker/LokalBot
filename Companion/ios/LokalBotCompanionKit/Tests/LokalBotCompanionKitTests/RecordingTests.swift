@@ -326,6 +326,23 @@ struct UnpairedRecordingsVaultTests {
         #expect(!FileManager.default.fileExists(atPath: directory.path))
     }
 
+    @Test func anUnreadableIndexIsNeverReplaced() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unpaired-vault-corrupt-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let index = directory.appendingPathComponent("index.json")
+        let original = Data("[{\"id\":".utf8)
+        try original.write(to: index)
+
+        let vault = UnpairedRecordingsVault(directory: directory)
+        #expect(await vault.recordings().isEmpty)
+        await #expect(throws: (any Error).self) {
+            try await vault.begin(title: "New")
+        }
+        #expect(try Data(contentsOf: index) == original)
+    }
+
     @Test func finishingEmptyFileRejectsAndCleansUp() async throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("unpaired-vault-empty-\(UUID().uuidString)", isDirectory: true)

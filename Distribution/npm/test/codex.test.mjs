@@ -141,6 +141,24 @@ test('subagent threads add to the session a person started', async (t) => {
   assert.equal(reviewer.tokens.output, 5);
 });
 
+test('tokens are credited to the model that used them', async (t) => {
+  const root = temporaryFolder(t);
+  writeLines(rollout(root, PARENT), [
+    meta(at(3, 14, 9, 0), PARENT),
+    tokens(at(3, 14, 9, 0, 1), 40, 0, 4),
+    line(at(3, 14, 9, 0, 2), 'turn_context', { cwd: CWD, model: 'model-a' }),
+    tokens(at(3, 14, 9, 0, 3), 100, 0, 10),
+    line(at(3, 14, 9, 0, 4), 'turn_context', { cwd: CWD, model: 'model-b' }),
+    tokens(at(3, 14, 9, 0, 5), 300, 0, 30),
+  ]);
+  const collector = await collect(root);
+  const session = collector.sessions.get(`codex:${PARENT}`);
+  assert.equal(session.tokens.input, 300);
+  assert.deepEqual([...session.modelTokens.keys()].sort(), ['model-a', 'model-b']);
+  assert.equal(session.modelTokens.get('model-a').input, 100);
+  assert.equal(session.modelTokens.get('model-b').input, 200);
+});
+
 test('a running total that starts again is counted in full', async (t) => {
   const root = temporaryFolder(t);
   writeLines(rollout(root, PARENT), [

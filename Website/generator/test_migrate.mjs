@@ -199,6 +199,17 @@ test("Screenpipe, Microsoft Teams VTT, Krisp, Tactiq, and Wispr Flow parsers wor
   assert.equal(spMdMeetings[0].source, "Screenpipe");
   assert.equal(spMdMeetings[0].transcript.length, 2);
 
+  const spProse = M.parseFile("screenpipe-notes.md", "# Daily notes\n\nReviewed the search plan with Ana.\n");
+  assert.equal(spProse.length, 1);
+  assert.equal(spProse[0].title, "Daily notes");
+  assert.equal(spProse[0].summary, "Reviewed the search plan with Ana.");
+
+  const minifiedJson = '[{"title":"One","transcript":"Ana: hello"},\n{"title":"Two","transcript":"Ivan: hi"}]';
+  const minifiedMeetings = M.parseFile("export.json", minifiedJson);
+  assert.equal(minifiedMeetings.length, 2);
+  assert.ok(minifiedMeetings.every(function (meeting) { return meeting.transcript.length > 0; }));
+  assert.equal(M.parseFile("export.txt", minifiedJson).length, 2);
+
   const teamsVtt = [
     "WEBVTT",
     "",

@@ -321,6 +321,15 @@ class RecordingTest {
             assertThat(File(first.filePath).exists()).isFalse()
             assertThat(reopened.recordings.value.map { it.id }).containsExactly(crashed.id)
 
+            tick = tick.plusSeconds(60)
+            val active = reopened.beginRecording("Live")
+            File(active.filePath).writeBytes(byteArrayOf(8, 9))
+            reopened.clearAll()
+            assertThat(reopened.recordings.value.map { it.id }).containsExactly(active.id)
+            assertThat(File(crashed.filePath).exists()).isFalse()
+            assertThat(File(active.filePath).exists()).isTrue()
+            assertThat(reopened.finishRecording(active.id, 12.0)).isTrue()
+
             reopened.clearAll()
             assertThat(reopened.recordings.value).isEmpty()
             assertThat(dir.exists()).isFalse()

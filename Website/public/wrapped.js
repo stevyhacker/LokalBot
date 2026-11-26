@@ -21,6 +21,8 @@
   const INACTIVITY_GAP = 10 * MINUTE;
   const ACTIVE_GAP_CAP = 5 * MINUTE;
   const PARALLEL_MINIMUM = MINUTE;
+  const MAX_IMPORT_FILE_BYTES = 64 * 1024 * 1024;
+  const MAX_IMPORT_TOTAL_BYTES = 256 * 1024 * 1024;
   const CARD_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const AGENTS = {
@@ -1129,7 +1131,19 @@
     return null;
   }
 
-  function advanceRunningTotal(running, reading, inWindow) {
+  function modelShares(running) {
+    const shares = new Map(running.byModel);
+    const unknown = shares.get('');
+    const first = [...shares.keys()].find((model) => model !== '');
+    if (unknown && first !== undefined) {
+      const into = shares.get(first);
+      shares.set(first, { input: into.input + unknown.input, cached: into.cached + unknown.cached, output: into.output + unknown.output });
+      shares.delete('');
+    }
+    return shares;
+  }
+
+  function advanceRunningTotal(running, reading, inWindow, model) {
     if (!reading || typeof reading !== 'object') return;
     const now = {
       input: positiveNum(reading.input_tokens),
@@ -1142,9 +1156,20 @@
     running.last = now;
     if (!inWindow) return;
     running.seen = true;
-    running.input += Math.max(0, now.input - base.input);
-    running.cached += Math.max(0, now.cached - base.cached);
-    running.output += Math.max(0, now.output - base.output);
+    const delta = {
+      input: Math.max(0, now.input - base.input),
+      cached: Math.max(0, now.cached - base.cached),
+      output: Math.max(0, now.output - base.output),
+    };
+    running.input += delta.input;
+    running.cached += delta.cached;
+    running.output += delta.output;
+    const key = typeof model === 'string' && model.length > 0 ? model : '';
+    const bucket = running.byModel.get(key) ?? { input: 0, cached: 0, output: 0 };
+    bucket.input += delta.input;
+    bucket.cached += delta.cached;
+    bucket.output += delta.output;
+    running.byModel.set(key, bucket);
   }
 
   function extractTextContent(content) {
@@ -1286,8 +1311,8 @@
     const asked = { actions: emptyActions(), edits: 0 };
     const done = { actions: emptyActions(), edits: 0, commands: false, changes: false };
     const totals = {
-      token_count: { seen: false, last: null, input: 0, cached: 0, output: 0 },
-      token_usage_record: { seen: false, last: null, input: 0, cached: 0, output: 0 },
+      token_count: { seen: false, last: null, input: 0, cached: 0, output: 0, byModel: new Map() },
+      token_usage_record: { seen: false, last: null, input: 0, cached: 0, output: 0, byModel: new Map() },
     };
 
     const touch = (at) => {
@@ -1334,9 +1359,9 @@
       if (Number.isFinite(at)) yearsSeen.add(new Date(at).getFullYear());
       const inWindow = collector.inWindow(at);
       if (type === 'token_usage_record') {
-        advanceRunningTotal(totals.token_usage_record, payload.thread_token_usage, inWindow);
+        advanceRunningTotal(totals.token_usage_record, payload.thread_token_usage, inWindow, currentModel);
       } else if (type === 'event_msg' && payload.type === 'token_count') {
-        advanceRunningTotal(totals.token_count, payload.info?.total_token_usage, inWindow);
+        advanceRunningTotal(totals.token_count, payload.info?.total_token_usage, inWindow, currentModel);
       }
       if (!inWindow) continue;
 
@@ -1408,7 +1433,7 @@
     session.tokens.input += used.input;
     session.tokens.cached += used.cached;
     session.tokens.output += used.output;
-    addModelTokens(session, currentModel, used);
+    for (const [model, tokens] of modelShares(used)) addModelTokens(session, model, tokens);
     addActions(session, done.commands ? done.actions : asked.actions);
     session.edits += done.changes ? done.edits : asked.edits;
   }
@@ -1685,6 +1710,7 @@
         const toolCalls = positiveNum(entry.toolCallCount);
         const messages = positiveNum(entry.messageCount);
         if (sessionsCount === 0 && toolCalls === 0 && messages === 0) continue;
+        collector.cacheMessages = (collector.cacheMessages ?? 0) + messages;
 
         const estMinutes = Math.min(480, Math.max(15, Math.round(sessionsCount * 20 + toolCalls * 0.45 + messages * 0.3)));
         const baseDate = new Date(year, m - 1, d, peakHour, 0, 0, 0).getTime();
@@ -1700,9 +1726,8 @@
             const stamp = Math.min(collector.end - 1000, start + step * 4 * MINUTE);
             session.times.push(stamp);
           }
+          session.replies = 1;
           if (s === 0) {
-            session.prompts = messages > 0 ? Math.max(1, Math.round(messages / 2)) : sessionsCount;
-            session.replies = session.prompts;
             session.toolCalls = toolCalls;
             if (dayModelMap && dayModelMap.size > 0) {
               tokensAttributed = true;
@@ -1713,12 +1738,10 @@
                 session.tokens.input += input;
                 session.tokens.cached += cached;
                 session.tokens.output += output;
-                bump(session.models, model, session.prompts);
+                bump(session.models, model, sessionsCount);
                 addModelTokens(session, model, { input, cached, cacheWrite: 0, output });
               }
             }
-          } else {
-            session.replies = 1;
           }
         }
       }
@@ -1797,6 +1820,7 @@
       summaryDays: cacheOnly ? new Map() : summaryDays,
     });
     result.stats.cacheOnly = cacheOnly;
+    if (cacheOnly) result.stats.cacheMessages = collector.cacheMessages ?? 0;
     return { result, yearsSeen: [...yearsSeen].sort((a, b) => b - a), cacheOnly };
   }
 
@@ -1961,12 +1985,12 @@
     const tiles = [];
     const hrs = cardHours(totals.agentMs);
     const daysText = cardPlural(totals.activeDays, 'day');
-    const parallelText = (totals.parallelMultiplier ?? 1) >= 1.2
+    const parallelText = !stats.cacheOnly && (totals.parallelMultiplier ?? 1) >= 1.2
       ? `${daysText} · ${cardMultiplier(totals.parallelMultiplier)} parallel`
       : `${daysText} active`;
     tiles.push({
       label: stats.cacheOnly ? 'EST. AGENT WORK' : 'AGENT WORK',
-      value: `${hrs} h`,
+      value: stats.cacheOnly ? `~${hrs} h` : `${hrs} h`,
       sub: parallelText,
       highlight: true,
     });
@@ -1990,7 +2014,7 @@
       tiles.push({
         label: 'SESSIONS',
         value: cardNumber(totals.sessions),
-        sub: stats.longestRun ? `Longest ${cardDuration(stats.longestRun.ms)}` : 'Logged locally',
+        sub: stats.longestRun && !stats.cacheOnly ? `Longest ${cardDuration(stats.longestRun.ms)}` : 'Logged locally',
       });
     }
 
@@ -1998,7 +2022,9 @@
     tiles.push({
       label: 'TOOL CALLS',
       value: toolDisplay,
-      sub: `${cardNumber(totals.requests)} ${totals.requests === 1 ? 'request' : 'requests'}`,
+      sub: stats.cacheOnly
+        ? cardPlural(stats.cacheMessages ?? 0, 'message')
+        : `${cardNumber(totals.requests)} ${totals.requests === 1 ? 'request' : 'requests'}`,
     });
 
     if (totals.commits > 0 && totals.pullRequestsMerged > 0) {
@@ -2178,9 +2204,10 @@
 
     if (busiest) {
       const peakMaxW = Math.max(200, swatchesStartX - 58 - (x + padX));
+      const approx = stats.cacheOnly ? '~' : '';
       const peakText = compact
-        ? `Peak · ${cardDayLabel(busiest.date)} · ${cardHours(busiest.agentMs)}h (${cardPlural(busiest.sessions, 'session')})`
-        : `Peak · ${cardDayLabel(busiest.date)} · ${cardHours(busiest.agentMs)} agent hours across ${cardPlural(busiest.sessions, 'session')}`;
+        ? `Peak · ${cardDayLabel(busiest.date)} · ${approx}${cardHours(busiest.agentMs)}h (${cardPlural(busiest.sessions, 'session')})`
+        : `Peak · ${cardDayLabel(busiest.date)} · ${approx}${cardHours(busiest.agentMs)} agent hours across ${cardPlural(busiest.sessions, 'session')}`;
       parts.push(`<circle cx="${x + padX + 6}" cy="${footerY - 5}" r="5" fill="${pal.cellPeak}"/>`);
       parts.push(svgText(x + padX + 20, footerY, peakText, {
         family: 'mono', size: svgFit(peakText, compact ? 14 : 16, peakMaxW, CARD_MONO_EM), fill: pal.amber, weight: 600,
@@ -2375,18 +2402,27 @@
   function cardFactLines(stats, { showApiValue = true } = {}) {
     const { totals } = stats;
     const worked = cardHours(totals.agentMs);
-    const first = [
-      [worked, true],
-      [worked === '1' ? ' hour of agent work on ' : ' hours of agent work on '],
-      [cardNumber(totals.activeDays), true],
-      [totals.activeDays === 1 ? ' day' : ' days'],
-    ];
-    if ((totals.parallelMultiplier ?? 1) >= 1.2) {
+    const first = stats.cacheOnly
+      ? [
+        [`~${worked}`, true],
+        [worked === '1' ? ' estimated hour of agent work on ' : ' estimated hours of agent work on '],
+        [cardNumber(totals.activeDays), true],
+        [totals.activeDays === 1 ? ' day' : ' days'],
+      ]
+      : [
+        [worked, true],
+        [worked === '1' ? ' hour of agent work on ' : ' hours of agent work on '],
+        [cardNumber(totals.activeDays), true],
+        [totals.activeDays === 1 ? ' day' : ' days'],
+      ];
+    if (!stats.cacheOnly && (totals.parallelMultiplier ?? 1) >= 1.2) {
       first.push([' · '], [cardMultiplier(totals.parallelMultiplier), true], [' parallel']);
     }
     const lines = [
       first,
-      [[cardNumber(totals.requests), true], [totals.requests === 1 ? ' request from you, ' : ' requests from you, '], [cardNumber(totals.toolCalls), true], [' tool calls from them']],
+      stats.cacheOnly
+        ? [[cardNumber(totals.sessions), true], [totals.sessions === 1 ? ' session, ' : ' sessions, '], [cardNumber(stats.cacheMessages ?? 0), true], [(stats.cacheMessages ?? 0) === 1 ? ' message, ' : ' messages, '], [cardNumber(totals.toolCalls), true], [' tool calls']]
+        : [[cardNumber(totals.requests), true], [totals.requests === 1 ? ' request from you, ' : ' requests from you, '], [cardNumber(totals.toolCalls), true], [' tool calls from them']],
     ];
     if (totals.tokens.total > 0) {
       const tokenLine = [[cardCompact(totals.tokens.input), true], [' tokens read, '], [cardCompact(totals.tokens.output), true], [' written']];
@@ -2399,7 +2435,7 @@
       lines.push([[cardNumber(totals.commits), true], [totals.commits === 1 ? ' commit and ' : ' commits and '], [cardNumber(totals.pullRequestsMerged), true], [totals.pullRequestsMerged === 1 ? ' merged pull request' : ' merged pull requests']]);
     } else if (totals.commits > 0) {
       lines.push([[cardNumber(totals.commits), true], [totals.commits === 1 ? ' commit across ' : ' commits across '], [cardNumber(totals.filesChanged), true], [totals.filesChanged === 1 ? ' changed file' : ' changed files']]);
-    } else if (stats.longestRun) {
+    } else if (stats.longestRun && !stats.cacheOnly) {
       lines.push([[cardNumber(totals.sessions), true], [totals.sessions === 1 ? ' session, the longest run ' : ' sessions, the longest run '], [cardDuration(stats.longestRun.ms), true]]);
     }
     return lines;
@@ -2567,8 +2603,10 @@
 
   function cardShareCaption(stats, { showApiValue = true } = {}) {
     const { totals } = stats;
-    const bits = [`${cardHours(totals.agentMs)} agent hours on ${cardPlural(totals.activeDays, 'day')}`];
-    if ((totals.parallelMultiplier ?? 1) >= 1.2) bits[0] += ` (${cardMultiplier(totals.parallelMultiplier)} parallel)`;
+    const bits = stats.cacheOnly
+      ? [`~${cardHours(totals.agentMs)} estimated agent hours on ${cardPlural(totals.activeDays, 'day')}`, cardPlural(totals.sessions, 'session'), cardPlural(stats.cacheMessages ?? 0, 'message')]
+      : [`${cardHours(totals.agentMs)} agent hours on ${cardPlural(totals.activeDays, 'day')}`];
+    if (!stats.cacheOnly && (totals.parallelMultiplier ?? 1) >= 1.2) bits[0] += ` (${cardMultiplier(totals.parallelMultiplier)} parallel)`;
     if (totals.toolCalls > 0) bits.push(`${cardNumber(totals.toolCalls)} tool calls`);
     if (showApiValue && (totals.estimatedApiUsd ?? 0) >= 10) bits.push(`~${cardCurrency(totals.estimatedApiUsd)} API value`);
     if (totals.commits > 0) bits.push(cardPlural(totals.commits, 'commit'));
@@ -2663,6 +2701,7 @@
     const profiles = new Map(samples.map((item) => [item.id, item]));
     let localProfile = null;
     let cachedEntries = null;
+    let importGeneration = 0;
 
     const prefersLight = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches;
     const state = {
@@ -2793,7 +2832,8 @@
       }
     }
 
-    async function handleFileRecords(records) {
+    async function handleFileRecords(records, generation = ++importGeneration) {
+      if (generation !== importGeneration) return;
       const supported = records.filter(({ file }) => /\.(json|jsonl|ndjson)$/i.test(file.name));
       if (supported.length === 0) {
         if (dropStatus) {
@@ -2801,12 +2841,20 @@
         }
         return;
       }
-      if (dropStatus) dropStatus.textContent = `Reading ${supported.length} local ${supported.length === 1 ? 'file' : 'files'} in browser memory...`;
+      const readable = supported.filter(({ file }) => file.size <= MAX_IMPORT_FILE_BYTES);
+      const selectedBytes = readable.reduce((sum, { file }) => sum + file.size, 0);
+      if (selectedBytes > MAX_IMPORT_TOTAL_BYTES) {
+        if (dropStatus) {
+          dropStatus.textContent = `That selection holds ${formatBytes(selectedBytes)} of logs, more than the ${formatBytes(MAX_IMPORT_TOTAL_BYTES)} this page reads at once. Pick one agent's folder or a smaller set of files, such as ~/.claude/stats-cache.json or this year's ~/.codex/sessions/2026 folder, or run npx lokalbot for your full history.`;
+        }
+        return;
+      }
+      if (dropStatus) dropStatus.textContent = `Reading ${readable.length} local ${readable.length === 1 ? 'file' : 'files'} in browser memory...`;
 
       const entries = [];
       let totalBytes = 0;
-      for (const { file, path } of supported) {
-        if (file.size > 64 * 1024 * 1024) continue;
+      for (const { file, path } of readable) {
+        if (generation !== importGeneration) return;
         try {
           const text = await file.text();
           totalBytes += file.size;
@@ -2815,6 +2863,7 @@
         }
       }
 
+      if (generation !== importGeneration) return;
       cachedEntries = { entries, totalBytes };
       rebuildFromCachedEntries(state.year);
     }
@@ -2970,8 +3019,9 @@
       dropzone.addEventListener('drop', async (e) => {
         e.preventDefault();
         dropzone.classList.remove('is-dragover');
+        const generation = ++importGeneration;
         const records = await collectDroppedFiles(e.dataTransfer);
-        handleFileRecords(records);
+        handleFileRecords(records, generation);
       });
     }
     if (yearSelect) {
@@ -2983,6 +3033,7 @@
     }
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
+        importGeneration += 1;
         cachedEntries = null;
         localProfile = null;
         state.profileId = samples[0].id;

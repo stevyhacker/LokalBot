@@ -2,7 +2,7 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.stevyhacker/lokalbot",
   "title": "LokalBot",
-  "description": "Local meetings, screen memory, Files, Personal Context & agent notes on macOS, Windows, and Linux.",
+  "description": "Local meetings, screen memory, Files, Personal Context & agent notes from LokalBot on your Mac.",
   "version": "0.14.0",
   "websiteUrl": "https://www.lokalbot.com",
   "repository": {

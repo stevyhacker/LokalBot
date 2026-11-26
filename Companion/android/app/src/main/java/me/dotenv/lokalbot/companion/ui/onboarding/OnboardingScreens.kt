@@ -190,7 +190,7 @@ private fun HeldRecordings(
                 }
             }
         }
-        if (recordings.size > 1) {
+        if (recordings.size > 1 && recordings.none { it.state == RecordingState.Recording }) {
             TextButton(onClick = { confirmingAll = true }) {
                 Text(stringResource(R.string.welcome_held_recordings_delete_all), color = palette.recordingText)
             }

@@ -660,6 +660,8 @@ def main():
     parser.add_argument("--no-captions", dest="captions", action="store_false")
     parser.add_argument("--out", type=Path, default=HERE / "index.html")
     args = parser.parse_args()
+    if args.out.resolve().parent != HERE.resolve():
+        parser.error(f"--out must name a file in {HERE}, because the composition's asset paths are relative to it")
     with_captions = (args.format != "16:9") if args.captions is None else args.captions
     content, total, starts = build_html(args.format, with_captions)
     args.out.write_text(content, encoding="utf-8")

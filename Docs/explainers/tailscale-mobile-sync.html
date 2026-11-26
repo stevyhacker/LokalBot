@@ -61,11 +61,11 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2)
 <section class="page">
   <div class="eyebrow">LokalBot · Mac, Windows, Linux + iOS &amp; Android · Off by default</div>
   <h1>Sync your meetings to your phone with zero cloud</h1>
-  <p class="lede">Your computer stays the source of truth. Paired phones and tablets hold an encrypted offline copy synced directly over local Wi-Fi or your Tailscale network, with no LokalBot server or relay.</p>
+  <p class="lede">Your computer stays the source of truth. Paired phones and tablets hold an encrypted offline copy synced directly over local Wi-Fi or your Tailscale network, with no LokalBot server or relay. When a direct path is blocked, Tailscale may carry the already-encrypted traffic through its own relays.</p>
   <div class="chips">
     <span class="chip hi">Noise_IK_25519_ChaChaPoly_BLAKE2s</span>
     <span class="chip hi">TCP :17890 · Private &amp; Tailscale</span>
-    <span class="chip warn">No account · No relay</span>
+    <span class="chip warn">No LokalBot account or relay</span>
     <span class="chip">Rust lokalbot-sync</span>
   </div>
 
@@ -89,7 +89,7 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2)
 
       <rect x="242" y="14" width="216" height="52" rx="10" fill="#18151d" stroke="#f59a93" stroke-dasharray="5 4" stroke-width="1.2"/>
       <text x="350" y="35" text-anchor="middle" fill="#f59a93" font-family="ui-monospace, Menlo, monospace" font-size="10" font-weight="700">NO LOKALBOT CLOUD</text>
-      <text x="350" y="52" text-anchor="middle" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">No server · No relay · No account</text>
+      <text x="350" y="52" text-anchor="middle" fill="#a9bcc9" font-family="-apple-system, Arial, sans-serif" font-size="10">No LokalBot server, relay or account</text>
       <line x1="254" y1="22" x2="446" y2="58" stroke="#f59a93" stroke-width="1.5" stroke-opacity="0.45"/>
 
       <rect x="242" y="84" width="216" height="74" rx="10" fill="#102527" stroke="#6ef2dc" stroke-width="1.5"/>
@@ -143,7 +143,7 @@ code { font-family: var(--mono); font-size: 0.88em; background: var(--surface-2)
     </div>
     <div class="step-card">
       <div class="step-head"><span class="num">3</span><h3>Reconnect over LAN or Tailscale</h3></div>
-      <p>Clients try Bonjour on Wi-Fi first, then the last working host, then saved Tailscale IPs and MagicDNS names with a 2-second timeout each.</p>
+      <p>Clients try Bonjour on Wi-Fi first, then the last working host, then saved Tailscale IPs and MagicDNS names with a 2-second timeout each. If Tailscale can't connect directly, it relays the Noise-encrypted bytes through its DERP servers, which can't read them.</p>
     </div>
   </div>
 

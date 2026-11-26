@@ -132,8 +132,14 @@ class UnpairedRecordingsStore(
     }
 
     fun clearAll() = synchronized(lock) {
-        entries.clear()
-        directory.deleteRecursively()
+        if (entries.none { it.state == STATE_RECORDING }) {
+            entries.clear()
+            directory.deleteRecursively()
+        } else {
+            entries.filter { it.state != STATE_RECORDING }.forEach { audioFile(it.id).delete() }
+            entries.retainAll { it.state == STATE_RECORDING }
+            saveLocked()
+        }
         publishLocked()
     }
 
