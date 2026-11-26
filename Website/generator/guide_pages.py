@@ -1105,20 +1105,20 @@ REFERENCES = [
         "eyebrow": "Fact sheet",
         "h1": "About LokalBot",
         "description": "What LokalBot is, what it runs, and what it does not do: a free, open-source app for bot-free meeting notes, local transcription, and search on Mac, with Windows and Linux in alpha.",
-        "updated": "2026-11-21",
+        "updated": "2026-11-26",
     },
     {
         "slug": "benchmarks",
         "eyebrow": "Leaderboard",
         "h1": "Local Desktop AI Leaderboard",
         "description": "Independent, reproducible benchmarks across seven local desktop AI roles: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and TTS.",
-        "updated": "2026-11-20",
+        "updated": "2026-11-26",
     },
     {
         "slug": "hardware",
         "eyebrow": "Calculator",
         "h1": "Local AI Hardware & RAM Calculator",
         "description": "Interactive client-side estimator for Apple Silicon Macs, Windows, and Linux: check disk downloads, resident RAM, GPU VRAM offload, and LokalBot's 50% memory residency cap.",
-        "updated": "2026-11-20",
+        "updated": "2026-11-26",
     },
 ]

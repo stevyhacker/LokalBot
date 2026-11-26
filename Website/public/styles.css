@@ -384,7 +384,7 @@ kbd {
 .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 640; letter-spacing: -0.01em; }
 .brand__mark { border-radius: 8px; display: block; }
 .brand__name { font-size: 1.06rem; }
-.nav__links { display: flex; gap: 28px; margin-left: auto; }
+.nav__links { display: flex; gap: 18px; margin-left: auto; }
 .nav__links a { color: var(--text-dim); font-size: 0.95rem; white-space: nowrap; transition: color 0.2s var(--ease); }
 .nav__links a:hover { color: var(--text); }
 .nav__actions { display: flex; align-items: center; gap: 12px; margin-left: 8px; }
@@ -803,17 +803,12 @@ html.js .reveal.in { opacity: 1; transform: none; }
   .hero__cta { justify-content: center; }
 }
 
-/* the homepage nav has six links, so it switches to the menu earlier */
-.home .nav__links { gap: 18px; }
 @media (max-width: 1080px) {
-  .home .nav__links { display: none; }
-  .home .nav__actions { margin-left: auto; }
-  .home .nav__actions .nav__menu-button { display: inline-flex; }
-}
-@media (max-width: 760px) {
   .nav__links { display: none; }
   .nav__actions { margin-left: auto; }
   .nav__actions .nav__menu-button { display: inline-flex; }
+}
+@media (max-width: 760px) {
   .section { padding: 72px 20px; }
   .hero { padding: 36px 20px 64px; }
   .footer { grid-template-columns: 1fr 1fr; }
