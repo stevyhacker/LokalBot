@@ -1,22 +1,31 @@
-# LokalBot — Local Desktop AI Leaderboard (synced benchmark summary)
+# LokalBot: Local Desktop AI Leaderboard (synced benchmark summary)
 
-Updated **2026-11-20**. Generated from `Website/public/benchmarks.json` — every number comes verbatim from a checked-in report under `Benchmarks/README.md`. Nothing here is estimated or invented.
+Updated **2026-11-26**. Generated from `Website/public/benchmarks.json`. Every number comes verbatim from a checked-in report under `Benchmarks/README.md` or a verified Apache-2.0 Hugging Face model card. Nothing here is estimated or invented.
 
 - **Interactive sortable leaderboard:** https://www.lokalbot.com/benchmarks
 - **Machine-readable JSON:** https://www.lokalbot.com/benchmarks.json
 - **Full harnesses & raw outputs:** `Benchmarks/README.md`
-- **Hardware scope:** Primary desktop runs on Apple M4 Max (48 GB unified memory); Linux CPU memory/extraction runs on AMD Ryzen 7 9700X (64 GB); experimental MemT run on Windows + RX 6600 XT.
+- **Hardware scope:** Primary desktop runs on Apple M4 Max (48 GB unified memory); Linux CPU memory/extraction runs on AMD Ryzen 7 9700X (64 GB); v0.14.0 Qwen3.5 4B replay on NVIDIA RTX PRO 6000 Blackwell (pinned llama.cpp v1.0.0); experimental MemT run on Windows + RX 6600 XT.
 
-## Current local reference stack (~9.6 GB total)
+## v0.14.0 local reference stack (~9.7 GB total)
 
 | Role | Default model | Format | Size (GB) | Headline result | Interactive view |
 | --- | --- | --- | ---: | --- | --- |
-| Transcription | **Qwen3-ASR 1.7B** | MLX 8-bit / GGUF Q8_0 | 2.47 | 17.6% WER · 44× RT | [View suite](https://www.lokalbot.com/benchmarks#stt-ami-cloud) |
-| Speaker Diarization | **Nemotron 3** | Core ML (FluidAudio) | 0.20 | 14.56% DER · 500× RT | [View suite](https://www.lokalbot.com/benchmarks#diarization-ami) |
+| Transcription | **Qwen3-ASR 1.7B (LokalBot v3)** | GGUF Q8_0 + mmproj (llama.cpp) | 2.52 | 9.79% AMI ihm · 100% clean silence | [View suite](https://www.lokalbot.com/benchmarks#stt-lokalbot-v3) |
+| Speaker Diarization | **Nemotron 3** | Core ML (FluidAudio) | 0.20 | 14.56% DER · 500x RT | [View suite](https://www.lokalbot.com/benchmarks#diarization-ami) |
 | Hybrid Search | **EmbeddingGemma 2** | GGUF Q8_0 + SQLite FTS5 | 0.31 | 39 ms p50 · 50 MB RAM | [View suite](https://www.lokalbot.com/benchmarks#retrieval-qmsum) |
-| Inline Autocomplete | **Gemma 4 E2B Base** | GGUF i1-Q6_K (llama.cpp) | 3.85 | 56 ms · 50.1% precision | [View suite](https://www.lokalbot.com/benchmarks#autocomplete-engine) |
-| Summaries & Memory | **Qwen3.5 4B** | GGUF Q4_K_M (llama.cpp) | 2.74 | 33.4 s warm · 95.5% restraint | [View suite](https://www.lokalbot.com/benchmarks#summaries-mac-extraction) |
+| Inline Autocomplete | **Gemma 4 E2B (LokalBot v4)** | GGUF i1-Q6_K (llama.cpp) | 3.85 | 56/56 grounded · 52.2% precision | [View suite](https://www.lokalbot.com/benchmarks#autocomplete-lokalbot-v4) |
+| Summaries & Memory | **Qwen3.5 4B (LokalBot v4)** | GGUF Q4_K_M (llama.cpp) | 2.74 | 118/120 memory · 1.78x faster | [View suite](https://www.lokalbot.com/benchmarks#summaries-lokalbot-v4) |
 | Screen OCR & Voice | **Apple Vision + Kokoro 82M** | macOS native + local TTS | 0.10 | 0.971 F1 · 119.6 ms OCR | [View suite](https://www.lokalbot.com/benchmarks#ocr-synthetic) |
+
+## v0.14.0 Apache-2.0 Fine-Tuned Models
+
+| Role | Model | Hugging Face repo | Format | Size (GB) | License | Headline result |
+| --- | --- | --- | --- | ---: | --- | --- |
+| Transcription (Default) | **Qwen3-ASR 1.7B (LokalBot v3)** | [`stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) | GGUF Q8_0 + mmproj | 2.52 | Apache-2.0 | 9.79% AMI ihm · 24.41% sdm · 100% clean silence · -24.3 pp code-switch |
+| Transcription (Compact) | **Qwen3-ASR 0.6B (LokalBot v1)** | [`stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF) | GGUF Q8_0 + stock mmproj | 1.02 | Apache-2.0 | 10.72% AMI ihm · -21.7 pp South Slavic WER · 52.7x RT · 100% clean silence |
+| Summaries, Memory & Ask | **Qwen3.5 4B (LokalBot v4)** | [`stevyhacker/Qwen3.5-4B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) | GGUF Q4_K_M | 2.74 | Apache-2.0 | 118/120 memory (1 unw.) · 45% Blind21 decisions · 60.6% fewer rejections · 1.78x faster |
+| Inline Autocomplete | **Gemma 4 E2B (LokalBot v4)** | [`stevyhacker/Gemma-4-E2B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | GGUF i1-Q6_K | 3.85 | Apache-2.0 | 56/56 memory+visible · 52.2% precision · 80.0% email prec · 20.2 ms boundary |
 
 ## Speech-to-Text (Meetings, Multilingual & Live)
 
@@ -108,6 +117,22 @@ Local ASR models measured head-to-head against OpenAI, Google, and Alibaba cloud
 
 - **Notes:** Times measure end-of-word to displayed text. Cutting tracks at pauses cut both latency and word errors versus fixed 4–12 s preview windows.
 - **Caveat:** Synthetic voices on a scripted call without crosstalk; real meetings have pauses mid-sentence. Muse Voice Transcribe (cloud) measured 0.74 s median on separate AMI audio.
+
+### v0.14.0 Apache-2.0 ASR Fine-Tunes: Qwen3-ASR 1.7B v3 & 0.6B v1 vs. Stock Q8_0
+
+**Run date:** 2026-11-24 · **Hardware:** Apple M4 Max (48 GB) · LokalBot vendored llama-server v1.0.0 · greedy decoding  
+**Dataset:** Disjoint Blind Holdout (466 clips) + Expanded AMI Meetings (400 clips: 200 ihm + 200 sdm)  
+**Source:** [HF model card: `stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) · [Interactive table](https://www.lokalbot.com/benchmarks#stt-lokalbot-v3)
+
+| Model | Status | Runtime / Quant | AMI ihm (200) ↓ | AMI sdm (200) ↓ | Code-Switch ↓ | Clean Silence ↑ | Speed (RTF) ↑ |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| **Qwen3-ASR 1.7B (LokalBot v3)** | Default | llama-server v1.0.0 · Q8_0 + v3 mmproj · 2.52 GB | 9.79% (-0.45 pp) | 24.41% (-1.67 pp) | 12.81% (-24.31 pp) | 100.0% (0 halluc.) | 31.69x |
+| Qwen3-ASR 1.7B (Stock Q8_0) | Baseline | llama-server v1.0.0 · Q8_0 + mmproj · 2.52 GB | 10.24% | 26.08% | 37.12% | 8.3% (123 halluc. w) | 31.34x |
+| Qwen3-ASR 0.6B (LokalBot v1) | Local option | llama-server v1.0.0 · Q8_0 + stock mmproj · 1.02 GB | 10.72% (-0.15 pp) | 26.23% (-0.34 pp) | 20.72% (-28.49 pp) | 100.0% (0 halluc.) | 52.72x |
+| Qwen3-ASR 0.6B (Stock Q8_0) | Baseline | llama-server v1.0.0 · Q8_0 + mmproj · 1.02 GB | 10.87% | 26.57% | 49.21% | 100.0% | 39.67x |
+
+- **Notes:** Head-to-head evals published on the Apache-2.0 Hugging Face model cards using LokalBot's production /completion prompt format and 100% open-license CC0/CC-BY-4.0 training data.
+- **Caveat:** v3 requires its paired mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf (355.7 MB) and abstains on 2/200 very noisy far-field AMI sdm clips while lowering overall sdm WER by 1.67 pp. Guard languages stay within +0.18 pp of stock.
 
 ## Speaker Diarization (Who Spoke When)
 
@@ -203,6 +228,21 @@ Headless engine benchmarks measuring per-keystroke latency, safety, confidence-g
 - **Notes:** After llama.cpp's 180 s GGML_METAL_RESIDENCY_KEEP_ALIVE_S expires, ~3.4 GB of weights unwire (+50–80 ms) and the GPU clocks down (+10–15 ms). Decoding one throwaway token on wake/click/key with llama_synchronize and stripping it via seq_rm preserves the KV prompt.
 - **Caveat:** 30-minute pauses under heavy OS memory pressure (file paging) have not been re-measured yet. Four warm-up touches over 5 min added 18 mJ CPU energy (468 vs 450 mJ).
 
+### v0.14.0 Apache-2.0 Autocomplete: Gemma 4 E2B (LokalBot v4) vs. Stock
+
+**Run date:** 2026-11-24 · **Hardware:** Apple M4 Max (48 GB) · LokalBot Release binary + llama.cpp v1.0.0  
+**Dataset:** 788 Engine word positions + 56 memory and visible-context grounding checks + 242 blind holdout cases  
+**Source:** [HF model card: `stevyhacker/Gemma-4-E2B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) · [Interactive table](https://www.lokalbot.com/benchmarks#autocomplete-lokalbot-v4)
+
+| Model | Status | Runtime / Quant | Precision ↑ | Engine Acc ↑ | Grounded / 56 ↑ | Email Prec ↑ | Boundary p50 ↓ |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| **Gemma 4 E2B (LokalBot v4)** | Default | llama.cpp v1.0.0 · i1-Q6_K · 3.85 GB | 52.2% (199/381) | 25.25% (20.1% other) | 56/56 (100%) | 80.0% | 20.2 ms (80.0 ms p95) |
+| Gemma 4 E2B (LokalBot v3) | Local option | llama.cpp v1.0.0 · i1-Q6_K · 3.85 GB | 52.4% (242/462) | 30.71% (28.1% other) | 54/56 (2 abstentions) | 70.7% | 26.6 ms (87.2 ms p95) |
+| Gemma 4 E2B Base (Stock) | Baseline | llama.cpp v1.0.0 · i1-Q6_K · 3.85 GB | 50.1% (182/363) | 23.10% (14.6% other) | 49/56 (23/30 visible) | 74.3% | 21.2 ms (103.5 ms p95) |
+
+- **Notes:** Rank-32 LoRA across 275 attention, MLP, and Per-Layer Embedding matrices of google/gemma-4-E2B quantized with a bilingual EN/SR imatrix.
+- **Caveat:** v4 prioritizes stock-like restraint (182 wrong shown vs 181 stock) and 56/56 grounding; v3 reaches higher raw coverage (58.6%) with +39 extra wrong shown completions.
+
 ## Local Hybrid Retrieval & Embedding Models
 
 Head-to-head meeting retrieval across 232 public QMSum meetings (1,576 questions) comparing LokalBot's SQLite FTS5 + EmbeddingGemma 2 layer against GBrain v0.60, plus multilingual embedding comparisons.
@@ -272,6 +312,20 @@ Small local LLMs (2B–4B) evaluated on structured action-item extraction (owner
 - **Notes:** Controlled Linux CPU screen evaluating Apache-2.0 Spark-X2.6-4B as a candidate replacement for Qwen3.5 4B.
 - **Caveat:** Linux CPU observations only, not Mac timings. Spark beat Qwen on short extraction (12/12 vs 10/12) but called search_meetings when asked to send email (no email tool exists) and ran 25% slower on ~20K context.
 
+### v0.14.0 Apache-2.0 Think: Qwen3.5 4B (LokalBot v4) vs. Stock Q4_K_M
+
+**Run date:** 2026-11-24 · **Hardware:** NVIDIA RTX PRO 6000 Blackwell · pinned llama.cpp v1.0.0 (b1b770d9) · 32K ctx · enable_thinking=false  
+**Dataset:** 120-case Memory Retention + Blind21 holdout (21 untouched EN meetings) + Private28 dev (28 real meetings) + SparkX26  
+**Source:** [HF model card: `stevyhacker/Qwen3.5-4B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) · [Interactive table](https://www.lokalbot.com/benchmarks#summaries-lokalbot-v4)
+
+| Model | Status | Runtime / Quant | Memory (120) ↑ | Blind21 Decisions ↑ | Rejections ↓ | Blind21 Median ↓ | SparkX26 Tools ↑ |
+| --- | --- | --- | ---: | ---: | ---: | ---: | ---: |
+| **Qwen3.5 4B (LokalBot v4)** | Default | llama.cpp v1.0.0 · Q4_K_M · 2.74 GB | 98.3% (118/120 · 1 unw.) | 45.0% (18/40 · 12/12 mtgs) | 69 (-60.6%) | 13.64 s (1.78x faster) | 6/6 (9/12 cases) |
+| Qwen3.5 4B (Stock Q4_K_M) | Baseline | llama.cpp v1.0.0 · Q4_K_M · 2.74 GB | 67.5% (81/120 · 12 unw.) | 7.5% (3/40 · 3/12 mtgs) | 175 | 24.24 s | 6/6 (8/12 cases) |
+
+- **Notes:** Trained on 4,117 Swift-verified rows from open-license sources (zero private meetings in training). Drop-in 2.74 GB Q4_K_M replacement matching stock footprint.
+- **Caveat:** On Blind21, stock has higher raw action recall (55.3% vs 47.1%, McNemar p=0.2478) and fewer false-positive decisions on zero-decision meetings (6 vs 25). LokalBot runs v4 with enable_thinking=false by default.
+
 ## Screenshot OCR & Local Text-to-Speech
 
 Opt-in on-device screen text extraction (Apple Vision vs. open-source OCR models) and local spoken summary synthesis (Kokoro 82M vs. Breeze TTS 2).
@@ -326,7 +380,7 @@ Opt-in on-device screen text extraction (Apple Vision vs. open-source OCR models
 - **Notes:** Breeze TTS 2 sounded more natural to the owner and streams its first warm chunk in 0.88 s median, while Kokoro is 2.3× faster overall at ~8× lower memory.
 - **Caveat:** Breeze TTS 2 uses a non-commercial research license requiring a separate written agreement for product use; listening preference was unblinded from one listener.
 
-## Honest gaps — what is NOT yet measured
+## Honest gaps: what is NOT yet measured
 
 | Gap | Status & needed run |
 | --- | --- |

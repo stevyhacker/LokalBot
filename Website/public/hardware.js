@@ -7,29 +7,29 @@
     stt: [
       {
         id: 'qwen3-asr-1.7b',
-        name: 'Qwen3-ASR 1.7B',
-        format: 'llama.cpp / MLX',
+        name: 'Qwen3-ASR 1.7B (LokalBot v3)',
+        format: 'GGUF Q8_0 (llama.cpp)',
         platforms: ['mac'],
         diskGb: { mac: 2.52 },
         activeGb: { mac: 3.27 },
         minRamGb: 16,
         tier: 'balanced',
-        metric: '17.6% WER · 44× RT (M4 Max)',
-        benchHash: 'stt-ami-cloud',
-        note: 'Default on Mac. 52 languages/dialects, beats GPT-4o Transcribe on overlapped AMI calls.'
+        metric: '9.79% AMI ihm · 100% clean silence · 31.7x RT',
+        benchHash: 'stt-lokalbot-v3',
+        note: 'v0.14.0 Apache-2.0 fine-tune default on Mac (2.52 GB GGUF Q8_0 + mmproj). 0 silence hallucinations, -24.3 pp code-switch WER, 52 languages.'
       },
       {
         id: 'qwen3-asr-0.6b',
-        name: 'Qwen3-ASR 0.6B',
-        format: 'llama.cpp / sherpa-onnx',
+        name: 'Qwen3-ASR 0.6B (LokalBot v1)',
+        format: 'GGUF Q8_0 / sherpa-onnx',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 1.02, windows: 0.88, linux: 0.88 },
         activeGb: { mac: 1.77, windows: 1.45, linux: 1.45 },
         minRamGb: 8,
         tier: 'lightweight',
-        metric: '52 languages · compact tier',
-        benchHash: 'stt-small-engines',
-        note: 'Default on Windows/Linux (alpha) and compact global tier on 8 GB Macs.'
+        metric: '10.72% AMI ihm · -21.7 pp Slavic WER · 52.7x RT',
+        benchHash: 'stt-lokalbot-v3',
+        note: 'v0.14.0 Apache-2.0 compact fine-tune on 8 GB Macs (1.02 GB GGUF Q8_0) and default compact tier on Windows/Linux.'
       },
       {
         id: 'parakeet-v3',
@@ -40,7 +40,7 @@
         activeGb: { mac: 0.90, windows: 0.80, linux: 0.80 },
         minRamGb: 8,
         tier: 'lightweight',
-        metric: '~190× RT · 25 European langs',
+        metric: '~190x RT · 25 European langs',
         benchHash: 'stt-small-engines',
         note: 'Fastest multilingual option on Apple Neural Engine and CPU; auto language detection.'
       },
@@ -81,7 +81,7 @@
         activeGb: { mac: 0.67 },
         minRamGb: 8,
         tier: 'balanced',
-        metric: '14.56% DER · 500× RT (M4 Max)',
+        metric: '14.56% DER · 500x RT (M4 Max)',
         benchHash: 'diarization-ami',
         note: 'Default Mac speaker separation on AMI (0.67 GiB peak RSS); loads on demand after recording stops.'
       },
@@ -126,11 +126,11 @@
         tier: 'lightweight',
         metric: '1.28 GB weights · multilingual',
         benchHash: 'summaries-mac-extraction',
-        note: 'Compact multilingual option that leaves generous headroom on 8–16 GB machines.'
+        note: 'Compact multilingual option that leaves generous headroom on 8-16 GB machines.'
       },
       {
         id: 'qwen3.5-4b',
-        name: 'Qwen3.5 4B',
+        name: 'Qwen3.5 4B (LokalBot v4)',
         format: 'GGUF Q4_K_M (32K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 2.74, windows: 2.74, linux: 2.74 },
@@ -138,9 +138,9 @@
         fullKvGb: 5.74,
         minRamGb: 16,
         tier: 'balanced',
-        metric: '33.4 s warm M4 Max · 95.5% restraint · 6/6 tools',
-        benchHash: 'memory-english',
-        note: 'Fresh-install default Think model. Balanced summaries, 6/6 native tool calls, and 42/44 empty memory cases clean.'
+        metric: '118/120 memory · 1.78x faster · 6/6 tools',
+        benchHash: 'summaries-lokalbot-v4',
+        note: 'v0.14.0 Apache-2.0 fine-tuned default Think model. 60.6% fewer validator rejections, 45% Blind21 decisions, 6/6 native tool calls.'
       },
       {
         id: 'lfm2.5-8b-a1b',
@@ -154,7 +154,7 @@
         tier: 'balanced',
         metric: '~1B active MoE · fast summaries',
         benchHash: 'summaries-mac-extraction',
-        note: 'Sparse MoE option for fast long-meeting summaries on 16–24 GB machines.'
+        note: 'Sparse MoE option for fast long-meeting summaries on 16-24 GB machines.'
       },
       {
         id: 'gemma4-12b',
@@ -168,7 +168,7 @@
         tier: 'quality',
         metric: '7.12 GB weights · 24 GB+ class',
         benchHash: 'summaries-mac-extraction',
-        note: 'Stronger 12B dense option for 24 GB Macs and 12–16 GB VRAM GPUs.'
+        note: 'Stronger 12B dense option for 24 GB Macs and 12-16 GB VRAM GPUs.'
       },
       {
         id: 'qwen3.6-27b',
@@ -180,7 +180,7 @@
         fullKvGb: 19.82,
         minRamGb: 48,
         tier: 'quality',
-        metric: '16.82 GB dense · 32–48 GB+ Macs',
+        metric: '16.82 GB dense · 32-48 GB+ Macs',
         benchHash: 'summaries-mac-extraction',
         note: 'Maximum-quality dense summaries; best on 48 GB+ Macs or 24 GB+ VRAM GPUs.'
       },
@@ -196,7 +196,7 @@
         tier: 'quality',
         metric: '~3B active MoE · top long-meeting tier',
         benchHash: 'summaries-mac-extraction',
-        note: 'Highest-quality long-meeting catalog model (~3B active params); targets 32–48 GB+ Macs.'
+        note: 'Highest-quality long-meeting catalog model (~3B active params); targets 32-48 GB+ Macs.'
       }
     ],
     auto: [
@@ -224,20 +224,20 @@
         tier: 'lightweight',
         metric: '1.28 GB weights · multilingual',
         benchHash: 'autocomplete-engine',
-        note: 'Lightweight multilingual inline completion option for 8–16 GB machines.'
+        note: 'Lightweight multilingual inline completion option for 8-16 GB machines.'
       },
       {
         id: 'gemma4-e2b-q6',
-        name: 'Gemma 4 E2B Base',
+        name: 'Gemma 4 E2B (LokalBot v4)',
         format: 'GGUF i1-Q6_K (4K ctx)',
         platforms: ['mac', 'windows', 'linux'],
         diskGb: { mac: 3.85, windows: 3.85, linux: 3.85 },
         activeGb: { mac: 4.60, windows: 4.60, linux: 4.60 },
         minRamGb: 16,
         tier: 'balanced',
-        metric: '56 ms median · 50.1% precision · 0/140 unsafe',
-        benchHash: 'autocomplete-engine',
-        note: 'Default autocomplete model on 16 GB+ machines; higher suggestion precision with zero unsafe completions.'
+        metric: '56/56 memory+visible · 52.2% prec · 20.2 ms',
+        benchHash: 'autocomplete-lokalbot-v4',
+        note: 'v0.14.0 Apache-2.0 fine-tuned default autocomplete on 16 GB+ machines. 100% grounding across 7 suites, 80.0% email precision, 0 unsafe.'
       },
       {
         id: 'gemma4-e4b-q5',
@@ -250,7 +250,7 @@
         tier: 'quality',
         metric: '6.66 GB · higher capacity',
         benchHash: 'autocomplete-engine',
-        note: 'Higher-capacity cotyping choice for 24–48 GB+ systems.'
+        note: 'Higher-capacity cotyping choice for 24-48 GB+ systems.'
       }
     ],
     search: [
@@ -293,7 +293,7 @@
         activeGb: { mac: 0.81, windows: 0.81, linux: 0.81 },
         minRamGb: 8,
         tier: 'balanced',
-        metric: '0.333× RTF · 0.81 GiB peak RAM (M4 Max)',
+        metric: '0.333x RTF · 0.81 GiB peak RAM (M4 Max)',
         benchHash: 'tts-voice',
         note: 'Optional on-demand voice playback for daily briefs and meeting recaps.'
       }
@@ -322,7 +322,7 @@
   const CHIP_NOTES = {
     'm1': 'Apple M1 (unified memory, Core ML + Metal). Real-world speed is slower than our M4 Max benchmark runs, especially on 12B+ models; M1 speeds have not been benchmarked yet.',
     'm2': 'Apple M2 (unified memory, Core ML + Metal). Handles the default or lightweight stack smoothly; M2 speeds have not been benchmarked yet.',
-    'm3': 'Apple M3 (unified memory, Core ML + Metal). Solid memory bandwidth for 16–24 GB stacks; M3 speeds have not been benchmarked yet.',
+    'm3': 'Apple M3 (unified memory, Core ML + Metal). Solid memory bandwidth for 16-24 GB stacks; M3 speeds have not been benchmarked yet.',
     'm4': 'Apple M4 / M4 Pro (unified memory, Core ML + Metal). High memory bandwidth for resident autocomplete + summarizer.',
     'm4-max': 'Apple M4 Max (our primary benchmark machine: 48 GB unified memory). Speed badges below match this hardware directly.',
     'm5': 'Apple M5 family (unified memory, Core ML + Metal). Expected faster than M4-class chips; community M5 benchmark runs welcome on GitHub.',
@@ -471,7 +471,7 @@
       detail = 'Toggle meeting transcription, summaries, hybrid search, or autocomplete above to calculate disk and RAM requirements.';
     } else if (allWarmPeakGb <= budgetGb) {
       status = 'comfortable';
-      headline = 'Fits comfortably — all selected models stay warm';
+      headline = 'Fits comfortably: all selected models stay warm';
       detail = `Peak simultaneous RAM (${allWarmPeakGb.toFixed(1)} GB) stays inside LokalBot's ${budgetGb.toFixed(0)} GB residency cap (50% of your ${ramGb} GB RAM), leaving at least half of system memory free for your OS, browser, and call apps.`;
     } else if (criticalPeakGb <= budgetGb && warmGb <= budgetGb) {
       status = 'lru';
@@ -479,11 +479,11 @@
       detail = `Your warm models (${warmGb.toFixed(1)} GB) and largest burst (${peakOnDemandGb.toFixed(1)} GB) each fit inside the ${budgetGb.toFixed(0)} GB cap, though stacking both reaches ${allWarmPeakGb.toFixed(1)} GB. LokalBot's ModelResidency governor automatically evicts idle models while a summary runs, then reloads them on demand.`;
     } else if (criticalPeakGb <= ramGb * 0.72) {
       status = 'tight';
-      headline = `Tight for ${ramGb} GB — exceeds LokalBot's ${budgetGb.toFixed(0)} GB safety cap`;
+      headline = `Tight for ${ramGb} GB: exceeds LokalBot's ${budgetGb.toFixed(0)} GB safety cap`;
       detail = `${largestSingleName || 'Your active stack'} peaks around ${criticalPeakGb.toFixed(1)} GB, above the default 50% RAM cap (${budgetGb.toFixed(0)} GB). It may run solo with other apps closed, or switch to the Lightweight preset for smooth day-long use.`;
     } else {
       status = 'exceeds';
-      headline = `Too large for ${ramGb} GB RAM — pick a smaller model`;
+      headline = `Too large for ${ramGb} GB RAM: pick a smaller model`;
       detail = `${largestSingleName || 'The selected model'} needs ~${criticalPeakGb.toFixed(1)} GB active memory, which will heavily swap or fail on ${ramGb} GB RAM. Switch to a compact model or apply the recommended profile.`;
     }
 
@@ -585,12 +585,16 @@
     return { os, chip, ramGb, vramGb, profile, workloads, overrides };
   }
 
-  function buildMarkdownReport(state, result) {
-    const osLabel = state.os === 'mac'
+  function formatMachineLabel(state) {
+    return state.os === 'mac'
       ? `Apple Silicon Mac (${state.chip.toUpperCase()}, ${state.ramGb} GB unified memory)`
       : `${state.os === 'windows' ? 'Windows x64' : 'Linux x86_64'} (${state.ramGb} GB RAM, ${state.vramGb > 0 ? `${state.vramGb} GB VRAM` : 'CPU-only'})`;
+  }
+
+  function buildMarkdownReport(state, result) {
+    const osLabel = formatMachineLabel(state);
     const lines = [
-      `### LokalBot Local AI Stack Estimate — ${osLabel}`,
+      `### LokalBot Local AI Stack Estimate: ${osLabel}`,
       '',
       `- **Verdict:** ${result.headline}`,
       `- **50% RAM residency cap:** ${result.budgetGb.toFixed(0)} GB (of ${state.ramGb} GB physical RAM)`,
@@ -611,6 +615,175 @@
     return lines.join('\n');
   }
 
+  function buildStackCardSpec(state, result) {
+    return {
+      machine: formatMachineLabel(state),
+      status: result.status,
+      headline: result.headline,
+      diskDisplay: `${result.diskTotalGb.toFixed(1)} GB`,
+      warmDisplay: `${result.warmGb.toFixed(1)} GB`,
+      peakDisplay: `${result.allWarmPeakGb.toFixed(1)} GB`,
+      capDisplay: `${result.budgetGb.toFixed(0)} / ${result.ramGb} GB`,
+      rows: result.rows.map((r) => ({
+        role: r.roleLabel,
+        model: r.model.name,
+        disk: `${r.diskGb.toFixed(2)} GB`,
+        active: `${r.activeGb.toFixed(2)} GB`
+      })),
+      footer: 'lokalbot.com/hardware',
+      shareUrl: `${SITE}/hardware?${serializeState(state)}`
+    };
+  }
+
+  function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function renderStackCardCanvas(state, result) {
+    const spec = buildStackCardSpec(state, result);
+    const width = 760;
+    const rowH = 34;
+    const height = 395 + Math.max(1, spec.rows.length) * rowH;
+    const scale = 2;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    const ctx = canvas.getContext('2d');
+    ctx.scale(scale, scale);
+
+    const grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, '#080d14');
+    grad.addColorStop(1, '#0f1c29');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    drawRoundedRect(ctx, 24, 24, width - 48, height - 48, 22);
+    ctx.fillStyle = 'rgba(18, 28, 40, 0.94)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(110, 242, 220, 0.28)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = '#6ef2dc';
+    ctx.font = '700 12px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText('LOKALBOT v0.14.0 · LOCAL AI STACK CARD', 48, 60);
+
+    ctx.fillStyle = '#ecf3f7';
+    ctx.font = '700 22px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+    ctx.fillText(spec.machine, 48, 92);
+
+    const statusColors = {
+      comfortable: '#23c4ae',
+      lru: '#60a5fa',
+      tight: '#f5a623',
+      exceeds: '#ef5a5a'
+    };
+    ctx.fillStyle = statusColors[spec.status] || '#23c4ae';
+    ctx.font = '600 14px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(spec.headline, 48, 118);
+
+    const kpis = [
+      { label: 'DISK DOWNLOAD', val: spec.diskDisplay },
+      { label: 'WARM RAM', val: spec.warmDisplay },
+      { label: 'COMBINED PEAK', val: spec.peakDisplay },
+      { label: '50% RAM CAP', val: spec.capDisplay }
+    ];
+    for (let i = 0; i < kpis.length; i++) {
+      const bx = 48 + i * 168;
+      drawRoundedRect(ctx, bx, 138, 156, 68, 12);
+      ctx.fillStyle = 'rgba(22, 33, 46, 0.88)';
+      ctx.fill();
+      ctx.strokeStyle = 'rgba(150, 180, 200, 0.2)';
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      ctx.fillStyle = '#8ba2b0';
+      ctx.font = '700 10px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.fillText(kpis[i].label, bx + 12, 160);
+      ctx.fillStyle = '#ecf3f7';
+      ctx.font = '700 18px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.fillText(kpis[i].val, bx + 12, 188);
+    }
+
+    const barX = 48;
+    const barY = 228;
+    const barW = width - 96;
+    const barH = 16;
+    const scaleMax = Math.max(result.ramGb, result.allWarmPeakGb * 1.08);
+    const warmW = Math.min(barW, (result.warmGb / scaleMax) * barW);
+    const burstW = Math.min(barW - warmW, (result.peakOnDemandGb / scaleMax) * barW);
+    const capX = barX + Math.min(barW - 2, (result.budgetGb / scaleMax) * barW);
+
+    drawRoundedRect(ctx, barX, barY, barW, barH, 8);
+    ctx.fillStyle = '#16212e';
+    ctx.fill();
+    if (warmW > 0) {
+      drawRoundedRect(ctx, barX, barY, Math.max(8, warmW), barH, 8);
+      ctx.fillStyle = '#23c4ae';
+      ctx.fill();
+    }
+    if (burstW > 0) {
+      ctx.fillStyle = '#5a9cf8';
+      ctx.fillRect(barX + warmW, barY, burstW, barH);
+    }
+    ctx.fillStyle = '#f5a623';
+    ctx.fillRect(capX, barY - 4, 2, barH + 8);
+
+    ctx.fillStyle = '#8ba2b0';
+    ctx.font = '600 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(`Warm ${spec.warmDisplay} · Burst ${result.peakOnDemandGb.toFixed(1)} GB · Cap ${result.budgetGb.toFixed(0)} GB`, barX, barY + 34);
+
+    let y = 294;
+    ctx.fillStyle = '#8ba2b0';
+    ctx.font = '700 11px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText('ROLE', 48, y);
+    ctx.fillText('MODEL', 216, y);
+    ctx.fillText('DISK', 540, y);
+    ctx.fillText('ACTIVE RAM', 626, y);
+    y += 12;
+    ctx.strokeStyle = 'rgba(150, 180, 200, 0.2)';
+    ctx.beginPath();
+    ctx.moveTo(48, y);
+    ctx.lineTo(width - 48, y);
+    ctx.stroke();
+
+    y += 24;
+    for (const row of spec.rows) {
+      ctx.fillStyle = '#a2b4c2';
+      ctx.font = '600 13px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+      ctx.fillText(row.role, 48, y);
+      ctx.fillStyle = '#ecf3f7';
+      ctx.font = '600 13px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif';
+      ctx.fillText(row.model, 216, y);
+      ctx.fillStyle = '#a2b4c2';
+      ctx.font = '600 13px ui-monospace, SFMono-Regular, Menlo, monospace';
+      ctx.fillText(row.disk, 540, y);
+      ctx.fillText(row.active, 626, y);
+      y += rowH;
+    }
+
+    const footY = height - 42;
+    ctx.fillStyle = '#6ef2dc';
+    ctx.font = '700 13px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(spec.footer, 48, footY);
+    const tag = '100% On-Device · Apache-2.0 Models · GPLv3';
+    ctx.fillStyle = '#8ba2b0';
+    ctx.font = '500 12px ui-monospace, SFMono-Regular, Menlo, monospace';
+    ctx.fillText(tag, width - 48 - ctx.measureText(tag).width, footY);
+
+    return canvas;
+  }
+
   const api = {
     MODELS,
     ROLE_META,
@@ -620,7 +793,9 @@
     evaluateStack,
     serializeState,
     parseState,
-    buildMarkdownReport
+    buildMarkdownReport,
+    buildStackCardSpec,
+    renderStackCardCanvas
   };
 
   if (typeof module !== 'undefined' && module.exports) {
@@ -668,6 +843,7 @@
     const resetBtn = document.getElementById('hw-reset-overrides');
     const copyLinkBtn = document.getElementById('hw-copy-link');
     const copyMdBtn = document.getElementById('hw-copy-md');
+    const savePngBtn = document.getElementById('hw-save-png');
     const applyLightBtn = document.getElementById('hw-apply-light');
 
     const MAC_RAM_OPTIONS = [8, 16, 24, 32, 36, 48, 64, 96, 128];
@@ -752,7 +928,7 @@
       const badgeLabel = {
         comfortable: 'All-warm fit',
         lru: 'Fits via LRU swapping',
-        tight: 'Tight — consider Lightweight',
+        tight: 'Tight: consider Lightweight',
         exceeds: 'Exceeds system RAM'
       }[res.status];
 
@@ -825,7 +1001,7 @@
               <td>${modelCell}</td>
               <td class="hw-num">${r.diskGb.toFixed(2)} GB</td>
               <td class="hw-num">${r.activeGb.toFixed(2)} GB</td>
-              <td><a class="hw-bench-link" href="${benchUrl}">${escapeHtml(r.model.metric)} &rarr;</a></td>
+              <td><a class="hw-bench-link" href="${benchUrl}">${escapeHtml(r.model.metric)}</a></td>
             </tr>`;
         }).join('');
       }
@@ -946,6 +1122,24 @@
         window.prompt('Copy Markdown summary:', md);
       }
     });
+
+    if (savePngBtn) {
+      savePngBtn.addEventListener('click', () => {
+        const res = evaluateStack(state);
+        const canvas = renderStackCardCanvas(state, res);
+        canvas.toBlob((blob) => {
+          if (!blob) return;
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `lokalbot-stack-${state.os}-${state.ramGb}gb.png`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          window.setTimeout(() => { URL.revokeObjectURL(url); }, 1000);
+        }, 'image/png');
+      });
+    }
 
     renderAll();
   }
