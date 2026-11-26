@@ -54,7 +54,7 @@ The replay sets and the real samples above are short (6 to 80 words). A speed se
 `context-speed-v1.json` (eight synthetic direct dictations of 43 to 220 words, frozen before its first run), showed that on
 long dictation the cleanup model sometimes writes spoken digits as words. Same model, server and options; 40 cleaned outputs
 (runs `speed-off`, `speed-first-digitsNamesNegation` and `speed-digitsNamesNegation`; the first came from a build without the
-lock, the second from a build with the rules as first reported; raw outputs in [`raw-runs-long.tar.gz`](raw-runs-long.tar.gz)):
+lock, the second from a build with the rules as first reported; per-run results in [`runs.csv`](runs.csv), raw outputs in the [raw-runs archive](URL_1121)):
 
 | Rules | Correct | Transcript inserted | Digits restored |
 |---|---:|---:|---:|
@@ -95,7 +95,19 @@ Scored against the recorded outputs in this folder's earlier results, using the 
 - Qwen3.5-4B-Q4_K_M on the bundled llama-server, fixed seed, production Compose options. Hashes are in each run's `manifest.json`; local paths in them are rewritten to `~` and `/private/tmp/lokalbot-bench`.
 - One Debug build per lock revision, run from a disposable copy with the runner's isolated home, storage and defaults (earlier rounds used Release). Latency compares off with on within the same build only.
 - `context-wordlock-v1.json` (31 cases, synthetic) was written for the lock and frozen before its first inference ([`fixture-freeze.json`](fixture-freeze.json)). It covers digits (including Serbian and a repeated false start), negation in several spellings, unusual names (one at a sentence start, one spoken in lower case), self-corrections, filler controls and Transcribe.
-- Raw outputs of the replay runs kept here: [`raw-runs.tar.gz`](raw-runs.tar.gz).
+- Per-run results: [`runs.csv`](runs.csv), one row per run (run, corpus, model, word_lock, outputs, correct, accuracy, lock_fired,
+  median_ms, p90_ms, p95_ms), counted over the cleaned direct-speech outputs as in the tables above. `lock_fired` counts outputs
+  where the lock kept the transcript or restored digits, read from the app logs of the saved raw runs (for the long-set runs,
+  which were saved without logs, from the outputs that differ from the lock-off run). The raw-runs copies of the final
+  lock-on runs are an earlier repeat of the same runs (same rules, same outputs; their `report.json` timings differ), so the
+  firing counts for those come from that repeat's logs. **Latencies in `runs.csv` are not an off-versus-on comparison for those
+  runs:** the kept final lock-on runs ran from a later build than the lock-off runs (different `appSHA256` in the manifests), and
+  their medians are 20 to 70 ms higher. The "10 ms or less" statement above is from the earlier repeat, whose lock-off and
+  lock-on runs share one build (`raw-runs/` in the archive; medians 243/245, 275/272, 268/259, 253/245, 310/309, 271/270 ms
+  on the six sets).
+- Raw outputs, logs and every run's `report.json` are in one archive outside git: [raw runs](URL_1121), SHA-256 `SHA_1121`.
+  Its `raw-runs/` and `raw-runs-long/` folders hold what the two earlier tarballs held; `report-json/` holds the kept runs'
+  `report.json` files, which are no longer in this folder.
 
 ## Not covered
 
