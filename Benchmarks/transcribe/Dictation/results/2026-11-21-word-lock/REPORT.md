@@ -54,7 +54,7 @@ The replay sets and the real samples above are short (6 to 80 words). A speed se
 `context-speed-v1.json` (eight synthetic direct dictations of 43 to 220 words, frozen before its first run), showed that on
 long dictation the cleanup model sometimes writes spoken digits as words. Same model, server and options; 40 cleaned outputs
 (runs `speed-off`, `speed-first-digitsNamesNegation` and `speed-digitsNamesNegation`; the first came from a build without the
-lock, the second from a build with the rules as first reported; per-run results in [`runs.csv`](runs.csv), raw outputs in the [raw-runs archive](URL_1121)):
+lock, the second from a build with the rules as first reported; per-run results in [`runs.csv`](runs.csv), raw outputs in the [raw-runs archive](https://github.com/user-attachments/files/35472425/word-lock-2026-11-21-raw-runs.tar.gz)):
 
 | Rules | Correct | Transcript inserted | Digits restored |
 |---|---:|---:|---:|
@@ -105,7 +105,7 @@ Scored against the recorded outputs in this folder's earlier results, using the 
   their medians are 20 to 70 ms higher. The "10 ms or less" statement above is from the earlier repeat, whose lock-off and
   lock-on runs share one build (`raw-runs/` in the archive; medians 243/245, 275/272, 268/259, 253/245, 310/309, 271/270 ms
   on the six sets).
-- Raw outputs, logs and every run's `report.json` are in one archive outside git: [raw runs](URL_1121), SHA-256 `SHA_1121`.
+- Raw outputs, logs and every run's `report.json` are in one archive outside git: [raw runs](https://github.com/user-attachments/files/35472425/word-lock-2026-11-21-raw-runs.tar.gz), SHA-256 `c22546ab4ed70870eb52a179eda5ec142b97d50115269e3805bdd1f9a13ba2c3`.
   Its `raw-runs/` and `raw-runs-long/` folders hold what the two earlier tarballs held; `report-json/` holds the kept runs'
   `report.json` files, which are no longer in this folder.
 

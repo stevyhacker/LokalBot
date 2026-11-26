@@ -71,7 +71,7 @@ transcript (11-21 only: the 5 on v2) or restored spoken digits (11-26: all of th
 - Running at the time: the owner's trial copy of LokalBot Dev (a separate build) was open and idle before, during and after
   (its CPU time moved by about 9 seconds over the hour around the run); it was not touched. Nothing else heavy was started.
 - Raw outputs, server and app logs and every `report.json` are in one archive outside git:
-  [raw runs](URL_1126), SHA-256 `SHA_1126`. This folder keeps `PLAN.md`, this report, `runs.csv` and each run's
+  [raw runs](https://github.com/user-attachments/files/35472427/word-lock-2026-11-26-raw-runs.tar.gz), SHA-256 `daf6322c9d148f09a788d1bdb85ca9df0f1b277e787dc617ceceb32bbad429cb`. This folder keeps `PLAN.md`, this report, `runs.csv` and each run's
   `manifest.json`.
 
 ## Limits
