@@ -970,7 +970,9 @@ impl MeetingsPage {
                 .background_spawn(async move { std::fs::write(&path, html) })
                 .await;
             data.update(cx, |data, cx| match result {
-                Ok(()) => data.show_message(lokalbot_i18n::tr("Meeting recap exported as HTML."), cx),
+                Ok(()) => {
+                    data.show_message(lokalbot_i18n::tr("Meeting recap exported as HTML."), cx)
+                }
                 Err(err) => data.show_error(
                     lokalbot_i18n::format(
                         "Meeting export failed: {err}",

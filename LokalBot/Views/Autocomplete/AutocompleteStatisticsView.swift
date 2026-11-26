@@ -333,7 +333,7 @@ struct LocalStatsCardView: View {
         VStack(alignment: .leading, spacing: 20) {
             HStack(alignment: .firstTextBaseline) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("LokalBot")
+                    Text(verbatim: "LokalBot")
                         .font(.system(size: 22, weight: .bold, design: .rounded))
                         .foregroundStyle(.white)
                     Text("Local stats · \(stats.periodLabel)")

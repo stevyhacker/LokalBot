@@ -186,7 +186,8 @@ impl FollowUpSheet {
         self.include_attribution = include;
         let root = self.data.read(cx).library.paths().root().to_path_buf();
         super::recap::save_include_attribution(&root, include);
-        self.data.update(cx, |data, cx| data.mark_library_changed(cx));
+        self.data
+            .update(cx, |data, cx| data.mark_library_changed(cx));
         cx.notify();
     }
 

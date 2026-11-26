@@ -1497,7 +1497,8 @@ mod tests {
     fn lightweight_preset_switches_models_and_shrinks_the_download() {
         let mut settings = Settings::default();
         assert_eq!(selected_preset(&settings), Some(Preset::Balanced));
-        let recommended_bytes = preset_download_bytes(Preset::Balanced, &settings, &[], None, false);
+        let recommended_bytes =
+            preset_download_bytes(Preset::Balanced, &settings, &[], None, false);
         let lightweight_bytes =
             preset_download_bytes(Preset::Lightweight, &settings, &[], None, false);
         assert!(lightweight_bytes < recommended_bytes);
