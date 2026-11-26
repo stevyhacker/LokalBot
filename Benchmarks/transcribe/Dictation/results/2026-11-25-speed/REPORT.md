@@ -154,6 +154,8 @@ The speed-up is the same size. The 11-21 long-set figure for `ngram-cache` uses 
 - Eight long and 17 short dictations, so the one changed dictation per set is 12% and 6% of the cases. Five conditions per case
   are not independent samples: the text is the same in all five.
 - One machine, one seed; temperature 0.2 means other seeds can differ.
-- Raw outputs and server logs are in [`raw-runs.tar.gz`](raw-runs.tar.gz) (no local paths); `runs/` holds each run's
-  `manifest.json` and `report.json` (round 2 prefixed `round2-`, stock-model runs `*-stock-*`).
+- [`runs.csv`](runs.csv) has one row per run (speculation flags, outputs scored, correct, median, p90 and p95 latency);
+  `runs/` holds each run's `manifest.json` (round 2 prefixed `round2-`, stock-model runs `*-stock-*`).
+- Raw outputs, server logs and each run's full `report.json` are not kept in git: they are in
+  [`dictation-speed-2026-11-25-raw-runs.tar.gz`](https://github.com/user-attachments/files/35467898/dictation-speed-2026-11-25-raw-runs.tar.gz) (SHA-256 `3653daa28f24cbf4a8574c0300642070c4c65ce02de148790a642333cbf5f504`), attached to #611 (no local paths).
 - The wordlock set from 11-21 was not re-run.

@@ -84,8 +84,12 @@ a word) are unrelated to speculation.
   defaults; Apple M4 Pro, 48 GB, nothing else running.
 - Configurations ran one after another within each set, with the baseline first and last for a noise floor. Each
   configuration got its own server, so its first condition starts with an empty speculation cache.
-- Each run's `report.json` and `manifest.json` are in
-  `runs/` (round 2 prefixed `round2-`); raw outputs and server logs in [`raw-runs.tar.gz`](raw-runs.tar.gz), local paths
+- [`runs.csv`](runs.csv) has one row per run (speculation flags, outputs scored, correct, median, p90 and p95 latency over
+  all conditions, and the median of the first condition and of conditions 2 to 5); each run's `manifest.json` is in `runs/`
+  (round 2 prefixed `round2-`). The `wordlock-*` rows are a third set whose corpus is not in this branch; the tables above
+  don't use them.
+- Raw outputs, server logs and each run's full `report.json` are not kept in git: they are in
+  [`dictation-speed-2026-11-21-raw-runs.tar.gz`](https://github.com/user-attachments/files/35467897/dictation-speed-2026-11-21-raw-runs.tar.gz) (SHA-256 `4f4a12655a80917ae7ef7513741cc1527ca76fca88f7e9e1d47eff568730f170`), attached to #611, local paths
   rewritten to `~`; the server logs include each request's draft acceptance.
 - Qwen3.5-4B's GGUF has no multi-token-prediction head, so `draft-mtp` was not tried; draft-model speculation was not tried
   because it needs a second model in memory.
