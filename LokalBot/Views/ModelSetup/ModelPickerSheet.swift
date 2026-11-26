@@ -1058,10 +1058,11 @@ private struct ModelChoiceRow: View {
     var unavailableText = "Needs re-adding"
     let language: AppLanguage
 
-    private var status: String {
-        if inUse { return "In use" }
+    private var downloadStatus: String? {
+        if !available && !blocked { return "Not downloaded" }
+        guard !inUse else { return nil }
         if available { return builtInSystem ? "Available" : "Downloaded" }
-        return blocked ? unavailableText : "Not downloaded"
+        return unavailableText
     }
 
     var body: some View {
@@ -1072,9 +1073,16 @@ private struct ModelChoiceRow: View {
             }
             Spacer()
             if let progress { ProgressView(value: progress).frame(width: 70) }
-            Text(language.localized(status))
-                .font(.scaled(.callout))
-                .foregroundStyle(blocked && !inUse ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
+            VStack(alignment: .trailing, spacing: 2) {
+                if inUse {
+                    Text(language.localized("In use"))
+                }
+                if let downloadStatus {
+                    Text(language.localized(downloadStatus))
+                }
+            }
+            .font(.scaled(.callout))
+            .foregroundStyle(blocked && !inUse ? AnyShapeStyle(.orange) : AnyShapeStyle(.secondary))
         }
         .padding(.vertical, 6)
         .accessibilityElement(children: .combine)
