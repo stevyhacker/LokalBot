@@ -87,6 +87,14 @@ final class UkrainianTranscriptionTests: XCTestCase {
         }
     }
 
+    func testSpeechRuntimeRejectsUkrainianBecauseItUsesAutomaticLanguageDetection() throws {
+        let choice = TranscriptionModelChoice.speechRuntime
+        XCTAssertFalse(choice.isLanguageSelectable(.uk))
+        XCTAssertTrue(try XCTUnwrap(choice.languageSelectionMessage(for: .uk)).contains("does not support Ukrainian"))
+        XCTAssertThrowsError(try choice.validateLanguage("uk"))
+        XCTAssertNoThrow(try choice.validateLanguage("en"))
+    }
+
     func testUnsupportedEnginesRejectUkrainianBeforeLoadingModelsOrAudio() async throws {
         let missingAudio = URL(fileURLWithPath: "/nonexistent/ukrainian-regression.wav")
         for choice in TranscriptionModelChoice.allCases where choice.ukrainianSupport == .unsupported {

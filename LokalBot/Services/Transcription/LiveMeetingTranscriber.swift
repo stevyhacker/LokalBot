@@ -291,7 +291,14 @@ final class LiveMeetingTranscriber: ObservableObject {
             return seconds > 0
         }
         self.transcribe = transcribe ?? { url, config in
-            try await config.transcriptionEngine().transcribe(
+            if config.transcriptionModel == .speechRuntime {
+                return try await SpeechRuntimeEngine.shared.transcribe(
+                    audio: url,
+                    language: config.transcriptionLanguage.code,
+                    prompt: config.transcriptionPrompt,
+                    priority: .interactive)
+            }
+            return try await config.transcriptionEngine().transcribe(
                 audio: url, language: config.transcriptionLanguage.code,
                 prompt: config.transcriptionPrompt)
         }

@@ -27,6 +27,7 @@ extension TranscriptionModelChoice {
         case .whisperLarge, .appleSpeech: .languageToken
         case .parakeetUltra, .parakeetV3: .scriptHint
         case .remoteServer: .serverDependent
+        case .speechRuntime: .unsupported
         case .parakeetV2, .qwenASR17BLokalBotV3, .qwenASR17B, .qwenASR06BLokalBotV1, .qwenASR06B,
              .graniteSpeech, .graniteSpeech5, .funASRNano, .senseVoice, .gigaamRussian, .cohere: .unsupported
         }

@@ -52,6 +52,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
     case gigaamRussian = "gigaam-russian"
     case cohere = "cohere-transcribe"
     case appleSpeech = "apple-speech"
+    case speechRuntime = "speech-runtime-parakeet-ultra"
     case remoteServer = "remote-server"
     var id: String { rawValue }
     static let recommended: Self = .qwenASR17BLokalBotV3
@@ -79,6 +80,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .senseVoice: "SenseVoice (Chinese/Japanese/Korean)"
         case .gigaamRussian: "GigaAM (Russian)"
         case .appleSpeech: "Apple Speech"
+        case .speechRuntime: "Speech Runtime — Parakeet Ultra"
         case .remoteServer: "Transcription server"
         }
     }
@@ -130,6 +132,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .senseVoice: "Chinese · Japanese · Korean · Cantonese · English (ONNX, downloaded on first use)"
         case .gigaamRussian: "Russian — high accuracy (ONNX, downloaded on first use)"
         case .appleSpeech: "Built into macOS 26+ · on-device SpeechAnalyzer, word timestamps, and vocabulary hints"
+        case .speechRuntime: "Parakeet Ultra via local Speech Runtime · shared by compatible apps"
         case .remoteServer: "OpenAI-style speech-to-text on a server you choose: OpenAI, Groq, OpenRouter, or whisper.cpp on another device. Sends audio to that server."
         }
     }
@@ -151,6 +154,7 @@ enum TranscriptionModelChoice: String, Codable, CaseIterable, Identifiable {
         case .senseVoice: OnnxTranscriptionEngine.senseVoice
         case .gigaamRussian: OnnxTranscriptionEngine.gigaamRussian
         case .appleSpeech: AppleSpeechEngine.shared
+        case .speechRuntime: SpeechRuntimeEngine.shared
         case .remoteServer: RemoteTranscriptionEngine(
             configuration: .init(baseURL: "", model: "", approvedOrigins: []), apiKey: { "" })
         }

@@ -414,8 +414,8 @@ struct ModelPickerSheet: View {
                             title: choice == .graniteSpeech ? granite.displayName : choice.displayName,
                             detail: transcriptionSize(choice),
                             inUse: choice == app.settings.transcriptionModel,
-                            available: choice == .appleSpeech ? appleAvailable : TranscriptionModelStore.isDownloaded(
-                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory),
+                            available: choice == .speechRuntime || (choice == .appleSpeech ? appleAvailable : TranscriptionModelStore.isDownloaded(
+                                choice, graniteConfiguration: granite, funASRNanoDirectory: funASRNanoDirectory)),
                             progress: status.progress,
                             blocked: choice == .appleSpeech && !appleAvailable,
                             builtInSystem: choice.isBuiltInSystem,
@@ -504,6 +504,7 @@ struct ModelPickerSheet: View {
                 .font(.scaled(.body)).foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
             if role == .transcription, transcription == .funASRNano { funASRFolderPicker }
+            if role == .transcription, transcription == .speechRuntime { SpeechRuntimeStatusView() }
             if role == .transcription, transcription == .appleSpeech, let blocker = selectedBlocker {
                 Label(blocker, systemImage: "exclamationmark.triangle")
                     .font(.scaled(.callout)).foregroundStyle(.orange)
@@ -1041,6 +1042,29 @@ struct ModelPickerSheet: View {
             }
         }
         .padding(.top, 12)
+    }
+}
+
+private struct SpeechRuntimeStatusView: View {
+    @State private var status: SpeechRuntimeEngine.Status?
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Image(systemName: status?.modelReady == true ? "checkmark.circle.fill" : "waveform")
+                .foregroundStyle(status?.modelReady == true ? .green : .secondary)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(status?.message ?? "Checking Speech Runtime…")
+                    .font(.scaled(.callout))
+                Text("127.0.0.1:8477 · Parakeet Ultra")
+                    .font(.scaled(.caption)).foregroundStyle(.secondary)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                status = await SpeechRuntimeEngine.shared.status()
+                try? await Task.sleep(for: .seconds(4))
+            }
+        }
     }
 }
 
