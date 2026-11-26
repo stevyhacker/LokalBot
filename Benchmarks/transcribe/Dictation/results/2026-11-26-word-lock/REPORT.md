@@ -89,3 +89,15 @@ transcript (11-21 only: the 5 on v2) or restored spoken digits (11-26: all of th
 - Everything in the 11-21 "Not covered" section still applies.
 - Because the stock model got `w1-digits-filler` right and v4 gets it wrong, restoring now helps on a set where it did not in 11-21.
   That is a property of the new model, not of changed rules.
+
+## After review (same day)
+
+Two rules changed after these runs, in the commit that follows them: a spoken number word is no longer taken for the digit to
+restore ("one of us needs 1 ticket"), and digits that cleanup adds must be the digits the spoken number words stand for (an
+invented "34" for a spoken "3" no longer passes because "one" was said elsewhere). All 14 runs were then repeated once on a build
+with those rules, same model, server, seed and corpora: every output text in every run was identical to the runs reported
+above, so every count above stands. The repeat's outputs are not archived; the manifests in `runs/` are from the first runs.
+This also answers part of the first limit above: one repeat, on a different build, gave identical text.
+
+Still not covered, raised in review: two separate negated statements in one dictation count as one (dropping the first
+"do not" passes while the second stays), and the real-dictation samples were not rerun after the two rule changes.
