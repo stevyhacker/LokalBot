@@ -61,7 +61,7 @@ npx lokalbot
 
 <sub>⭐ If LokalBot is useful to you, star the repo. It's built by one developer, and stars are how other people find it.</sub>
 
-**English** · [简体中文](README.zh-CN.md)
+**English** · [简体中文](README.zh-CN.md) · [Türkçe](README.tr.md)
 
 [Agents & CLI](#for-developers--agents) · [Features](#features) · [Windows & Linux](#windows-and-linux) · [iOS & Android](#on-your-phone) · [Compare](#how-it-compares) · [Performance](#performance) · [Benchmarks](https://www.lokalbot.com/benchmarks) · [Hardware calculator](https://www.lokalbot.com/hardware) · [Cost calculator](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [Privacy](#privacy) · [Get started](#get-started) · [Models](#local-ai-your-choice) · [Discussions](https://github.com/stevyhacker/lokalbot/discussions) · [Website](https://www.lokalbot.com/)
 
