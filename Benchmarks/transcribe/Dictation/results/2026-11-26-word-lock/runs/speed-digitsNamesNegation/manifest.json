@@ -1,0 +1,60 @@
+{
+  "appSHA256": "1e2f080b3316dd4c22cb0d271995a5ba6fc8830323e112cb0553befb6733d5db",
+  "serverSHA256": "8a76e37c6b8e74c71fe6d6c33a27d8ed022ba6fd43b1993c8243fca805b25a58",
+  "modelSHA256": "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+  "modelFile": "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+  "corpusSHA256": "fccaae5f4b344da2291c7c24ac6f856a4dba2d5704298c1d449d1a0a658310ea",
+  "scriptSHA256": "3a1093daa6d4c3f10457adfaece09b1b7f624145192a0f4ce6f1ca8872e58af3",
+  "split": "heldout",
+  "caseIDs": [
+    "s1-plan-45",
+    "s2-numbers-70",
+    "s3-recap-100",
+    "s4-trip-150",
+    "s5-stutter-120",
+    "s6-feedback-200",
+    "s7-brainstorm-250",
+    "s8-handoff-90"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/app-wl1126/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "~/Code/LokalBot-build/models/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "57579",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "wordLock": "digitsNamesNegation",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}

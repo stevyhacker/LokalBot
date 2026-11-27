@@ -1,0 +1,585 @@
+{
+  "description": "Word-lock supplement, authored for the digits/names/negation lock and frozen before its first inference. Synthetic only. Direct dictation with digits (incl. Serbian and a repeated false start), negation in several spellings, unusual names (incl. one at a sentence start and one spoken in lower case), self-corrections the cleanup is allowed to drop, fluent filler controls, and Transcribe.",
+  "now": "2026-11-21T12:00:00Z",
+  "cases": [
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-time",
+      "kind": "fidelity",
+      "speech": "Move the review to 4:30 on Thursday.",
+      "required": [
+        "4",
+        "30",
+        "thursday"
+      ],
+      "forbidden": [
+        "four",
+        "thirty"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-count",
+      "kind": "fidelity",
+      "speech": "We shipped 7 builds this week.",
+      "required": [
+        "7",
+        "builds"
+      ],
+      "forbidden": [
+        "seven"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-money",
+      "kind": "fidelity",
+      "speech": "The quote came in at 1200 dollars.",
+      "required": [
+        "1200"
+      ],
+      "forbidden": [
+        "twelve",
+        "1 200"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-percent",
+      "kind": "fidelity",
+      "speech": "Usage is up 12 percent since Monday.",
+      "required": [
+        "12",
+        "monday"
+      ],
+      "forbidden": [
+        "twelve"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-small",
+      "kind": "fidelity",
+      "speech": "Grab 2 chairs from room 5.",
+      "required": [
+        "2",
+        "chairs",
+        "5"
+      ],
+      "forbidden": [
+        "two",
+        "five"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-sr",
+      "kind": "fidelity",
+      "speech": "Pošalji mi 4 fajla do 10.",
+      "required": [
+        "4",
+        "fajla",
+        "10"
+      ],
+      "forbidden": [
+        "četiri",
+        "deset"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-filler",
+      "kind": "fidelity",
+      "speech": "um so we need like 3 more days",
+      "required": [
+        "3",
+        "days"
+      ],
+      "forbidden": [
+        "three",
+        "um"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-digits-repeat",
+      "kind": "fidelity",
+      "speech": "we need we need 6 more reviewers",
+      "required": [
+        "6",
+        "reviewers"
+      ],
+      "forbidden": [
+        "six"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-not",
+      "kind": "fidelity",
+      "speech": "I'm not ready to sign the contract yet.",
+      "required": [
+        "not",
+        "contract"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-dont",
+      "kind": "fidelity",
+      "speech": "Don't merge the branch until Friday.",
+      "required": [
+        "merge",
+        "friday"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-never",
+      "kind": "fidelity",
+      "speech": "We never got the invoice from Acme.",
+      "required": [
+        "never",
+        "acme"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-no",
+      "kind": "fidelity",
+      "speech": "There is no budget left for travel.",
+      "required": [
+        "no budget"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-cant",
+      "kind": "fidelity",
+      "speech": "I can't make the 3 o'clock call.",
+      "required": [
+        "3",
+        "call"
+      ],
+      "forbidden": [
+        "three"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-filler",
+      "kind": "fidelity",
+      "speech": "uh no I don't think that works",
+      "required": [
+        "think that works"
+      ],
+      "forbidden": [
+        "uh"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-neg-double",
+      "kind": "fidelity",
+      "speech": "It's not that we don't want it, we just can't pay for it.",
+      "required": [
+        "want it",
+        "pay for it"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-person",
+      "kind": "fidelity",
+      "speech": "Ask Ingrid Okafor to review the slides.",
+      "required": [
+        "ingrid okafor",
+        "slides"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-product",
+      "kind": "fidelity",
+      "speech": "The Halcyon build passed on the first try.",
+      "required": [
+        "halcyon"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-place",
+      "kind": "fidelity",
+      "speech": "We'll meet in Novi Sad on Tuesday.",
+      "required": [
+        "novi sad",
+        "tuesday"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-pair",
+      "kind": "fidelity",
+      "speech": "Send the deck to Zoltan and Mei before lunch.",
+      "required": [
+        "zoltan",
+        "mei",
+        "deck"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-lowercase",
+      "kind": "fidelity",
+      "speech": "send it to priya by friday",
+      "required": [
+        "priya",
+        "friday"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-name-start",
+      "kind": "fidelity",
+      "speech": "Marko said the build is green.",
+      "required": [
+        "marko",
+        "build is green"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fix-digit",
+      "kind": "fidelity",
+      "speech": "let's meet at 3, no, 4 tomorrow",
+      "required": [
+        "4",
+        "tomorrow"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fix-name",
+      "kind": "fidelity",
+      "speech": "send it to Ana, I mean Mila",
+      "required": [
+        "mila"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fix-actually",
+      "kind": "fidelity",
+      "speech": "book 2 rooms, actually 3 rooms",
+      "required": [
+        "3 rooms"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fix-sorry",
+      "kind": "fidelity",
+      "speech": "it's due Monday, sorry, Tuesday",
+      "required": [
+        "tuesday"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fix-scratch",
+      "kind": "fidelity",
+      "speech": "invite the whole team, scratch that, just the leads",
+      "required": [
+        "leads"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fluent-filler",
+      "kind": "fidelity",
+      "speech": "um so basically the demo went well",
+      "required": [
+        "demo went well"
+      ],
+      "forbidden": [
+        "um"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fluent-stutter",
+      "kind": "fidelity",
+      "speech": "the the deploy is done",
+      "required": [
+        "deploy is done"
+      ],
+      "forbidden": [
+        "the the"
+      ]
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fluent-question",
+      "kind": "fidelity",
+      "speech": "can you check if the server is up",
+      "required": [
+        "server is up"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": false,
+      "contextEligible": false,
+      "id": "w1-fluent-plain",
+      "kind": "fidelity",
+      "speech": "Thanks for the notes, they helped a lot.",
+      "required": [
+        "thanks",
+        "notes",
+        "helped"
+      ],
+      "forbidden": []
+    },
+    {
+      "split": "heldout",
+      "expectedVisibleIDs": [],
+      "permittedTextReadIDs": [],
+      "expectedMemoryIDs": [],
+      "memoryRequiresVisible": false,
+      "memorySource": "meeting",
+      "transcribe": true,
+      "contextEligible": false,
+      "id": "w1-transcribe",
+      "kind": "transcribe",
+      "speech": "We shipped 7 builds this week.",
+      "required": [],
+      "forbidden": []
+    }
+  ],
+  "memoryItems": []
+}

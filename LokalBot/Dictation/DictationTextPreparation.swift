@@ -24,6 +24,7 @@ enum DictationTextPreparation {
         windowTextPolicy: DictationWindowTextPolicy = .production,
         routing: DictationRequestRouting = .production,
         cleanupPrompt: DictationCleanupPrompt = .production,
+        wordLock: DictationWordLock = .production,
         makeEngine: (AppSettings) async throws -> TextEngine
     ) async throws -> Result {
         try Task.checkCancellation()
@@ -77,12 +78,20 @@ enum DictationTextPreparation {
                 : DictationComposePrompt.normalizedOutput(output),
             spokenText: speech, context: context)
         guard !text.isEmpty else { throw DictationComposeError.emptyOutput }
+        let locked = cleansAsData
+            ? wordLock.kept(spoken: speech, cleaned: text, glossary: profile.glossary)
+            : (text: text, broken: [])
+        if !locked.broken.isEmpty {
+            lokalbotLog("dictation word lock kept the transcript reasons=\(locked.broken.map(\.rawValue).joined(separator: ","))")
+        } else if locked.text != text {
+            lokalbotLog("dictation word lock restored spoken digits")
+        }
         let contextUse = DictationContextUse(
             wasWritingRequest: usesContext,
             focusedWindow: !(context?.visibleText.isEmpty ?? true),
             visibleText: !(visible?.text?.isEmpty ?? true),
             savedFactSources: memory.selection.sourceTitles)
-        return Result(text: text, compositionModel: engine.displayName,
+        return Result(text: locked.text, compositionModel: engine.displayName,
                       sourceTitles: memory.selection.sourceTitles, contextIsCurrent: isCurrent,
                       contextUse: contextUse)
     }

@@ -82,6 +82,11 @@ class ReplayTests(unittest.TestCase):
         self.assertIn('screen', windowed['cases'][0])
         self.assertNotIn('useScreenContext', replay_input(self.corpus, [case], 'all'))
 
+    def testWordLockIsPassedOnlyWhenChosen(self):
+        self.assertNotIn('wordLock', replay_input(self.corpus, [self.case], 'neither'))
+        data = replay_input(self.corpus, [self.case], 'neither', word_lock='off')
+        self.assertEqual(data['wordLock'], 'off')
+
     def testWindowIsReadOnlyForEligibleRequestsInWindowVariants(self):
         variants = VARIANT_SETS['full']
         def runs_for(case, reads):
