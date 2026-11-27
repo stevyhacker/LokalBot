@@ -315,7 +315,7 @@ impl Default for Settings {
             cotyping_debounce_ms: 160,
             cotyping_multi_line: false,
             cotyping_accept_granularity: AcceptGranularity::Word,
-            cotyping_built_in_model_id: "gemma4-e2b-lokalbot-v4".into(),
+            cotyping_built_in_model_id: "gemma4-e2b-lokalbot-v4-q5".into(),
             cotyping_excluded_apps: "1Password, Bitwarden, KeePassXC, KeePass".into(),
             cotyping_excluded_domains: String::new(),
             cotyping_use_visible_context: true,

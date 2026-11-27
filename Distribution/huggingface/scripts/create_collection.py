@@ -20,7 +20,7 @@ NAMESPACE = "stevyhacker"
 TITLE = "LokalBot recommended local stack"
 DESCRIPTION = (
     "LokalBot v0.14.0 local stack: 4 Apache-2.0 fine-tunes + Nemotron 3 & "
-    "EmbeddingGemma 2 (~9.6 GB). https://github.com/stevyhacker/lokalbot"
+    "EmbeddingGemma 2 (~8.8 GB). https://github.com/stevyhacker/lokalbot"
 )
 
 ITEMS = [
@@ -51,8 +51,8 @@ ITEMS = [
     ),
     (
         "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
-        "Default inline autocomplete (v4, 3.85 GB i1-Q6_K). Fine-tune of google/gemma-4-E2B: 56/56 "
-        "memory+visible grounding, 52.2% precision (80.0% email), 20.2 ms boundary median. Apache-2.0.",
+        "Default inline autocomplete (v4, 3.02 GB i1-Q5_K_M + PLE Q4_K). Fine-tune of google/gemma-4-E2B: "
+        "55/56 memory+visible grounding (26/26 memory), 57.3% FH2 (94.0% prec), 0 unsafe. Apache-2.0.",
     ),
 ]
 
@@ -68,7 +68,7 @@ VERIFICATION = {
     "FluidInference/nemotron-3-diarization-coreml": ("Nemotron3Diarizer_offline.mlmodelc",),
     "stevyhacker/Qwen3.5-4B-LokalBot-GGUF": ("Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",),
     "ggml-org/embeddinggemma-2-GGUF": ("Q8_0",),
-    "stevyhacker/Gemma-4-E2B-LokalBot-GGUF": ("Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",),
+    "stevyhacker/Gemma-4-E2B-LokalBot-GGUF": ("Gemma-4-E2B-LokalBot-v4-i1-Q5_K_M-pleQ4K.gguf",),
 }
 
 

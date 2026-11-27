@@ -54,7 +54,8 @@ struct ModelCatalog {
     static let compactFallbackID = "qwen3.5-0.8b"
     static let recommendedSummarizationID = "qwen3.6-35b-a3b"
     static let previousQualityCotypingID = "gemma4-e2b-base-q6"
-    static let qualityCotypingID = "gemma4-e2b-lokalbot-v4"
+    static let previousV4QualityCotypingID = "gemma4-e2b-lokalbot-v4"
+    static let qualityCotypingID = "gemma4-e2b-lokalbot-v4-q5"
     static let recommendedCotypingID = qualityCotypingID
     static let lightweightCotypingID = "lfm2.5-1.2b-instruct"
     static let recommendedCotypingLicenseURL = URL(
@@ -66,6 +67,7 @@ struct ModelCatalog {
 
     private static let autocompleteOnlyIDs: Set<String> = [
         qualityCotypingID,
+        previousV4QualityCotypingID,
         previousQualityCotypingID,
     ]
 
@@ -93,11 +95,18 @@ struct ModelCatalog {
               sizeGB: 0.73, blurb: "Lightweight, English-first autocomplete alternative. Under 1 GB.",
               disablesThinking: false),
         Entry(id: qualityCotypingID, displayName: "Gemma 4 E2B (LokalBot v4)",
+              fileName: "Gemma-4-E2B-LokalBot-v4-i1-Q5_K_M-pleQ4K.gguf",
+              url: "https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF/resolve/58300b1a9d5545fe8225e73e6dc72db3cb5090c4/Gemma-4-E2B-LokalBot-v4-i1-Q5_K_M-pleQ4K.gguf",
+              sha256: "fac8a71506ef985292edb5c1ef190ea07288a6cca2aba0428b07d0f5feefbdf4",
+              sizeBytes: 3_021_725_952,
+              sizeGB: 3.02, blurb: "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ Macs.",
+              disablesThinking: false),
+        Entry(id: previousV4QualityCotypingID, displayName: "Gemma 4 E2B (LokalBot v4, Q6)",
               fileName: "Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
               url: "https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF/resolve/e089648312aee558514a13dbbd4efb19a0b3eb25/Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
               sha256: "ea8c01dd28abaae0a6664eb9c1324f6bf6cd0ffef99dace496510f7cceb40581",
               sizeBytes: 3_845_323_008,
-              sizeGB: 3.85, blurb: "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ Macs.",
+              sizeGB: 3.85, blurb: "Higher-bit Q6_K variant of Gemma 4 E2B (LokalBot v4). 16 GB+ Macs.",
               disablesThinking: false),
         Entry(id: previousQualityCotypingID, displayName: "Gemma 4 E2B Base (Autocomplete)",
               fileName: "gemma-4-E2B.i1-Q6_K.gguf",

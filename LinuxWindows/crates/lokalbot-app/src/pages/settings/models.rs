@@ -1596,12 +1596,12 @@ mod tests {
         };
         assert_eq!(downloadable_model_id(&local), Some("qwen3.5-4b"));
         let autocomplete = ModelPatch {
-            autocomplete_model_id: Some("gemma4-e2b-lokalbot-v4".into()),
+            autocomplete_model_id: Some("gemma4-e2b-lokalbot-v4-q5".into()),
             ..ModelPatch::default()
         };
         assert_eq!(
             downloadable_model_id(&autocomplete),
-            Some("gemma4-e2b-lokalbot-v4")
+            Some("gemma4-e2b-lokalbot-v4-q5")
         );
         let remote = ModelPatch {
             transcription: Some(lokalbot_core::remote_transcription::MODEL_ID.into()),
