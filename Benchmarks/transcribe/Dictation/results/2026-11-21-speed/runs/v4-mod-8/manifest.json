@@ -1,0 +1,77 @@
+{
+  "appSHA256": "cb3fa2f461ac68deb35893f1286e0f7d0109ca709052b42e3bab9ce8de1a61e3",
+  "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
+  "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+  "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
+  "corpusSHA256": "bdced6d436ff6ceeb58121a7a55a85e85707888d0e4fa4638a0819e339b07c39",
+  "scriptSHA256": "4369c9253b63a29e3361cf6522e9c9b77a073cb60f4f6feaa0cfc7dc91c71551",
+  "split": "heldout",
+  "caseIDs": [
+    "f4-digits-small",
+    "f4-digits-list",
+    "f4-time",
+    "f4-help-question",
+    "f4-status-question",
+    "f4-who-question",
+    "f4-tell-relay",
+    "f4-ask-team",
+    "f4-please-review",
+    "f4-negation",
+    "f4-plain-time",
+    "f4-filler",
+    "f4-sr-digits",
+    "f4-sr-question",
+    "f4-sr-send",
+    "f4-sr-plain",
+    "f4-request",
+    "f4-transcribe"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/app-speed/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "57781",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430",
+    "--spec-type",
+    "ngram-mod",
+    "--spec-ngram-mod-n-match",
+    "8",
+    "--spec-ngram-mod-n-min",
+    "4",
+    "--spec-ngram-mod-n-max",
+    "32"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}

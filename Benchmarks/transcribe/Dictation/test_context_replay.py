@@ -1,8 +1,12 @@
 import copy
 import json
+import socket
+import sys
+import tempfile
+import urllib.request
 from pathlib import Path
 import unittest
-from context_replay import VARIANT_SETS, VARIANTS, contains, flags, replay_input, score
+from context_replay import VARIANT_SETS, VARIANTS, contains, flags, replay_input, score, server_command, serving
 
 
 class ReplayTests(unittest.TestCase):
@@ -13,6 +17,27 @@ class ReplayTests(unittest.TestCase):
                                 memoryIDs=self.case['expectedMemoryIDs'] if name in ['both', 'all'] else [],
                                 visibleIDs=['message'] if flags[0] else [], textReadIDs=['message'] if flags[0] else [])]
                      for name, flags in VARIANTS.items()}
+
+    def testExtraServerArgumentsAreAppendedButCannotMoveTheServer(self):
+        command = server_command('server', 'model.gguf', 8080, ['--spec-type', 'ngram-mod'])
+        self.assertEqual(command[-2:], ['--spec-type', 'ngram-mod'])
+        self.assertEqual(command[command.index('--host') + 1], '127.0.0.1')
+        for moved in (['--host', '0.0.0.0'], ['--port=9'], ['-m', 'other.gguf'], ['--seed', '1'],
+                      ['--api-key-file', 'key'], ['--api-key-file=key']):
+            with self.assertRaises(ValueError):
+                server_command('server', 'model.gguf', 8080, moved)
+
+    def testAServerIsReadyInsideItsBlockAndStoppedAfter(self):
+        with tempfile.TemporaryDirectory() as folder, open(Path(folder) / 'server.log', 'w') as log:
+            (Path(folder) / 'health').write_text('ok')
+            with socket.socket() as probe:
+                probe.bind(('127.0.0.1', 0))
+                port = probe.getsockname()[1]
+            command = [sys.executable, '-m', 'http.server', str(port), '--bind', '127.0.0.1', '--directory', folder]
+            opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+            with serving(command, f'http://127.0.0.1:{port}', log, opener, ready_seconds=60) as process:
+                self.assertIsNone(process.poll())
+            self.assertIsNotNone(process.poll())
 
     def testExpectedAnswersNeverEnterRuntimeCases(self):
         data = replay_input(self.corpus, [self.case], 'both')

@@ -1,0 +1,31 @@
+run,corpus,model,speculation,outputs,correct,accuracy,median_ms,p90_ms,p95_ms,first_condition_median_ms,later_conditions_median_ms
+round2-speed-base-c,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,40,10,0.250,2113,4181,4191,2128,2113
+round2-speed-cache,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-cache,40,15,0.375,1813,3408,3470,1810,1821
+round2-speed-mod-cache,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,"--spec-type ngram-mod,ngram-cache",40,15,0.375,1807,3393,3425,1827,1806
+round2-speed-mod-default,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod,40,10,0.250,2119,4312,4411,2101,2119
+round2-v4-base-c,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,85,83,0.976,274,566,570,275,274
+round2-v4-cache,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-cache,85,78,0.918,212,503,593,212,212
+round2-v4-mod-cache,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,"--spec-type ngram-mod,ngram-cache",85,78,0.918,214,501,596,215,214
+round2-v4-mod-default,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod,85,83,0.976,267,557,569,268,267
+speed-base-a,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,40,10,0.250,2172,4273,4382,2147,2183
+speed-base-b,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,40,10,0.250,2141,4237,4301,2113,2148
+speed-cache,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-cache,40,15,0.375,1800,3400,3442,1816,1800
+speed-mapk-4-32,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-map-k --spec-ngram-map-k-size-n 4 --spec-ngram-map-k-size-m 32,40,15,0.375,2116,4119,4132,2090,2147
+speed-mod-8,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod --spec-ngram-mod-n-match 8 --spec-ngram-mod-n-min 4 --spec-ngram-mod-n-max 32,40,15,0.375,2585,4597,4664,2561,2601
+speed-mod-default,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod,40,10,0.250,2123,4288,4388,2108,2123
+speed-simple-12-48,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple,40,10,0.250,2237,4165,4221,2233,2237
+speed-simple-3-16,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple --spec-ngram-simple-size-n 3 --spec-ngram-simple-size-m 16,40,15,0.375,1944,3463,3520,1951,1943
+speed-simple-6-32,context-speed-v1,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 32,40,15,0.375,2473,4459,4529,2449,2478
+speed-stock-base,context-speed-v1,Qwen3.5-4B-Q4_K_M.gguf,none,40,20,0.500,2227,4365,4470,2191,2227
+speed-stock-cache,context-speed-v1,Qwen3.5-4B-Q4_K_M.gguf,--spec-type ngram-cache,40,20,0.500,1934,3781,3851,1935,1934
+v4-base-a,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,85,83,0.976,268,558,570,270,268
+v4-base-b,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,none,85,83,0.976,267,561,568,272,266
+v4-cache,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-cache,85,78,0.918,216,511,603,212,217
+v4-mapk-4-32,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-map-k --spec-ngram-map-k-size-n 4 --spec-ngram-map-k-size-m 32,85,83,0.976,266,554,585,267,266
+v4-mod-8,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod --spec-ngram-mod-n-match 8 --spec-ngram-mod-n-min 4 --spec-ngram-mod-n-max 32,85,83,0.976,256,568,577,258,256
+v4-mod-default,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-mod,85,83,0.976,271,560,563,272,270
+v4-simple-12-48,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple,85,83,0.976,275,564,577,276,275
+v4-simple-3-16,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple --spec-ngram-simple-size-n 3 --spec-ngram-simple-size-m 16,85,78,0.918,222,530,559,222,222
+v4-simple-6-32,context-cleanup-v4,Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf,--spec-type ngram-simple --spec-ngram-simple-size-n 6 --spec-ngram-simple-size-m 32,85,83,0.976,256,564,576,258,256
+v4-stock-base,context-cleanup-v4,Qwen3.5-4B-Q4_K_M.gguf,none,85,83,0.976,277,569,637,285,277
+v4-stock-cache,context-cleanup-v4,Qwen3.5-4B-Q4_K_M.gguf,--spec-type ngram-cache,85,83,0.976,224,521,645,226,224
