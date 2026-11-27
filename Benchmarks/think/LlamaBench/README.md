@@ -20,4 +20,4 @@ What stands out on the two Intel laptops:
 - **The default thread count is low on the Core Ultra 7.** `llama-bench` picked 2 of 8 cores; 8 threads doubled prefill.
 - **The i5 laptop is heat-limited.** Its numbers depend on how warm it already is, and on the `performance` power profile it shut itself down. Its report has the details.
 
-In the JSON, `avg_ts` and `stddev_ts` agree with `samples_ts` in every row, and the reports use those. `stddev_ns` is `llama-bench`'s own field, copied as it was printed; in 24 of the 90 rows it does not match the standard deviation of `samples_ns`, so compute timing spread from the samples.
+In the JSON, `avg_ts` and `stddev_ts` agree with `samples_ts` in every row, and the reports use those. `stddev_ns` is `llama-bench`'s own field, copied as it was printed; in about a quarter of the 90 rows it does not match the standard deviation of `samples_ns` (24 rows differ by more than 2%, 26 by more than 0.1%), so compute timing spread from the samples.
