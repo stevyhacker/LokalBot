@@ -11,9 +11,21 @@ This feature covers how LokalBot gets, runs and talks to language models: the bu
 
 ### Each model role runs its own loopback-only `llama-server` with a random bearer token
 
-Think, embeddings and autocomplete each run as a separate `llama-server` subprocess on a fixed loopback port with a random bearer token that rotates on every start; a non-loopback base URL for a built-in server would be a data-exfiltration bug, not a configuration choice. The autocomplete server passes `--swa-full` (probed conditionally on Windows and Linux via `CONDITIONAL_FLAGS` at `PROBE_VERSION = 3`) so sliding-window models like Gemma 4 keep full SWA KV memory across partial prompt reuse. A `Lease` keeps a server loaded, and after the last lease drops it lingers for the role's idle time, then stops. The on-disk marker that shares the token is mode 0600, and CLI callers check that its PID is alive, is the recorded executable and owns the expected listening port before trusting localhost.
+Think, embeddings and autocomplete each run as a separate `llama-server` subprocess on a fixed loopback port with a random bearer token that rotates on every start; a non-loopback base URL for a built-in server would be a data-exfiltration bug, not a configuration choice. The autocomplete server passes `--swa-full` (probed conditionally on Windows and Linux via `CONDITIONAL_FLAGS` at `PROBE_VERSION = 4`, along with `--kv-unified`, `--ubatch-size`, and `--flash-attn`) so sliding-window models like Gemma 4 keep full SWA KV memory across partial prompt reuse. A `Lease` keeps a server loaded, and after the last lease drops it lingers for the role's idle time, then stops. The on-disk marker that shares the token is mode 0600, and CLI callers check that its PID is alive, is the recorded executable and owns the expected listening port before trusting localhost.
 
 Where: `LinuxWindows/crates/lokalbot-ai/src/runtime.rs`, `LokalBot/Engines/LlamaServer.swift` (`LlamaServer.cotyping`), `LokalBot/CLISupport/AskLibraryEngine.swift` (`LocalLlamaServerMarker`), `LokalBotTests/Engines/LlamaServerTests.swift` (`testSharedServersAreLoopbackOnlyAndOnDistinctPorts`).
+
+### The Main server batches two unified-KV slots with 2048-token micro-batches
+
+The built-in Main `llama-server` runs with `--parallel 2 --kv-unified --ubatch-size 2048` on macOS, Windows and Linux (gated on `--kv-unified` and `--ubatch-size` capability probes in the port so older binaries never split the 32K context per slot). Unified KV sharing lets a single long prompt (Agent Mode or a large Ask window) still use the full 32K context while letting multi-part meeting notes overlap two parts with zero extra KV memory; raising the micro-batch size from 512 to 2048 improves GPU prefill utilization on 6K-token chunks. Flash attention stays at llama.cpp's default (`auto`) on Main: disabling it cut prefill time on Vulkan RDNA2 but slowed decode by ~31% and caused VRAM spillover at 32K context on 8 GB GPUs.
+
+Where: `LokalBot/Engines/LlamaServer.swift` (`MainLLMRuntimePolicy`), `LinuxWindows/crates/lokalbot-ai/src/runtime.rs` (`Role::extra_args`, `MAIN_MAX_CONCURRENT_REQUESTS`), `LokalBotTests/Agent/AgentLLMEndpointTests.swift` (`testMainLLMRunsWithAutomaticReasoningAndA32KContext`).
+
+### Autocomplete disables flash attention on Vulkan only
+
+On Windows and Linux with the Vulkan backend, `Role::Autocomplete` passes `--flash-attn off` (probed via `CONDITIONAL_FLAGS`) alongside `-c 4096 --parallel 1 --swa-full`. Gemma 4 E2B uses 256- and 512-wide attention heads whose Vulkan flash-attention dispatch adds per-token overhead at small single-slot contexts; disabling it cut RX 6600 XT Vulkan ABBA latency by 16.5% on warm incremental keystrokes (200.1 ms to 167.0 ms) and 16.4% on cold prompts (228.0 ms to 190.7 ms) for +71 MiB VRAM at 4K single-slot context. CUDA, CPU, macOS Metal, and the 32K Main server keep default flash attention.
+
+Where: `LinuxWindows/crates/lokalbot-ai/src/runtime.rs` (`Role::extra_args`, `CONDITIONAL_FLAGS`).
 
 ### The installed app's ports never move, and Agent Mode shares the Think server
 

@@ -5,13 +5,15 @@ pub mod partial;
 pub mod render;
 pub mod view;
 
+use std::cell::RefCell;
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use std::path::{Path, PathBuf};
-use std::sync::Arc;
-use std::sync::atomic::AtomicBool;
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use std::sync::{Arc, mpsc};
 
 use anyhow::Result;
 use chrono::Local;
+use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -167,7 +169,7 @@ pub fn generate_meeting_notes_with(
     }
 
     progress("Planning the notes…");
-    let chunks = make_chunks(
+    let planned = plan_chunks(
         &evidence,
         think,
         &system,
@@ -176,18 +178,11 @@ pub fn generate_meeting_notes_with(
         template,
         cancel,
     )?;
-    let fixed = format!(
-        "{}\n\n",
-        std::iter::once(system.clone())
-            .chain(context.iter().cloned())
-            .collect::<Vec<_>>()
-            .join("\n\n")
-    );
-    let mut scales = Vec::with_capacity(chunks.len());
-    for chunk in &chunks {
-        let size = prompt_size(think, &format!("{fixed}{}", evidence.prompt(chunk)))?;
-        scales.push((size.planning as f64 / STANDARD_PART_TOKENS as f64).max(1.0));
-    }
+    let chunks: Vec<Vec<Unit>> = planned.iter().map(|chunk| chunk.units.clone()).collect();
+    let scales: Vec<f64> = planned
+        .iter()
+        .map(|chunk| (chunk.planning as f64 / STANDARD_PART_TOKENS as f64).max(1.0))
+        .collect();
     budget.record_plan(chunks.len(), scales.iter().sum());
     let revision = view::evidence_revision(transcript);
     let fingerprint = {
@@ -203,7 +198,7 @@ pub fn generate_meeting_notes_with(
         parts.extend(chunks.iter().map(|c| evidence.prompt(c)));
         lokalbot_core::library::sha256_hex(parts.join("\n\n").as_bytes())
     };
-    let mut checkpoint = options
+    let checkpoint = options
         .checkpoint_dir
         .as_ref()
         .and_then(|dir| std::fs::read(dir.join(CHECKPOINT_FILE)).ok())
@@ -215,50 +210,115 @@ pub fn generate_meeting_notes_with(
             parts: BTreeMap::new(),
         });
 
-    for (index, chunk) in chunks.iter().enumerate() {
-        cancelled(cancel)?;
-        let key = index.to_string();
-        if checkpoint.parts.get(&key).is_some_and(|p| p.complete) {
-            continue;
+    let checkpoint = Mutex::new(checkpoint);
+    let budget = Mutex::new(budget);
+    let concurrency = think.max_concurrent_notes_parts().max(1);
+    let save_part = |key: &str, part: &Part| {
+        let mut guard = checkpoint.lock();
+        guard.parts.insert(key.to_string(), part.clone());
+        if let Some(dir) = &options.checkpoint_dir {
+            save_checkpoint(dir, &guard, &evidence, template, chunks.len(), &revision);
         }
-        if chunks.len() > 1 {
-            progress(&format!(
-                "Writing notes · part {} of {}",
-                index + 1,
-                chunks.len()
-            ));
-        } else {
-            progress("Writing notes…");
-        }
-        let job = Job {
-            evidence: &evidence,
-            units: chunk,
-            think,
-            template,
-            language: language.clone(),
-            context: &context,
-            context_tokens,
-            number: index + 1,
-            remaining_parts: chunks.len() - index,
-            output_scale: scales[index],
-            retrying_stopped: options.retrying_stopped_parts,
-            cancel,
-        };
-        let initial = checkpoint.parts.get(&key).cloned().unwrap_or_default();
-        generate_part(initial, &job, &mut budget, &mut |part: &Part| {
-            checkpoint.parts.insert(key.clone(), part.clone());
-            if let Some(dir) = &options.checkpoint_dir {
-                save_checkpoint(
-                    dir,
-                    &checkpoint,
-                    &evidence,
-                    template,
-                    chunks.len(),
-                    &revision,
-                );
+    };
+
+    let extraction_indices: Vec<usize> = {
+        let guard = checkpoint.lock();
+        (0..chunks.len())
+            .filter(|index| {
+                !guard
+                    .parts
+                    .get(&index.to_string())
+                    .is_some_and(|part| part.complete)
+            })
+            .collect()
+    };
+    run_phase(
+        &extraction_indices,
+        concurrency,
+        cancel,
+        progress,
+        |_, index, report| {
+            if chunks.len() > 1 {
+                report(format!(
+                    "Writing notes · part {} of {}",
+                    index + 1,
+                    chunks.len()
+                ));
+            } else {
+                report("Writing notes…".to_string());
             }
-        })?;
-    }
+            let key = index.to_string();
+            let initial = checkpoint
+                .lock()
+                .parts
+                .get(&key)
+                .cloned()
+                .unwrap_or_default();
+            let job = Job {
+                evidence: &evidence,
+                units: &chunks[index],
+                think,
+                template,
+                language: language.clone(),
+                context: &context,
+                context_tokens,
+                number: index + 1,
+                remaining_parts: chunks.len() - index,
+                output_scale: scales[index],
+                retrying_stopped: options.retrying_stopped_parts,
+                cancel,
+            };
+            extract_part(initial, &job, &budget, &mut |part| save_part(&key, part))
+        },
+    )?;
+
+    let repair_indices: Vec<usize> = {
+        let guard = checkpoint.lock();
+        (0..chunks.len())
+            .filter(|index| {
+                guard.parts.get(&index.to_string()).is_some_and(|part| {
+                    !part.complete
+                        && part
+                            .recovery
+                            .as_ref()
+                            .is_some_and(|recovery| !recovery.pending.is_empty())
+                })
+            })
+            .collect()
+    };
+    let repair_total = repair_indices.len();
+    run_phase(
+        &repair_indices,
+        concurrency,
+        cancel,
+        progress,
+        |offset, index, _| {
+            let key = index.to_string();
+            let initial = checkpoint
+                .lock()
+                .parts
+                .get(&key)
+                .cloned()
+                .unwrap_or_default();
+            let job = Job {
+                evidence: &evidence,
+                units: &chunks[index],
+                think,
+                template,
+                language: language.clone(),
+                context: &context,
+                context_tokens,
+                number: index + 1,
+                remaining_parts: (repair_total - offset).max(1),
+                output_scale: scales[index],
+                retrying_stopped: options.retrying_stopped_parts,
+                cancel,
+            };
+            repair_part(initial, &job, &budget, &mut |part| save_part(&key, part))
+        },
+    )?;
+
+    let checkpoint = checkpoint.into_inner();
     let completed = checkpoint.parts.values().filter(|p| p.complete).count();
     if completed != chunks.len() {
         return Err(Incomplete {
@@ -456,6 +516,12 @@ fn token_count(think: &ThinkClient, text: &str) -> Result<u32> {
     Ok(prompt_size(think, text)?.upper)
 }
 
+struct PlannedChunk {
+    units: Vec<Unit>,
+    planning: u32,
+}
+
+#[cfg(test)]
 fn make_chunks(
     evidence: &Evidence,
     think: &ThinkClient,
@@ -465,6 +531,29 @@ fn make_chunks(
     template: NoteTemplate,
     cancel: Option<&AtomicBool>,
 ) -> Result<Vec<Vec<Unit>>> {
+    Ok(plan_chunks(
+        evidence,
+        think,
+        system,
+        context,
+        context_tokens,
+        template,
+        cancel,
+    )?
+    .into_iter()
+    .map(|chunk| chunk.units)
+    .collect())
+}
+
+fn plan_chunks(
+    evidence: &Evidence,
+    think: &ThinkClient,
+    system: &str,
+    context: &[String],
+    context_tokens: u32,
+    template: NoteTemplate,
+    cancel: Option<&AtomicBool>,
+) -> Result<Vec<PlannedChunk>> {
     let units = &evidence.units;
     if units.is_empty() {
         return Ok(Vec::new());
@@ -494,7 +583,10 @@ fn make_chunks(
                 && size.planning <= planning_ceiling
                 && enum_limit.is_none_or(|l| enums <= l)
             {
-                chunks.push(slice.to_vec());
+                chunks.push(PlannedChunk {
+                    units: slice.to_vec(),
+                    planning: size.planning,
+                });
                 break;
             }
             if end <= start + 1 {
@@ -519,6 +611,80 @@ fn make_chunks(
     Ok(chunks)
 }
 
+fn run_phase<F>(
+    indices: &[usize],
+    max_concurrent: usize,
+    cancel: Option<&AtomicBool>,
+    progress: &mut dyn FnMut(&str),
+    operation: F,
+) -> Result<()>
+where
+    F: Fn(usize, usize, &dyn Fn(String)) -> Result<()> + Sync,
+{
+    if indices.is_empty() {
+        return Ok(());
+    }
+    let workers = max_concurrent.max(1).min(indices.len());
+    if workers == 1 {
+        let sink = RefCell::new(progress);
+        let report = |message: String| (sink.borrow_mut())(&message);
+        for (offset, &index) in indices.iter().enumerate() {
+            cancelled(cancel)?;
+            operation(offset, index, &report)?;
+        }
+        return Ok(());
+    }
+    let cursor = AtomicUsize::new(0);
+    let failed = AtomicBool::new(false);
+    let first_error: Mutex<Option<(usize, anyhow::Error)>> = Mutex::new(None);
+    let (tx, rx) = mpsc::channel::<String>();
+    std::thread::scope(|scope| {
+        for _ in 0..workers {
+            let tx = tx.clone();
+            let cursor = &cursor;
+            let failed = &failed;
+            let first_error = &first_error;
+            let operation = &operation;
+            scope.spawn(move || {
+                let report = |message: String| {
+                    let _ = tx.send(message);
+                };
+                loop {
+                    if failed.load(Ordering::Acquire) {
+                        break;
+                    }
+                    if cancelled(cancel).is_err() {
+                        failed.store(true, Ordering::Release);
+                        break;
+                    }
+                    let offset = cursor.fetch_add(1, Ordering::AcqRel);
+                    if offset >= indices.len() {
+                        break;
+                    }
+                    let index = indices[offset];
+                    if let Err(err) = operation(offset, index, &report) {
+                        failed.store(true, Ordering::Release);
+                        let mut guard = first_error.lock();
+                        if guard.as_ref().is_none_or(|(prev, _)| offset < *prev) {
+                            *guard = Some((offset, err));
+                        }
+                        break;
+                    }
+                }
+            });
+        }
+        drop(tx);
+        for message in rx {
+            progress(&message);
+        }
+    });
+    if let Some((_, err)) = first_error.into_inner() {
+        return Err(err);
+    }
+    cancelled(cancel)?;
+    Ok(())
+}
+
 fn expanded_tokens(tokens: u32, input: u32, context_tokens: u32) -> Option<u32> {
     let available = context_tokens.checked_sub(input)?;
     (tokens > 0 && available > tokens).then(|| available.min(16_384.min((tokens * 2).max(8_192))))
@@ -532,10 +698,64 @@ fn record_count(text: &str) -> usize {
         .sum()
 }
 
+enum BudgetRef<'a> {
+    #[cfg(test)]
+    Exclusive(&'a mut Budget),
+    Shared(&'a Mutex<Budget>),
+}
+
+impl BudgetRef<'_> {
+    fn reserve(&mut self, input: u64, output: u64) -> Result<(), budget::Exhausted> {
+        match self {
+            #[cfg(test)]
+            Self::Exclusive(budget) => budget.reserve(input, output),
+            Self::Shared(budget) => budget.lock().reserve(input, output),
+        }
+    }
+
+    fn finish(&mut self, reserved: u64, actual: Option<u64>) {
+        match self {
+            #[cfg(test)]
+            Self::Exclusive(budget) => budget.finish(reserved, actual),
+            Self::Shared(budget) => budget.lock().finish(reserved, actual),
+        }
+    }
+}
+
+#[cfg(test)]
 #[allow(clippy::too_many_arguments)]
 fn request(
     think: &ThinkClient,
     budget: &mut Budget,
+    system: &str,
+    prompt: &str,
+    context: &[String],
+    schema: Value,
+    tokens: u32,
+    stage: &str,
+    context_tokens: u32,
+    truncation_retry: bool,
+    reasoning: TaskReasoning,
+) -> Result<(String, bool)> {
+    request_with_budget(
+        think,
+        &mut BudgetRef::Exclusive(budget),
+        system,
+        prompt,
+        context,
+        schema,
+        tokens,
+        stage,
+        context_tokens,
+        truncation_retry,
+        reasoning,
+    )
+}
+
+#[allow(clippy::too_many_arguments)]
+fn request_with_budget(
+    think: &ThinkClient,
+    budget: &mut BudgetRef<'_>,
     system: &str,
     prompt: &str,
     context: &[String],
@@ -620,7 +840,7 @@ fn request(
         && let Some(expanded) = expanded_tokens(tokens, input, context_tokens)
         && expanded > tokens
     {
-        match self::request(
+        match request_with_budget(
             think,
             budget,
             system,
@@ -1062,10 +1282,10 @@ fn accept_ownership_repairs(
     }
 }
 
-fn generate_part(
+fn extract_part(
     initial: Part,
     job: &Job,
-    budget: &mut Budget,
+    budget: &Mutex<Budget>,
     save: &mut dyn FnMut(&Part),
 ) -> Result<()> {
     let mut part = initial;
@@ -1110,7 +1330,9 @@ fn generate_part(
         }
         cancelled(job.cancel)?;
         let desired = (16_384f64.min(4_096.0 * job.output_scale)) as u32;
-        let allowance = budget.allowance(job.remaining_parts, desired, minimum)?;
+        let allowance = budget
+            .lock()
+            .allowance(job.remaining_parts, desired, minimum)?;
         let continuing = !recovery.records.is_empty();
         let stage = if continuing {
             format!("continue-{}-{}", job.number, recovery.next_page)
@@ -1136,9 +1358,9 @@ fn generate_part(
             maximum_actions,
             None,
         );
-        let (raw, truncated) = request(
+        let (raw, truncated) = request_with_budget(
             job.think,
-            budget,
+            &mut BudgetRef::Shared(budget),
             &system,
             &prompt,
             job.context,
@@ -1226,7 +1448,32 @@ fn generate_part(
         .pending
         .retain(|r| !terminal.contains(&r.reason.as_str()));
     queue_missing_commitments(&part, job, &mut recovery);
+    if recovery.pending.is_empty() {
+        part.complete = recovery.scan_complete;
+    }
     checkpoint(&mut part, &recovery);
+    Ok(())
+}
+
+fn repair_part(
+    initial: Part,
+    job: &Job,
+    budget: &Mutex<Budget>,
+    save: &mut dyn FnMut(&Part),
+) -> Result<()> {
+    let mut part = initial;
+    if part.complete {
+        return Ok(());
+    }
+    let mut recovery = part.recovery.take().unwrap_or_default();
+    if let Some(failure) = &recovery.terminal_failure {
+        return Err(AiError::BadResponse(failure.clone()).into());
+    }
+    let minimum = job.think.minimum_structured_output_tokens();
+    let mut checkpoint = |part: &mut Part, recovery: &Recovery| {
+        part.recovery = Some(recovery.clone());
+        save(part);
+    };
 
     let ownership_reasons = [
         "missing_ownership_evidence",
@@ -1258,7 +1505,9 @@ fn generate_part(
                     previous_tokens * 2
                 },
             ));
-            let allowance = budget.allowance(job.remaining_parts, desired, minimum)?;
+            let allowance = budget
+                .lock()
+                .allowance(job.remaining_parts, desired, minimum)?;
             if attempt > 0 && recovery.repair_token_floor.is_some() && allowance <= previous_tokens
             {
                 break;
@@ -1294,9 +1543,9 @@ fn generate_part(
                 action_limit,
                 action_texts.as_deref(),
             );
-            let (raw, truncated) = request(
+            let (raw, truncated) = request_with_budget(
                 job.think,
-                budget,
+                &mut BudgetRef::Shared(budget),
                 &repair_system,
                 &prompt,
                 &[],

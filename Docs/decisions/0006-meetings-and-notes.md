@@ -15,6 +15,12 @@ Each transcript part gets one extraction pass that yields notes, actions, decisi
 
 Where: `LinuxWindows/crates/lokalbot-ai/src/notes/mod.rs`, `LokalBot/Services/Notes/MeetingNotesGenerator.swift`, `LokalBot/Services/Notes/MeetingNotesRecovery.swift`.
 
+### Multi-part notes finish extraction before repair and batch two parts on local GPU servers
+
+For multi-part transcripts, every incomplete part finishes its extraction phase before targeted repairs begin, and `planChunks`/`plan_chunks` carries the planning token estimate forward instead of re-tokenizing each finished chunk. Grouping extractions ahead of repairs keeps the shared extraction system-prompt prefix warm across parts instead of evicting it whenever a repair switches to the repair system prompt. On built-in GPU `llama-server` endpoints (`maxConcurrentRequests = 2` on macOS, `max_concurrent_notes_parts = 2` in the port), up to two parts run concurrently in each phase while checkpoint writes stay serialized and merged output stays sorted by part index; CPU fallback, Ollama, remote APIs and subscription plans stay at concurrency 1.
+
+Where: `LokalBot/Services/Notes/MeetingNotesGenerator.swift` (`MeetingNotesGenerator.generate`, `CheckpointStore`, `runParts`), `LokalBot/Services/Notes/MeetingNotesRecovery.swift` (`extractPart`, `repairPart`), `LokalBot/Engines/TextEngine.swift` (`OpenAICompatibleEngine.maxConcurrentRequests`), `LinuxWindows/crates/lokalbot-ai/src/notes/mod.rs` (`generate_meeting_notes_with`, `run_phase`, `extract_part`, `repair_part`), `LinuxWindows/crates/lokalbot-ai/src/think.rs` (`ThinkClient::max_concurrent_notes_parts`).
+
 ### The transcript travels as context, not inside the instruction
 
 A server with prompt caching (Anthropic) then reuses the transcript across one meeting's requests. Every other server gets it joined in front of the instruction.

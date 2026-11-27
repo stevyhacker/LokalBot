@@ -179,6 +179,49 @@ final class SpanAudioReaderTests: XCTestCase {
                                timingPrecision: .coarse),
         ], "empty texts and spans past the batch's result count are dropped")
     }
+
+    func testConcurrentSpanTranscriptionPreservesOrderAndCapsInFlightWindows() async throws {
+        let rate = 16_000
+        let url = tempDir.appendingPathComponent("concurrent.wav")
+        try OnnxTranscriptionEngine.writeWav([Float](repeating: 0.1, count: rate * 2), to: url)
+
+        let spans = [
+            SpeechSpan(start: 0.0, end: 0.25, timingPrecision: .span),
+            SpeechSpan(start: 0.25, end: 0.5, timingPrecision: .span),
+            SpeechSpan(start: 0.5, end: 0.5, timingPrecision: .span),
+            SpeechSpan(start: 0.5, end: 0.75, timingPrecision: .span),
+            SpeechSpan(start: 0.75, end: 1.0, timingPrecision: .span),
+            SpeechSpan(start: 1.0, end: 1.25, timingPrecision: .span),
+            SpeechSpan(start: 1.25, end: 1.5, timingPrecision: .span),
+        ]
+        actor Tracker {
+            var active = 0
+            var peak = 0
+            func enter() {
+                active += 1
+                peak = max(peak, active)
+            }
+            func leave() { active -= 1 }
+        }
+        let tracker = Tracker()
+
+        let segments = try await SpanTranscription.segments(
+            in: url, spans: spans, maxConcurrent: 3
+        ) { samples, index in
+            XCTAssertEqual(samples.count, rate / 4)
+            await tracker.enter()
+            let delayMs = UInt64((spans.count - index) * 20)
+            try await Task.sleep(for: .milliseconds(delayMs))
+            await tracker.leave()
+            return index == 3 ? "   " : "span-\(index)"
+        }
+
+        let peak = await tracker.peak
+        XCTAssertGreaterThan(peak, 1)
+        XCTAssertLessThanOrEqual(peak, 3)
+        XCTAssertEqual(segments.map(\.text), ["span-0", "span-1", "span-4", "span-5", "span-6"])
+        XCTAssertEqual(segments.map(\.start), [0.0, 0.25, 0.75, 1.0, 1.25])
+    }
 }
 
 private func XCTAssertEqual(_ value: Int, _ expected: Int, accuracy: Int,

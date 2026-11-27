@@ -1694,6 +1694,97 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertLessThan(unlimited.seconds * 35, Double(Int.max))
     }
 
+    func testMultiPartNotesExtractBeforeRepairAndBatchConcurrently() async throws {
+        let llamaEngine = OpenAICompatibleEngine(
+            baseURL: URL(string: "http://127.0.0.1:17872/v1")!,
+            model: "qwen3.5-4b-lokalbot-v4",
+            chatDialect: .llamaServer)
+        let remoteEngine = OpenAICompatibleEngine(
+            baseURL: URL(string: "https://openrouter.ai/api/v1")!,
+            model: "qwen",
+            chatDialect: .openRouter)
+        XCTAssertEqual(llamaEngine.maxConcurrentRequests, MainLLMRuntimePolicy.maxConcurrentRequests)
+        XCTAssertEqual(remoteEngine.maxConcurrentRequests, 1)
+
+        actor ConcurrentTracker {
+            var active = 0
+            var peak = 0
+            var stages: [String] = []
+            func begin(isRepair: Bool) {
+                active += 1
+                peak = max(peak, active)
+                stages.append(isRepair ? "repair" : "extract")
+            }
+            func end() { active -= 1 }
+            func snapshot() -> (peak: Int, stages: [String]) { (peak, stages) }
+        }
+
+        struct ConcurrentEngine: TextEngine {
+            let tracker: ConcurrentTracker
+            var displayName: String { "Concurrent fixture" }
+            var maxConcurrentRequests: Int { 2 }
+            func tokenCount(_ text: String) async throws -> Int? { max(1, text.utf8.count / 4) }
+            func generate(system: String, prompt: String, context: [String]) async throws -> String { "" }
+            func generate(system: String, prompt: String, context: [String],
+                          schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+                let isRepair = prompt.hasPrefix("This is a targeted repair.")
+                await tracker.begin(isRepair: isRepair)
+                try await Task.sleep(for: .milliseconds(60))
+                await tracker.end()
+                let payload: [String: Any]
+                if isRepair {
+                    payload = [
+                        "notes": [["section": "Key points", "text": "Repaired part one finding.", "source": "s2"]],
+                        "actions": [],
+                        "has_more": false,
+                    ]
+                } else if prompt.contains("s1|") {
+                    payload = [
+                        "notes": [
+                            ["section": "Key points", "text": "Part one accepted finding.", "source": "s1"],
+                            ["section": "Wrong", "text": "Needs repair", "source": "s2"],
+                        ],
+                        "actions": [],
+                        "has_more": false,
+                    ]
+                } else {
+                    let source = prompt.split(separator: "\n").reversed()
+                        .compactMap { line -> String? in
+                            guard line.contains("|"), let id = line.split(separator: "|").first else { return nil }
+                            guard id.hasPrefix("s"), id.count > 1, id.dropFirst().allSatisfy(\.isNumber) else { return nil }
+                            return String(id)
+                        }
+                        .first ?? "s1"
+                    payload = [
+                        "notes": [["section": "Key points", "text": "Summary for \(source).", "source": source]],
+                        "actions": [],
+                        "has_more": false,
+                    ]
+                }
+                return String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            }
+        }
+
+        let transcript = longTranscript(segments: 60)
+        let tracker = ConcurrentTracker()
+        let result = try await MeetingNotesGenerator.generate(
+            transcript: transcript,
+            engine: ConcurrentEngine(tracker: tracker),
+            template: .meeting,
+            language: .matchTranscript,
+            context: [],
+            contextTokens: 8_192,
+            meetingID: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
+            folder: try folder())
+
+        let recorded = await tracker.snapshot()
+        let firstRepair = try XCTUnwrap(recorded.stages.firstIndex(of: "repair"))
+        let lastExtract = try XCTUnwrap(recorded.stages.lastIndex(of: "extract"))
+        XCTAssertLessThan(lastExtract, firstRepair, "all extractions must run before targeted repairs: \(recorded.stages)")
+        XCTAssertEqual(recorded.peak, 2)
+        XCTAssertTrue(result.body.contains("Repaired part one finding."))
+    }
+
     private func openRouterConfig(_ model: String) -> AppSettings {
         var config = AppSettings()
         config.summarizerBackend = .openAICompatible

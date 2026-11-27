@@ -13,6 +13,7 @@ struct LeasedTextEngine: TextEngine {
     var minimumStructuredOutputTokens: Int { base.minimumStructuredOutputTokens }
     var handlesTransientRetries: Bool { true }
     var structuredOutputEnumLimit: Int? { base.structuredOutputEnumLimit }
+    var maxConcurrentRequests: Int { base.maxConcurrentRequests }
 
     func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
         base.reasoningAllowance(for: options)

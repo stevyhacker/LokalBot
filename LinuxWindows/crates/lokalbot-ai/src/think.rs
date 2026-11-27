@@ -670,6 +670,19 @@ impl ThinkClient {
         }
     }
 
+    pub fn max_concurrent_notes_parts(&self) -> usize {
+        match &self.inner.backend {
+            Backend::BuiltIn { .. } if !self.runs_on_cpu() => {
+                crate::runtime::MAIN_MAX_CONCURRENT_REQUESTS
+            }
+            Backend::Server {
+                dialect: Dialect::LlamaServer,
+                ..
+            } => crate::runtime::MAIN_MAX_CONCURRENT_REQUESTS,
+            _ => 1,
+        }
+    }
+
     pub fn checkpoint_identity(&self) -> String {
         match &self.inner.backend {
             Backend::BuiltIn { entry, .. } => format!("built-in|{}|{}", entry.id, entry.sha256),

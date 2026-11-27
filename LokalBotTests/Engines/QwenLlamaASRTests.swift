@@ -88,6 +88,11 @@ final class QwenLlamaASRTests: XCTestCase {
         XCTAssertEqual(v1.legacyMLXDirectory(appSupport: appSupport).path,
                        "/tmp/app/qwen3-asr-models/models/aufklarer/Qwen3-ASR-0.6B-MLX-4bit")
         XCTAssertTrue(QwenLlamaASR.serverArguments.contains("--cache-ram"))
+        XCTAssertEqual(QwenLlamaASR.maxConcurrentWindows, 3)
+        XCTAssertEqual(QwenLlamaASR.contextTokens, 6_144)
+        XCTAssertEqual(
+            QwenLlamaASR.serverArguments,
+            ["--parallel", "3", "--ubatch-size", "2048", "--cache-ram", "0"])
     }
 
     func testFineTunedAndStockGGUFWeightsCoexistAndRemoveIndependently() throws {

@@ -4,7 +4,11 @@ import Darwin
 enum MainLLMRuntimePolicy {
     static let contextTokens = 32_768
     static let highReasoningBudgetTokens = 8_192
+    static let maxConcurrentRequests = 2
     static let serverExtraArguments = [
+        "--parallel", String(maxConcurrentRequests),
+        "--kv-unified",
+        "--ubatch-size", "2048",
         "--cache-ram", "2048",
         "--reasoning", "auto",
     ]

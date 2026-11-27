@@ -155,8 +155,13 @@ enum QwenLlamaASR {
     static let mediaMarker = "<__media__>"
     static let serverEnvironment = ["LLAMA_MEDIA_MARKER": mediaMarker]
 
-    static let contextTokens = 4_096
-    static let serverArguments = ["--parallel", "1", "--cache-ram", "256"]
+    static let maxConcurrentWindows = 3
+    static let contextTokens = 6_144
+    static let serverArguments = [
+        "--parallel", String(maxConcurrentWindows),
+        "--ubatch-size", "2048",
+        "--cache-ram", "0",
+    ]
 
     static func prompt(language: String?, context: String?) -> String {
         "<|im_start|>system\n\(context ?? "")<|im_end|>\n<|im_start|>user\n\(mediaMarker)<|im_end|>\n"

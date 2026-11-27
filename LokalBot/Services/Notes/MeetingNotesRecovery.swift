@@ -30,6 +30,13 @@ extension MeetingNotesGenerator {
     }
 
     static func generatePart(_ initial: Part, job: PartJob, save: (Part) throws -> Void) async throws {
+        let extracted = try await extractPart(initial, job: job) { try save($0) }
+        _ = try await repairPart(extracted, job: job) { try save($0) }
+    }
+
+    static func extractPart(
+        _ initial: Part, job: PartJob, save: (Part) async throws -> Void
+    ) async throws -> Part {
         var part = initial
         var recovery = part.recovery ?? legacyRecovery(part, transcript: job.evidence.transcript)
         let knownSources = Set(job.units.map(\.source))
@@ -46,39 +53,9 @@ extension MeetingNotesGenerator {
         }
         if let failure = recovery.terminalFailure { throw TextEngineError.badResponse(failure) }
         let minimum = job.engine.minimumStructuredOutputTokens
-        func checkpoint() throws {
+        func checkpoint() async throws {
             part.recovery = recovery
-            try save(part)
-        }
-        func accept(_ value: MeetingNotesEvidence.Validated) {
-            part.claims = distinctClaims(part.claims + value.claims)
-            let pendingIDs = Set(recovery.pending.compactMap(\.actionID))
-            var held = part.outcomes.actionItems.filter { pendingIDs.contains($0.id) }
-            var previous = part.outcomes
-            previous.actionItems.removeAll { pendingIDs.contains($0.id) }
-            let newPendingIDs = Set(value.rejected.compactMap(\.actionID))
-            var incoming = value.outcomes
-            incoming.actionItems.removeAll { newPendingIDs.contains($0.id) }
-            func sameTask(_ lhs: MeetingOutcomes.ActionItem, _ rhs: MeetingOutcomes.ActionItem) -> Bool {
-                OutcomeTextSimilarity.normalized(lhs.text) == OutcomeTextSimilarity.normalized(rhs.text)
-                    && !Set(lhs.citations.map(\.segmentID)).isDisjoint(with: rhs.citations.map(\.segmentID))
-            }
-            for action in incoming.actionItems {
-                let replaced = Set(held.filter { sameTask($0, action) }.map(\.id))
-                held.removeAll { replaced.contains($0.id) }
-                recovery.pending.removeAll { $0.actionID.map { replaced.contains($0) } == true }
-            }
-            for rejection in value.rejected {
-                guard let actionID = rejection.actionID,
-                      let action = value.outcomes.actionItems.first(where: { $0.id == actionID }),
-                      !held.contains(where: { sameTask($0, action) }) else { continue }
-                held.append(action)
-                recovery.pending.append(rejection)
-            }
-            part.outcomes = MeetingOutcomesGenerator.merge([previous, incoming])
-            part.outcomes.actionItems += held
-            var seen = Set(recovery.records.map(\.key))
-            recovery.records += value.records.filter { seen.insert($0.key).inserted }
+            try await save(part)
         }
 
         var extractionRecoveryRetryUsed = false
@@ -112,7 +89,7 @@ extension MeetingNotesGenerator {
             var validated = job.evidence.validate(raw.content, units: job.units, template: job.template,
                 meetingID: job.meetingID, maximumNotes: maximumNotes, maximumActions: maximumActions)
             let previousCount = recovery.records.count
-            accept(validated)
+            acceptValidated(validated, into: &part, recovery: &recovery)
             if part.claims.isEmpty && part.outcomes.isEmpty,
                job.units.reduce(0, { $0 + $1.text.split(whereSeparator: \.isWhitespace).count }) > 500 {
                 validated.complete = false
@@ -135,29 +112,29 @@ extension MeetingNotesGenerator {
             recovery.scanComplete = validated.complete && !raw.truncated
             recovery.nextPage += 1
             await recordValidation(validated, stage: stage, truncated: raw.truncated, budget: job.budget)
-            try checkpoint()
+            try await checkpoint()
             await job.budget.recordPhase("validation", seconds: ProcessInfo.processInfo.systemUptime - started)
             if validated.rejected.contains(where: {
                 !$0.sources.isEmpty && knownSources.isDisjoint(with: $0.sources)
             }) {
                 recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs. Source-linked partial notes were saved. Choose a different summary model or provider before retrying."
-                try checkpoint()
+                try await checkpoint()
                 throw TextEngineError.badResponse(recovery.terminalFailure!)
             }
             if recovery.records.count == previousCount && !recovery.scanComplete {
                 if extractionRecoveryRetryPending {
-                    try checkpoint()
+                    try await checkpoint()
                     continue
                 }
                 if !raw.truncated && recovery.pending.isEmpty {
                     recovery.noProgressAttempts = (recovery.noProgressAttempts ?? 0) + 1
                     if recovery.noProgressAttempts! >= 2 {
                         recovery.terminalFailure = "The summary provider made no further source-linked progress. Partial notes were saved. Choose a different summary model or provider before retrying."
-                        try checkpoint()
+                        try await checkpoint()
                         throw TextEngineError.badResponse(recovery.terminalFailure!)
                     }
                 }
-                try checkpoint()
+                try await checkpoint()
                 break
             }
             recovery.noProgressAttempts = nil
@@ -166,7 +143,25 @@ extension MeetingNotesGenerator {
         let terminalReasons: Set<String> = ["unsupported_commitment", "conversation_management", "status_not_task", "empty_outcome"]
         recovery.pending.removeAll { terminalReasons.contains($0.reason) }
         queueMissingCommitments(part, job: job, recovery: &recovery)
-        try checkpoint()
+        if recovery.pending.isEmpty {
+            part.complete = recovery.scanComplete
+        }
+        try await checkpoint()
+        return part
+    }
+
+    static func repairPart(
+        _ initial: Part, job: PartJob, save: (Part) async throws -> Void
+    ) async throws -> Part {
+        var part = initial
+        if part.complete { return part }
+        var recovery = part.recovery ?? legacyRecovery(part, transcript: job.evidence.transcript)
+        if let failure = recovery.terminalFailure { throw TextEngineError.badResponse(failure) }
+        let minimum = job.engine.minimumStructuredOutputTokens
+        func checkpoint() async throws {
+            part.recovery = recovery
+            try await save(part)
+        }
 
         let ownershipReasons: Set<String> = ["missing_ownership_evidence", "ambiguous_ownership_evidence", "ownership_quote_not_found"]
         for phase in 0..<2 {
@@ -204,7 +199,7 @@ extension MeetingNotesGenerator {
                 let repairSources = Set(repairUnits.map(\.source))
                 if fixed.rejected.contains(where: { repairSources.isDisjoint(with: $0.sources) }) {
                     recovery.terminalFailure = "The summary provider returned missing or invalid evidence IDs during repair. Source-linked partial notes were saved. Choose a different summary model or provider before retrying."
-                    try checkpoint()
+                    try await checkpoint()
                     throw TextEngineError.badResponse(recovery.terminalFailure!)
                 }
                 let ownershipRepair = repairable.first?.actionID != nil
@@ -215,7 +210,7 @@ extension MeetingNotesGenerator {
                     let texts = repairable.compactMap { $0.text.map(OutcomeTextSimilarity.normalized) }
                     if fixed.complete && !raw.truncated { answeredOwnership.formUnion(texts) } else { answeredOwnership.subtract(texts) }
                 } else {
-                    accept(fixed)
+                    acceptValidated(fixed, into: &part, recovery: &recovery)
                 }
                 if fixed.complete && !raw.truncated {
                     if !ownershipRepair {
@@ -235,7 +230,7 @@ extension MeetingNotesGenerator {
                 }
                 queueMissingCommitments(part, job: job, recovery: &recovery)
                 previousRepairTokens = repairTokens
-                try checkpoint()
+                try await checkpoint()
                 await job.budget.recordPhase("validation", seconds: ProcessInfo.processInfo.systemUptime - started)
                 if raw.truncated && repairTokens >= 4_096 { break }
                 if !fixed.complete && !raw.truncated && fixed.hasMore != true { break }
@@ -251,10 +246,46 @@ extension MeetingNotesGenerator {
             if !settled.isEmpty { recovery.settledOwnership = settled.sorted() }
             guard phase == 0, repairedOwnership, !recovery.pending.isEmpty,
                   !recovery.pending.contains(where: { $0.actionID != nil }) else { break }
-            try checkpoint()
+            try await checkpoint()
         }
         part.complete = recovery.scanComplete && recovery.pending.isEmpty
-        try checkpoint()
+        try await checkpoint()
+        return part
+    }
+
+    private static func acceptValidated(
+        _ value: MeetingNotesEvidence.Validated,
+        into part: inout Part,
+        recovery: inout Recovery
+    ) {
+        part.claims = distinctClaims(part.claims + value.claims)
+        let pendingIDs = Set(recovery.pending.compactMap(\.actionID))
+        var held = part.outcomes.actionItems.filter { pendingIDs.contains($0.id) }
+        var previous = part.outcomes
+        previous.actionItems.removeAll { pendingIDs.contains($0.id) }
+        let newPendingIDs = Set(value.rejected.compactMap(\.actionID))
+        var incoming = value.outcomes
+        incoming.actionItems.removeAll { newPendingIDs.contains($0.id) }
+        func sameTask(_ lhs: MeetingOutcomes.ActionItem, _ rhs: MeetingOutcomes.ActionItem) -> Bool {
+            OutcomeTextSimilarity.normalized(lhs.text) == OutcomeTextSimilarity.normalized(rhs.text)
+                && !Set(lhs.citations.map(\.segmentID)).isDisjoint(with: rhs.citations.map(\.segmentID))
+        }
+        for action in incoming.actionItems {
+            let replaced = Set(held.filter { sameTask($0, action) }.map(\.id))
+            held.removeAll { replaced.contains($0.id) }
+            recovery.pending.removeAll { $0.actionID.map { replaced.contains($0) } == true }
+        }
+        for rejection in value.rejected {
+            guard let actionID = rejection.actionID,
+                  let action = value.outcomes.actionItems.first(where: { $0.id == actionID }),
+                  !held.contains(where: { sameTask($0, action) }) else { continue }
+            held.append(action)
+            recovery.pending.append(rejection)
+        }
+        part.outcomes = MeetingOutcomesGenerator.merge([previous, incoming])
+        part.outcomes.actionItems += held
+        var seen = Set(recovery.records.map(\.key))
+        recovery.records += value.records.filter { seen.insert($0.key).inserted }
     }
 
     private static func acceptOwnershipRepairs(
