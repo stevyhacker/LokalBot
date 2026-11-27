@@ -17,7 +17,7 @@ GEMMA_SHA=ea8c01dd28abaae0a6664eb9c1324f6bf6cd0ffef99dace496510f7cceb40581
 mkdir -p dl models runtime/cpu runtime/vulkan results
 log() { echo "[$(date +%T)] $*"; }
 
-fetch() { # url dest sha
+fetch() {
   if [ -f "$2" ] && [ "$(sha256sum "$2" | cut -d' ' -f1)" = "$3" ]; then log "have $2"; return 0; fi
   log "download $2"; curl -fL --retry 3 -C - -o "$2" "$1" || return 1
   [ "$(sha256sum "$2" | cut -d' ' -f1)" = "$3" ] || { log "SHA MISMATCH $2"; return 1; }
@@ -39,7 +39,7 @@ log "vulkan devices:"; cat results/vulkan-devices.txt
 grep -qi 'Vulkan' results/vulkan-devices.txt && grep -qiE 'Intel|Iris' results/vulkan-devices.txt && VK_OK=1
 BACKENDS="cpu"; [ $VK_OK = 1 ] && BACKENDS="cpu vulkan"
 
-meta() { # file
+meta() {
   { echo "time: $(date -Is)"; echo "loadavg: $(cut -d' ' -f1-3 /proc/loadavg)"
     echo "ac_online: $(cat /sys/class/power_supply/A*/online /sys/class/power_supply/AC*/online 2>/dev/null | head -1)"
     echo "governor: $(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor)"
@@ -47,7 +47,7 @@ meta() { # file
     echo "cpu_mhz_now: $(awk '/cpu MHz/{s+=$4;n++}END{printf "%d",s/n}' /proc/cpuinfo)"; } > "$1"
 }
 env_for() { [ $1 = vulkan ] && echo "LD_LIBRARY_PATH=$BIN_vulkan" || echo "LD_LIBRARY_PATH=$BIN_cpu"; }
-runbench() { # backend model out args...
+runbench() {
   local be=$1 model=$2 out=$3; shift 3
   local bin=BIN_$be; bin=${!bin}
   local ngl=0; [ $be = vulkan ] && ngl=99

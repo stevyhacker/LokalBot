@@ -19,3 +19,5 @@ What stands out on the two Intel laptops:
 - **Vulkan prefills fast and decodes slowly.** On the Core Ultra 7 it prefills Qwen 7 to 8 times faster than 8 CPU threads but decodes no faster, and for Gemma the CPU decodes more than twice as fast as the GPU. On the M4 Pro, Metal is faster at both.
 - **The default thread count is low on the Core Ultra 7.** `llama-bench` picked 2 of 8 cores; 8 threads doubled prefill.
 - **The i5 laptop is heat-limited.** Its numbers depend on how warm it already is, and on the `performance` power profile it shut itself down. Its report has the details.
+
+In the JSON, `avg_ts` and `stddev_ts` agree with `samples_ts` in every row, and the reports use those. `stddev_ns` is `llama-bench`'s own field, copied as it was printed; in 24 of the 90 rows it does not match the standard deviation of `samples_ns`, so compute timing spread from the samples.
