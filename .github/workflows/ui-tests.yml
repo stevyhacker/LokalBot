@@ -91,6 +91,7 @@ defaults:
 jobs:
   changes:
     name: UI relevance
+    if: github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-latest
     outputs:
       relevant: ${{ steps.decide.outputs.relevant }}
@@ -348,7 +349,7 @@ jobs:
   complete:
     name: ${{ (inputs.filter != '' || inputs.capture_mode == 'legacy') && 'UI focused / comparison (macOS)' || 'XCUITest (macOS)' }}
     needs: [changes, build, build-smoke, shards]
-    if: always()
+    if: always() && (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1

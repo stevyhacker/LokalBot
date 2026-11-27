@@ -32,6 +32,7 @@ permissions:
 jobs:
   sync:
     name: Copy the plugin to its own repository
+    if: github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:

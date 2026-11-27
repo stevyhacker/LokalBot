@@ -135,7 +135,7 @@ jobs:
   # artifact built by companion-android.yml in the same workflow run.
   bundle:
     name: Build unsigned Android App Bundle
-    if: github.event_name == 'workflow_dispatch' && inputs.from_release != true
+    if: github.event_name == 'workflow_dispatch' && inputs.from_release != true && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -212,6 +212,7 @@ jobs:
     if: >-
       always()
       && github.event_name != 'pull_request'
+      && github.repository == 'stevyhacker/LokalBot'
       && (inputs.from_release == true || needs.bundle.result == 'success')
     runs-on: ubuntu-24.04
     timeout-minutes: 20

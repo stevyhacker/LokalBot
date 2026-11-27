@@ -63,7 +63,7 @@ jobs:
   # SignPath's GitHub Trusted Build System verifies a genuine GitHub Actions build.
   build-windows-test:
     name: Build Windows archive (test signing)
-    if: github.event_name == 'workflow_dispatch'
+    if: github.event_name == 'workflow_dispatch' && github.repository == 'stevyhacker/LokalBot'
     runs-on: windows-2025
     timeout-minutes: 90
     steps:
@@ -86,6 +86,7 @@ jobs:
     needs: build-windows-test
     if: >-
       always()
+      && github.repository == 'stevyhacker/LokalBot'
       && (needs.build-windows-test.result == 'success' || needs.build-windows-test.result == 'skipped')
     runs-on: windows-2025
     timeout-minutes: 60
