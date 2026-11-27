@@ -95,6 +95,40 @@ final class QwenLlamaASRTests: XCTestCase {
             ["--parallel", "3", "--ubatch-size", "2048", "--cache-ram", "0"])
     }
 
+    func testOversizedVocabularyPromptIsBoundedToPerSlotContext() throws {
+        let terms = (1...120).map { "Đorđe Petrović \($0), Čačak \($0)" }.joined(separator: ", ")
+        XCTAssertGreaterThan(terms.utf8.count, QwenLlamaASR.perSlotContextTokens)
+
+        let maxLimit = QwenLlamaASR.perSlotContextTokens
+            - QwenLlamaASR.maxWindowAudioTokens
+            - QwenLlamaASR.maxWindowOutputTokens
+            - QwenLlamaASR.promptTemplateOverheadTokens
+        let boundedMax = try XCTUnwrap(QwenLlamaASR.boundedContext(terms, maxTokens: QwenLlamaASR.maxWindowOutputTokens))
+        XCTAssertLessThanOrEqual(boundedMax.utf8.count, maxLimit)
+        XCTAssertTrue(boundedMax.hasPrefix("Đorđe Petrović 1"))
+
+        let shortWindowLimit = QwenLlamaASR.perSlotContextTokens
+            - QwenLlamaASR.maxWindowAudioTokens
+            - 256
+            - QwenLlamaASR.promptTemplateOverheadTokens
+        let boundedShort = try XCTUnwrap(QwenLlamaASR.boundedContext(terms, maxTokens: 256))
+        XCTAssertLessThanOrEqual(boundedShort.utf8.count, shortWindowLimit)
+        XCTAssertGreaterThan(boundedShort.utf8.count, boundedMax.utf8.count)
+
+        let request = try QwenLlamaASR.makeRequest(
+            serverBaseURL: URL(string: "http://127.0.0.1:17907/v1")!,
+            authenticationToken: "secret",
+            samples: [0, 0.5, -0.5],
+            sampleRate: 16_000,
+            language: "hr",
+            context: terms,
+            maxTokens: QwenLlamaASR.maxWindowOutputTokens)
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: XCTUnwrap(request.httpBody)) as? [String: Any])
+        let prompt = try XCTUnwrap((body["prompt"] as? [String: Any])?["prompt_string"] as? String)
+        XCTAssertEqual(prompt, QwenLlamaASR.prompt(language: "hr", context: terms))
+        XCTAssertFalse(prompt.contains("Đorđe Petrović 120"))
+    }
+
     func testFineTunedAndStockGGUFWeightsCoexistAndRemoveIndependently() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("qwen-coexist-\(UUID().uuidString)", isDirectory: true)

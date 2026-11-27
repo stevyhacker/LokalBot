@@ -157,14 +157,45 @@ enum QwenLlamaASR {
 
     static let maxConcurrentWindows = 3
     static let contextTokens = 6_144
+    static let perSlotContextTokens = contextTokens / maxConcurrentWindows
+    static let maxWindowAudioTokens = 512
+    static let promptTemplateOverheadTokens = 64
+    static let maxWindowOutputTokens = 768
     static let serverArguments = [
         "--parallel", String(maxConcurrentWindows),
         "--ubatch-size", "2048",
         "--cache-ram", "0",
     ]
 
-    static func prompt(language: String?, context: String?) -> String {
-        "<|im_start|>system\n\(context ?? "")<|im_end|>\n<|im_start|>user\n\(mediaMarker)<|im_end|>\n"
+    static func boundedContext(_ context: String?, maxTokens: Int = maxWindowOutputTokens) -> String? {
+        guard let normalized = TranscriptionPrompt.normalized(context) else { return nil }
+        let limit = max(
+            0,
+            perSlotContextTokens - maxWindowAudioTokens - max(0, maxTokens) - promptTemplateOverheadTokens)
+        guard limit > 0 else { return nil }
+        if normalized.utf8.count <= limit { return normalized }
+        var end = normalized.startIndex
+        var bytes = 0
+        for index in normalized.indices {
+            let next = normalized.index(after: index)
+            let step = normalized[index..<next].utf8.count
+            if bytes + step > limit { break }
+            bytes += step
+            end = next
+        }
+        var prefix = String(normalized[..<end])
+        if let boundary = prefix.lastIndex(where: { $0 == "," || $0 == "\n" || $0.isWhitespace }),
+           prefix[..<boundary].utf8.count >= limit / 2 {
+            prefix = String(prefix[..<boundary])
+        }
+        let separators = CharacterSet.whitespacesAndNewlines.union(CharacterSet(charactersIn: ",;"))
+        let trimmed = prefix.trimmingCharacters(in: separators)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
+    static func prompt(language: String?, context: String?, maxTokens: Int = maxWindowOutputTokens) -> String {
+        let vocabulary = boundedContext(context, maxTokens: maxTokens) ?? ""
+        return "<|im_start|>system\n\(vocabulary)<|im_end|>\n<|im_start|>user\n\(mediaMarker)<|im_end|>\n"
             + "<|im_start|>assistant\n\(language.map { "language \($0)" } ?? "")<asr_text>"
     }
 
@@ -182,7 +213,7 @@ enum QwenLlamaASR {
         LocalLlamaServerAuthentication.apply(to: &request, token: authenticationToken)
         let body: [String: Any] = [
             "prompt": [
-                "prompt_string": prompt(language: language, context: context),
+                "prompt_string": prompt(language: language, context: context, maxTokens: maxTokens),
                 "multimodal_data": [floatWAV(samples, sampleRate: sampleRate).base64EncodedString()],
             ],
             "n_predict": maxTokens, "temperature": 0, "top_k": 1, "samplers": ["top_k"],

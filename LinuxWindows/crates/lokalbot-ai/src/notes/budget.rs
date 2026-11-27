@@ -1,6 +1,13 @@
+use std::collections::HashMap;
 use std::time::Instant;
 
 use lokalbot_core::settings::GenerationBudget;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct AllowanceGrant {
+    id: u64,
+    pub tokens: u32,
+}
 
 #[derive(Debug, thiserror::Error)]
 #[error(
@@ -63,6 +70,8 @@ pub struct Budget {
     output_tokens: u64,
     scale: f64,
     may_reason: bool,
+    next_grant_id: u64,
+    held_allowances: HashMap<u64, u64>,
 }
 
 impl Budget {
@@ -75,7 +84,17 @@ impl Budget {
             output_tokens: 0,
             scale: 1.0,
             may_reason: false,
+            next_grant_id: 0,
+            held_allowances: HashMap::new(),
         }
+    }
+
+    fn held_requests(&self) -> usize {
+        self.held_allowances.len()
+    }
+
+    fn held_output_tokens(&self) -> u64 {
+        self.held_allowances.values().copied().sum()
     }
 
     pub fn allow_reasoning(&mut self) {
@@ -118,24 +137,58 @@ impl Budget {
         minimum: u32,
     ) -> Result<u32, Exhausted> {
         let limit = self.request_limit();
-        let processable = ((limit + 1).saturating_sub(self.requests) / 2).max(1);
+        let active_requests = self.requests + self.held_requests();
+        let processable = ((limit + 1).saturating_sub(active_requests) / 2).max(1);
         let parts = remaining_parts.max(1).min(processable) as u64;
         let share = self.reasoning_factor() as u64;
-        let output_room = self.output_limit().saturating_sub(self.output_tokens) / parts / share;
+        let remaining_output = self
+            .output_limit()
+            .saturating_sub(self.output_tokens + self.held_output_tokens());
+        let output_room = remaining_output / parts / share;
         let time_room =
             (self.remaining_seconds() * TOKENS_PER_SECOND / parts as f64) as u64 / share;
         let available = u64::from(desired).min(output_room).min(time_room);
-        if self.requests >= limit || available < u64::from(minimum.max(512)) {
+        if active_requests >= limit || available < u64::from(minimum.max(512)) {
             return Err(Exhausted);
         }
         Ok(available as u32)
     }
 
+    pub fn hold_allowance(
+        &mut self,
+        remaining_parts: usize,
+        desired: u32,
+        minimum: u32,
+    ) -> Result<AllowanceGrant, Exhausted> {
+        let tokens = self.allowance(remaining_parts, desired, minimum)?;
+        let share = self.reasoning_factor() as u64;
+        self.next_grant_id += 1;
+        let id = self.next_grant_id;
+        self.held_allowances.insert(id, u64::from(tokens) * share);
+        Ok(AllowanceGrant { id, tokens })
+    }
+
+    pub fn release_allowance(&mut self, grant: AllowanceGrant) {
+        self.held_allowances.remove(&grant.id);
+    }
+
     pub fn reserve(&mut self, input: u64, output: u64) -> Result<(), Exhausted> {
+        self.reserve_with_grant(None, input, output)
+    }
+
+    pub fn reserve_with_grant(
+        &mut self,
+        grant: Option<AllowanceGrant>,
+        input: u64,
+        output: u64,
+    ) -> Result<(), Exhausted> {
+        if let Some(grant) = grant {
+            self.held_allowances.remove(&grant.id);
+        }
         if self.remaining_seconds() <= 0.0
-            || self.requests >= self.request_limit()
+            || self.requests + self.held_requests() >= self.request_limit()
             || self.input_tokens + input > self.input_limit()
-            || self.output_tokens + output > self.output_limit()
+            || self.output_tokens + self.held_output_tokens() + output > self.output_limit()
         {
             return Err(Exhausted);
         }
@@ -233,5 +286,27 @@ mod tests {
             budget.reserve(0, 0).is_err(),
             "two attempts count as two requests"
         );
+    }
+
+    #[test]
+    fn held_allowances_prevent_overlapping_reservations() {
+        let mut budget = Budget::new(Limits {
+            seconds: 600.0,
+            requests: 4,
+            input_tokens: 10_000,
+            output_tokens: 6_000,
+            scales_with_parts: false,
+        });
+        let first = budget.hold_allowance(2, 4_096, 512).unwrap();
+        assert_eq!(first.tokens, 3_000);
+        let second = budget.hold_allowance(1, 4_096, 512).unwrap();
+        assert_eq!(second.tokens, 3_000);
+        assert!(budget.hold_allowance(1, 4_096, 512).is_err());
+        budget
+            .reserve_with_grant(Some(first), 1_000, u64::from(first.tokens))
+            .unwrap();
+        budget
+            .reserve_with_grant(Some(second), 1_000, u64::from(second.tokens))
+            .unwrap();
     }
 }

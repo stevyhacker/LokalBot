@@ -77,12 +77,23 @@ actor MeetingGenerationBudget {
     private var calls: [GenerationCallTelemetry] = []
     private var validations: [ValidationTelemetry] = []
     private var phases: [String: Double] = [:]
+    struct AllowanceGrant: Sendable {
+        let id: UUID
+        let tokens: Int
+        let heldOutputTokens: Int
+    }
+
+    @TaskLocal static var pendingAllowance: AllowanceGrant?
+
     private var model: String?
     private var transcriptRevision: String?
     private var plannedParts: Int?
     private var scale = 1.0
     private var mayReason = false
+    private var heldAllowances: [UUID: Int] = [:]
     private var reasoningFactor: Double { mayReason ? 2 : 1 }
+    private var heldRequests: Int { heldAllowances.count }
+    private var heldOutputTokens: Int { heldAllowances.values.reduce(0, +) }
 
     init(limits: Limits = Limits()) { self.limits = limits }
 
@@ -94,20 +105,37 @@ actor MeetingGenerationBudget {
 
     func allowance(remainingParts: Int, desired: Int = 4_096, minimum: Int = 512) throws -> Int {
         try Task.checkCancellation()
-        let processableParts = max(1, (requestLimit - requests + 1) / 2)
+        let activeRequests = requests + heldRequests
+        let processableParts = max(1, (requestLimit - activeRequests + 1) / 2)
         let parts = min(max(1, remainingParts), processableParts)
         let share = Int(reasoningFactor)
-        let available = min(desired, (outputTokenLimit - outputTokens) / parts / share,
+        let remainingOutput = max(0, outputTokenLimit - outputTokens - heldOutputTokens)
+        let available = min(desired, remainingOutput / parts / share,
                             Int(remainingSeconds * 35 / Double(parts)) / share)
-        guard requests < requestLimit, available >= max(512, minimum) else { throw Exhausted() }
+        guard activeRequests < requestLimit, available >= max(512, minimum) else { throw Exhausted() }
         return available
+    }
+
+    func holdAllowance(remainingParts: Int, desired: Int = 4_096, minimum: Int = 512) throws -> AllowanceGrant {
+        let available = try allowance(remainingParts: remainingParts, desired: desired, minimum: minimum)
+        let held = available * Int(reasoningFactor)
+        let id = UUID()
+        heldAllowances[id] = held
+        return AllowanceGrant(id: id, tokens: available, heldOutputTokens: held)
+    }
+
+    func releaseAllowance(_ grant: AllowanceGrant) {
+        heldAllowances.removeValue(forKey: grant.id)
     }
 
     func reserve(input: Int, output: Int) throws -> Reservation {
         try Task.checkCancellation()
-        guard remainingSeconds > 0, requests < requestLimit,
+        if let grant = Self.pendingAllowance {
+            heldAllowances.removeValue(forKey: grant.id)
+        }
+        guard remainingSeconds > 0, requests + heldRequests < requestLimit,
               inputTokens + input <= inputTokenLimit,
-              outputTokens + output <= outputTokenLimit else { throw Exhausted() }
+              outputTokens + heldOutputTokens + output <= outputTokenLimit else { throw Exhausted() }
         requests += 1
         inputTokens += input
         outputTokens += output

@@ -24,7 +24,7 @@ use crate::error::AiError;
 use crate::think::{ChatRequest, TaskReasoning, ThinkClient};
 use crate::{json as model_json, language, prompts, sanitize};
 
-use budget::{Budget, Limits};
+use budget::{AllowanceGrant, Budget, Limits};
 use evidence::{Claim, Evidence, Record, Rejection, Unit, Validated};
 use view::View;
 
@@ -212,7 +212,28 @@ pub fn generate_meeting_notes_with(
 
     let checkpoint = Mutex::new(checkpoint);
     let budget = Mutex::new(budget);
-    let concurrency = think.max_concurrent_notes_parts().max(1);
+    let requested_concurrency = think.max_concurrent_notes_parts().max(1);
+    let extraction_reasoning =
+        think.reasoning_allowance(&ChatRequest::new("", "").max_tokens(4_096));
+    let extraction_concurrency = effective_concurrency(
+        requested_concurrency,
+        &planned,
+        &scales,
+        context_tokens,
+        extraction_reasoning,
+    );
+    let extraction_context_tokens = if extraction_concurrency > 1 {
+        context_tokens / extraction_concurrency as u32
+    } else {
+        context_tokens
+    };
+    let repair_concurrency =
+        effective_concurrency(requested_concurrency, &planned, &scales, context_tokens, 0);
+    let repair_context_tokens = if repair_concurrency > 1 {
+        context_tokens / repair_concurrency as u32
+    } else {
+        context_tokens
+    };
     let save_part = |key: &str, part: &Part| {
         let mut guard = checkpoint.lock();
         guard.parts.insert(key.to_string(), part.clone());
@@ -232,9 +253,9 @@ pub fn generate_meeting_notes_with(
             })
             .collect()
     };
-    run_phase(
+    let extraction_error = match run_phase(
         &extraction_indices,
-        concurrency,
+        extraction_concurrency,
         cancel,
         progress,
         |_, index, report| {
@@ -261,7 +282,7 @@ pub fn generate_meeting_notes_with(
                 template,
                 language: language.clone(),
                 context: &context,
-                context_tokens,
+                context_tokens: extraction_context_tokens,
                 number: index + 1,
                 remaining_parts: chunks.len() - index,
                 output_scale: scales[index],
@@ -270,7 +291,15 @@ pub fn generate_meeting_notes_with(
             };
             extract_part(initial, &job, &budget, &mut |part| save_part(&key, part))
         },
-    )?;
+    ) {
+        Ok(()) => None,
+        Err(err) => {
+            if crate::error::is_cancelled(&err) || err.is::<budget::Exhausted>() {
+                return Err(err);
+            }
+            Some(err)
+        }
+    };
 
     let repair_indices: Vec<usize> = {
         let guard = checkpoint.lock();
@@ -278,18 +307,17 @@ pub fn generate_meeting_notes_with(
             .filter(|index| {
                 guard.parts.get(&index.to_string()).is_some_and(|part| {
                     !part.complete
-                        && part
-                            .recovery
-                            .as_ref()
-                            .is_some_and(|recovery| !recovery.pending.is_empty())
+                        && part.recovery.as_ref().is_some_and(|recovery| {
+                            recovery.terminal_failure.is_none() && !recovery.pending.is_empty()
+                        })
                 })
             })
             .collect()
     };
     let repair_total = repair_indices.len();
-    run_phase(
+    let repair_result = run_phase(
         &repair_indices,
-        concurrency,
+        repair_concurrency,
         cancel,
         progress,
         |offset, index, _| {
@@ -307,7 +335,7 @@ pub fn generate_meeting_notes_with(
                 template,
                 language: language.clone(),
                 context: &context,
-                context_tokens,
+                context_tokens: repair_context_tokens,
                 number: index + 1,
                 remaining_parts: (repair_total - offset).max(1),
                 output_scale: scales[index],
@@ -316,7 +344,15 @@ pub fn generate_meeting_notes_with(
             };
             repair_part(initial, &job, &budget, &mut |part| save_part(&key, part))
         },
-    )?;
+    );
+    match (extraction_error, repair_result) {
+        (Some(_), Err(repair_err)) if crate::error::is_cancelled(&repair_err) => {
+            return Err(repair_err);
+        }
+        (Some(extract_err), _) => return Err(extract_err),
+        (None, Err(repair_err)) => return Err(repair_err),
+        (None, Ok(())) => {}
+    }
 
     let checkpoint = checkpoint.into_inner();
     let completed = checkpoint.parts.values().filter(|p| p.complete).count();
@@ -519,6 +555,34 @@ fn token_count(think: &ThinkClient, text: &str) -> Result<u32> {
 struct PlannedChunk {
     units: Vec<Unit>,
     planning: u32,
+    upper: u32,
+}
+
+fn effective_concurrency(
+    requested: usize,
+    planned: &[PlannedChunk],
+    scales: &[f64],
+    context_tokens: u32,
+    reasoning_allowance: u32,
+) -> usize {
+    if requested <= 1 || planned.len() <= 1 {
+        return 1;
+    }
+    let worst_part_kv = planned
+        .iter()
+        .zip(scales.iter())
+        .map(|(chunk, scale)| {
+            let desired_output = (16_384f64.min(4_096.0 * scale)) as u32;
+            chunk
+                .upper
+                .saturating_add(ENVELOPE_TOKENS)
+                .saturating_add(desired_output)
+                .saturating_add(reasoning_allowance)
+        })
+        .max()
+        .unwrap_or(context_tokens);
+    let fitting_slots = (context_tokens / worst_part_kv.max(1)).max(1) as usize;
+    requested.min(fitting_slots)
 }
 
 #[cfg(test)]
@@ -586,6 +650,7 @@ fn plan_chunks(
                 chunks.push(PlannedChunk {
                     units: slice.to_vec(),
                     planning: size.planning,
+                    upper: size.upper,
                 });
                 break;
             }
@@ -698,6 +763,44 @@ fn record_count(text: &str) -> usize {
         .sum()
 }
 
+struct HeldAllowance<'a> {
+    budget: &'a Mutex<Budget>,
+    grant: Option<AllowanceGrant>,
+}
+
+impl<'a> HeldAllowance<'a> {
+    fn acquire(
+        budget: &'a Mutex<Budget>,
+        remaining_parts: usize,
+        desired: u32,
+        minimum: u32,
+    ) -> Result<Self, budget::Exhausted> {
+        let grant = budget
+            .lock()
+            .hold_allowance(remaining_parts, desired, minimum)?;
+        Ok(Self {
+            budget,
+            grant: Some(grant),
+        })
+    }
+
+    fn tokens(&self) -> u32 {
+        self.grant.map_or(0, |grant| grant.tokens)
+    }
+
+    fn take(&mut self) -> Option<AllowanceGrant> {
+        self.grant.take()
+    }
+}
+
+impl Drop for HeldAllowance<'_> {
+    fn drop(&mut self) {
+        if let Some(grant) = self.grant.take() {
+            self.budget.lock().release_allowance(grant);
+        }
+    }
+}
+
 enum BudgetRef<'a> {
     #[cfg(test)]
     Exclusive(&'a mut Budget),
@@ -705,11 +808,16 @@ enum BudgetRef<'a> {
 }
 
 impl BudgetRef<'_> {
-    fn reserve(&mut self, input: u64, output: u64) -> Result<(), budget::Exhausted> {
+    fn reserve(
+        &mut self,
+        grant: Option<AllowanceGrant>,
+        input: u64,
+        output: u64,
+    ) -> Result<(), budget::Exhausted> {
         match self {
             #[cfg(test)]
-            Self::Exclusive(budget) => budget.reserve(input, output),
-            Self::Shared(budget) => budget.lock().reserve(input, output),
+            Self::Exclusive(budget) => budget.reserve_with_grant(grant, input, output),
+            Self::Shared(budget) => budget.lock().reserve_with_grant(grant, input, output),
         }
     }
 
@@ -740,6 +848,7 @@ fn request(
     request_with_budget(
         think,
         &mut BudgetRef::Exclusive(budget),
+        None,
         system,
         prompt,
         context,
@@ -756,6 +865,7 @@ fn request(
 fn request_with_budget(
     think: &ThinkClient,
     budget: &mut BudgetRef<'_>,
+    held: Option<&mut HeldAllowance<'_>>,
     system: &str,
     prompt: &str,
     context: &[String],
@@ -789,7 +899,11 @@ fn request_with_budget(
         thinking = think.reasoning_allowance(&request);
     }
     let reserved = u64::from(tokens) + u64::from(thinking);
-    budget.reserve(u64::from(input), reserved)?;
+    budget.reserve(
+        held.and_then(HeldAllowance::take),
+        u64::from(input),
+        reserved,
+    )?;
     let single_attempt = request.clone().keep_truncated();
     let mut completion = match think.complete_full(&single_attempt) {
         Ok(completion) => completion,
@@ -804,7 +918,10 @@ fn request_with_budget(
     );
     if think.falls_back(&request, &completion) {
         let retry_reserved = u64::from(tokens);
-        if budget.reserve(u64::from(input), retry_reserved).is_ok() {
+        if budget
+            .reserve(None, u64::from(input), retry_reserved)
+            .is_ok()
+        {
             log::info!("notes {stage}: reply was all reasoning, retrying once with reasoning off");
             match think.complete_full(&single_attempt.reasoning(TaskReasoning::Off)) {
                 Ok(retry) => {
@@ -843,6 +960,7 @@ fn request_with_budget(
         match request_with_budget(
             think,
             budget,
+            None,
             system,
             prompt,
             context,
@@ -1330,9 +1448,8 @@ fn extract_part(
         }
         cancelled(job.cancel)?;
         let desired = (16_384f64.min(4_096.0 * job.output_scale)) as u32;
-        let allowance = budget
-            .lock()
-            .allowance(job.remaining_parts, desired, minimum)?;
+        let mut held = HeldAllowance::acquire(budget, job.remaining_parts, desired, minimum)?;
+        let allowance = held.tokens();
         let continuing = !recovery.records.is_empty();
         let stage = if continuing {
             format!("continue-{}-{}", job.number, recovery.next_page)
@@ -1361,6 +1478,7 @@ fn extract_part(
         let (raw, truncated) = request_with_budget(
             job.think,
             &mut BudgetRef::Shared(budget),
+            Some(&mut held),
             &system,
             &prompt,
             job.context,
@@ -1371,6 +1489,7 @@ fn extract_part(
             false,
             TaskReasoning::ModelDefault,
         )?;
+        drop(held);
         let mut validated = job.evidence.validate(
             &raw,
             job.units,
@@ -1505,9 +1624,8 @@ fn repair_part(
                     previous_tokens * 2
                 },
             ));
-            let allowance = budget
-                .lock()
-                .allowance(job.remaining_parts, desired, minimum)?;
+            let mut held = HeldAllowance::acquire(budget, job.remaining_parts, desired, minimum)?;
+            let allowance = held.tokens();
             if attempt > 0 && recovery.repair_token_floor.is_some() && allowance <= previous_tokens
             {
                 break;
@@ -1546,6 +1664,7 @@ fn repair_part(
             let (raw, truncated) = request_with_budget(
                 job.think,
                 &mut BudgetRef::Shared(budget),
+                Some(&mut held),
                 &repair_system,
                 &prompt,
                 &[],
@@ -1556,6 +1675,7 @@ fn repair_part(
                 false,
                 TaskReasoning::Off,
             )?;
+            drop(held);
             let fixed =
                 job.evidence
                     .validate(&raw, &repair_units, job.template, note_limit, action_limit);

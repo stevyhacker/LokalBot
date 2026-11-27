@@ -1765,7 +1765,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
             }
         }
 
-        let transcript = longTranscript(segments: 60)
+        let transcript = longTranscript(segments: 220)
         let tracker = ConcurrentTracker()
         let result = try await MeetingNotesGenerator.generate(
             transcript: transcript,
@@ -1773,7 +1773,7 @@ final class MeetingNotesGeneratorTests: XCTestCase {
             template: .meeting,
             language: .matchTranscript,
             context: [],
-            contextTokens: 8_192,
+            contextTokens: 32_768,
             meetingID: UUID(uuidString: "BBBBBBBB-BBBB-BBBB-BBBB-BBBBBBBBBBBB")!,
             folder: try folder())
 
@@ -1783,6 +1783,176 @@ final class MeetingNotesGeneratorTests: XCTestCase {
         XCTAssertLessThan(lastExtract, firstRepair, "all extractions must run before targeted repairs: \(recorded.stages)")
         XCTAssertEqual(recorded.peak, 2)
         XCTAssertTrue(result.body.contains("Repaired part one finding."))
+    }
+
+    func testHighReasoningReducesNotesConcurrencyToFitSharedContext() async throws {
+        actor PeakTracker {
+            var active = 0
+            var peak = 0
+            func enter() { active += 1; peak = max(peak, active) }
+            func exit() { active -= 1 }
+            func maxActive() -> Int { peak }
+        }
+
+        struct ReasoningEngine: TextEngine {
+            let tracker: PeakTracker
+            var displayName: String { "Reasoning fixture" }
+            var maxConcurrentRequests: Int { 2 }
+            func reasoningAllowance(for options: TextGenerationOptions?) -> Int {
+                options?.reasoning == .off ? 0 : 8_192
+            }
+            func tokenCount(_ text: String) async throws -> Int? { max(1, text.utf8.count / 4) }
+            func generate(system: String, prompt: String, context: [String]) async throws -> String { "" }
+            func generate(system: String, prompt: String, context: [String],
+                          schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+                await tracker.enter()
+                try await Task.sleep(for: .milliseconds(50))
+                await tracker.exit()
+                let source = prompt.split(separator: "\n").reversed()
+                    .compactMap { line -> String? in
+                        guard line.contains("|"), let id = line.split(separator: "|").first else { return nil }
+                        guard id.hasPrefix("s"), id.count > 1, id.dropFirst().allSatisfy(\.isNumber) else { return nil }
+                        return String(id)
+                    }
+                    .first ?? "s1"
+                let payload: [String: Any] = [
+                    "notes": [["section": "Key points", "text": "Summary for \(source).", "source": source]],
+                    "actions": [],
+                    "has_more": false,
+                ]
+                return String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            }
+        }
+
+        let tracker = PeakTracker()
+        _ = try await MeetingNotesGenerator.generate(
+            transcript: longTranscript(segments: 220),
+            engine: ReasoningEngine(tracker: tracker),
+            template: .meeting,
+            language: .matchTranscript,
+            context: [],
+            contextTokens: 32_768,
+            meetingID: UUID(uuidString: "CCCCCCCC-CCCC-CCCC-CCCC-CCCCCCCCCCCC")!,
+            folder: try folder())
+
+        let peak = await tracker.maxActive()
+        XCTAssertEqual(peak, 1)
+    }
+
+    func testTightBudgetHoldsConcurrentAllowancesWithoutCancellingSibling() async throws {
+        struct SlowTokenizingEngine: TextEngine {
+            let sleepMs: Int
+            var displayName: String { "Tight budget fixture" }
+            var maxConcurrentRequests: Int { 2 }
+            func tokenCount(_ text: String) async throws -> Int? {
+                try await Task.sleep(for: .milliseconds(sleepMs))
+                return max(1, text.utf8.count / 4)
+            }
+            func generate(system: String, prompt: String, context: [String]) async throws -> String { "" }
+            func generate(system: String, prompt: String, context: [String],
+                          schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+                try await Task.sleep(for: .milliseconds(50))
+                let source = prompt.split(separator: "\n").reversed()
+                    .compactMap { line -> String? in
+                        guard line.contains("|"), let id = line.split(separator: "|").first else { return nil }
+                        guard id.hasPrefix("s"), id.count > 1, id.dropFirst().allSatisfy(\.isNumber) else { return nil }
+                        return String(id)
+                    }
+                    .first ?? "s1"
+                let payload: [String: Any] = [
+                    "notes": [["section": "Key points", "text": "Summary for \(source).", "source": source]],
+                    "actions": [],
+                    "has_more": false,
+                ]
+                return String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+            }
+        }
+
+        let transcript = longTranscript(segments: 220)
+        let tightBudget = MeetingGenerationBudget(limits: .init(
+            seconds: 600, requests: 4, inputTokens: 200_000, outputTokens: 6_000, scalesWithParts: false))
+        let result = try await MeetingNotesGenerator.generate(
+            transcript: transcript,
+            engine: SlowTokenizingEngine(sleepMs: 15),
+            template: .meeting,
+            language: .matchTranscript,
+            context: [],
+            contextTokens: 32_768,
+            meetingID: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDD")!,
+            folder: try folder(),
+            budget: tightBudget)
+        XCTAssertFalse(result.body.isEmpty)
+
+        let oneRequestDir = try folder()
+        let oneRequestBudget = MeetingGenerationBudget(limits: .init(
+            seconds: 600, requests: 1, inputTokens: 200_000, outputTokens: 6_000, scalesWithParts: false))
+        do {
+            _ = try await MeetingNotesGenerator.generate(
+                transcript: transcript,
+                engine: SlowTokenizingEngine(sleepMs: 5),
+                template: .meeting,
+                language: .matchTranscript,
+                context: [],
+                contextTokens: 32_768,
+                meetingID: UUID(uuidString: "DDDDDDDD-DDDD-DDDD-DDDD-DDDDDDDDDDDE")!,
+                folder: oneRequestDir,
+                budget: oneRequestBudget)
+            XCTFail("expected budget exhaustion")
+        } catch is MeetingGenerationBudget.Exhausted {}
+        let checkpointData = try Data(contentsOf: MeetingNotesGenerator.checkpointURL(in: oneRequestDir))
+        let partialText = String(decoding: checkpointData, as: UTF8.self)
+        XCTAssertTrue(partialText.contains("Summary for"), "in-flight sibling must finish and save its checkpoint")
+    }
+
+    func testExtractionFailureStillRepairsAlreadyExtractedParts() async throws {
+        struct PartialFailureEngine: TextEngine {
+            var displayName: String { "Partial failure fixture" }
+            var maxConcurrentRequests: Int { 2 }
+            func tokenCount(_ text: String) async throws -> Int? { max(1, text.utf8.count / 4) }
+            func generate(system: String, prompt: String, context: [String]) async throws -> String { "" }
+            func generate(system: String, prompt: String, context: [String],
+                          schema: [String: Any], options: TextGenerationOptions) async throws -> String {
+                if prompt.hasPrefix("This is a targeted repair.") {
+                    let payload: [String: Any] = [
+                        "notes": [["section": "Key points", "text": "Repaired part one finding.", "source": "s2"]],
+                        "actions": [],
+                        "has_more": false,
+                    ]
+                    return String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+                }
+                if prompt.contains("s1|") {
+                    let payload: [String: Any] = [
+                        "notes": [
+                            ["section": "Key points", "text": "Part one accepted finding.", "source": "s1"],
+                            ["section": "Wrong", "text": "Needs repair", "source": "s2"],
+                        ],
+                        "actions": [],
+                        "has_more": false,
+                    ]
+                    return String(decoding: try JSONSerialization.data(withJSONObject: payload), as: UTF8.self)
+                }
+                try await Task.sleep(for: .milliseconds(30))
+                throw TextEngineError.badResponse("simulated part two failure")
+            }
+        }
+
+        let dir = try folder()
+        do {
+            _ = try await MeetingNotesGenerator.generate(
+                transcript: longTranscript(segments: 220),
+                engine: PartialFailureEngine(),
+                template: .meeting,
+                language: .matchTranscript,
+                context: [],
+                contextTokens: 32_768,
+                meetingID: UUID(uuidString: "EEEEEEEE-EEEE-EEEE-EEEE-EEEEEEEEEEEE")!,
+                folder: dir)
+            XCTFail("expected extraction failure to propagate")
+        } catch let error as TextEngineError {
+            XCTAssertTrue(error.localizedDescription.contains("simulated part two failure"))
+        }
+        let saved = try String(contentsOf: MeetingNotesGenerator.checkpointURL(in: dir), encoding: .utf8)
+        XCTAssertTrue(saved.contains("Repaired part one finding."))
     }
 
     private func openRouterConfig(_ model: String) -> AppSettings {

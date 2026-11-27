@@ -672,7 +672,7 @@ impl ThinkClient {
 
     pub fn max_concurrent_notes_parts(&self) -> usize {
         match &self.inner.backend {
-            Backend::BuiltIn { .. } if !self.runs_on_cpu() => {
+            Backend::BuiltIn { runtime, .. } if runtime.main_supports_parallel_unified_kv() => {
                 crate::runtime::MAIN_MAX_CONCURRENT_REQUESTS
             }
             Backend::Server {

@@ -62,8 +62,9 @@ extension MeetingNotesGenerator {
         var extractionRecoveryRetryPending = false
         for _ in 0..<3 where !recovery.scanComplete {
             try Task.checkCancellation()
-            let allowance = try await job.budget.allowance(
+            let grant = try await job.budget.holdAllowance(
                 remainingParts: job.remainingParts, desired: min(16_384, Int(4_096 * job.outputScale)), minimum: minimum)
+            let allowance = grant.tokens
             let continuing = !recovery.records.isEmpty
             let stage = continuing ? "continue-\(job.number)-\(recovery.nextPage)" : "extract-\(job.number)"
             let evidenceRows = prompt(units: job.units, roster: job.evidence.roster)
@@ -77,14 +78,25 @@ extension MeetingNotesGenerator {
                 extractionRecoveryRetryPending = false
             }
             let system = systemPrompt(template: job.template, language: job.language)
-            let (userPrompt, tokens) = try await fittedPage(rows: evidenceRows, suffix: retryInstruction,
-                ledger: continuing ? recovery.records : nil, system: system, allowance: allowance, job: job)
-            let maximumNotes = min(Int(12 * job.outputScale), max(3, tokens / 200))
-            let maximumActions = min(Int(10 * job.outputScale), max(2, tokens / 350))
-            let raw = try await request(engine: job.engine, system: system, prompt: userPrompt, context: job.context,
-                schema: MeetingNotesEvidence.schema(units: job.units, speakers: Array(job.evidence.speakers.keys),
-                    template: job.template, maximumNotes: maximumNotes, maximumActions: maximumActions),
-                tokens: tokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget)
+            let raw: (content: String, truncated: Bool)
+            let maximumNotes: Int
+            let maximumActions: Int
+            do {
+                let fitted = try await fittedPage(rows: evidenceRows, suffix: retryInstruction,
+                    ledger: continuing ? recovery.records : nil, system: system, allowance: allowance, job: job)
+                maximumNotes = min(Int(12 * job.outputScale), max(3, fitted.tokens / 200))
+                maximumActions = min(Int(10 * job.outputScale), max(2, fitted.tokens / 350))
+                raw = try await MeetingGenerationBudget.$pendingAllowance.withValue(grant) {
+                    try await request(engine: job.engine, system: system, prompt: fitted.prompt, context: job.context,
+                        schema: MeetingNotesEvidence.schema(units: job.units, speakers: Array(job.evidence.speakers.keys),
+                            template: job.template, maximumNotes: maximumNotes, maximumActions: maximumActions),
+                        tokens: fitted.tokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget)
+                }
+                await job.budget.releaseAllowance(grant)
+            } catch {
+                await job.budget.releaseAllowance(grant)
+                throw error
+            }
             let started = ProcessInfo.processInfo.systemUptime
             var validated = job.evidence.validate(raw.content, units: job.units, template: job.template,
                 meetingID: job.meetingID, maximumNotes: maximumNotes, maximumActions: maximumActions)
@@ -176,22 +188,41 @@ extension MeetingNotesGenerator {
                 let actionLimit = repairable.filter { $0.kind == "actions" }.count
                 let desired = min(4_096, max(minimum, recovery.repairTokenFloor ?? 0, attempt == 0
                     ? min(2_048, 512 + noteLimit * 128 + actionLimit * 384) : previousRepairTokens * 2))
-                let allowance = try await job.budget.allowance(remainingParts: job.remainingParts, desired: desired, minimum: minimum)
-                if attempt > 0, recovery.repairTokenFloor != nil, allowance <= previousRepairTokens { break }
+                let grant = try await job.budget.holdAllowance(
+                    remainingParts: job.remainingParts, desired: desired, minimum: minimum)
+                let allowance = grant.tokens
+                if attempt > 0, recovery.repairTokenFloor != nil, allowance <= previousRepairTokens {
+                    await job.budget.releaseAllowance(grant)
+                    break
+                }
                 let userPrompt = try repairPrompt(repairable, units: repairUnits, roster: job.evidence.roster,
                     noteLimit: noteLimit, actionLimit: actionLimit)
                     + (attempt == 0 || repairable.first?.actionID != nil ? ""
                         : try continuation(recovery.records.filter { record in repairUnits.contains { $0.source == record.source } }))
                 let system = PromptTemplates.meetingNotesRepairSystem(language: job.language)
-                guard let repairTokens = try await outputRoom(system: system, prompt: userPrompt, context: [],
-                                                              tokens: allowance, job: job) else { throw inputRoomExceeded() }
+                let repairTokens: Int
+                let raw: (content: String, truncated: Bool)
+                do {
+                    guard let fittedTokens = try await outputRoom(system: system, prompt: userPrompt, context: [],
+                                                                  tokens: allowance, job: job) else {
+                        throw inputRoomExceeded()
+                    }
+                    repairTokens = fittedTokens
+                    let stage = attempt == 0 ? "repair-\(job.number)" : "continue-repair-\(job.number)"
+                    raw = try await MeetingGenerationBudget.$pendingAllowance.withValue(grant) {
+                        try await request(engine: job.engine, system: system, prompt: userPrompt, context: [],
+                            schema: MeetingNotesEvidence.schema(units: repairUnits, speakers: Array(job.evidence.speakers.keys),
+                                template: job.template, maximumNotes: noteLimit, maximumActions: actionLimit,
+                                actionTexts: repairable.allSatisfy { $0.actionID != nil } ? repairable.compactMap(\.text) : nil),
+                            tokens: repairTokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget,
+                            reasoning: .off)
+                    }
+                    await job.budget.releaseAllowance(grant)
+                } catch {
+                    await job.budget.releaseAllowance(grant)
+                    throw error
+                }
                 let stage = attempt == 0 ? "repair-\(job.number)" : "continue-repair-\(job.number)"
-                let raw = try await request(engine: job.engine, system: system, prompt: userPrompt, context: [],
-                    schema: MeetingNotesEvidence.schema(units: repairUnits, speakers: Array(job.evidence.speakers.keys),
-                        template: job.template, maximumNotes: noteLimit, maximumActions: actionLimit,
-                        actionTexts: repairable.allSatisfy { $0.actionID != nil } ? repairable.compactMap(\.text) : nil),
-                    tokens: repairTokens, stage: stage, contextTokens: job.contextTokens, budget: job.budget,
-                    reasoning: .off)
                 let started = ProcessInfo.processInfo.systemUptime
                 let fixed = job.evidence.validate(raw.content, units: repairUnits, template: job.template,
                     meetingID: job.meetingID, maximumNotes: noteLimit, maximumActions: actionLimit)

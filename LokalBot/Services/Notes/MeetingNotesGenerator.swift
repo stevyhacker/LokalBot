@@ -76,6 +76,23 @@ enum MeetingNotesGenerator {
     private struct PlannedChunk {
         var units: [MeetingNotesEvidence.Unit]
         var planningEstimate: Int
+        var upperBound: Int
+    }
+
+    private static func effectiveConcurrency(
+        requested: Int,
+        planned: [PlannedChunk],
+        outputScales: [Double],
+        contextTokens: Int,
+        reasoningAllowance: Int
+    ) -> Int {
+        guard requested > 1, planned.count > 1 else { return 1 }
+        let worstPartKV = planned.indices.map { index in
+            let desiredOutput = min(16_384, Int(4_096 * outputScales[index]))
+            return planned[index].upperBound + 1_536 + desiredOutput + reasoningAllowance
+        }.max() ?? contextTokens
+        let fittingSlots = max(1, contextTokens / max(1, worstPartKV))
+        return min(requested, fittingSlots)
     }
 
     private static func planChunks(evidence: MeetingNotesEvidence, engine: TextEngine, system: String,
@@ -99,7 +116,9 @@ enum MeetingNotesGenerator {
                     units: units, speakers: speakers, template: template, maximumNotes: 1, maximumActions: 1))
                 if size.upperBound <= contextCeiling, size.planningEstimate <= planningCeiling,
                    enumLimit.map({ enums <= $0 }) ?? true {
-                    chunks.append(PlannedChunk(units: units, planningEstimate: size.planningEstimate)); break
+                    chunks.append(PlannedChunk(
+                        units: units, planningEstimate: size.planningEstimate, upperBound: size.upperBound))
+                    break
                 }
                 guard end > start + 1 else {
                     throw TextEngineError.badResponse("meeting context cannot fit the model's input allowance")
@@ -144,7 +163,8 @@ enum MeetingNotesGenerator {
 
         func repairIndices(count: Int) -> [Int] {
             (0..<count).filter { index in
-                guard let part = checkpoint.parts[String(index)], !part.complete else { return false }
+                guard let part = checkpoint.parts[String(index)], !part.complete,
+                      part.recovery?.terminalFailure == nil else { return false }
                 return !(part.recovery?.pending.isEmpty ?? true)
             }
         }
@@ -181,29 +201,51 @@ enum MeetingNotesGenerator {
             }
             return
         }
-        try await withThrowingTaskGroup(of: Void.self) { group in
+        var firstError: (offset: Int, error: Error)?
+        await withTaskGroup(of: (Int, Error?).self) { group in
             var nextOffset = 0
             while nextOffset < limit {
                 let offset = nextOffset
                 let index = indices[offset]
                 nextOffset += 1
                 group.addTask {
-                    try Task.checkCancellation()
-                    try await operation(offset, index)
+                    do {
+                        try Task.checkCancellation()
+                        try await operation(offset, index)
+                        return (offset, nil)
+                    } catch {
+                        return (offset, error)
+                    }
                 }
             }
-            while try await group.next() != nil {
-                if nextOffset < indices.count {
+            while let outcome = await group.next() {
+                if let error = outcome.1 {
+                    if firstError == nil || outcome.0 < firstError!.offset {
+                        firstError = (outcome.0, error)
+                    }
+                    if error is CancellationError || Task.isCancelled {
+                        group.cancelAll()
+                    }
+                    continue
+                }
+                if firstError == nil, !Task.isCancelled, nextOffset < indices.count {
                     let offset = nextOffset
                     let index = indices[offset]
                     nextOffset += 1
                     group.addTask {
-                        try Task.checkCancellation()
-                        try await operation(offset, index)
+                        do {
+                            try Task.checkCancellation()
+                            try await operation(offset, index)
+                            return (offset, nil)
+                        } catch {
+                            return (offset, error)
+                        }
                     }
                 }
             }
         }
+        try Task.checkCancellation()
+        if let error = firstError?.error { throw error }
     }
 
     static func generate(transcript: Transcript, engine: TextEngine, template: NoteTemplate,
@@ -233,9 +275,10 @@ enum MeetingNotesGenerator {
         let outputScales = planned.map {
             max(1, Double($0.planningEstimate) / Double(MeetingSummaryGenerator.standardNotesPartTokens))
         }
+        let extractionReasoning = engine.reasoningAllowance(for: .init(maxTokens: 4_096))
         await budget.recordPlan(model: engine.displayName, transcriptRevision: transcript.evidenceRevision,
                                 parts: chunks.count, standardParts: outputScales.reduce(0, +),
-                                mayReason: engine.reasoningAllowance(for: .init(maxTokens: 4_096)) > 0)
+                                mayReason: extractionReasoning > 0)
         let fingerprintText = (["notes-v1", MeetingNotesEvidence.ownershipPolicyVersion,
                                 transcript.evidenceRevision, engine.checkpointIdentity, system,
                                 PromptTemplates.meetingNotesRepairSystem(language: language)]
@@ -247,33 +290,58 @@ enum MeetingNotesGenerator {
             ?? Checkpoint(fingerprint: fingerprint)
         let store = CheckpointStore(checkpoint: loaded, url: url, folder: folder, transcript: transcript,
                                     template: template, totalParts: chunks.count)
-        let concurrency = max(1, engine.maxConcurrentRequests)
+        let requestedConcurrency = max(1, engine.maxConcurrentRequests)
+        let extractionConcurrency = effectiveConcurrency(
+            requested: requestedConcurrency, planned: planned, outputScales: outputScales,
+            contextTokens: contextTokens, reasoningAllowance: extractionReasoning)
+        let extractionContextTokens = extractionConcurrency > 1
+            ? contextTokens / extractionConcurrency : contextTokens
+        let repairConcurrency = effectiveConcurrency(
+            requested: requestedConcurrency, planned: planned, outputScales: outputScales,
+            contextTokens: contextTokens, reasoningAllowance: 0)
+        let repairContextTokens = repairConcurrency > 1
+            ? contextTokens / repairConcurrency : contextTokens
 
         let extractionIndices = await store.incompleteIndices(count: chunks.count)
-        try await runParts(extractionIndices, maxConcurrent: concurrency) { _, index in
-            let key = String(index)
-            let initial = await store.part(for: key)
-            let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
-                language: language, context: context, contextTokens: contextTokens, meetingID: meetingID,
-                number: index + 1, remainingParts: chunks.count - index, budget: budget,
-                outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
-            _ = try await extractPart(initial, job: job) { part in
-                try await store.savePart(part, for: key)
+        var extractionError: Error?
+        do {
+            try await runParts(extractionIndices, maxConcurrent: extractionConcurrency) { _, index in
+                let key = String(index)
+                let initial = await store.part(for: key)
+                let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
+                    language: language, context: context, contextTokens: extractionContextTokens, meetingID: meetingID,
+                    number: index + 1, remainingParts: chunks.count - index, budget: budget,
+                    outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
+                _ = try await extractPart(initial, job: job) { part in
+                    try await store.savePart(part, for: key)
+                }
             }
+        } catch {
+            if error is CancellationError || error is MeetingGenerationBudget.Exhausted || Task.isCancelled {
+                throw error
+            }
+            extractionError = error
         }
 
         let repairIndices = await store.repairIndices(count: chunks.count)
-        try await runParts(repairIndices, maxConcurrent: concurrency) { offset, index in
-            let key = String(index)
-            let initial = await store.part(for: key)
-            let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
-                language: language, context: context, contextTokens: contextTokens, meetingID: meetingID,
-                number: index + 1, remainingParts: max(1, repairIndices.count - offset), budget: budget,
-                outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
-            _ = try await repairPart(initial, job: job) { part in
-                try await store.savePart(part, for: key)
+        do {
+            try await runParts(repairIndices, maxConcurrent: repairConcurrency) { offset, index in
+                let key = String(index)
+                let initial = await store.part(for: key)
+                let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
+                    language: language, context: context, contextTokens: repairContextTokens, meetingID: meetingID,
+                    number: index + 1, remainingParts: max(1, repairIndices.count - offset), budget: budget,
+                    outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
+                _ = try await repairPart(initial, job: job) { part in
+                    try await store.savePart(part, for: key)
+                }
+            }
+        } catch {
+            if extractionError == nil || error is CancellationError || Task.isCancelled {
+                throw error
             }
         }
+        if let extractionError { throw extractionError }
 
         var checkpoint = await store.snapshot()
         let completed = checkpoint.parts.values.filter(\.complete).count

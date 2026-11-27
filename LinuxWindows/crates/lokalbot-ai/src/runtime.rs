@@ -2177,6 +2177,18 @@ impl RuntimeManager {
             .or(*self.shared.installer.active.lock())
     }
 
+    pub fn main_supports_parallel_unified_kv(&self) -> bool {
+        let Some(backend) = self.active_backend() else {
+            return false;
+        };
+        backend.is_gpu()
+            && self
+                .shared
+                .installer
+                .record(backend)
+                .is_some_and(|(record, _)| record.flags.iter().any(|f| f == "--kv-unified"))
+    }
+
     pub fn installed_version(&self) -> Option<String> {
         let installer = &self.shared.installer;
         let backend = self.installed_backend()?;
@@ -3495,5 +3507,40 @@ mod tests {
         assert!(!dir.path().join("runtimes").exists());
         assert_eq!(manager.installed_backend(), None);
         assert!(manager.statuses().iter().all(|s| !s.running));
+    }
+
+    #[test]
+    fn main_supports_parallel_unified_kv_requires_gpu_and_probed_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
+        assert!(!manager.main_supports_parallel_unified_kv());
+
+        let vulkan_folder = fixture_record(&manager.shared.installer, LlamaBackend::Vulkan, None);
+        *manager.shared.installer.active.lock() = Some(LlamaBackend::Vulkan);
+        assert!(!manager.main_supports_parallel_unified_kv());
+
+        let mut record: InstallRecord =
+            serde_json::from_slice(&std::fs::read(vulkan_folder.join("install.json")).unwrap())
+                .unwrap();
+        record.flags.push("--kv-unified".into());
+        std::fs::write(
+            vulkan_folder.join("install.json"),
+            serde_json::to_vec(&record).unwrap(),
+        )
+        .unwrap();
+        assert!(manager.main_supports_parallel_unified_kv());
+
+        let cpu_folder = fixture_record(&manager.shared.installer, LlamaBackend::Cpu, None);
+        let mut cpu_record: InstallRecord =
+            serde_json::from_slice(&std::fs::read(cpu_folder.join("install.json")).unwrap())
+                .unwrap();
+        cpu_record.flags.push("--kv-unified".into());
+        std::fs::write(
+            cpu_folder.join("install.json"),
+            serde_json::to_vec(&cpu_record).unwrap(),
+        )
+        .unwrap();
+        *manager.shared.installer.active.lock() = Some(LlamaBackend::Cpu);
+        assert!(!manager.main_supports_parallel_unified_kv());
     }
 }
