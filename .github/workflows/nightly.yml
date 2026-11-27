@@ -1,8 +1,7 @@
 # Nightly, non-blocking checks: pinned models against their releases, model
 # drift against the preset remote models, the real-Parakeet day-in-the-life
 # run, and scale/concurrency. Never a required check. Failures open or update
-# an issue. Schedule runs and issue updates are only on stevyhacker/LokalBot;
-# pull request checks still run on forks.
+# an issue.
 name: Nightly
 
 on:

@@ -4,8 +4,7 @@
 # directory's 50 MiB compressed limit. The directory follows that repository's
 # default branch, so each sync is picked up and scanned there.
 #
-# Runs on master pushes that change the plugin, and by hand, only on
-# stevyhacker/LokalBot:
+# Runs on master pushes that change the plugin, and by hand:
 #   gh workflow run claude-plugin-sync.yml
 #
 # CLAUDE_PLUGIN_DEPLOY_KEY is a deploy key with write access to that one

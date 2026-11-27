@@ -9,9 +9,9 @@
 # namespace, so there is no secret and nothing to set up. A version the
 # registry already has is skipped: published versions can't be changed.
 #
-# Non-PR jobs run only on stevyhacker/LokalBot. Pull request checks still run
-# on forks, against that repository's releases. The registry step is also
-# skipped, with a notice, while MCP_REGISTRY_PUBLISH is `false`.
+# The bundle is always attached. The registry step is skipped, with a notice,
+# in a repository whose owner the entry's namespace doesn't name (a fork), or
+# while the MCP_REGISTRY_PUBLISH repository variable is `false`.
 #
 #   gh workflow run mcp-registry.yml -f tag=v0.12.2   (publish a release by hand)
 #

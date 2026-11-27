@@ -1,6 +1,5 @@
 # Notify IndexNow search engines (Bing / ChatGPT Search, Yandex, Naver, Seznam)
-# when production website assets change on master. Runs only on
-# stevyhacker/LokalBot so a fork's master push does not ping production.
+# when production website assets change on master.
 
 name: IndexNow
 
