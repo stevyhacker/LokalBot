@@ -293,19 +293,19 @@ Measured on Apple M4 Max Macs (48 GB of memory where the report records it), usi
 | Autocomplete | 56 ms median per keystroke (102 ms p95) |
 | Screen text (Apple Vision) | about 120 ms per synthetic screenshot, 243 ms on average for real ones |
 
-The default models take about 9.6 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement. Check exact disk, resident RAM, and GPU VRAM fit for your machine in the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware), or estimate annual cloud SaaS savings in the [SaaS AI Cost Calculator](https://www.lokalbot.com/calculator). The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Full interactive tables and reproducible JSON live on the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)), mirrored on the [Hugging Face Benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks), with raw harnesses in the [benchmark reports](Benchmarks/README.md).
+The default models take about 8.8 GB of disk on a Mac if you use every role, and about 4 GB on Windows and Linux. That's download size, not a RAM requirement. Check exact disk, resident RAM, and GPU VRAM fit for your machine in the [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware), or estimate annual cloud SaaS savings in the [SaaS AI Cost Calculator](https://www.lokalbot.com/calculator). The Lightweight preset swaps in smaller models, including LFM2.5 1.2B Instruct (0.73 GB) for autocomplete. Full interactive tables and reproducible JSON live on the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)), mirrored on the [Hugging Face Benchmark Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks), with raw harnesses in the [benchmark reports](Benchmarks/README.md).
 
 ## Local AI, your choice
 
 Start with the built-in models, then change them in **Settings > Models**. LokalBot supports its bundled llama.cpp runtime, Ollama, OpenAI-compatible servers, and Apple Intelligence on supported Macs running macOS 26 or later. Think can also run on your own ChatGPT plan (Sign in with ChatGPT), Claude plan (through your signed-in Claude Code), Antigravity plan (through your signed-in `agy` CLI), or Gemini plan (through your signed-in `gemini` CLI), without an API key, and Agent Mode can run on the ChatGPT plan. Remote servers and plans require approval before receiving context.
 
-Different jobs use different models. Mac defaults ship our four open-weight Apache-2.0 fine-tunes (`stevyhacker/*-LokalBot-GGUF` on Hugging Face), about 9.6 GB of model files if you use every role (stock upstream checkpoints remain selectable in Settings). File sizes are disk usage, not a RAM requirement:
+Different jobs use different models. Mac defaults ship our four open-weight Apache-2.0 fine-tunes (`stevyhacker/*-LokalBot-GGUF` on Hugging Face), about 8.8 GB of model files if you use every role (stock upstream checkpoints remain selectable in Settings). File sizes are disk usage, not a RAM requirement:
 
 | Role | Default model | Format | Approx. model files |
 | --- | --- | --- | ---: |
 | Transcription | [Qwen3-ASR 1.7B (LokalBot v3)](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) | GGUF Q8_0 | 2.52 GB |
 | Summaries and chat | [Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) | `Q4_K_M` | 2.74 GB |
-| Autocomplete | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q6_K` | 3.85 GB |
+| Autocomplete | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q5_K_M` | 3.02 GB |
 | Semantic search | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | Speaker diarization | Nemotron 3 (preview) via FluidAudio | Core ML | ~0.20 GB |
 

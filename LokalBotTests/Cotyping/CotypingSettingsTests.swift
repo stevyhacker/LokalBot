@@ -36,12 +36,12 @@ final class CotypingSettingsTests: XCTestCase {
             let settings = try JSONDecoder().decode(AppSettings.self, from: saved)
             XCTAssertTrue(settings.cotypingEnabled)
             XCTAssertEqual(settings.cotypingMaxWords, 6)
-            XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
+            XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4-q5")
             let encoded = try JSONEncoder().encode(settings)
             let values = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
             XCTAssertNil(values["cotypingSelectiveOneWordHybrid"], "The retired flag must not be persisted")
         }
-        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
+        XCTAssertEqual(AppSettings().cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4-q5")
         XCTAssertFalse(SettingDescriptor.all.contains { $0.id == "settings.cotypingSelectiveOneWordHybrid" })
     }
 
@@ -149,12 +149,12 @@ final class CotypingSettingsTests: XCTestCase {
         XCTAssertFalse(settings.cotypingAutoAcceptTrailingPunctuation)
         XCTAssertFalse(settings.cotypingAddSpaceAfterAccept)
         XCTAssertTrue(settings.cotypingUseLocalLearning)
-        XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4")
+        XCTAssertEqual(settings.cotypingBuiltInModelID, "gemma4-e2b-lokalbot-v4-q5")
         XCTAssertTrue(settings.menuBarOnly)
     }
 
     func testSavedAutocompleteModelSelectionIsPreserved() throws {
-        for modelID in ["lfm2.5-1.2b-instruct", "custom-autocomplete"] {
+        for modelID in ["gemma4-e2b-lokalbot-v4", "lfm2.5-1.2b-instruct", "custom-autocomplete"] {
             let data = try JSONSerialization.data(withJSONObject: ["cotypingBuiltInModelID": modelID])
             let settings = try JSONDecoder().decode(AppSettings.self, from: data)
             XCTAssertEqual(settings.cotypingBuiltInModelID, modelID)

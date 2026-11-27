@@ -63,7 +63,8 @@ pub const PREVIOUS_DEFAULT_THINK_ID: &str = "qwen3.5-4b";
 pub const DEFAULT_THINK_ID: &str = "qwen3.5-4b-lokalbot-v4";
 pub const RECOMMENDED_SUMMARIZATION_ID: &str = "qwen3.6-35b-a3b";
 pub const PREVIOUS_QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-base-q6";
-pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-lokalbot-v4";
+pub const PREVIOUS_V4_QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-lokalbot-v4";
+pub const QUALITY_AUTOCOMPLETE_ID: &str = "gemma4-e2b-lokalbot-v4-q5";
 pub const LIGHTWEIGHT_AUTOCOMPLETE_ID: &str = "lfm2.5-1.2b-instruct";
 pub const EMBEDDING_ID: &str = "embeddinggemma-2-q8";
 pub const EMBEDDING_MODEL_ID: &str = EMBEDDING_ID;
@@ -106,7 +107,7 @@ const fn text(
     }
 }
 
-static CATALOG: [ModelEntry; 18] = [
+static CATALOG: [ModelEntry; 19] = [
     text(
         COMPACT_FALLBACK_ID,
         "Qwen3.5 0.8B",
@@ -142,12 +143,28 @@ static CATALOG: [ModelEntry; 18] = [
             QUALITY_AUTOCOMPLETE_ID,
             "Gemma 4 E2B (LokalBot v4)",
             "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+            "58300b1a9d5545fe8225e73e6dc72db3cb5090c4",
+            "Gemma-4-E2B-LokalBot-v4-i1-Q5_K_M-pleQ4K.gguf",
+            "i1-Q5_K_M",
+            3_021_725_952,
+            "fac8a71506ef985292edb5c1ef190ea07288a6cca2aba0428b07d0f5feefbdf4",
+            "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ RAM.",
+            false,
+            true,
+        )
+    },
+    ModelEntry {
+        license: Some("Apache 2.0"),
+        ..text(
+            PREVIOUS_V4_QUALITY_AUTOCOMPLETE_ID,
+            "Gemma 4 E2B (LokalBot v4, Q6)",
+            "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
             "e089648312aee558514a13dbbd4efb19a0b3eb25",
             "Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",
             "i1-Q6_K",
             3_845_323_008,
             "ea8c01dd28abaae0a6664eb9c1324f6bf6cd0ffef99dace496510f7cceb40581",
-            "Default autocomplete model fine-tuned for LokalBot completions and memory grounding. 16 GB+ RAM.",
+            "Higher-bit Q6_K variant of Gemma 4 E2B (LokalBot v4). 16 GB+ RAM.",
             false,
             true,
         )
@@ -910,6 +927,12 @@ mod tests {
         assert_eq!(entry(DEFAULT_THINK_ID).unwrap().size_bytes, 2_741_241_952);
         assert_eq!(
             entry(QUALITY_AUTOCOMPLETE_ID).unwrap().size_bytes,
+            3_021_725_952
+        );
+        assert_eq!(
+            entry(PREVIOUS_V4_QUALITY_AUTOCOMPLETE_ID)
+                .unwrap()
+                .size_bytes,
             3_845_323_008
         );
         assert_eq!(
@@ -922,11 +945,13 @@ mod tests {
         }
         assert!(!think_entries().any(|e| {
             e.id == QUALITY_AUTOCOMPLETE_ID
+                || e.id == PREVIOUS_V4_QUALITY_AUTOCOMPLETE_ID
                 || e.id == PREVIOUS_QUALITY_AUTOCOMPLETE_ID
                 || e.id == EMBEDDING_ID
         }));
         let autocomplete: Vec<_> = autocomplete_entries(None).map(|e| e.id).collect();
         assert!(autocomplete.contains(&QUALITY_AUTOCOMPLETE_ID));
+        assert!(autocomplete.contains(&PREVIOUS_V4_QUALITY_AUTOCOMPLETE_ID));
         assert!(autocomplete.contains(&"gemma4-e2b-base-q6"));
         assert!(autocomplete.contains(&"gemma4-e4b-q5-xl"));
         for excluded in [
@@ -982,7 +1007,7 @@ mod tests {
         assert_eq!(settings.built_in_model_id, DEFAULT_THINK_ID);
         assert_eq!(DEFAULT_THINK_ID, "qwen3.5-4b-lokalbot-v4");
         assert_eq!(settings.cotyping_built_in_model_id, QUALITY_AUTOCOMPLETE_ID);
-        assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-lokalbot-v4");
+        assert_eq!(QUALITY_AUTOCOMPLETE_ID, "gemma4-e2b-lokalbot-v4-q5");
         assert_eq!(PRESETS[0].think, settings.built_in_model_id);
         assert_eq!(PRESETS[0].autocomplete, settings.cotyping_built_in_model_id);
     }

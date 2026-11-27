@@ -317,7 +317,7 @@ iPhone、iPad 和 Android 配套应用会保存一份端到端加密的副本，
 | 自动补全 | 每次按键中位数 56 毫秒（p95 为 102 毫秒） |
 | 屏幕文字识别（Apple Vision） | 合成截图每张约 120 毫秒，真实截图平均 243 毫秒 |
 
-Mac 上全部角色的默认模型约占 9.6 GB 磁盘空间，Windows 和 Linux 上约 4 GB。这是下载大小，不是内存要求。可在[本地 AI 硬件与内存计算器](https://www.lokalbot.com/hardware)中查看你这台电脑的磁盘、内存和显存占用，或在[云端 SaaS 费用计算器](https://www.lokalbot.com/calculator)中估算每年可省下的订阅费。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。完整的交互式榜单与可复现 JSON 位于[本地桌面 AI 基准榜单](https://www.lokalbot.com/benchmarks)（[JSON](https://www.lokalbot.com/benchmarks.json)），并同步镜像到 [Hugging Face 基准测试 Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks)；原始测试脚本见[基准测试报告（英文）](Benchmarks/README.md)。
+Mac 上全部角色的默认模型约占 8.8 GB 磁盘空间，Windows 和 Linux 上约 4 GB。这是下载大小，不是内存要求。可在[本地 AI 硬件与内存计算器](https://www.lokalbot.com/hardware)中查看你这台电脑的磁盘、内存和显存占用，或在[云端 SaaS 费用计算器](https://www.lokalbot.com/calculator)中估算每年可省下的订阅费。轻量预设会换用更小的模型，比如自动补全使用 LFM2.5 1.2B Instruct（0.73 GB）。完整的交互式榜单与可复现 JSON 位于[本地桌面 AI 基准榜单](https://www.lokalbot.com/benchmarks)（[JSON](https://www.lokalbot.com/benchmarks.json)），并同步镜像到 [Hugging Face 基准测试 Space](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks)；原始测试脚本见[基准测试报告（英文）](Benchmarks/README.md)。
 
 <a id="models"></a>
 
@@ -325,13 +325,13 @@ Mac 上全部角色的默认模型约占 9.6 GB 磁盘空间，Windows 和 Linux
 
 先用内置模型，之后可以在 **Settings > Models** 中更换。LokalBot 支持内置的 llama.cpp 运行时、Ollama、OpenAI 兼容服务器，以及 macOS 26 及以上受支持 Mac 上的 Apple Intelligence。Think 角色也可以使用你自己的 ChatGPT 套餐（Sign in with ChatGPT）、Claude 套餐（通过已登录的 Claude Code）、Antigravity 套餐（通过已登录的 `agy` CLI）或 Gemini 套餐（通过已登录的 `gemini` CLI），不需要 API Key；Agent Mode 也可以使用 ChatGPT 套餐。远程服务器和套餐在收到任何内容之前都需要你批准。
 
-不同的任务使用不同的模型。Mac 默认搭载我们开源的 4 个 Apache-2.0 微调模型（Hugging Face 上的 `stevyhacker/*-LokalBot-GGUF`），全部角色加起来约 9.6 GB 模型文件（上游原版模型仍可在设置中选择），这不是内存要求：
+不同的任务使用不同的模型。Mac 默认搭载我们开源的 4 个 Apache-2.0 微调模型（Hugging Face 上的 `stevyhacker/*-LokalBot-GGUF`），全部角色加起来约 8.8 GB 模型文件（上游原版模型仍可在设置中选择），这不是内存要求：
 
 | 角色 | 默认模型 | 格式 | 模型文件约 |
 | --- | --- | --- | ---: |
 | 转写 | [Qwen3-ASR 1.7B (LokalBot v3)](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) | GGUF Q8_0 | 2.52 GB |
 | 纪要与对话 | [Qwen3.5 4B (LokalBot v4)](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) | `Q4_K_M` | 2.74 GB |
-| 自动补全 | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q6_K` | 3.85 GB |
+| 自动补全 | [Gemma 4 E2B (LokalBot v4)](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) | `i1-Q5_K_M` | 3.02 GB |
 | 语义搜索 | EmbeddingGemma 2 | `Q8_0` | 0.31 GB |
 | 发言人分离 | Nemotron 3（预览），通过 FluidAudio | Core ML | ~0.20 GB |
 

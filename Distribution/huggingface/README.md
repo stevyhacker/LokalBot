@@ -10,7 +10,7 @@ Everything in this directory ships LokalBot's Hugging Face presence: our curated
   - [`stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) (`v3`, 2.52 GB GGUF Q8_0 + mmproj)
   - [`stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF) (`v1`, 1.02 GB GGUF Q8_0 + stock mmproj)
   - [`stevyhacker/Qwen3.5-4B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) (`v4`, 2.74 GB GGUF Q4_K_M)
-  - [`stevyhacker/Gemma-4-E2B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) (`v4`, 3.85 GB GGUF i1-Q6_K)
+  - [`stevyhacker/Gemma-4-E2B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) (`v4`, 3.02 GB GGUF i1-Q5_K_M + PLE Q4_K)
 
 ## Files
 
