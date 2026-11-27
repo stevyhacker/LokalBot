@@ -12,8 +12,9 @@ use lokalbot_core::settings::DictationIntent;
 
 use crate::dictation::{
     ComposeProviders, Profile, SavedFacts, ScreenContext, cleanup_system, cleanup_user_prompt,
-    compose_user_prompt, prepare_checked,
+    compose_user_prompt, prepare_checked_with_lock,
 };
+use crate::dictation_word_lock::WordLock;
 use crate::prompts::DICTATION_COMPOSE_SYSTEM;
 use crate::think::ThinkClient;
 
@@ -116,6 +117,14 @@ pub fn is_loopback_http(url: &str) -> bool {
     host.eq_ignore_ascii_case("localhost") || host == "127.0.0.1" || host == "::1"
 }
 
+pub fn word_lock_named(name: &str) -> Option<WordLock> {
+    match name {
+        "off" => Some(WordLock::Off),
+        "digitsNamesNegation" => Some(WordLock::DigitsNamesNegation),
+        _ => None,
+    }
+}
+
 pub fn unsupported_for(input: &Input, case: &Case) -> Vec<String> {
     let mut gaps = Vec::new();
     if input.routing.is_some() {
@@ -131,7 +140,11 @@ pub fn unsupported_for(input: &Input, case: &Case) -> Vec<String> {
     {
         gaps.push("windowTextPolicy".to_string());
     }
-    if input.word_lock.is_some() {
+    if input
+        .word_lock
+        .as_deref()
+        .is_some_and(|name| word_lock_named(name).is_none())
+    {
         gaps.push("wordLock".to_string());
     }
     if case.visible.is_some() && input.use_visible_context {
@@ -220,7 +233,12 @@ pub fn replay_case(input: &Input, case: &Case, think: &ThinkClient) -> Observati
         screen_reads: 0,
     };
     let started = Instant::now();
-    let result = prepare_checked(&case.speech, &settings, &mut replayer);
+    let lock = input
+        .word_lock
+        .as_deref()
+        .and_then(word_lock_named)
+        .unwrap_or_default();
+    let result = prepare_checked_with_lock(&case.speech, &settings, &mut replayer, lock);
     let latency_ms = started.elapsed().as_secs_f64() * 1000.0;
     let mut observation = Observation {
         id: case.id.clone(),
@@ -365,7 +383,7 @@ mod tests {
             "routing": "relays",
             "cleanupPrompt": "composeDecides",
             "windowTextPolicy": {"limit": 12000, "keepsEnd": false},
-            "wordLock": "off",
+            "wordLock": "strict",
             "useVisibleContext": true,
             "useMeetingMemory": true,
             "memoryItems": [{"id": "m"}]
@@ -479,6 +497,27 @@ mod tests {
         assert_eq!(lines[2]["text"], "keep this exactly");
         assert_eq!(lines[2]["modelCalls"], 0);
         assert!(lines[2].get("routedAsRequest").is_none());
+    }
+
+    #[test]
+    fn dictation_replay_honours_the_word_lock_field() {
+        let server = StubServer::start(|_| chat("We need four more testers by nine."));
+        let endpoint = server.url("/v1");
+        let dir = tempfile::tempdir().unwrap();
+        let mut texts = Vec::new();
+        for lock in ["off", "digitsNamesNegation"] {
+            let path = dir.path().join(format!("{lock}.json"));
+            std::fs::write(&path, fixture(json!({"wordLock": lock}))).unwrap();
+            let mut out = Vec::new();
+            assert!(!run(&path, &endpoint, "", "m", &mut out).unwrap());
+            let first: Value =
+                serde_json::from_str(String::from_utf8(out).unwrap().lines().next().unwrap())
+                    .unwrap();
+            assert_eq!(first["unsupported"], json!([]));
+            texts.push(first["text"].as_str().unwrap().to_string());
+        }
+        assert_eq!(texts[0], "We need four more testers by nine.");
+        assert_eq!(texts[1], "we need 3 more testers by 9");
     }
 
     #[test]

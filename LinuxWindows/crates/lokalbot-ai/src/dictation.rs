@@ -6,6 +6,7 @@ use lokalbot_core::settings::{DictationIntent, ReasoningLevel, SummarizerBackend
 
 use crate::autocomplete::memory::Policy;
 use crate::catalog;
+use crate::dictation_word_lock::WordLock;
 use crate::json::strip_reasoning;
 use crate::notes::view::normalized_text;
 use crate::prompts::{DICTATION_CLEANUP_SYSTEM, DICTATION_COMPOSE_SYSTEM};
@@ -55,6 +56,7 @@ pub struct ComposeContext<'a> {
     pub screen: Option<&'a ScreenContext>,
     pub visible_text: Option<&'a str>,
     pub saved_facts: Option<&'a str>,
+    pub word_lock: WordLock,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -228,6 +230,15 @@ pub fn prepare_checked(
     settings: &Settings,
     providers: &mut dyn ComposeProviders,
 ) -> Result<CheckedPreparation> {
+    prepare_checked_with_lock(transcript, settings, providers, WordLock::default())
+}
+
+pub fn prepare_checked_with_lock(
+    transcript: &str,
+    settings: &Settings,
+    providers: &mut dyn ComposeProviders,
+    word_lock: WordLock,
+) -> Result<CheckedPreparation> {
     let speech = normalized_text(transcript);
     if settings.dictation_intent != DictationIntent::Compose || speech.is_empty() {
         return Ok(CheckedPreparation {
@@ -299,6 +310,7 @@ pub fn prepare_checked(
             screen: screen.as_ref(),
             visible_text: visible.as_deref(),
             saved_facts: facts.text.as_deref(),
+            word_lock,
         },
     )?;
     validate(providers)?;
@@ -359,6 +371,23 @@ pub fn prepare_with(
     if text.is_empty() {
         return Err(DictationError::EmptyOutput.into());
     }
+    let text = if writing {
+        text
+    } else {
+        let (kept, broken) = context
+            .word_lock
+            .kept(&speech, &text, profile.glossary.as_deref());
+        if !broken.is_empty() {
+            let reasons: Vec<&str> = broken.iter().map(|r| r.as_str()).collect();
+            log::info!(
+                "dictation word lock kept the transcript reasons={}",
+                reasons.join(",")
+            );
+        } else if kept != text {
+            log::info!("dictation word lock restored spoken digits");
+        }
+        kept
+    };
     Ok(Prepared {
         text,
         composition_model: Some(think.display_name()),
@@ -1093,6 +1122,52 @@ mod tests {
             Some(DictationError::Cancelled)
         ));
         assert!(cancelled.calls.is_empty());
+    }
+
+    #[test]
+    fn dictation_word_lock_locks_cleaned_direct_speech_but_not_writing_requests() {
+        let settings = Settings {
+            dictation_intent: DictationIntent::Compose,
+            ..Settings::default()
+        };
+        let run = |reply: &'static str, speech: &str, lock: WordLock| {
+            let server = StubServer::start(move |_| chat(reply));
+            let think = ThinkClient::llama_server(&server.url("/v1"), "t", "m");
+            let context = ComposeContext {
+                word_lock: lock,
+                ..ComposeContext::default()
+            };
+            prepare_with(&think, speech, &settings, context)
+                .unwrap()
+                .text
+        };
+        let speech = "can you send me the 4 slides before noon";
+        let on = WordLock::DigitsNamesNegation;
+        assert_eq!(
+            run("Can you send me the four slides before noon?", speech, on),
+            "Can you send me the 4 slides before noon?"
+        );
+        assert_eq!(
+            run("Can you send me the 4 or 5 slides before noon?", speech, on),
+            speech
+        );
+        assert_eq!(
+            run(
+                "Can you send me the four slides before noon?",
+                speech,
+                WordLock::Off
+            ),
+            "Can you send me the four slides before noon?"
+        );
+        assert_eq!(
+            run(
+                "The session starts at 14:30.",
+                "Reply with the start time from the message above.",
+                on
+            ),
+            "The session starts at 14:30.",
+            "a writing request's answer is not locked"
+        );
     }
 
     #[test]

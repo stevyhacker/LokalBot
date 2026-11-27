@@ -6,6 +6,7 @@ pub mod catalog;
 pub mod dictation;
 pub mod dictation_preview;
 pub mod dictation_replay;
+pub mod dictation_word_lock;
 pub mod digest;
 pub mod download;
 pub mod download_source;

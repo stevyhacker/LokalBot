@@ -61,7 +61,7 @@ python3 Benchmarks/transcribe/Dictation/context_replay.py \
   --output /tmp/dictation-port-run
 ```
 
-The port has no equivalent of some fixture fields. Each observation lists the ones it could not honour in an extra `unsupported` array, and the scorer ignores that field: `visibleContext` (Accessibility excerpts), `savedFacts` (saved-fact selection), `routing`, `cleanupPrompt` and a `windowTextPolicy` other than the last 2,000 characters. Read the summary with those gaps in mind: a case that needs one of them scores as a miss.
+The port has no equivalent of some fixture fields. Each observation lists the ones it could not honour in an extra `unsupported` array, and the scorer ignores that field: `visibleContext` (Accessibility excerpts), `savedFacts` (saved-fact selection), `routing`, `cleanupPrompt` and a `windowTextPolicy` other than the last 2,000 characters. `--word-lock off|digitsNamesNegation` is honoured: the port's word lock (`dictation_word_lock.rs`) runs on cleaned direct speech and is exempt for writing requests, as on the Mac. Read the summary with those gaps in mind: a case that needs one of them scores as a miss.
 
 ## Evaluation history and limits
 
