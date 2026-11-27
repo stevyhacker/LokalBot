@@ -35,8 +35,8 @@ android {
         applicationId = "me.dotenv.lokalbot.companion"
         minSdk = 29
         targetSdk = 36
-        versionCode = 71
-        versionName = "0.14.1"
+        versionCode = 72
+        versionName = "0.14.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         ndk { abiFilters += setOf("arm64-v8a", "x86_64") }
     }

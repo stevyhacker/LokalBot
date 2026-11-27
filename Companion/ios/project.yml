@@ -77,8 +77,8 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: me.dotenv.LokalBot.companion
         PRODUCT_NAME: LokalBot
-        MARKETING_VERSION: "0.14.1"
-        CURRENT_PROJECT_VERSION: "71"
+        MARKETING_VERSION: "0.14.2"
+        CURRENT_PROJECT_VERSION: "72"
         DEVELOPMENT_TEAM: 3N8B4562P4
         CODE_SIGN_STYLE: Automatic
         TARGETED_DEVICE_FAMILY: "1,2"
