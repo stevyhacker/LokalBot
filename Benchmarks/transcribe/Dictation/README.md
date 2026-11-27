@@ -48,6 +48,21 @@ uv run --no-project python -S -m unittest discover \
   -s Benchmarks/transcribe/Dictation -p 'test_*.py' -v
 ```
 
+## Run the Rust port (Linux, Windows)
+
+`LinuxWindows/crates/lokalbot-ai/examples/dictation_replay.rs` takes the same arguments and fixture as the Mac app's `--dictation-replay` and writes the same JSONL, so `context_replay.py` drives it unchanged through `--app`. It sends each case through the port's real preparation (`dictation::prepare_checked`: routing, cleanup or Compose, focused-window text) to the runner's llama-server.
+
+```sh
+cd LinuxWindows && cargo build --release -p lokalbot-ai --example dictation_replay && cd ..
+python3 Benchmarks/transcribe/Dictation/context_replay.py \
+  --app LinuxWindows/target/release/examples/dictation_replay \
+  --server /path/to/llama-server --model /path/to/Qwen3.5-4B-Q4_K_M.gguf \
+  --split heldout --corpus Benchmarks/transcribe/Dictation/context-cleanup-v4.json \
+  --output /tmp/dictation-port-run
+```
+
+The port has no equivalent of some fixture fields. Each observation lists the ones it could not honour in an extra `unsupported` array, and the scorer ignores that field: `visibleContext` (Accessibility excerpts), `savedFacts` (saved-fact selection), `routing`, `cleanupPrompt` and a `windowTextPolicy` other than the last 2,000 characters. `--word-lock off|digitsNamesNegation` is honoured: the port's word lock (`dictation_word_lock.rs`) runs on cleaned direct speech and is exempt for writing requests, as on the Mac. Read the summary with those gaps in mind: a case that needs one of them scores as a miss.
+
 ## Evaluation history and limits
 
 The original `context-cases.json` contains six development and 22 initially held-out cases. The first model run found direct-speech contamination with context enabled. Those 22 cases became a **regression set** when the general routing fix was introduced; they are no longer an untouched holdout. The original fixtures, scorer, source/binary freeze and results remain under `results/2026-10-02-context/first-pass/`.
