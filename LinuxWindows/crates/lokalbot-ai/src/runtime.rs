@@ -19,6 +19,7 @@ use crate::process;
 mod cuda;
 
 pub const LLAMA_BUILD: &str = "b12774";
+pub const MAIN_MAX_CONCURRENT_REQUESTS: usize = 2;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -231,11 +232,21 @@ impl Role {
         ]
     }
 
-    fn extra_args(self, flags: &[String]) -> Vec<String> {
+    fn extra_args(self, flags: &[String], backend: LlamaBackend) -> Vec<String> {
         let has = |flag: &str| flags.iter().any(|f| f == flag);
         let mut args: Vec<String> = Vec::new();
         match self {
             Role::Main => {
+                if has("--kv-unified") {
+                    args.extend([
+                        "--parallel".into(),
+                        MAIN_MAX_CONCURRENT_REQUESTS.to_string(),
+                        "--kv-unified".into(),
+                    ]);
+                }
+                if has("--ubatch-size") {
+                    args.extend(["--ubatch-size".into(), "2048".into()]);
+                }
                 if has("--cache-ram") {
                     args.extend(["--cache-ram".into(), "2048".into()]);
                 }
@@ -264,6 +275,9 @@ impl Role {
                 }
                 if has("--swa-full") {
                     args.push("--swa-full".into());
+                }
+                if backend == LlamaBackend::Vulkan && has("--flash-attn") {
+                    args.extend(["--flash-attn".into(), "off".into()]);
                 }
             }
         }
@@ -298,7 +312,7 @@ struct InstallRecord {
     cuda_unverified: bool,
 }
 
-const PROBE_VERSION: u32 = 3;
+const PROBE_VERSION: u32 = 4;
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -309,13 +323,16 @@ struct BackendChoice {
     device: Option<String>,
 }
 
-const CONDITIONAL_FLAGS: [&str; 6] = [
+const CONDITIONAL_FLAGS: [&str; 9] = [
     "--reasoning",
     "--cache-ram",
     "--no-ui",
     "--no-webui",
     "--jinja",
     "--swa-full",
+    "--kv-unified",
+    "--ubatch-size",
+    "--flash-attn",
 ];
 
 const CUDA_UNAVAILABLE: &str = "CUDA could not initialize with the matching runtime libraries. Check available GPU memory and the NVIDIA driver; newer PTX or driver features may require a driver update. Choose Vulkan or CPU if unsupported.";
@@ -1563,7 +1580,7 @@ impl ServerInner {
         binary: &Path,
     ) -> Result<Running> {
         let paths = &self.installer.paths;
-        let mut extra_args = self.role.extra_args(&record.flags);
+        let mut extra_args = self.role.extra_args(&record.flags, backend);
         extra_args.extend(
             self.role
                 .projector_args(&catalog::model_path(paths, catalog::projector_entry())),
@@ -2160,6 +2177,18 @@ impl RuntimeManager {
             .or(*self.shared.installer.active.lock())
     }
 
+    pub fn main_supports_parallel_unified_kv(&self) -> bool {
+        let Some(backend) = self.active_backend() else {
+            return false;
+        };
+        backend.is_gpu()
+            && self
+                .shared
+                .installer
+                .record(backend)
+                .is_some_and(|(record, _)| record.flags.iter().any(|f| f == "--kv-unified"))
+    }
+
     pub fn installed_version(&self) -> Option<String> {
         let installer = &self.shared.installer;
         let backend = self.installed_backend()?;
@@ -2305,12 +2334,25 @@ mod tests {
         );
         let all: Vec<String> = CONDITIONAL_FLAGS.iter().map(|f| f.to_string()).collect();
         assert_eq!(
-            Role::Main.extra_args(&all),
-            ["--cache-ram", "2048", "--reasoning", "auto"]
+            Role::Main.extra_args(&all, LlamaBackend::Vulkan),
+            [
+                "--parallel",
+                "2",
+                "--kv-unified",
+                "--ubatch-size",
+                "2048",
+                "--cache-ram",
+                "2048",
+                "--reasoning",
+                "auto"
+            ]
         );
-        assert_eq!(Role::Main.extra_args(&[]), Vec::<String>::new());
         assert_eq!(
-            Role::Embedder.extra_args(&[]),
+            Role::Main.extra_args(&[], LlamaBackend::Vulkan),
+            Vec::<String>::new()
+        );
+        assert_eq!(
+            Role::Embedder.extra_args(&[], LlamaBackend::Vulkan),
             [
                 "--embeddings",
                 "-b",
@@ -2322,7 +2364,23 @@ mod tests {
             ]
         );
         assert_eq!(
-            Role::Autocomplete.extra_args(&all),
+            Role::Autocomplete.extra_args(&all, LlamaBackend::Vulkan),
+            [
+                "--parallel",
+                "1",
+                "--cache-ram",
+                "512",
+                "--swa-full",
+                "--flash-attn",
+                "off"
+            ]
+        );
+        assert_eq!(
+            Role::Autocomplete.extra_args(&all, LlamaBackend::Cuda),
+            ["--parallel", "1", "--cache-ram", "512", "--swa-full"]
+        );
+        assert_eq!(
+            Role::Autocomplete.extra_args(&all, LlamaBackend::Cpu),
             ["--parallel", "1", "--cache-ram", "512", "--swa-full"]
         );
     }
@@ -2350,13 +2408,20 @@ mod tests {
 
     #[test]
     fn help_flags_match_whole_options_only() {
-        let help = "-rea,   --reasoning [on|off|auto]  use reasoning\n  --reasoning-budget N\n --cache-ram, -cram N\n --jinja\n";
+        let help = "-rea,   --reasoning [on|off|auto]  use reasoning\n  --reasoning-budget N\n --cache-ram, -cram N\n --jinja\n -ub, --ubatch-size N\n -fa, --flash-attn [on|off|auto]\n -kvu, --kv-unified, --no-kv-unified\n";
         assert_eq!(
             supported_flags(help),
-            ["--reasoning", "--cache-ram", "--jinja"]
+            [
+                "--reasoning",
+                "--cache-ram",
+                "--jinja",
+                "--kv-unified",
+                "--ubatch-size",
+                "--flash-attn"
+            ]
         );
         assert_eq!(
-            supported_flags("--reasoning-budget N\n--no-webui-x"),
+            supported_flags("--reasoning-budget N\n--no-webui-x\n--kv-unified-per-slot N"),
             Vec::<String>::new()
         );
     }
@@ -3281,7 +3346,7 @@ mod tests {
         let folder = fixture_record(&inner.installer, LlamaBackend::Cuda, Some("system"));
         let record: InstallRecord =
             serde_json::from_slice(&std::fs::read(folder.join("install.json")).unwrap()).unwrap();
-        let mut args = Role::Autocomplete.extra_args(&record.flags);
+        let mut args = Role::Autocomplete.extra_args(&record.flags, record.backend);
         args.extend(cuda_launch_args("CUDA0"));
         write_marker(
             manager.paths(),
@@ -3442,5 +3507,40 @@ mod tests {
         assert!(!dir.path().join("runtimes").exists());
         assert_eq!(manager.installed_backend(), None);
         assert!(manager.statuses().iter().all(|s| !s.running));
+    }
+
+    #[test]
+    fn main_supports_parallel_unified_kv_requires_gpu_and_probed_flag() {
+        let dir = tempfile::tempdir().unwrap();
+        let manager = RuntimeManager::new(LibraryPaths::new(dir.path()), &Settings::default());
+        assert!(!manager.main_supports_parallel_unified_kv());
+
+        let vulkan_folder = fixture_record(&manager.shared.installer, LlamaBackend::Vulkan, None);
+        *manager.shared.installer.active.lock() = Some(LlamaBackend::Vulkan);
+        assert!(!manager.main_supports_parallel_unified_kv());
+
+        let mut record: InstallRecord =
+            serde_json::from_slice(&std::fs::read(vulkan_folder.join("install.json")).unwrap())
+                .unwrap();
+        record.flags.push("--kv-unified".into());
+        std::fs::write(
+            vulkan_folder.join("install.json"),
+            serde_json::to_vec(&record).unwrap(),
+        )
+        .unwrap();
+        assert!(manager.main_supports_parallel_unified_kv());
+
+        let cpu_folder = fixture_record(&manager.shared.installer, LlamaBackend::Cpu, None);
+        let mut cpu_record: InstallRecord =
+            serde_json::from_slice(&std::fs::read(cpu_folder.join("install.json")).unwrap())
+                .unwrap();
+        cpu_record.flags.push("--kv-unified".into());
+        std::fs::write(
+            cpu_folder.join("install.json"),
+            serde_json::to_vec(&cpu_record).unwrap(),
+        )
+        .unwrap();
+        *manager.shared.installer.active.lock() = Some(LlamaBackend::Cpu);
+        assert!(!manager.main_supports_parallel_unified_kv());
     }
 }

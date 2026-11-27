@@ -669,3 +669,200 @@ fn calendar_context_and_agenda_follow_their_settings() {
     });
     assert!(without_calendar.is_empty(), "{without_calendar}");
 }
+
+#[test]
+fn multi_part_notes_extract_before_repair_and_batch_concurrently() {
+    let (meeting, mut transcript) = northwind_meeting();
+    let filler =
+        "We reviewed the caching layer, rollout schedule, and failover benchmark plan in detail. "
+            .repeat(12);
+    transcript.segments = (0..45)
+        .map(|i| Segment {
+            start: i as f64 * 10.0,
+            end: i as f64 * 10.0 + 9.0,
+            speaker: "them".into(),
+            text: format!("Part segment {i}. {filler}"),
+            confidence: None,
+            timing_precision: None,
+            attribution: None,
+        })
+        .collect();
+
+    let active = Arc::new(AtomicUsize::new(0));
+    let peak = Arc::new(AtomicUsize::new(0));
+    let events = Arc::new(parking_lot::Mutex::new(Vec::<String>::new()));
+
+    let active_c = active.clone();
+    let peak_c = peak.clone();
+    let events_c = events.clone();
+    let (server, _) = model(move |prompt, _| {
+        let now = active_c.fetch_add(1, Ordering::SeqCst) + 1;
+        peak_c.fetch_max(now, Ordering::SeqCst);
+        let is_repair = prompt.starts_with("This is a targeted repair.");
+        events_c
+            .lock()
+            .push(if is_repair { "repair" } else { "extract" }.to_string());
+        std::thread::sleep(std::time::Duration::from_millis(60));
+        active_c.fetch_sub(1, Ordering::SeqCst);
+        if is_repair {
+            chat(json!({
+                "notes": [{"section": "Key points", "text": "Repaired part one finding.", "source": "s2"}],
+                "actions": [],
+                "has_more": false,
+            }))
+        } else if prompt.contains("s1|") {
+            chat(json!({
+                "notes": [
+                    {"section": "Key points", "text": "Part one accepted finding.", "source": "s1"},
+                    {"section": "Wrong", "text": "Needs repair", "source": "s2"}
+                ],
+                "actions": [],
+                "has_more": false,
+            }))
+        } else {
+            let source = prompt
+                .lines()
+                .rev()
+                .find_map(|line| {
+                    line.split_once('|').map(|(id, _)| id).filter(|id| {
+                        id.strip_prefix('s')
+                            .is_some_and(|n| !n.is_empty() && n.bytes().all(|b| b.is_ascii_digit()))
+                    })
+                })
+                .unwrap_or("s1");
+            chat(json!({
+                "notes": [{"section": "Key points", "text": format!("Summary for {source}."), "source": source}],
+                "actions": [],
+                "has_more": false,
+            }))
+        }
+    });
+
+    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "qwen3.5-4b");
+    assert_eq!(think.max_concurrent_notes_parts(), 2);
+    let dir = tempfile::tempdir().unwrap();
+    let options = NotesOptions {
+        checkpoint_dir: Some(dir.path().to_path_buf()),
+        ..Default::default()
+    };
+    let notes = generate_meeting_notes_with(
+        &think,
+        &meeting,
+        &transcript,
+        "",
+        &settings(),
+        &options,
+        &mut |_| {},
+    )
+    .unwrap();
+
+    let recorded = events.lock().clone();
+    let first_repair = recorded
+        .iter()
+        .position(|kind| kind == "repair")
+        .expect("part one should trigger repair");
+    let last_extract = recorded
+        .iter()
+        .rposition(|kind| kind == "extract")
+        .expect("parts should extract");
+    assert!(
+        last_extract < first_repair,
+        "all extractions must run before repair: {recorded:?}"
+    );
+    assert_eq!(
+        peak.load(Ordering::SeqCst),
+        2,
+        "expected 2 concurrent slots"
+    );
+    assert!(
+        notes
+            .summary_markdown
+            .contains("Repaired part one finding.")
+    );
+}
+
+#[test]
+fn effective_concurrency_drops_to_one_when_high_reasoning_exceeds_shared_context() {
+    let planned = vec![
+        PlannedChunk {
+            units: Vec::new(),
+            planning: 6_000,
+            upper: 6_000,
+        },
+        PlannedChunk {
+            units: Vec::new(),
+            planning: 6_000,
+            upper: 6_000,
+        },
+    ];
+    let scales = vec![1.0, 1.0];
+    assert_eq!(effective_concurrency(2, &planned, &scales, 32_768, 0), 2);
+    assert_eq!(
+        effective_concurrency(2, &planned, &scales, 32_768, 8_192),
+        1
+    );
+    assert_eq!(effective_concurrency(2, &planned, &scales, 16_384, 0), 1);
+}
+
+#[test]
+fn extraction_failure_still_repairs_already_extracted_part() {
+    let (meeting, mut transcript) = northwind_meeting();
+    let filler =
+        "We reviewed the caching layer, rollout schedule, and failover benchmark plan in detail. "
+            .repeat(12);
+    transcript.segments = (0..45)
+        .map(|i| Segment {
+            start: i as f64 * 10.0,
+            end: i as f64 * 10.0 + 9.0,
+            speaker: "them".into(),
+            text: format!("Part segment {i}. {filler}"),
+            confidence: None,
+            timing_precision: None,
+            attribution: None,
+        })
+        .collect();
+
+    let (server, _) = model(move |prompt, _| {
+        if prompt.starts_with("This is a targeted repair.") {
+            chat(json!({
+                "notes": [{"section": "Key points", "text": "Repaired part one finding.", "source": "s2"}],
+                "actions": [],
+                "has_more": false,
+            }))
+        } else if prompt.contains("s1|") {
+            chat(json!({
+                "notes": [
+                    {"section": "Key points", "text": "Part one accepted finding.", "source": "s1"},
+                    {"section": "Wrong", "text": "Needs repair", "source": "s2"}
+                ],
+                "actions": [],
+                "has_more": false,
+            }))
+        } else {
+            std::thread::sleep(std::time::Duration::from_millis(30));
+            Reply::Text(500, "simulated part two failure".into())
+        }
+    });
+
+    let think = ThinkClient::llama_server(&server.url("/v1"), "token", "qwen3.5-4b");
+    let dir = tempfile::tempdir().unwrap();
+    let options = NotesOptions {
+        checkpoint_dir: Some(dir.path().to_path_buf()),
+        ..Default::default()
+    };
+    let result = generate_meeting_notes_with(
+        &think,
+        &meeting,
+        &transcript,
+        "",
+        &settings(),
+        &options,
+        &mut |_| {},
+    );
+    assert!(result.is_err());
+    let saved = std::fs::read_to_string(dir.path().join(CHECKPOINT_FILE)).unwrap();
+    assert!(
+        saved.contains("Repaired part one finding."),
+        "part one repair must persist even when part two fails extraction: {saved}"
+    );
+}

@@ -69,13 +69,42 @@ enum MeetingNotesGenerator {
     static func makeChunks(evidence: MeetingNotesEvidence, engine: TextEngine, system: String,
                            context: [String], contextTokens: Int,
                            template: NoteTemplate = .meeting) async throws -> [[MeetingNotesEvidence.Unit]] {
+        try await planChunks(evidence: evidence, engine: engine, system: system,
+                             context: context, contextTokens: contextTokens, template: template).map(\.units)
+    }
+
+    private struct PlannedChunk {
+        var units: [MeetingNotesEvidence.Unit]
+        var planningEstimate: Int
+        var upperBound: Int
+    }
+
+    private static func effectiveConcurrency(
+        requested: Int,
+        planned: [PlannedChunk],
+        outputScales: [Double],
+        contextTokens: Int,
+        reasoningAllowance: Int
+    ) -> Int {
+        guard requested > 1, planned.count > 1 else { return 1 }
+        let worstPartKV = planned.indices.map { index in
+            let desiredOutput = min(16_384, Int(4_096 * outputScales[index]))
+            return planned[index].upperBound + 1_536 + desiredOutput + reasoningAllowance
+        }.max() ?? contextTokens
+        let fittingSlots = max(1, contextTokens / max(1, worstPartKV))
+        return min(requested, fittingSlots)
+    }
+
+    private static func planChunks(evidence: MeetingNotesEvidence, engine: TextEngine, system: String,
+                                   context: [String], contextTokens: Int,
+                                   template: NoteTemplate = .meeting) async throws -> [PlannedChunk] {
         guard !evidence.units.isEmpty else { return [] }
         let contextCeiling = contextTokens - 4_096 - 1_536
         let planningCeiling = min(MeetingSummaryGenerator.notesPartTokens(contextTokens: contextTokens), contextCeiling)
         let fixed = ([system] + context).joined(separator: "\n\n") + "\n\n"
         let enumLimit = engine.structuredOutputEnumLimit
         let speakers = Array(evidence.speakers.keys)
-        var chunks: [[MeetingNotesEvidence.Unit]] = []
+        var chunks: [PlannedChunk] = []
         var start = 0
         while start < evidence.units.count {
             try Task.checkCancellation()
@@ -87,7 +116,9 @@ enum MeetingNotesGenerator {
                     units: units, speakers: speakers, template: template, maximumNotes: 1, maximumActions: 1))
                 if size.upperBound <= contextCeiling, size.planningEstimate <= planningCeiling,
                    enumLimit.map({ enums <= $0 }) ?? true {
-                    chunks.append(units); break
+                    chunks.append(PlannedChunk(
+                        units: units, planningEstimate: size.planningEstimate, upperBound: size.upperBound))
+                    break
                 }
                 guard end > start + 1 else {
                     throw TextEngineError.badResponse("meeting context cannot fit the model's input allowance")
@@ -102,6 +133,119 @@ enum MeetingNotesGenerator {
             start = max(start + 1, end - 2)
         }
         return chunks
+    }
+
+    private actor CheckpointStore {
+        private var checkpoint: Checkpoint
+        private let url: URL
+        private let folder: URL
+        private let transcript: Transcript
+        private let template: NoteTemplate
+        private let totalParts: Int
+
+        init(checkpoint: Checkpoint, url: URL, folder: URL, transcript: Transcript,
+             template: NoteTemplate, totalParts: Int) {
+            self.checkpoint = checkpoint
+            self.url = url
+            self.folder = folder
+            self.transcript = transcript
+            self.template = template
+            self.totalParts = totalParts
+        }
+
+        func part(for key: String) -> Part {
+            checkpoint.parts[key] ?? Part()
+        }
+
+        func incompleteIndices(count: Int) -> [Int] {
+            (0..<count).filter { checkpoint.parts[String($0)]?.complete != true }
+        }
+
+        func repairIndices(count: Int) -> [Int] {
+            (0..<count).filter { index in
+                guard let part = checkpoint.parts[String(index)], !part.complete,
+                      part.recovery?.terminalFailure == nil else { return false }
+                return !(part.recovery?.pending.isEmpty ?? true)
+            }
+        }
+
+        func savePart(_ part: Part, for key: String) throws {
+            checkpoint.parts[key] = part
+            let encoder = JSONEncoder()
+            try encoder.encode(checkpoint).write(to: url, options: .atomic)
+            let result = MeetingNotesGenerator.merged(checkpoint, transcript: transcript, template: template)
+            try SummaryClaimEvidence.savePartial(result.claims, transcript: transcript, in: folder)
+            let complete = checkpoint.parts.values.filter(\.complete).count
+            let partial = "# Partial notes — \(complete)/\(totalParts) parts source-linked\n\n" + result.body
+            try Data(partial.utf8).write(to: folder.appendingPathComponent("summary.partial.md"), options: .atomic)
+            try encoder.encode(result.outcomes).write(to: folder.appendingPathComponent("outcomes.partial.json"), options: .atomic)
+            try MeetingNotesPartial(transcriptRevision: transcript.evidenceRevision,
+                summary: result.body, outcomes: result.outcomes, completedParts: complete,
+                totalParts: totalParts, template: template).write(in: folder)
+        }
+
+        func snapshot() -> Checkpoint { checkpoint }
+    }
+
+    private static func runParts(
+        _ indices: [Int],
+        maxConcurrent: Int,
+        operation: @escaping (Int, Int) async throws -> Void
+    ) async throws {
+        guard !indices.isEmpty else { return }
+        let limit = min(max(1, maxConcurrent), indices.count)
+        if limit == 1 {
+            for (offset, index) in indices.enumerated() {
+                try Task.checkCancellation()
+                try await operation(offset, index)
+            }
+            return
+        }
+        var firstError: (offset: Int, error: Error)?
+        await withTaskGroup(of: (Int, Error?).self) { group in
+            var nextOffset = 0
+            while nextOffset < limit {
+                let offset = nextOffset
+                let index = indices[offset]
+                nextOffset += 1
+                group.addTask {
+                    do {
+                        try Task.checkCancellation()
+                        try await operation(offset, index)
+                        return (offset, nil)
+                    } catch {
+                        return (offset, error)
+                    }
+                }
+            }
+            while let outcome = await group.next() {
+                if let error = outcome.1 {
+                    if firstError == nil || outcome.0 < firstError!.offset {
+                        firstError = (outcome.0, error)
+                    }
+                    if error is CancellationError || Task.isCancelled {
+                        group.cancelAll()
+                    }
+                    continue
+                }
+                if firstError == nil, !Task.isCancelled, nextOffset < indices.count {
+                    let offset = nextOffset
+                    let index = indices[offset]
+                    nextOffset += 1
+                    group.addTask {
+                        do {
+                            try Task.checkCancellation()
+                            try await operation(offset, index)
+                            return (offset, nil)
+                        } catch {
+                            return (offset, error)
+                        }
+                    }
+                }
+            }
+        }
+        try Task.checkCancellation()
+        if let error = firstError?.error { throw error }
     }
 
     static func generate(transcript: Transcript, engine: TextEngine, template: NoteTemplate,
@@ -125,55 +269,81 @@ enum MeetingNotesGenerator {
         }
         let evidence = MeetingNotesEvidence(transcript: transcript)
         let system = systemPrompt(template: template, language: language)
-        let chunks = try await makeChunks(evidence: evidence, engine: engine, system: system,
-                                          context: context, contextTokens: contextTokens, template: template)
-        let fixed = ([system] + context).joined(separator: "\n\n") + "\n\n"
-        var outputScales: [Double] = []
-        for chunk in chunks {
-            let estimate = try await promptSize(fixed + prompt(units: chunk, roster: evidence.roster), engine: engine)
-                .planningEstimate
-            outputScales.append(max(1, Double(estimate) / Double(MeetingSummaryGenerator.standardNotesPartTokens)))
+        let planned = try await planChunks(evidence: evidence, engine: engine, system: system,
+                                           context: context, contextTokens: contextTokens, template: template)
+        let chunks = planned.map(\.units)
+        let outputScales = planned.map {
+            max(1, Double($0.planningEstimate) / Double(MeetingSummaryGenerator.standardNotesPartTokens))
         }
+        let extractionReasoning = engine.reasoningAllowance(for: .init(maxTokens: 4_096))
         await budget.recordPlan(model: engine.displayName, transcriptRevision: transcript.evidenceRevision,
                                 parts: chunks.count, standardParts: outputScales.reduce(0, +),
-                                mayReason: engine.reasoningAllowance(for: .init(maxTokens: 4_096)) > 0)
+                                mayReason: extractionReasoning > 0)
         let fingerprintText = (["notes-v1", MeetingNotesEvidence.ownershipPolicyVersion,
                                 transcript.evidenceRevision, engine.checkpointIdentity, system,
                                 PromptTemplates.meetingNotesRepairSystem(language: language)]
             + context + chunks.map { prompt(units: $0, roster: evidence.roster) }).joined(separator: "\n\n")
         let fingerprint = SHA256.hash(data: Data(fingerprintText.utf8)).map { String(format: "%02x", $0) }.joined()
         let url = checkpointURL(in: folder)
-        var checkpoint = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Checkpoint.self, from: $0) }
+        let loaded = (try? Data(contentsOf: url)).flatMap { try? JSONDecoder().decode(Checkpoint.self, from: $0) }
             .flatMap { $0.version == 2 && $0.fingerprint == fingerprint ? $0 : nil }
             ?? Checkpoint(fingerprint: fingerprint)
+        let store = CheckpointStore(checkpoint: loaded, url: url, folder: folder, transcript: transcript,
+                                    template: template, totalParts: chunks.count)
+        let requestedConcurrency = max(1, engine.maxConcurrentRequests)
+        let extractionConcurrency = effectiveConcurrency(
+            requested: requestedConcurrency, planned: planned, outputScales: outputScales,
+            contextTokens: contextTokens, reasoningAllowance: extractionReasoning)
+        let extractionContextTokens = extractionConcurrency > 1
+            ? contextTokens / extractionConcurrency : contextTokens
+        let repairConcurrency = effectiveConcurrency(
+            requested: requestedConcurrency, planned: planned, outputScales: outputScales,
+            contextTokens: contextTokens, reasoningAllowance: 0)
+        let repairContextTokens = repairConcurrency > 1
+            ? contextTokens / repairConcurrency : contextTokens
 
-        func save() throws {
-            let encoder = JSONEncoder()
-            try encoder.encode(checkpoint).write(to: url, options: .atomic)
-            let result = merged(checkpoint, transcript: transcript, template: template)
-            try SummaryClaimEvidence.savePartial(result.claims, transcript: transcript, in: folder)
-            let complete = checkpoint.parts.values.filter(\.complete).count
-            let partial = "# Partial notes — \(complete)/\(chunks.count) parts source-linked\n\n" + result.body
-            try Data(partial.utf8).write(to: folder.appendingPathComponent("summary.partial.md"), options: .atomic)
-            try encoder.encode(result.outcomes).write(to: folder.appendingPathComponent("outcomes.partial.json"), options: .atomic)
-            try MeetingNotesPartial(transcriptRevision: transcript.evidenceRevision,
-                summary: result.body, outcomes: result.outcomes, completedParts: complete,
-                totalParts: chunks.count, template: template).write(in: folder)
+        let extractionIndices = await store.incompleteIndices(count: chunks.count)
+        var extractionError: Error?
+        do {
+            try await runParts(extractionIndices, maxConcurrent: extractionConcurrency) { _, index in
+                let key = String(index)
+                let initial = await store.part(for: key)
+                let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
+                    language: language, context: context, contextTokens: extractionContextTokens, meetingID: meetingID,
+                    number: index + 1, remainingParts: chunks.count - index, budget: budget,
+                    outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
+                _ = try await extractPart(initial, job: job) { part in
+                    try await store.savePart(part, for: key)
+                }
+            }
+        } catch {
+            if error is CancellationError || error is MeetingGenerationBudget.Exhausted || Task.isCancelled {
+                throw error
+            }
+            extractionError = error
         }
 
-        for index in chunks.indices {
-            try Task.checkCancellation()
-            let key = String(index)
-            if checkpoint.parts[key]?.complete == true { continue }
-            let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
-                language: language, context: context, contextTokens: contextTokens, meetingID: meetingID,
-                number: index + 1, remainingParts: chunks.count - index, budget: budget,
-                outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
-            try await generatePart(checkpoint.parts[key] ?? Part(), job: job) { part in
-                checkpoint.parts[key] = part
-                try save()
+        let repairIndices = await store.repairIndices(count: chunks.count)
+        do {
+            try await runParts(repairIndices, maxConcurrent: repairConcurrency) { offset, index in
+                let key = String(index)
+                let initial = await store.part(for: key)
+                let job = PartJob(evidence: evidence, units: chunks[index], engine: engine, template: template,
+                    language: language, context: context, contextTokens: repairContextTokens, meetingID: meetingID,
+                    number: index + 1, remainingParts: max(1, repairIndices.count - offset), budget: budget,
+                    outputScale: outputScales[index], retryingStopped: retryingStoppedParts)
+                _ = try await repairPart(initial, job: job) { part in
+                    try await store.savePart(part, for: key)
+                }
+            }
+        } catch {
+            if extractionError == nil || error is CancellationError || Task.isCancelled {
+                throw error
             }
         }
+        if let extractionError { throw extractionError }
+
+        var checkpoint = await store.snapshot()
         let completed = checkpoint.parts.values.filter(\.complete).count
         guard completed == chunks.count else { throw Incomplete(completed: completed, total: chunks.count) }
         let scanned = merged(checkpoint, transcript: transcript, template: template)

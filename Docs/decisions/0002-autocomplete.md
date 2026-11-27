@@ -113,7 +113,7 @@ Where: `LinuxWindows/crates/lokalbot-platform/src/autocomplete/spell.rs` (`is_ch
 
 ### Partial KV reuse keeps full SWA memory and falls back to a full re-prefill
 
-The in-process runtime and autocomplete `llama-server` explicitly enable full sliding-window attention memory (`swa_full = true` / `--swa-full`) so Gemma 4's SWA layers keep the full cache needed for partial prefix reuse instead of forcing a full re-prefill when the prompt exceeds the 512-token sliding window. Even so, `llama_memory_seq_rm` returning false must still fall back to a full re-prefill: partial reuse is safe only when `seq_rm` confirms the kept prefix is still resident.
+The in-process runtime and autocomplete `llama-server` explicitly enable full sliding-window attention memory (`swa_full = true` / `--swa-full`) so Gemma 4's SWA layers keep the full cache needed for partial prefix reuse instead of forcing a full re-prefill when the prompt exceeds the 512-token sliding window. On Windows and Linux Vulkan, `Role::Autocomplete` also disables flash attention (`--flash-attn off`, see [ADR 0012](0012-models-and-inference.md)) to avoid Vulkan head-dim dispatch overhead at 4K single-slot context. Even so, `llama_memory_seq_rm` returning false must still fall back to a full re-prefill: partial reuse is safe only when `seq_rm` confirms the kept prefix is still resident.
 
 Where: `LokalBot/Cotyping/Llama/LlamaCotypingRuntime.swift` (`LlamaCotypingRuntime.init`, `LlamaCotypingRuntime.generate`), `LokalBot/Engines/LlamaServer.swift` (`LlamaServer.cotyping`), `LinuxWindows/crates/lokalbot-ai/src/runtime.rs` (`Role::Autocomplete`).
 

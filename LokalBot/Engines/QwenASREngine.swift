@@ -471,10 +471,13 @@ actor QwenASREngine: TranscriptionEngine {
         if let windows {
             spans = Self.merged(spans, maxGap: windows.maxGapSeconds, maxLength: windows.maxSeconds)
         }
+        let server = lease.server
         let decode: SpanDecoder = { batch, qwenLanguage in
-            let segments = try await SpanTranscription.segments(in: url, spans: batch) { samples, _ in
+            let segments = try await SpanTranscription.segments(
+                in: url, spans: batch, maxConcurrent: QwenLlamaASR.maxConcurrentWindows
+            ) { samples, _ in
                 try await Self.transcribeWindow(
-                    samples: samples, language: qwenLanguage, prompt: prompt, server: lease.server)
+                    samples: samples, language: qwenLanguage, prompt: prompt, server: server)
             }
             return Self.withoutPromptEchoes(segments, prompt: prompt)
         }

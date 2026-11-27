@@ -7,6 +7,7 @@ protocol TextEngine {
     var minimumStructuredOutputTokens: Int { get }
     var handlesTransientRetries: Bool { get }
     var structuredOutputEnumLimit: Int? { get }
+    var maxConcurrentRequests: Int { get }
     func tokenCount(_ text: String) async throws -> Int?
     func generate(system: String, prompt: String, context: [String]) async throws -> String
     func generate(system: String, prompt: String, context: [String],
@@ -305,6 +306,7 @@ extension TextEngine {
     var minimumStructuredOutputTokens: Int { 512 }
     var handlesTransientRetries: Bool { false }
     var structuredOutputEnumLimit: Int? { nil }
+    var maxConcurrentRequests: Int { 1 }
     func tokenCount(_ text: String) async throws -> Int? { nil }
     func reasoningAllowance(for options: TextGenerationOptions?) -> Int { 0 }
     func generate(system: String, prompt: String, context: [String],
@@ -529,6 +531,9 @@ struct OpenAICompatibleEngine: TextEngine {
         case .openRouter: 500
         case .generic: InferenceEndpointPolicy.isLoopback(baseURL) ? nil : 500
         }
+    }
+    var maxConcurrentRequests: Int {
+        chatDialect == .llamaServer ? MainLLMRuntimePolicy.maxConcurrentRequests : 1
     }
 
     func tokenCount(_ text: String) async throws -> Int? {

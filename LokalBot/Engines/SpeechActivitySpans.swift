@@ -88,6 +88,68 @@ enum SpanTranscription {
         return segments
     }
 
+    static func segments(
+        in url: URL,
+        spans: [SpeechSpan],
+        speaker: String = "speaker",
+        maxConcurrent: Int,
+        transcribe: @escaping @Sendable (_ samples: [Float], _ index: Int) async throws -> String
+    ) async throws -> [Transcript.Segment] {
+        guard !spans.isEmpty else { return [] }
+        let limit = max(1, maxConcurrent)
+        if limit == 1 || spans.count == 1 {
+            return try await segments(in: url, spans: spans, speaker: speaker, transcribe: transcribe)
+        }
+        let reader = try SpanAudioReader(url: url)
+        var nextIndex = 0
+        var indexed: [(Int, Transcript.Segment)] = []
+
+        func readNext() throws -> (Int, SpeechSpan, [Float])? {
+            while nextIndex < spans.count {
+                try Task.checkCancellation()
+                let index = nextIndex
+                nextIndex += 1
+                let span = spans[index]
+                let samples = try reader.samples(from: span.start, to: span.end)
+                if !samples.isEmpty {
+                    return (index, span, samples)
+                }
+            }
+            return nil
+        }
+
+        try await withThrowingTaskGroup(of: (Int, Transcript.Segment?).self) { group in
+            var inFlight = 0
+            while inFlight < limit, let item = try readNext() {
+                inFlight += 1
+                group.addTask {
+                    let normalized = Transcript.normalizedText(try await transcribe(item.2, item.0))
+                    guard !normalized.isEmpty else { return (item.0, nil) }
+                    return (item.0, Transcript.Segment(
+                        start: item.1.start, end: item.1.end,
+                        speaker: speaker, text: normalized, confidence: nil,
+                        timingPrecision: item.1.timingPrecision))
+                }
+            }
+            while let (index, segment) = try await group.next() {
+                inFlight -= 1
+                if let segment { indexed.append((index, segment)) }
+                while inFlight < limit, let item = try readNext() {
+                    inFlight += 1
+                    group.addTask {
+                        let normalized = Transcript.normalizedText(try await transcribe(item.2, item.0))
+                        guard !normalized.isEmpty else { return (item.0, nil) }
+                        return (item.0, Transcript.Segment(
+                            start: item.1.start, end: item.1.end,
+                            speaker: speaker, text: normalized, confidence: nil,
+                            timingPrecision: item.1.timingPrecision))
+                    }
+                }
+            }
+        }
+        return indexed.sorted { $0.0 < $1.0 }.map(\.1)
+    }
+
     static func segments(pairing spans: [SpeechSpan], with texts: [String],
                          speaker: String = "speaker") -> [Transcript.Segment] {
         zip(spans, texts).compactMap { span, text in

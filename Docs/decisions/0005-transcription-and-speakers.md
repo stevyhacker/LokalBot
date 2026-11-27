@@ -15,11 +15,11 @@ Both tiers, 1.7B (`LlamaServerRole.qwenASR`) and 0.6B (`LlamaServerRole.qwenASRC
 
 Where: `LokalBot/Engines/QwenLlamaASR.swift` (`QwenLlamaASR`).
 
-### The llama.cpp server gets a fixed media marker and a capped prompt cache
+### The llama.cpp server gets a fixed media marker, three parallel slots and no host prompt cache
 
-llama.cpp randomizes its media marker per process unless it is set, and the prompt must contain the server's marker exactly once. The default 8 GiB host prompt cache grew the benchmark server to 14 GB.
+llama.cpp randomizes its media marker per process unless it is set, and the prompt must contain the server's marker exactly once. The default 8 GiB host prompt cache grew the benchmark server to 14 GB. Qwen3-ASR requests always send `cache_prompt: false`, because enabling prompt caching across parallel multimodal slots corrupted KV reuse in llama.cpp b12774 and raised Serbian WER from 27.1% to 51-72%; with prompt caching off, `--cache-ram 0` avoids reserving unused host RAM. The server runs with `--parallel 3 --ubatch-size 2048` and `-c 6144` (2,048 tokens per slot), and `QwenLlamaASR.boundedContext` caps the system vocabulary text to the per-slot byte budget remaining after the 512-token audio ceiling, template overhead, and window output limit so oversized manual vocabularies cannot overflow a slot. `SpanTranscription.segments(maxConcurrent:)` reads spans sequentially from `SpanAudioReader` while keeping at most three decode requests in flight and returning segments in span order. Measured on the bundled EN/SR/DE sample tracks (35 spans, 672.1 s of audio), three parallel slots cut wall time from 20.86 s (32.21x RT) to 12.12 s (55.44x RT, 1.72x faster) on Apple M4 Max Metal with identical 13.63% WER, and from 39.27 s (17.12x RT) to 22.16 s (30.33x RT, 1.77x faster) on RX 6600 XT Vulkan with 13.63% vs 13.44% overall WER (+384 MiB GPU KV/compute, -256 MiB host prompt cache).
 
-Where: `LokalBot/Engines/QwenLlamaASR.swift` (`QwenLlamaASR.mediaMarker`, `QwenLlamaASR.serverArguments`).
+Where: `LokalBot/Engines/QwenLlamaASR.swift` (`QwenLlamaASR.mediaMarker`, `QwenLlamaASR.maxConcurrentWindows`, `QwenLlamaASR.contextTokens`, `QwenLlamaASR.serverArguments`), `LokalBot/Engines/SpeechActivitySpans.swift` (`SpanTranscription.segments`), `LokalBot/Engines/QwenASREngine.swift` (`QwenASREngine.transcribe`).
 
 ### Pinned models load only reviewed, immutable files
 

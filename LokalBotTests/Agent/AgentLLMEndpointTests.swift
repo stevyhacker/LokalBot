@@ -12,7 +12,11 @@ final class AgentLLMEndpointTests: XCTestCase {
     func testMainLLMRunsWithAutomaticReasoningAndA32KContext() {
         XCTAssertEqual(MainLLMRuntimePolicy.contextTokens, 32_768)
         XCTAssertEqual(MainLLMRuntimePolicy.highReasoningBudgetTokens, 8_192)
+        XCTAssertEqual(MainLLMRuntimePolicy.maxConcurrentRequests, 2)
         XCTAssertEqual(AgentLLMEndpoint.defaultContextTokens, 32_768)
+        XCTAssertEqual(
+            MainLLMRuntimePolicy.serverExtraArguments,
+            ["--parallel", "2", "--kv-unified", "--ubatch-size", "2048", "--cache-ram", "2048", "--reasoning", "auto"])
         XCTAssertEqual(
             Array(MainLLMRuntimePolicy.serverExtraArguments.suffix(2)),
             ["--reasoning", "auto"])
