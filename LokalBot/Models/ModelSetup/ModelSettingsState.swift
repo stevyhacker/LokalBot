@@ -321,7 +321,7 @@ enum ModelSettingsPresentation {
         case .graniteSpeech5:
             safeCombinedBytes(GraniteSpeechModelConfiguration.speech5.model.sizeBytes,
                               GraniteSpeechModelConfiguration.speech5.projector.sizeBytes)
-        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .appleSpeech, .remoteServer: nil
+        case .cohere, .senseVoice, .gigaamRussian, .funASRNano, .appleSpeech, .speechRuntime, .remoteServer: nil
         }
     }
 

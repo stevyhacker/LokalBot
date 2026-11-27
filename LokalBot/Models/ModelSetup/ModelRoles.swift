@@ -336,7 +336,8 @@ final class ModelRoles: ObservableObject {
             .contains(selectedTranscriptionID)
         let transcriptionHasError = transcriptionErrors[selectedTranscriptionID]
             .map { !$0.isEmpty } ?? false
-        if transcriptionIsDownloaded && !transcriptionHasError {
+        if transcriptionIsDownloaded && !transcriptionHasError
+            && settings.transcriptionModel != .speechRuntime {
             readinessDidChange()
         } else {
             prepareTranscriptionModel(settings.transcriptionModel)
@@ -404,7 +405,7 @@ final class ModelRoles: ObservableObject {
         configuration: AppSettings
     ) async throws {
         let key = TranscriptionConfiguration(choice, configuration)
-        if choice != .funASRNano && choice != .appleSpeech,
+        if choice != .funASRNano && choice != .appleSpeech && choice != .speechRuntime,
            downloadedTranscriptionModels(configuration).contains(choice.id),
            preparationErrors[key] == nil {
             return
@@ -424,7 +425,8 @@ final class ModelRoles: ObservableObject {
         if let error = preparationErrors[key] {
             throw ModelDownloadManager.PreparationError.failed(error)
         }
-        guard choice == .appleSpeech || downloadedTranscriptionModels(configuration).contains(choice.id) else {
+        guard choice == .appleSpeech || choice == .speechRuntime
+                || downloadedTranscriptionModels(configuration).contains(choice.id) else {
             throw ModelDownloadManager.PreparationError.failed(
                 "The transcription model is not available yet. Retry its download.")
         }

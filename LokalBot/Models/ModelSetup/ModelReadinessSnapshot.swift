@@ -27,12 +27,21 @@ struct ModelReadinessSnapshot: Equatable, Sendable {
                 .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil
             let hasDefaultAutocomplete = ModelCatalog.entry(id: ModelCatalog.qualityCotypingID)
                 .flatMap { ModelCatalog.localURL(for: $0, storage: storage) } != nil
+            var downloadedTranscriptionIDs = TranscriptionModelStore.downloadedChoices(
+                graniteConfiguration: settings.graniteSpeechModel,
+                funASRNanoDirectory: settings.funASRNanoModelDirectory,
+                remoteTranscriptionReady: settings.remoteTranscription.isReady,
+                appleSpeechAssetInstalled: appleSpeechAssetInstalled)
+            if settings.transcriptionModel == .speechRuntime {
+                let runtimeStatus = await SpeechRuntimeEngine.shared.status()
+                if runtimeStatus.modelReady {
+                    downloadedTranscriptionIDs.insert(TranscriptionModelChoice.speechRuntime.id)
+                } else {
+                    downloadedTranscriptionIDs.remove(TranscriptionModelChoice.speechRuntime.id)
+                }
+            }
             return Self(
-                downloadedTranscriptionIDs: TranscriptionModelStore.downloadedChoices(
-                    graniteConfiguration: settings.graniteSpeechModel,
-                    funASRNanoDirectory: settings.funASRNanoModelDirectory,
-                    remoteTranscriptionReady: settings.remoteTranscription.isReady,
-                    appleSpeechAssetInstalled: appleSpeechAssetInstalled),
+                downloadedTranscriptionIDs: downloadedTranscriptionIDs,
                 qwenASRUpgradeMissingBytes: qwenUpgradeBytes,
                 hasLegacyAutocompleteModel: hasLegacyAutocomplete,
                 hasDefaultThinkModel: hasDefaultThink,

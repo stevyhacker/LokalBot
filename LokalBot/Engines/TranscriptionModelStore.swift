@@ -144,6 +144,8 @@ struct TranscriptionModelStore {
             return onnxModelExists(model: .gigaamRussian, environment: environment)
         case .appleSpeech:
             return appleSpeechAssetInstalled
+        case .speechRuntime:
+            return false
         case .remoteServer:
             return remoteTranscriptionReady
         }
@@ -199,7 +201,7 @@ struct TranscriptionModelStore {
         case .gigaamRussian:
             [onnxDirectory(folderName: "sherpa-onnx-nemo-ctc-giga-am-v3-russian-2025-12-16",
                            environment: environment)]
-        case .appleSpeech:
+        case .appleSpeech, .speechRuntime:
             []
         case .remoteServer:
             []

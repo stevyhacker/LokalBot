@@ -609,6 +609,14 @@ The app may make these outbound connections:
   is asked once more of the same server, with room for that reasoning.
   With OpenRouter, the provider data policy chosen for Think applies. The
   operator of that server controls its privacy terms.
+- **Speech Runtime:** When selected for Transcribe, LokalBot sends meeting
+  audio, imports, and live preview clips as 16 kHz mono WAV files to the local
+  Speech Runtime service at `127.0.0.1:8477`. Requests use the token in the
+  runtime's Application Support folder and contain at most 120 seconds of
+  audio. Temporary WAV files are private to the current user and removed after
+  each request. LokalBot sends the recognized text to the same local service
+  for cleanup. Speech Runtime manages its own model and data; LokalBot does
+  not unload the shared model or fall back to a cloud service.
 - **Optional transcription server:** Transcribe can use a speech-to-text
   server you choose in Settings → Models → Transcribe, such as OpenAI, Groq,
   OpenRouter, or whisper.cpp on another computer, instead of a model on this
