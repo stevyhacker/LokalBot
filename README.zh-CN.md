@@ -59,7 +59,7 @@ npx lokalbot
 
 <sub>⭐ 如果 LokalBot 对你有用，请给仓库点个星。它由一位开发者独立打造，星标是其他人发现它的方式。</sub>
 
-[English](README.md) · **简体中文**
+[English](README.md) · **简体中文** · [Türkçe](README.tr.md)
 
 [开发者与智能体](#developers) · [功能](#features) · [中文支持](#chinese) · [Windows 与 Linux](#windows-and-linux) · [iOS 与 Android](#on-your-phone) · [对比](#how-it-compares) · [性能](#performance) · [基准测试](https://www.lokalbot.com/benchmarks) · [硬件计算器](https://www.lokalbot.com/hardware) · [费用计算器](https://www.lokalbot.com/calculator) · [Agent Wrapped](https://www.lokalbot.com/wrapped) · [隐私](#privacy) · [快速开始](#get-started) · [模型](#models) · [讨论区](https://github.com/stevyhacker/lokalbot/discussions) · [中文主页](https://www.lokalbot.com/zh)
 
