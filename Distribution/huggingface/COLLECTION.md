@@ -24,12 +24,11 @@ Each repo id matches what LokalBot v0.14.0 downloads, taken from the source file
 - **`ggml-org/embeddinggemma-2-GGUF` (0.31 GB Q8_0):** Default semantic search embedder on `llama-server`. 39 ms p50 hybrid query and 0.280 R@1 across 232 QMSum meetings (43/48 top-1 on multilingual EN/SR probe). Apache-2.0.
 - **`stevyhacker/Gemma-4-E2B-LokalBot-GGUF` (v4, 3.02 GB i1-Q5_K_M + PLE Q4_K):** Default autocomplete fine-tune of `google/gemma-4-E2B`. 55/56 memory+visible grounding (26/26 memory recall, 0 stale facts), 57.3% blind FH2 (94.0% precision), 60.8% q6pub midword, 0 unsafe checks, 785 MiB smaller than Q6_K. Apache-2.0.
 
-The five default 16 GB Mac files total ~8.8 GB (8.9 GB with Kokoro TTS), matching the README and the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) ([JSON](https://www.lokalbot.com/benchmarks.json)) and [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware). Screen text uses Apple Vision, which ships with macOS.
+The five default 16 GB Mac files total ~8.8 GB (8.9 GB with Kokoro TTS), matching the README (see also the [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) and [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)). Screen text uses Apple Vision, which ships with macOS.
 
 ## Changelog of replaced defaults
 
 - **2026-11-27:** Switched default Gemma 4 E2B (LokalBot v4) autocomplete quant from `i1-Q6_K` (`3.85 GB`) to `i1-Q5_K_M + pleQ4K` (`3.02 GB`, `-785 MiB` disk and RAM+VRAM, faster Vulkan latency, `57.3%` FH2 / `94.0%` precision). `v4-i1-Q6_K` stays selectable in Settings for existing `v0.14.0`/`v0.14.1` installs.
-
 - **2026-11-26 (v0.14.0):** Promoted all four Apache-2.0 `stevyhacker/*-LokalBot-GGUF` fine-tunes (`Qwen3-ASR 1.7B v3`, `Qwen3-ASR 0.6B v1`, `Qwen3.5 4B v4`, `Gemma 4 E2B v4`) replacing `aufklarer/Qwen3-ASR-1.7B-MLX-8bit`, `unsloth/Qwen3.5-4B-GGUF`, and `mradermacher/gemma-4-E2B-i1-GGUF` as defaults. The stock baselines remain selectable in Settings.
 - **2026-11-10:** Replaced `unsloth/LFM2.5-1.2B-Instruct-GGUF` with Gemma 4 E2B Base for default autocomplete (LFM2.5 stays in the Lightweight preset).
 - **2026-10-07:** Replaced `mradermacher/harrier-oss-v1-0.6b-GGUF` with `ggml-org/embeddinggemma-2-GGUF`.
