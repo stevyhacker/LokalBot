@@ -101,12 +101,13 @@ jobs:
       - name: Download the latest release's Linux binaries
         env:
           GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: stevyhacker/LokalBot
         run: |
           mkdir -p "$RUNNER_TEMP/release"
           cd "$RUNNER_TEMP/release"
-          gh release download --repo "$GITHUB_REPOSITORY" --pattern 'LokalBot-*-linux-x86_64.tar.gz'
+          gh release download --repo "$RELEASE_REPOSITORY" --pattern 'LokalBot-*-linux-x86_64.tar.gz'
           # Checked against the SHA-256 GitHub reports for each release file.
-          gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq '.assets[] | "\(.digest | ltrimstr("sha256:"))  \(.name)"' |
+          gh api "repos/$RELEASE_REPOSITORY/releases/latest" --jq '.assets[] | "\(.digest | ltrimstr("sha256:"))  \(.name)"' |
             sha256sum --check --ignore-missing --strict
           tar -xzf LokalBot-*-linux-x86_64.tar.gz
 
@@ -115,7 +116,7 @@ jobs:
 
   ready:
     name: Check the tag and repository secrets
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -159,7 +160,7 @@ jobs:
   publish:
     name: Publish to pkg.lokalbot.com
     needs: ready
-    if: needs.ready.outputs.publish == 'true'
+    if: needs.ready.outputs.publish == 'true' && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04 # GitHub-hosted: the signing key never reaches a self-hosted runner
     timeout-minutes: 30
     # One publish at a time: each one rebuilds the indexes from the bucket.

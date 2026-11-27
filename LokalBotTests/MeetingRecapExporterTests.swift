@@ -82,4 +82,54 @@ final class MeetingRecapExporterTests: XCTestCase {
         XCTAssertFalse(html.contains("<script"))
         XCTAssertFalse(html.contains("<link"))
     }
+
+    func testRecapAttributionSettingIsOffByDefaultAndRoundTrips() throws {
+        let fresh = AppSettings()
+        XCTAssertFalse(fresh.includeRecapAttribution)
+
+        var optedIn = fresh
+        optedIn.includeRecapAttribution = true
+        let encoded = try JSONEncoder().encode(optedIn)
+        let decoded = try JSONDecoder().decode(AppSettings.self, from: encoded)
+        XCTAssertTrue(decoded.includeRecapAttribution)
+
+        let legacy = try JSONDecoder().decode(AppSettings.self, from: Data("{}".utf8))
+        XCTAssertFalse(legacy.includeRecapAttribution)
+    }
+
+    func testFollowUpCopyTextOmitsAttributionByDefaultAndIncludesItWhenEnabled() {
+        let plain = MeetingRecapExporter.followUpCopyText(
+            subject: "Orders API notes",
+            body: "Here are the next steps.")
+        XCTAssertEqual(plain, "Subject: Orders API notes\n\nHere are the next steps.")
+        XCTAssertFalse(plain.contains("lokalbot.com"))
+
+        let attributed = MeetingRecapExporter.followUpCopyText(
+            subject: "Orders API notes",
+            body: "Here are the next steps.",
+            includeAttribution: true)
+        XCTAssertTrue(attributed.contains(MeetingRecapExporter.plainAttributionLine))
+        XCTAssertTrue(attributed.contains("lokalbot.com"))
+    }
+
+    @MainActor
+    func testLocalStatsSummaryAndCardContainOnlyAggregateCountsAndRenderPNG() throws {
+        let stats = LocalStatsSummary(
+            periodLabel: "30 days",
+            wordsAutocompleted: 4_250,
+            acceptanceRate: 0.64,
+            timeSavedSeconds: 2_700,
+            meetingsCaptured: 18)
+
+        let text = stats.plainTextSummary()
+        XCTAssertTrue(text.contains(4_250.formatted()))
+        XCTAssertTrue(text.contains(AutocompleteStatisticsPresentation.percent(0.64)))
+        XCTAssertTrue(text.contains("18 meetings (0 bots)"))
+        XCTAssertTrue(text.contains("$0"))
+        XCTAssertTrue(text.contains("lokalbot.com"))
+
+        let png = try XCTUnwrap(LocalStatsCardRenderer.pngData(for: stats))
+        XCTAssertGreaterThan(png.count, 1_000)
+        XCTAssertEqual(Array(png.prefix(4)), [0x89, 0x50, 0x4E, 0x47])
+    }
 }

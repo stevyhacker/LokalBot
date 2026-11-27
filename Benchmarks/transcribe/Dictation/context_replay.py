@@ -52,7 +52,7 @@ def contains(text, phrase):
     return bool(expected) and any(actual[i:i + len(expected)] == expected for i in range(len(actual)))
 
 
-def replay_input(corpus, cases, variant, routing=None, cleanup=None):
+def replay_input(corpus, cases, variant, routing=None, cleanup=None, word_lock=None):
     visible, meetings, screens, window = flags(variant)
     allowed = {'id', 'speech', 'visible', 'transcribe', 'screen'}
     data = {'cases': [{k: v for k, v in case.items() if k in allowed} for case in cases],
@@ -64,6 +64,8 @@ def replay_input(corpus, cases, variant, routing=None, cleanup=None):
         data['routing'] = routing
     if cleanup:
         data['cleanupPrompt'] = cleanup
+    if word_lock:
+        data['wordLock'] = word_lock
     return data
 
 
@@ -184,6 +186,8 @@ def main():
                         help='extra llama-server argument, repeatable, e.g. --server-arg=--spec-type --server-arg=ngram-mod')
     parser.add_argument('--fresh-server-per-condition', action='store_true',
                         help='start a new server for each condition, so caches such as n-gram speculation start empty')
+    parser.add_argument('--word-lock', choices=['off', 'digitsNamesNegation'],
+                        help='word lock on cleaned direct speech (default: the build\'s production lock)')
     args = parser.parse_args()
     variants = VARIANT_SETS[args.variant_set]
     args.output.mkdir(parents=True, exist_ok=False)
@@ -202,6 +206,7 @@ def main():
                 'variants': variants, 'freshServerPerCondition': args.fresh_server_per_condition,
                 'windowPolicies': WINDOW_POLICIES, 'routing': args.routing or 'production',
                 'cleanupPrompt': args.cleanup_prompt or 'production',
+                'wordLock': args.word_lock or 'production',
                 'settings': 'Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed',
                 'scope': 'Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library.'}
     (args.output / 'manifest.json').write_text(json.dumps(manifest, indent=2) + '\n')
@@ -214,7 +219,7 @@ def main():
                 fresh = serving(command, base, log, opener) if args.fresh_server_per_condition else contextlib.nullcontext()
                 with fresh:
                     fixture = args.output / f'{variant}-input.json'
-                    fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt), ensure_ascii=False) + '\n')
+                    fixture.write_text(json.dumps(replay_input(corpus, cases, variant, args.routing, args.cleanup_prompt, args.word_lock), ensure_ascii=False) + '\n')
                     with tempfile.TemporaryDirectory(prefix='lokalbot-dictation-eval-') as temporary:
                         root = Path(temporary)
                         (root / 'home').mkdir()

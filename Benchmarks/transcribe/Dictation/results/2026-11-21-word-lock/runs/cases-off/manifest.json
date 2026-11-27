@@ -1,0 +1,74 @@
+{
+  "appSHA256": "6cb823b1a4d2766b062654e2246e0d70d9ee701e351ebc189f78175f61402dc0",
+  "serverSHA256": "ccfea9c370dcdf38e2f6574ba87f6325532a61a9b4a70a4f3098f6d78c82ddd0",
+  "modelSHA256": "00fe7986ff5f6b463e62455821146049db6f9313603938a70800d1fb69ef11a4",
+  "modelFile": "Qwen3.5-4B-Q4_K_M.gguf",
+  "corpusSHA256": "7063219ea6bd61a439b07ed8042142844e259f7fb81298b53872f1bcfdfff17c",
+  "scriptSHA256": "3a1093daa6d4c3f10457adfaece09b1b7f624145192a0f4ce6f1ca8872e58af3",
+  "split": "heldout",
+  "caseIDs": [
+    "held-day",
+    "held-place",
+    "held-person",
+    "held-serbian",
+    "held-memory-owner",
+    "held-memory-format",
+    "held-linked-reviewer",
+    "held-linked-place",
+    "held-conflict-owner",
+    "held-conflict-date",
+    "held-screen-memory",
+    "held-mixed-memory",
+    "held-explicit-owner",
+    "held-direct-negation",
+    "held-direct-uncertainty",
+    "held-direct-name",
+    "held-hidden",
+    "held-domain",
+    "held-credential",
+    "held-injection",
+    "held-transcribe-command",
+    "held-transcribe-facts"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/LokalBot.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "~/Library/Application Support/me.dotenv.LokalBot.dev/models/Qwen3.5-4B-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "53946",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "wordLock": "off",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}

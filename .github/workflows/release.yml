@@ -89,7 +89,7 @@ defaults:
 
 jobs:
   release:
-    if: github.event_name == 'push' || github.ref == 'refs/heads/master'
+    if: github.repository == 'stevyhacker/LokalBot' && (github.event_name == 'push' || github.ref == 'refs/heads/master')
     name: Prepare or publish exact candidate
     runs-on: macos-26
     # A cache miss includes a full llama.cpp source build before archive,
@@ -539,7 +539,7 @@ jobs:
   # same tag, without any secret.
   linux-windows:
     name: Linux and Windows archives
-    if: github.event_name == 'push'
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push'
     uses: ./.github/workflows/linux-windows-release.yml
     with:
       tag: ${{ github.ref_name }}
@@ -550,7 +550,7 @@ jobs:
   # runs, from the same tag, without any secret.
   android:
     name: Android app
-    if: github.event_name == 'push'
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push'
     uses: ./.github/workflows/companion-android.yml
     with:
       tag: ${{ github.ref_name }}
@@ -562,7 +562,7 @@ jobs:
   # and attaches it. GitHub-hosted, like every job that sees a secret.
   android-publish:
     name: Sign and attach the Android app
-    if: github.event_name == 'push'
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push'
     needs: [release, android]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
@@ -614,7 +614,7 @@ jobs:
   # a secret.
   android-play:
     name: Google Play
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-')
     needs: [release, android]
     uses: ./.github/workflows/google-play.yml
     with:
@@ -638,7 +638,7 @@ jobs:
   # Store. GitHub-hosted, like every job that sees a secret.
   ios-app-store:
     name: App Store
-    if: github.event_name == 'push' && !contains(github.ref_name, '-') && vars.APP_STORE_PUBLISH == 'true'
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-') && vars.APP_STORE_PUBLISH == 'true'
     needs: release
     uses: ./.github/workflows/app-store.yml
     with:
@@ -659,6 +659,7 @@ jobs:
     name: apt and dnf repositories
     if: >-
       always()
+      && github.repository == 'stevyhacker/LokalBot'
       && github.event_name == 'push'
       && !contains(github.ref_name, '-')
       && needs.linux-windows-publish.result == 'success'
@@ -681,7 +682,7 @@ jobs:
   # final Windows archive for windows-x86_64.json.
   windows-sign:
     name: Sign Windows binaries (SignPath)
-    if: github.event_name == 'push' && !contains(github.ref_name, '-') && vars.SIGNPATH_ENABLED == 'true'
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-') && vars.SIGNPATH_ENABLED == 'true'
     needs: [release, linux-windows]
     uses: ./.github/workflows/windows-sign.yml
     with:
@@ -702,6 +703,7 @@ jobs:
     name: Sign and attach Linux and Windows updates
     if: >-
       always()
+      && github.repository == 'stevyhacker/LokalBot'
       && github.event_name == 'push'
       && needs.release.result == 'success'
       && needs.linux-windows.result == 'success'
@@ -763,6 +765,7 @@ jobs:
     name: AUR package
     if: >-
       always()
+      && github.repository == 'stevyhacker/LokalBot'
       && github.event_name == 'push'
       && !contains(github.ref_name, '-')
       && needs.linux-windows-publish.result == 'success'
@@ -784,6 +787,7 @@ jobs:
     name: winget package
     if: >-
       always()
+      && github.repository == 'stevyhacker/LokalBot'
       && github.event_name == 'push'
       && !contains(github.ref_name, '-')
       && needs.linux-windows-publish.result == 'success'
@@ -802,7 +806,7 @@ jobs:
   # OIDC, so there is no secret. Pre-releases get neither.
   mcp-registry:
     name: MCP Registry
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-')
     needs: release
     uses: ./.github/workflows/mcp-registry.yml
     with:
@@ -817,7 +821,7 @@ jobs:
   # (RELEASING.md step 0). Pre-releases are never a changelog base.
   upgrade-fixture:
     name: Upgrade fixture
-    if: github.event_name == 'push' && !contains(github.ref_name, '-')
+    if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-')
     needs: release
     uses: ./.github/workflows/upgrade-fixtures.yml
     with:

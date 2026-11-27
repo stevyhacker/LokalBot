@@ -193,7 +193,7 @@ jobs:
   publish:
     name: Sign and upload to App Store Connect
     needs: archive
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
     runs-on: macos-26
     timeout-minutes: 90
     steps:

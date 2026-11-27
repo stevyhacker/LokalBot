@@ -1,3 +1,4 @@
+import CryptoKit
 import XCTest
 @testable import LokalBot
 
@@ -121,5 +122,90 @@ final class SampleMeetingTests: XCTestCase {
         XCTAssertFalse(evidence.openActions.contains { $0.contains(sample.title) }, "\(evidence.openActions)")
         let meetingSources = evidence.sources.filter { $0.kind == .meeting }.map(\.id)
         XCTAssertEqual(meetingSources, [own.id.uuidString])
+    }
+
+    func testPrecomputedHydrationPopulatesTranscriptSummaryOutcomesAndAskAnswersWithoutModels() throws {
+        for recording in SampleMeeting.recordings {
+            let root = try temporaryDirectory("SamplePrecomputed-\(recording.language)")
+            let storage = StorageManager(rootURL: root)
+            let start = Date()
+
+            let meeting = try SampleMeeting.hydratePrecomputed(recording: recording, storage: storage)
+            let elapsed = Date().timeIntervalSince(start)
+
+            XCTAssertLessThan(elapsed, 5.0, "\(recording.id) hydrated in \(elapsed)s")
+            XCTAssertEqual(meeting.sampleID, recording.id)
+            XCTAssertTrue(meeting.isSample)
+            XCTAssertTrue(meeting.hasSystemTrack)
+
+            let folder = meeting.folderURL(in: storage)
+            let transcriptData = try Data(contentsOf: folder.appendingPathComponent("transcript.json"))
+            let transcript = try JSONDecoder().decode(Transcript.self, from: transcriptData)
+            XCTAssertEqual(transcript.engine, SampleMeeting.precomputedEngine)
+            XCTAssertFalse(transcript.segments.isEmpty)
+            XCTAssertFalse(transcript.speakerAliases.isEmpty)
+
+            let summary = try String(contentsOf: folder.appendingPathComponent("summary.md"), encoding: .utf8)
+            XCTAssertFalse(summary.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+
+            let outcomes = try XCTUnwrap(MeetingOutcomes.load(from: folder))
+            XCTAssertFalse(outcomes.decisionRecords.isEmpty)
+            XCTAssertFalse(outcomes.actionItems.isEmpty)
+            XCTAssertFalse(outcomes.openQuestions.isEmpty)
+            XCTAssertEqual(outcomes.transcriptRevision, transcript.evidenceRevision)
+            XCTAssertTrue(outcomes.decisionRecords.allSatisfy { !$0.citations.isEmpty })
+
+            let question = SampleMeeting.askQuestion(for: meeting, language: .english)
+            let answer = try XCTUnwrap(SampleMeeting.precomputedAskAnswer(for: meeting, question: question))
+            XCTAssertFalse(answer.isEmpty)
+            let citations = ChatCitationParser.extract(answer).citations
+            XCTAssertFalse(citations.isEmpty, "precomputed answer for \(recording.id) must include cited timestamps")
+            XCTAssertTrue(citations.allSatisfy { $0.meetingID.lowercased() == SessionLookup.shortID(meeting.id).lowercased() })
+        }
+    }
+
+    @MainActor
+    func testChatViewModelUsesPrecomputedSampleAnswerWithoutStartingAnEngine() async throws {
+        let root = try temporaryDirectory("SamplePrecomputedChat")
+        let storage = StorageManager(rootURL: root)
+        let meeting = try SampleMeeting.hydratePrecomputed(recording: SampleMeeting.english, storage: storage)
+        let question = SampleMeeting.askQuestion(for: meeting, language: .english)
+        var engineCalled = false
+        let key = SymmetricKey(data: Data(repeating: 0x42, count: 32))
+        let store = ChatStore(rootURL: root, encryptionKey: { key })
+
+        let viewModel = ChatViewModel(
+            makeEngine: {
+                engineCalled = true
+                throw CancellationError()
+            },
+            tools: SampleChatToolRunner(),
+            store: store,
+            precomputedAnswer: { query, scopedIDs in
+                guard scopedIDs == [meeting.id],
+                      let reply = SampleMeeting.precomputedAskAnswer(for: meeting, question: query) else {
+                    return nil
+                }
+                return ChatViewModel.PrecomputedAnswer(answer: reply, meetingTitle: meeting.displayTitle)
+            })
+
+        viewModel.send(question, meetingIDs: [meeting.id])
+
+        XCTAssertFalse(engineCalled, "precomputed sample answer must not invoke the local LLM engine")
+        XCTAssertEqual(viewModel.messages.count, 2)
+        XCTAssertEqual(viewModel.messages.first?.role, .user)
+        let assistant = try XCTUnwrap(viewModel.messages.last)
+        XCTAssertEqual(assistant.role, .assistant)
+        XCTAssertFalse(assistant.isPending)
+        XCTAssertFalse(ChatCitationParser.extract(assistant.text).citations.isEmpty)
+    }
+}
+
+@MainActor
+private final class SampleChatToolRunner: ChatToolRunner {
+    let specs: [ChatToolSpec] = []
+    func libraryOverview() -> String { "Sample" }
+    func run(_ call: ChatToolCall) async -> ChatToolResult {
+        ChatToolResult(text: "", summary: "")
     }
 }

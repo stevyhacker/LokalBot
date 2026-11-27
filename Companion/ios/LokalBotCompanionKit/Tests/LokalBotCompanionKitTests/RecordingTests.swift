@@ -220,6 +220,141 @@ struct RecordingModelTests {
         await session.start()
         #expect(session.recordings.first?.state == .waiting)
     }
+
+    @Test func unpairedRecordingSavesLocallyAndUploadsAfterPairing() async throws {
+        let store = FixtureStore(envelopes: [])
+        let session = CompanionSession(store: store)
+        await session.start()
+        #expect(session.mode == .unpaired)
+
+        let capture = FakeCapture()
+        let model = RecordingModel(session: session, capture: capture)
+        await model.begin()
+        #expect(model.phase == .recording)
+        model.title = "Coffee chat"
+        await model.stop()
+
+        let held = try #require(session.recordings.first)
+        #expect(held.state == .waiting)
+        #expect(held.title == "Coffee chat")
+        #expect(held.durationSeconds == 12.5)
+        let audioURL = try #require(capture.url)
+        #expect(FileManager.default.fileExists(atPath: audioURL.path))
+
+        await store.simulatePairing(macName: "Work Linux")
+        await session.refresh()
+        #expect(session.mode == .paired)
+        await session.uploadRecordings()
+
+        let uploaded = try #require(session.recordings.first)
+        #expect(uploaded.state == .uploaded)
+        #expect(!FileManager.default.fileExists(atPath: audioURL.path))
+    }
+
+    @Test func sampleModeAllowsRecordingAndLeavingSampleKeepsRecordings() async throws {
+        let store = try FixtureStore.sampleLibrary()
+        let session = CompanionSession(store: store)
+        await session.start()
+        #expect(session.mode == .sample)
+
+        let capture = FakeCapture()
+        let model = RecordingModel(session: session, capture: capture)
+        await model.begin()
+        model.title = "Walkthrough"
+        await model.stop()
+
+        #expect(session.recordings.count == 1)
+        #expect(session.recordings.first?.state == .waiting)
+
+        await session.removeThisDevice()
+        #expect(session.mode == .unpaired)
+        #expect(session.recordings.count == 1)
+        #expect(session.recordings.first?.title == "Walkthrough")
+        try? FileManager.default.removeItem(at: try #require(capture.url))
+    }
+}
+
+@Suite("Unpaired recordings vault")
+struct UnpairedRecordingsVaultTests {
+    private final class Clock: @unchecked Sendable {
+        var now: Date
+        init(_ start: Date) { self.now = start }
+    }
+
+    @Test func persistsRecoversRenamesAndDeletesRecordings() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unpaired-vault-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let clock = Clock(Date(timeIntervalSince1970: 1_760_000_000))
+        let vault = UnpairedRecordingsVault(directory: directory, now: { clock.now })
+
+        let first = try await vault.begin(title: "Kickoff")
+        try Data([0xFF, 0xF1, 0x50]).write(to: URL(fileURLWithPath: first.filePath))
+        let finished = try await vault.finish(id: first.id, durationSeconds: 45)
+        #expect(finished.state == .waiting)
+        #expect(finished.byteCount == 3)
+        #expect(finished.durationSeconds == 45)
+
+        clock.now = clock.now.addingTimeInterval(60)
+        let crashed = try await vault.begin(title: "")
+        try Data([0xFF, 0xF1, 0x50, 0x80]).write(to: URL(fileURLWithPath: crashed.filePath))
+
+        clock.now = clock.now.addingTimeInterval(60)
+        let empty = try await vault.begin(title: "Empty")
+        _ = empty
+
+        let reopened = UnpairedRecordingsVault(directory: directory)
+        let recovered = try await reopened.recover()
+        #expect(recovered == 1)
+        let rows = await reopened.recordings()
+        #expect(rows.count == 2)
+        #expect(rows.map(\.id) == [crashed.id, first.id])
+
+        let migrationOrder = await reopened.waitingForMigration()
+        #expect(migrationOrder.map(\.id) == [first.id, crashed.id])
+
+        try await reopened.setTitle(id: crashed.id, title: "Recovered notes")
+        #expect(await reopened.recordings().first?.title == "Recovered notes")
+
+        try await reopened.discard(id: first.id)
+        #expect(!FileManager.default.fileExists(atPath: first.filePath))
+        #expect(await reopened.recordings().map(\.id) == [crashed.id])
+
+        try await reopened.removeAll()
+        #expect(await reopened.recordings().isEmpty)
+        #expect(!FileManager.default.fileExists(atPath: directory.path))
+    }
+
+    @Test func anUnreadableIndexIsNeverReplaced() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unpaired-vault-corrupt-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let index = directory.appendingPathComponent("index.json")
+        let original = Data("[{\"id\":".utf8)
+        try original.write(to: index)
+
+        let vault = UnpairedRecordingsVault(directory: directory)
+        #expect(await vault.recordings().isEmpty)
+        await #expect(throws: (any Error).self) {
+            try await vault.begin(title: "New")
+        }
+        #expect(try Data(contentsOf: index) == original)
+    }
+
+    @Test func finishingEmptyFileRejectsAndCleansUp() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("unpaired-vault-empty-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let vault = UnpairedRecordingsVault(directory: directory)
+        let draft = try await vault.begin(title: nil)
+        await #expect(throws: CompanionStoreError.failed("Nothing was recorded.")) {
+            try await vault.finish(id: draft.id, durationSeconds: 5)
+        }
+        #expect(await vault.recordings().isEmpty)
+    }
 }
 
 @Suite("Recording rows")

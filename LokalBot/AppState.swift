@@ -631,7 +631,7 @@ final class AppState: ObservableObject {
         return meetings.first { $0.id == id }
     }
 
-    let storage = StorageManager()
+    let storage: StorageManager
     private(set) lazy var outcomeIndex = OutcomeIndex(
         storage: storage,
         mutateEvidence: { [weak self] meetings, mutation in
@@ -1143,6 +1143,9 @@ final class AppState: ObservableObject {
         },
         personalModel: personalModel,
         askMemoryEnabled: { [weak self] in self?.settings.askMemoryEnabled ?? false },
+        precomputedAnswer: { [weak self] query, meetingIDs in
+            self?.precomputedSampleAnswer(query: query, meetingIDs: meetingIDs)
+        },
         deferHistoryLoading: true)
 
     private var companionHost: CompanionHost?
@@ -1264,6 +1267,7 @@ final class AppState: ObservableObject {
     private lazy var searchIndexWorkQueue = SearchIndexWorkQueue(
         databaseURL: storage.rootURL.appendingPathComponent("lokalbotv3.sqlite"),
         rootURL: storage.rootURL)
+    private var searchIndexEnqueueTask: Task<Void, Never>?
 
     var isRecording: Bool { recording.isRecording }
     var currentMeeting: Meeting? { recording.currentMeeting }
@@ -1330,7 +1334,8 @@ final class AppState: ObservableObject {
         WindowAccess.shared.open("main")
     }
 
-    init() {
+    init(storage: StorageManager = StorageManager()) {
+        self.storage = storage
         AppLog.bootstrap()
         settings = settingsStore.current
         AppAppearance.apply(textSize: settings.textSize)
@@ -1614,8 +1619,7 @@ final class AppState: ObservableObject {
     }
 
     private func reindexLibraryInBackground(_ meetings: [Meeting]) {
-        let worker = searchIndexWorkQueue
-        Task { await worker.enqueue(meetings) }
+        enqueueSearchIndex { await $0.enqueue(meetings) }
     }
 
     private var notesEmbeddingDebounce: [Meeting.ID: Task<Void, Never>] = [:]
@@ -1643,8 +1647,28 @@ final class AppState: ObservableObject {
     }
 
     private func reindexSearchInBackground(_ meeting: Meeting) {
+        enqueueSearchIndex { await $0.enqueue(meeting) }
+    }
+
+    private func enqueueSearchIndex(_ work: @escaping @Sendable (SearchIndexWorkQueue) async -> Void) {
         let worker = searchIndexWorkQueue
-        Task { await worker.enqueue(meeting) }
+        let previous = searchIndexEnqueueTask
+        searchIndexEnqueueTask = Task {
+            await previous?.value
+            await work(worker)
+        }
+    }
+
+    func finishSearchIndexingForTesting() async {
+        while let task = searchIndexEnqueueTask {
+            await task.value
+            if searchIndexEnqueueTask == task {
+                searchIndexEnqueueTask = nil
+                break
+            }
+        }
+        await searchIndexWorkQueue.waitUntilIdle()
+        await searchIndexWorkQueue.stop()
     }
 
     private func reindexEmbeddingLibraryInBackground(_ meetings: [Meeting]) {
@@ -2014,6 +2038,25 @@ final class AppState: ObservableObject {
             return
         }
         let recording = SampleMeeting.recording(for: settings.appLanguage.localizationIdentifier())
+        let usePrecomputed = !modelRoles.snapshot.meetingReady
+        if usePrecomputed {
+            do {
+                let meeting = try SampleMeeting.hydratePrecomputed(
+                    recording: recording, storage: storage)
+                meetings.append(meeting)
+                meetings.sort { $0.startedAt > $1.startedAt }
+                selectedMeetingIDs = [meeting.id]
+                navSection = .meetings
+                outcomeIndex.refresh(meeting: meeting)
+                reindexSearchInBackground(meeting)
+                lokalbotLog("sample meeting hydrated precomputed meeting=\(meeting.id)")
+                return
+            } catch {
+                lokalbotLog("sample meeting precomputed hydration failed: \(error.localizedDescription)")
+                lastError = error.localizedDescription
+                return
+            }
+        }
         guard !importingRecordings.contains(recording.title) else { return }
         guard let url = SampleMeeting.audioURL(for: recording) else {
             lastError = "The sample meeting is missing from this copy of LokalBot."

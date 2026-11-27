@@ -13,6 +13,8 @@ import javax.crypto.spec.GCMParameterSpec
 class DeviceKeyVault(
     private val file: File,
     private val alias: String = "me.dotenv.lokalbot.device-key-wrap",
+    private val keyProvider: (() -> SecretKey)? = null,
+    private val keyEraser: (() -> Unit)? = null,
 ) {
     fun loadOrCreate(generate: () -> ByteArray): ByteArray {
         load()?.let { return it }
@@ -23,13 +25,10 @@ class DeviceKeyVault(
 
     fun load(): ByteArray? {
         if (!file.exists()) return null
-        val bytes = file.readBytes()
-        require(bytes.size > 2 && bytes[0] == FORMAT) { "Unknown device key format" }
-        val ivLength = bytes[1].toInt()
-        val iv = bytes.copyOfRange(2, 2 + ivLength)
+        val (iv, ciphertext) = unpackEnvelope(file.readBytes())
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, wrappingKey(), GCMParameterSpec(128, iv))
-        return cipher.doFinal(bytes, 2 + ivLength, bytes.size - 2 - ivLength)
+        return cipher.doFinal(ciphertext)
     }
 
     fun store(privateKey: ByteArray) {
@@ -39,18 +38,24 @@ class DeviceKeyVault(
         val sealed = cipher.doFinal(privateKey)
         file.parentFile?.mkdirs()
         val temp = File(file.parentFile, file.name + ".tmp")
-        temp.writeBytes(byteArrayOf(FORMAT, iv.size.toByte()) + iv + sealed)
+        temp.writeBytes(packEnvelope(iv, sealed))
         check(temp.renameTo(file)) { "Could not save the device key" }
     }
 
     fun erase() {
         file.delete()
-        runCatching { keyStore().deleteEntry(alias) }
+        val eraser = keyEraser
+        if (eraser != null) {
+            runCatching { eraser() }
+        } else {
+            runCatching { keyStore().deleteEntry(alias) }
+        }
     }
 
     private fun keyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
 
     private fun wrappingKey(): SecretKey {
+        keyProvider?.let { return it() }
         (keyStore().getKey(alias, null) as? SecretKey)?.let { return it }
         return try {
             generateWrappingKey(strongBox = true)
@@ -73,9 +78,22 @@ class DeviceKeyVault(
         }
     }
 
-    private companion object {
+    internal companion object {
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val FORMAT: Byte = 1
+
+        fun packEnvelope(iv: ByteArray, ciphertext: ByteArray): ByteArray {
+            require(iv.isNotEmpty() && iv.size <= 255) { "Invalid device key IV length" }
+            require(ciphertext.isNotEmpty()) { "Empty device key ciphertext" }
+            return byteArrayOf(FORMAT, iv.size.toByte()) + iv + ciphertext
+        }
+
+        fun unpackEnvelope(bytes: ByteArray): Pair<ByteArray, ByteArray> {
+            require(bytes.size > 2 && bytes[0] == FORMAT) { "Unknown device key format" }
+            val ivLength = bytes[1].toInt() and 0xFF
+            require(ivLength > 0 && 2 + ivLength < bytes.size) { "Corrupt device key envelope" }
+            return bytes.copyOfRange(2, 2 + ivLength) to bytes.copyOfRange(2 + ivLength, bytes.size)
+        }
     }
 }

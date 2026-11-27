@@ -317,10 +317,10 @@ struct TimelineContentView: View {
             }
         }
         ToolbarItem(placement: .navigation) {
-            HStack(spacing: 8) {
-                Button {
-                    showingCalendar = true
-                } label: {
+            Button {
+                showingCalendar = true
+            } label: {
+                HStack(spacing: 8) {
                     HStack(spacing: 5) {
                         dayTitle
                             .font(LBTokens.Typography.columnTitle)
@@ -330,24 +330,24 @@ struct TimelineContentView: View {
                             .foregroundStyle(.secondary)
                             .accessibilityHidden(true)
                     }
-                }
-                .popover(isPresented: $showingCalendar, arrowEdge: .bottom) {
-                    DatePicker("Day", selection: daySelection, in: ...Date(), displayedComponents: .date)
-                        .datePickerStyle(.graphical)
-                        .labelsHidden()
-                        .padding(12)
-                }
-                .help("Choose a day")
-                .accessibilityLabel("Choose day")
-                .accessibilityValue(model.day.formatted(date: .complete, time: .omitted))
-                .accessibilityIdentifier("timeline.dayPicker")
-                if let relative = relativeDay {
-                    Text(relative)
-                        .font(AppFont.scaled(.callout))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                    if let relative = relativeDay {
+                        Text(relative)
+                            .font(AppFont.scaled(.callout))
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                    }
                 }
             }
+            .popover(isPresented: $showingCalendar, arrowEdge: .bottom) {
+                DatePicker("Day", selection: daySelection, in: ...Date(), displayedComponents: .date)
+                    .datePickerStyle(.graphical)
+                    .labelsHidden()
+                    .padding(12)
+            }
+            .help("Choose a day")
+            .accessibilityLabel("Choose day")
+            .accessibilityValue(model.day.formatted(date: .complete, time: .omitted))
+            .accessibilityIdentifier("timeline.dayPicker")
         }
         if #available(macOS 26.0, *) {
             ToolbarSpacer(.flexible, placement: .primaryAction)

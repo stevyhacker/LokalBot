@@ -31,6 +31,7 @@ class FixtureRepository(
     private val fixedNow: Instant? = null,
     private val streamDelayMillis: Long = 18,
     override val id: String = "sample",
+    private val localRecordings: UnpairedRecordingsStore? = null,
 ) : CompanionRepository {
 
     private val lock = Any()
@@ -160,25 +161,39 @@ class FixtureRepository(
 
     override suspend fun sync(): SyncOutcome = SyncOutcome.Synced(received = 0, deleted = 0, address = null)
 
-    override val canRecord: Boolean = false
+    override val canRecord: Boolean = localRecordings != null
 
-    override val recordings: StateFlow<List<DeviceRecording>> = MutableStateFlow<List<DeviceRecording>>(emptyList()).asStateFlow()
+    override val recordings: StateFlow<List<DeviceRecording>> =
+        localRecordings?.recordings ?: MutableStateFlow<List<DeviceRecording>>(emptyList()).asStateFlow()
 
     override val uploadProgress: StateFlow<UploadProgress?> = MutableStateFlow<UploadProgress?>(null).asStateFlow()
 
-    override suspend fun beginRecording(title: String?): DeviceRecording? = null
+    override suspend fun beginRecording(title: String?): DeviceRecording? =
+        localRecordings?.beginRecording(title)?.also { _revision.value += 1 }
 
-    override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean = false
+    override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean =
+        (localRecordings?.finishRecording(id, durationSeconds) ?: false).also { _revision.value += 1 }
 
-    override suspend fun recoverRecordings(): Int = 0
+    override suspend fun recoverRecordings(): Int =
+        (localRecordings?.recoverRecordings() ?: 0).also { if (it > 0) _revision.value += 1 }
 
-    override suspend fun discardRecording(id: String) = Unit
+    override suspend fun discardRecording(id: String) {
+        localRecordings?.discardRecording(id)
+        _revision.value += 1
+    }
 
-    override suspend fun setRecordingTitle(id: String, title: String) = Unit
+    override suspend fun setRecordingTitle(id: String, title: String) {
+        localRecordings?.setRecordingTitle(id, title)
+        _revision.value += 1
+    }
 
     override suspend fun retryRecording(id: String) = Unit
 
-    override suspend fun uploadRecordings(): UploadOutcome = UploadOutcome.Finished(uploaded = 0, waiting = 0, failed = 0)
+    override suspend fun uploadRecordings(): UploadOutcome = UploadOutcome.Finished(
+        uploaded = 0,
+        waiting = recordings.value.count { it.state == RecordingState.Waiting },
+        failed = 0,
+    )
 
     private fun withLocalStatus(meeting: Meeting): Meeting {
         val overrides = synchronized(lock) { localStatus.filterKeys { it.first == meeting.id } }
@@ -189,12 +204,18 @@ class FixtureRepository(
     }
 
     companion object {
-        fun fromJson(json: String, fixedNow: Instant? = null, streamDelayMillis: Long = 18): FixtureRepository =
+        fun fromJson(
+            json: String,
+            fixedNow: Instant? = null,
+            streamDelayMillis: Long = 18,
+            localRecordings: UnpairedRecordingsStore? = null,
+        ): FixtureRepository =
             FixtureRepository(
                 RecordJson.decodeFromString(ListSerializer(RecordEnvelope.serializer()), json),
                 fixedNow = fixedNow,
                 streamDelayMillis = streamDelayMillis,
                 id = "sample-" + UUID.nameUUIDFromBytes(json.toByteArray()).toString().take(8),
+                localRecordings = localRecordings,
             )
     }
 }

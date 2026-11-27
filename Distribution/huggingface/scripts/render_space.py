@@ -62,8 +62,8 @@ def main() -> None:
 <body>
   <header class="hero">
     <p class="eyebrow">Measured locally · synced from lokalbot.com/benchmarks</p>
-    <h1>LokalBot — Local Desktop AI Leaderboard</h1>
-    <p class="lede">7 desktop AI workloads and 17 reproducible suites: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms inline autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and local TTS. No estimates and no rehosted model weights.</p>
+    <h1>LokalBot: Local Desktop AI Leaderboard</h1>
+    <p class="lede">7 desktop AI workloads and 20 reproducible suites: v0.14.0 Apache-2.0 fine-tunes, speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, inline autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and local TTS. No estimates and no mirrored third-party weights.</p>
     <nav aria-label="Project links">
       <a href="https://www.lokalbot.com/benchmarks">Interactive leaderboard</a>
       <a href="https://www.lokalbot.com/benchmarks.json">JSON dataset</a>

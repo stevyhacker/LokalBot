@@ -130,7 +130,7 @@ def main():
                 config = copy.deepcopy(test_template)
                 for configuration in config["TestConfigurations"]:
                     configuration["TestTargets"] = [target for target in configuration["TestTargets"]
-                                                      if target["BlueprintName"] == "LokalBotTests"]
+                                                      if target["BlueprintName"] == "LokalBotBenchmarks"]
                     for target in configuration["TestTargets"]:
                         target.setdefault("EnvironmentVariables", {})["LOKALBOT_NOTES_REPLAY_MANIFEST"] = str(manifest)
                         target["OnlyTestIdentifiers"] = ["MeetingNotesReplayTests/testLocalQwenReplay"]
@@ -141,7 +141,7 @@ def main():
                     run = subprocess.run([
                         "xcodebuild", "-quiet", "-xctestrun", str(config_file),
                         "-destination", "platform=macOS,arch=arm64",
-                        "-only-testing:LokalBotTests/MeetingNotesReplayTests", "-skip-testing:LokalBotUITests",
+                        "-only-testing:LokalBotBenchmarks/MeetingNotesReplayTests", "-skip-testing:LokalBotUITests",
                         "-resultBundlePath", str(output / f"{name}.xcresult"), "test-without-building",
                     ], cwd=REPO, stdout=log, stderr=subprocess.STDOUT)
                 metrics_path = output / name / "notes-generation-metrics.json"

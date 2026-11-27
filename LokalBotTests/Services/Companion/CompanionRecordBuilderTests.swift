@@ -202,7 +202,7 @@ final class CompanionRecordBuilderTests: XCTestCase {
             forResource: "upgrade", withExtension: nil, subdirectory: "Fixtures"))
         let versions = try FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)
             .filter { FileManager.default.fileExists(atPath: $0.appendingPathComponent("library").path) }
-        guard !versions.isEmpty else { throw XCTSkip("no upgrade fixtures committed yet") }
+        XCTAssertFalse(versions.isEmpty, "no upgrade fixtures committed")
         let decoder = JSONDecoder()
         for version in versions {
             let name = version.lastPathComponent

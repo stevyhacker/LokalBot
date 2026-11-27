@@ -35,6 +35,9 @@ struct OnboardingDownloadStep: View {
 
     var body: some View {
         let plan = OnboardingDownloadPlan(app: app, roles: roles, session: session)
+        let appleBuiltInAvailable = AppleSpeechAvailability.current().isAvailable
+            && FoundationModelAvailability.current().isAvailable
+        let suggestion = AppControlHandler.suggestedPreset()
         OnboardingDownloadContent(
             plan: plan,
             minutesLeft: plan.downloadedBytes == nil ? nil
@@ -42,11 +45,13 @@ struct OnboardingDownloadStep: View {
             destination: InferencePresentation(settings: app.settings),
             microphoneAllowed: permissions.granted[.microphone] == true,
             showsDownloadSource: showsDownloadSource,
-            selectedPreset: ModelStackPreset.matching(app.settings),
+            selectedOption: OnboardingModelOption.matching(app.settings),
+            appleBuiltInAvailable: appleBuiltInAvailable,
+            memorySuggestion: suggestion.preset == .lightweight ? suggestion.reason : nil,
             session: $session,
             downloadSource: $app.settings.modelDownloadSource,
-            selectPreset: { preset in
-                app.settings = preset.patch.applying(to: app.settings)
+            selectOption: { option in
+                app.settings = option.patch.applying(to: app.settings)
                 app.modelRoles.readinessDidChange()
             },
             importSource: { source in
@@ -80,19 +85,23 @@ struct OnboardingDownloadContent: View {
     let destination: InferencePresentation
     let microphoneAllowed: Bool
     let showsDownloadSource: Bool
-    var selectedPreset: ModelStackPreset?
+    var selectedOption: OnboardingModelOption?
+    var appleBuiltInAvailable = false
+    var memorySuggestion: String?
     @Binding var session: OnboardingDownloadSession
     @Binding var downloadSource: ModelDownloadSource
-    var selectPreset: ((ModelStackPreset) -> Void)?
+    var selectOption: ((OnboardingModelOption) -> Void)?
     var importSource: ((ExternalMeetingSource) -> Void)?
     let retry: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
+        let showsPicker = !session.started && destination == .onDevice
+            && (plan.phase == .before || selectedOption == .appleBuiltIn)
         VStack(alignment: .leading, spacing: 16) {
             heading(plan)
-            if plan.phase == .before, destination == .onDevice, let selectPreset, let selectedPreset {
-                presetPicker(selected: selectedPreset, onSelect: selectPreset)
+            if showsPicker, let selectOption, let selectedOption {
+                optionPicker(selected: selectedOption, onSelect: selectOption)
             }
             OnboardingCard {
                 if plan.phase != .before, !(plan.phase == .finished && !plan.allReady) {
@@ -124,12 +133,13 @@ struct OnboardingDownloadContent: View {
         .animation(WorkspaceMotion.animation(.milestone, reduceMotion: reduceMotion), value: plan.phase)
     }
 
-    private func presetPicker(selected: ModelStackPreset,
-                              onSelect: @escaping (ModelStackPreset) -> Void) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
+    private func optionPicker(selected: OnboardingModelOption,
+                              onSelect: @escaping (OnboardingModelOption) -> Void) -> some View {
+        let options = OnboardingModelOption.availableCases(appleBuiltInAvailable: appleBuiltInAvailable)
+        return VStack(alignment: .leading, spacing: 6) {
             Picker("Model size", selection: Binding(get: { selected }, set: onSelect)) {
-                ForEach(ModelStackPreset.allCases) { preset in
-                    Text(LocalizedStringKey(preset.title)).tag(preset)
+                ForEach(options) { option in
+                    Text(LocalizedStringKey(option.title)).tag(option)
                 }
             }
             .pickerStyle(.segmented)
@@ -139,7 +149,15 @@ struct OnboardingDownloadContent: View {
             Text(LocalizedStringKey(selected.subtitle))
                 .font(.scaled(.callout))
                 .workspaceSupportingForeground()
+                .fixedSize(horizontal: false, vertical: true)
                 .padding(.horizontal, 2)
+            if let memorySuggestion {
+                Text(verbatim: memorySuggestion)
+                    .font(.scaled(.caption))
+                    .workspaceSupportingForeground()
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, 2)
+            }
         }
     }
 
@@ -154,7 +172,11 @@ struct OnboardingDownloadContent: View {
                 title: "Downloading the models",
                 lead: "You can start now. The download keeps going in the background.")
         case .finished:
-            if plan.allReady {
+            if selectedOption == .appleBuiltIn {
+                OnboardingHeading(
+                    title: "Start with 0 GB downloaded",
+                    lead: "Apple Speech and Apple Intelligence run on this Mac right away. You can switch to open local models anytime in Settings.")
+            } else if plan.allReady {
                 OnboardingHeading(
                     title: "You’re ready",
                     lead: destination == .onDevice
@@ -318,10 +340,10 @@ struct OnboardingDownloadContent: View {
                 Toggle(isOn: $session.opensSampleMeeting) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(LocalizedStringKey(waiting
-                            ? "Open a sample meeting when the models are ready"
+                            ? "Open the sample meeting right away"
                             : "Open the sample meeting first"))
                             .font(.scaled(.body).weight(.semibold))
-                        Text("A made-up three-and-a-half-minute call. Read its notes and ask it a question before your first real meeting.")
+                        Text("A made-up three-and-a-half-minute call with precomputed notes and cited answers ready in seconds while models download.")
                             .font(.scaled(.callout)).workspaceSupportingForeground()
                             .fixedSize(horizontal: false, vertical: true)
                     }

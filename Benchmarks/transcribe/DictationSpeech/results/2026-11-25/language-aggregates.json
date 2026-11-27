@@ -1,0 +1,1346 @@
+{
+ "branch_vs_old": {
+  "same_pin_and_text": 27,
+  "of": 34,
+  "differs": [
+   {
+    "track": "fleurs-bs",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     20,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-de",
+    "layout": "word",
+    "pin": [
+     "de",
+     "de"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     40,
+     20
+    ],
+    "twice": [
+     true,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-en",
+    "layout": "word",
+    "pin": [
+     "en",
+     "en"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     28,
+     14
+    ],
+    "twice": [
+     true,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-es",
+    "layout": "word",
+    "pin": [
+     "es",
+     "es"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     40,
+     20
+    ],
+    "twice": [
+     true,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-hr",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     17,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-ru",
+    "layout": "word",
+    "pin": [
+     "ru",
+     "ru"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     36,
+     18
+    ],
+    "twice": [
+     true,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-sr",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     17,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   }
+  ]
+ },
+ "branch_vs_master": {
+  "same_pin_and_text": 30,
+  "of": 34,
+  "differs": [
+   {
+    "track": "fleurs-de",
+    "layout": "word",
+    "pin": [
+     "de",
+     "de"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     32,
+     20
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-en",
+    "layout": "word",
+    "pin": [
+     "en",
+     "en"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     26,
+     14
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-es",
+    "layout": "word",
+    "pin": [
+     "es",
+     "es"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     32,
+     20
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-ru",
+    "layout": "word",
+    "pin": [
+     "ru",
+     "ru"
+    ],
+    "textsame": false,
+    "regions": [
+     false,
+     false
+    ],
+    "decodes": [
+     30,
+     18
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   }
+  ]
+ },
+ "master_vs_old": {
+  "same_pin_and_text": 31,
+  "of": 34,
+  "differs": [
+   {
+    "track": "fleurs-bs",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     20,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-hr",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     17,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   },
+   {
+    "track": "fleurs-sr",
+    "layout": "word",
+    "pin": [
+     "hr",
+     "hr"
+    ],
+    "textsame": false,
+    "regions": [
+     true,
+     true
+    ],
+    "decodes": [
+     17,
+     12
+    ],
+    "twice": [
+     false,
+     false
+    ]
+   }
+  ]
+ },
+ "rows": [
+  {
+   "track": "fleurs-bs",
+   "layout": "plain",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {
+    "old": 233,
+    "master": 233,
+    "branch": 233
+   },
+   "units": 837,
+   "decodes": [
+    92,
+    58,
+    58
+   ],
+   "seconds": [
+    52.4,
+    35.4,
+    35.5
+   ],
+   "windows": 46,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-bs",
+   "layout": "word",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {},
+   "units": null,
+   "decodes": [
+    20,
+    12,
+    12
+   ],
+   "seconds": [
+    26.2,
+    17.1,
+    17.1
+   ],
+   "windows": 20,
+   "regions": true,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-de",
+   "layout": "plain",
+   "pin_old": "de",
+   "pin_master": "de",
+   "pin_branch": "de",
+   "errors": {
+    "old": 27,
+    "master": 27,
+    "branch": 27
+   },
+   "units": 834,
+   "decodes": [
+    96,
+    60,
+    60
+   ],
+   "seconds": [
+    41.3,
+    27.1,
+    28.1
+   ],
+   "windows": 48,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-de",
+   "layout": "word",
+   "pin_old": "de",
+   "pin_master": "de",
+   "pin_branch": "de",
+   "errors": {
+    "old": 31,
+    "master": 31,
+    "branch": 34
+   },
+   "units": 834,
+   "decodes": [
+    40,
+    32,
+    20
+   ],
+   "seconds": [
+    40.2,
+    33.4,
+    20.7
+   ],
+   "windows": 20,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-en",
+   "layout": "plain",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 50,
+    "master": 50,
+    "branch": 50
+   },
+   "units": 810,
+   "decodes": [
+    78,
+    51,
+    51
+   ],
+   "seconds": [
+    26.6,
+    19.1,
+    18.2
+   ],
+   "windows": 39,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-en",
+   "layout": "word",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 39,
+    "master": 39,
+    "branch": 39
+   },
+   "units": 810,
+   "decodes": [
+    28,
+    26,
+    14
+   ],
+   "seconds": [
+    28.1,
+    25.7,
+    12.9
+   ],
+   "windows": 14,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-es",
+   "layout": "plain",
+   "pin_old": "es",
+   "pin_master": "es",
+   "pin_branch": "es",
+   "errors": {
+    "old": 34,
+    "master": 34,
+    "branch": 34
+   },
+   "units": 945,
+   "decodes": [
+    94,
+    59,
+    59
+   ],
+   "seconds": [
+    39.4,
+    26.6,
+    27.3
+   ],
+   "windows": 47,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-es",
+   "layout": "word",
+   "pin_old": "es",
+   "pin_master": "es",
+   "pin_branch": "es",
+   "errors": {
+    "old": 36,
+    "master": 36,
+    "branch": 34
+   },
+   "units": 945,
+   "decodes": [
+    40,
+    32,
+    20
+   ],
+   "seconds": [
+    41.1,
+    34.2,
+    20.0
+   ],
+   "windows": 20,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-fr",
+   "layout": "plain",
+   "pin_old": "fr",
+   "pin_master": "fr",
+   "pin_branch": "fr",
+   "errors": {
+    "old": 51,
+    "master": 51,
+    "branch": 51
+   },
+   "units": 972,
+   "decodes": [
+    86,
+    55,
+    55
+   ],
+   "seconds": [
+    39.7,
+    26.6,
+    26.4
+   ],
+   "windows": 43,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-fr",
+   "layout": "word",
+   "pin_old": "fr",
+   "pin_master": "fr",
+   "pin_branch": "fr",
+   "errors": {
+    "old": 52,
+    "master": 52,
+    "branch": 52
+   },
+   "units": 972,
+   "decodes": [
+    32,
+    28,
+    16
+   ],
+   "seconds": [
+    38.2,
+    33.3,
+    19.3
+   ],
+   "windows": 16,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-hr",
+   "layout": "plain",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {
+    "old": 170,
+    "master": 170,
+    "branch": 170
+   },
+   "units": 775,
+   "decodes": [
+    86,
+    55,
+    55
+   ],
+   "seconds": [
+    49.4,
+    33.0,
+    33.3
+   ],
+   "windows": 43,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-hr",
+   "layout": "word",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {},
+   "units": null,
+   "decodes": [
+    17,
+    12,
+    12
+   ],
+   "seconds": [
+    24.3,
+    17.7,
+    17.7
+   ],
+   "windows": 17,
+   "regions": true,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-ja",
+   "layout": "plain",
+   "pin_old": "ja",
+   "pin_master": "ja",
+   "pin_branch": "ja",
+   "errors": {
+    "old": 238,
+    "master": 238,
+    "branch": 238
+   },
+   "units": 2008,
+   "decodes": [
+    88,
+    88,
+    88
+   ],
+   "seconds": [
+    34.4,
+    33.7,
+    34.8
+   ],
+   "windows": 44,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "fleurs-ja",
+   "layout": "word",
+   "pin_old": "ja",
+   "pin_master": "ja",
+   "pin_branch": "ja",
+   "errors": {
+    "old": 229,
+    "master": 229,
+    "branch": 229
+   },
+   "units": 2008,
+   "decodes": [
+    54,
+    39,
+    39
+   ],
+   "seconds": [
+    33.8,
+    26.5,
+    27.4
+   ],
+   "windows": 27,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-ru",
+   "layout": "plain",
+   "pin_old": "ru",
+   "pin_master": "ru",
+   "pin_branch": "ru",
+   "errors": {
+    "old": 48,
+    "master": 48,
+    "branch": 48
+   },
+   "units": 737,
+   "decodes": [
+    86,
+    55,
+    55
+   ],
+   "seconds": [
+    42.0,
+    28.7,
+    29.0
+   ],
+   "windows": 43,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-ru",
+   "layout": "word",
+   "pin_old": "ru",
+   "pin_master": "ru",
+   "pin_branch": "ru",
+   "errors": {
+    "old": 51,
+    "master": 51,
+    "branch": 51
+   },
+   "units": 737,
+   "decodes": [
+    36,
+    30,
+    18
+   ],
+   "seconds": [
+    41.2,
+    35.0,
+    20.7
+   ],
+   "windows": 18,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-sr",
+   "layout": "plain",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {
+    "old": 128,
+    "master": 128,
+    "branch": 128
+   },
+   "units": 718,
+   "decodes": [
+    82,
+    53,
+    53
+   ],
+   "seconds": [
+    42.9,
+    29.4,
+    29.6
+   ],
+   "windows": 41,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-sr",
+   "layout": "word",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {},
+   "units": null,
+   "decodes": [
+    17,
+    12,
+    12
+   ],
+   "seconds": [
+    20.6,
+    15.4,
+    15.6
+   ],
+   "windows": 17,
+   "regions": true,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-zh",
+   "layout": "plain",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 76,
+    "master": 76,
+    "branch": 76
+   },
+   "units": 1280,
+   "decodes": [
+    47,
+    47,
+    47
+   ],
+   "seconds": [
+    13.0,
+    13.1,
+    13.5
+   ],
+   "windows": 47,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "fleurs-zh",
+   "layout": "word",
+   "pin_old": "zh",
+   "pin_master": "zh",
+   "pin_branch": "zh",
+   "errors": {
+    "old": 68,
+    "master": 68,
+    "branch": 68
+   },
+   "units": 1280,
+   "decodes": [
+    50,
+    37,
+    37
+   ],
+   "seconds": [
+    25.9,
+    21.3,
+    21.5
+   ],
+   "windows": 25,
+   "regions": false,
+   "twice": [
+    true,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-en-de-alternating",
+   "layout": "plain",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 61,
+    "master": 61,
+    "branch": 61
+   },
+   "units": 770,
+   "decodes": [
+    47,
+    47,
+    47
+   ],
+   "seconds": [
+    16.1,
+    16.1,
+    16.1
+   ],
+   "windows": 47,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-en-de-alternating",
+   "layout": "word",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 68,
+    "master": 68,
+    "branch": 68
+   },
+   "units": 770,
+   "decodes": [
+    19,
+    19,
+    19
+   ],
+   "seconds": [
+    15.6,
+    15.5,
+    15.6
+   ],
+   "windows": 19,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-en-de-late15",
+   "layout": "plain",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 50,
+    "master": 50,
+    "branch": 50
+   },
+   "units": 786,
+   "decodes": [
+    78,
+    78,
+    78
+   ],
+   "seconds": [
+    27.2,
+    27.1,
+    27.5
+   ],
+   "windows": 39,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-en-de-late15",
+   "layout": "word",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 37,
+    "master": 37,
+    "branch": 37
+   },
+   "units": 786,
+   "decodes": [
+    30,
+    30,
+    30
+   ],
+   "seconds": [
+    26.9,
+    26.9,
+    28.3
+   ],
+   "windows": 15,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-en-de-late30",
+   "layout": "plain",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 53,
+    "master": 53,
+    "branch": 53
+   },
+   "units": 808,
+   "decodes": [
+    40,
+    40,
+    40
+   ],
+   "seconds": [
+    14.9,
+    14.9,
+    15.0
+   ],
+   "windows": 40,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-en-de-late30",
+   "layout": "word",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 38,
+    "master": 38,
+    "branch": 38
+   },
+   "units": 808,
+   "decodes": [
+    15,
+    15,
+    15
+   ],
+   "seconds": [
+    14.8,
+    14.7,
+    14.9
+   ],
+   "windows": 15,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-en-sr-late20",
+   "layout": "plain",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 61,
+    "master": 61,
+    "branch": 61
+   },
+   "units": 740,
+   "decodes": [
+    78,
+    78,
+    78
+   ],
+   "seconds": [
+    27.3,
+    27.3,
+    27.4
+   ],
+   "windows": 39,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-en-sr-late20",
+   "layout": "word",
+   "pin_old": "en",
+   "pin_master": "en",
+   "pin_branch": "en",
+   "errors": {
+    "old": 45,
+    "master": 45,
+    "branch": 45
+   },
+   "units": 740,
+   "decodes": [
+    28,
+    28,
+    28
+   ],
+   "seconds": [
+    26.9,
+    26.9,
+    27.1
+   ],
+   "windows": 14,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-sr-en-blocks",
+   "layout": "plain",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {
+    "old": 119,
+    "master": 119,
+    "branch": 119
+   },
+   "units": 703,
+   "decodes": [
+    82,
+    82,
+    82
+   ],
+   "seconds": [
+    37.9,
+    37.8,
+    38.0
+   ],
+   "windows": 41,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-sr-en-blocks",
+   "layout": "word",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {},
+   "units": null,
+   "decodes": [
+    15,
+    15,
+    15
+   ],
+   "seconds": [
+    18.4,
+    18.3,
+    18.5
+   ],
+   "windows": 15,
+   "regions": true,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-sr-en-late15",
+   "layout": "plain",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {
+    "old": 129,
+    "master": 129,
+    "branch": 129
+   },
+   "units": 706,
+   "decodes": [
+    82,
+    82,
+    82
+   ],
+   "seconds": [
+    39.5,
+    39.4,
+    39.7
+   ],
+   "windows": 41,
+   "regions": false,
+   "twice": [
+    true,
+    true,
+    true
+   ]
+  },
+  {
+   "track": "switch-sr-en-late15",
+   "layout": "word",
+   "pin_old": "hr",
+   "pin_master": "hr",
+   "pin_branch": "hr",
+   "errors": {},
+   "units": null,
+   "decodes": [
+    17,
+    17,
+    17
+   ],
+   "seconds": [
+    19.5,
+    19.5,
+    19.5
+   ],
+   "windows": 17,
+   "regions": true,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-sr-en-late30",
+   "layout": "plain",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 97,
+    "master": 97,
+    "branch": 97
+   },
+   "units": 714,
+   "decodes": [
+    41,
+    41,
+    41
+   ],
+   "seconds": [
+    18.0,
+    18.0,
+    18.1
+   ],
+   "windows": 41,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  },
+  {
+   "track": "switch-sr-en-late30",
+   "layout": "word",
+   "pin_old": null,
+   "pin_master": null,
+   "pin_branch": null,
+   "errors": {
+    "old": 82,
+    "master": 82,
+    "branch": 82
+   },
+   "units": 714,
+   "decodes": [
+    16,
+    16,
+    16
+   ],
+   "seconds": [
+    17.7,
+    17.8,
+    17.7
+   ],
+   "windows": 16,
+   "regions": false,
+   "twice": [
+    false,
+    false,
+    false
+   ]
+  }
+ ],
+ "totals": {
+  "plain-old": {
+   "decodes": 1283.0,
+   "seconds": 562.0
+  },
+  "plain-master": {
+   "decodes": 1029.0,
+   "seconds": 453.3
+  },
+  "plain-branch": {
+   "decodes": 1029.0,
+   "seconds": 457.5
+  },
+  "word-old": {
+   "decodes": 474.0,
+   "seconds": 459.4
+  },
+  "word-master": {
+   "decodes": 400.0,
+   "seconds": 399.2
+  },
+  "word-branch": {
+   "decodes": 340.0,
+   "seconds": 334.5
+  }
+ },
+ "window_independence": {
+  "compared": 1369,
+  "identical": 1369
+ }
+}

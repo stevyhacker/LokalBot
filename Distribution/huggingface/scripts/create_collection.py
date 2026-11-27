@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Create or sync LokalBot's public Hugging Face model collection.
 
-The collection mirrors the default stack: items missing from ``ITEMS`` are
+The collection mirrors the v0.14.0 stack: items missing from ``ITEMS`` are
 removed, notes are rewritten, and positions follow the order below.
 """
 
@@ -19,45 +19,56 @@ from huggingface_hub.errors import HfHubHTTPError
 NAMESPACE = "stevyhacker"
 TITLE = "LokalBot recommended local stack"
 DESCRIPTION = (
-    "LokalBot 9.6 GB default stack: transcription, diarization, summaries, "
-    "search, autocomplete. Links only. https://github.com/stevyhacker/lokalbot"
+    "LokalBot v0.14.0 local stack: 4 Apache-2.0 fine-tunes + Nemotron 3 & "
+    "EmbeddingGemma 2 (~9.6 GB). https://github.com/stevyhacker/lokalbot"
 )
 
 ITEMS = [
     (
-        "aufklarer/Qwen3-ASR-1.7B-MLX-8bit",
-        "Default transcription. 8-bit MLX conversion of Qwen/Qwen3-ASR-1.7B (2.47 GB). Apache-2.0.",
+        "stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF",
+        "Default Mac transcription (v3, 2.52 GB GGUF Q8_0 + mmproj). Fine-tune of Qwen/Qwen3-ASR-1.7B: "
+        "9.79% AMI ihm, 24.41% sdm, 100% clean silence, -24.3 pp code-switch WER, 31.7x RT. Apache-2.0.",
+    ),
+    (
+        "stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF",
+        "Compact transcription (v1, 1.02 GB GGUF Q8_0 + stock mmproj). Fine-tune of Qwen/Qwen3-ASR-0.6B: "
+        "10.72% AMI ihm, -21.7 pp South Slavic WER, 100% clean silence, 52.7x RT. Apache-2.0.",
     ),
     (
         "FluidInference/nemotron-3-diarization-coreml",
-        "Default speaker diarization. Core ML offline model (0.2 GB) of nvidia/Nemotron-3-Diarization, "
-        "run through FluidAudio. 14.6% DER vs 43.4% for the previous Pyannote setup on AMI. OpenMDW-1.1.",
+        "Default speaker diarization. Core ML offline model (0.20 GB) of nvidia/Nemotron-3-Diarization "
+        "via FluidAudio. 14.56% DER vs 43.44% for Pyannote on AMI, 500x RT. OpenMDW-1.1.",
     ),
     (
-        "unsloth/Qwen3.5-4B-GGUF",
-        "Default for summaries and chat. Q4_K_M (2.74 GB): a 26-minute meeting to notes in 33 s warm, "
-        "about 85 tok/s decode on M4 Max. Apache-2.0.",
+        "stevyhacker/Qwen3.5-4B-LokalBot-GGUF",
+        "Default Think model (v4, 2.74 GB Q4_K_M). Fine-tune of Qwen/Qwen3.5-4B: 118/120 memory retention, "
+        "45% Blind21 decision overlap, 60.6% fewer rejections, 1.78x faster, 6/6 tools. Apache-2.0.",
     ),
     (
         "ggml-org/embeddinggemma-2-GGUF",
-        "Default semantic search. Q8_0 (0.31 GB) on a dedicated llama-server with embeddings enabled. "
-        "Correct passage first for 43/48 test queries vs 40/48 for Harrier 0.6B, at half the size. Apache-2.0.",
+        "Default semantic search (0.31 GB Q8_0) on llama-server. 39 ms p50 hybrid query and 0.280 R@1 "
+        "across 232 QMSum meetings (43/48 top-1 on multilingual EN/SR probe). Apache-2.0.",
     ),
     (
-        "mradermacher/gemma-4-E2B-i1-GGUF",
-        "Default autocomplete. Q6_K (3.85 GB) imatrix GGUF of google/gemma-4-E2B. 23.1% next-word accuracy "
-        "vs 20.7% for LFM2.5 1.2B on 96 phrases (a tie in English), right when shown 50%; 56 ms median per "
-        "keystroke. Apache-2.0.",
+        "stevyhacker/Gemma-4-E2B-LokalBot-GGUF",
+        "Default inline autocomplete (v4, 3.85 GB i1-Q6_K). Fine-tune of google/gemma-4-E2B: 56/56 "
+        "memory+visible grounding, 52.2% precision (80.0% email), 20.2 ms boundary median. Apache-2.0.",
     ),
 ]
 
 VERIFICATION = {
-    "aufklarer/Qwen3-ASR-1.7B-MLX-8bit": ("model.safetensors",),
+    "stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF": (
+        "Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf",
+        "mmproj-Qwen3-ASR-1.7B-LokalBot-v3-Q8_0.gguf",
+    ),
+    "stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF": (
+        "Qwen3-ASR-0.6B-LokalBot-v1-Q8_0.gguf",
+        "mmproj-Qwen3-ASR-0.6B-Q8_0.gguf",
+    ),
     "FluidInference/nemotron-3-diarization-coreml": ("Nemotron3Diarizer_offline.mlmodelc",),
-    "unsloth/Qwen3.5-4B-GGUF": ("Q4_K_M",),
+    "stevyhacker/Qwen3.5-4B-LokalBot-GGUF": ("Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",),
     "ggml-org/embeddinggemma-2-GGUF": ("Q8_0",),
-    "google/gemma-4-E2B": (),
-    "mradermacher/gemma-4-E2B-i1-GGUF": ("gemma-4-E2B.i1-Q6_K.gguf",),
+    "stevyhacker/Gemma-4-E2B-LokalBot-GGUF": ("Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf",),
 }
 
 

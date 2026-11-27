@@ -1,6 +1,6 @@
 {
   "name": "lokalbot",
-  "version": "0.3.0",
+  "version": "0.3.2",
   "description": "Agent Wrapped: your year with Claude Code, Codex, Cursor, Pi, OMP, OpenCode, Antigravity, and Gemini CLI, counted locally. Nothing is uploaded.",
   "keywords": [
     "claude-code",
@@ -17,7 +17,7 @@
     "local-first",
     "lokalbot"
   ],
-  "homepage": "https://www.lokalbot.com",
+  "homepage": "https://www.lokalbot.com/wrapped",
   "bugs": "https://github.com/stevyhacker/LokalBot/issues",
   "repository": {
     "type": "git",

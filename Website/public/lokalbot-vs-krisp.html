@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot vs Krisp: Free Local Bot-Free Meeting Notes</title>
+  <meta name="description" content="Compare Krisp's noise cancellation and cloud AI notes with LokalBot's free, open-source local meeting recorder. No subscription, offline, Linux alpha." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-krisp" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-krisp" />
+  <meta property="og:title" content="LokalBot vs Krisp: Local Bot-Free Meeting Notes" />
+  <meta property="og:description" content="Krisp pairs on-device noise cancellation with cloud AI notes starting at $8/mo after a 7-day trial. LokalBot keeps meeting notes local and free under GPLv3." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/compare/og/lokalbot-vs-krisp.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot vs Krisp: Local Bot-Free Meeting Notes" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot vs Krisp: Local Bot-Free Meeting Notes" />
+  <meta name="twitter:description" content="Krisp pairs on-device noise cancellation with cloud AI notes starting at $8/mo after a 7-day trial. LokalBot keeps meeting notes local and free under GPLv3." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/compare/og/lokalbot-vs-krisp.png" />
+
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"Article","headline":"LokalBot vs Krisp","description":"Compare Krisp's noise cancellation and cloud AI notes with LokalBot's free, open-source local meeting recorder. No subscription, offline, Linux alpha.","datePublished":"2026-11-26","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-krisp","image":"https://www.lokalbot.com/assets/compare/og/lokalbot-vs-krisp.png","author":{"@id":"https://www.lokalbot.com/#author"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"Krisp"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs Krisp","item":"https://www.lokalbot.com/lokalbot-vs-krisp"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-krisp#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot replace Krisp's noise cancellation?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot does not act as a live virtual microphone filter for removing barking dogs or café noise during a call. If you rely on Krisp for real-time noise removal, you can keep using noise cancellation (or macOS Voice Isolation) and let LokalBot handle private on-device transcription and notes."}},{"@type":"Question","name":"Does Krisp still have a permanent free plan for AI notes?","acceptedAnswer":{"@type":"Answer","text":"Krisp's current pricing centers on a 7-day free trial followed by paid Core ($8/user/mo annual, $16 monthly) and Advanced ($15/user/mo annual, $30 monthly) plans. LokalBot is free with no trial countdown or storage caps."}},{"@type":"Question","name":"Can I migrate Krisp transcripts to Obsidian?","acceptedAnswer":{"@type":"Answer","text":"Yes. You can convert Krisp text or JSON exports offline in your browser with the free Meeting Migrator into clean Obsidian Markdown with zero uploads."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- ambient brand background -->
+  <div class="bg-field" aria-hidden="true">
+    <div class="bg-glow bg-glow--a"></div>
+    <div class="bg-glow bg-glow--b"></div>
+    <div class="bg-glow bg-glow--c"></div>
+  </div>
+
+  <!-- ───────────────────────── NAV ───────────────────────── -->
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
+        <i class="ph ph-github-logo" aria-hidden="true"></i>
+      </a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ─────────────────────── HEAD ─────────────────────── -->
+    <section class="section compare-head">
+      <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs Krisp</span></nav>
+        <p class="eyebrow">Compare</p>
+        <h1 class="section__title">LokalBot vs Krisp</h1>
+        <p class="section__lead">Krisp started as a best-in-class real-time noise cancellation app and expanded into a bot-free AI meeting assistant with transcription, notes, accent conversion, and CRM sync. Krisp's noise suppression runs on-device, while its meeting transcription, storage, and AI notes run in Krisp's cloud behind a subscription after a 7-day trial. LokalBot focuses on keeping the entire meeting pipeline on your computer for free under GPLv3, and the two apps can even run side by side if you rely on Krisp for background noise removal.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-11-26">November 26, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+      </header>
+    </section>
+
+    <!-- ─────────────────────── TABLE ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
+      <div class="compare-wrap reveal">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col">LokalBot</th>
+              <th scope="col">Krisp</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Real-time noise cancellation</th>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No (uses your mic and call app's own audio)</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Yes, real-time bidirectional noise and echo removal</td>
+            </tr>
+            <tr>
+              <th scope="row">Bot-free meeting capture</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Microphone + system audio on your computer</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Yes, virtual audio device and desktop capture</td>
+            </tr>
+            <tr>
+              <th scope="row">Where transcription and AI run</th>
+              <td>On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac</td>
+              <td>Krisp cloud servers</td>
+            </tr>
+            <tr>
+              <th scope="row">Account &amp; cloud storage</th>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No account; unlimited local disk storage</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Account required; 10 GB storage on Core, 60 GB on Advanced</td>
+            </tr>
+            <tr>
+              <th scope="row">Works offline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Fully, after a one-time model download</td>
+              <td>Noise cancellation works locally; AI notes require cloud</td>
+            </tr>
+            <tr>
+              <th scope="row">Connect AI tools</th>
+              <td>Read-only CLI and MCP server, off until you turn them on in Settings</td>
+              <td>Salesforce, HubSpot, ConnectWise, Slack, and Zapier integrations</td>
+            </tr>
+            <tr>
+              <th scope="row">System-wide dictation</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Hold ⌥ Space (Alt+Space on Windows and Linux) in any app</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Day timeline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Writing autocomplete</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma)</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Source code</th>
+              <td>Open source, GPLv3</td>
+              <td>Proprietary</td>
+            </tr>
+            <tr>
+              <th scope="row">Price</th>
+              <td>Free</td>
+              <td>7-day trial · Core $8/user/mo annual ($16 monthly) · Advanced $15/user/mo annual ($30 monthly) · Enterprise custom</td>
+            </tr>
+            <tr>
+              <th scope="row">Platforms</th>
+              <td>macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps</td>
+              <td>macOS, Windows, and Chrome extension; no Linux app</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── PICKS ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
+      <div class="pick-grid">
+        <article class="pick reveal">
+          <h3>Pick Krisp if&hellip;</h3>
+          <p>Unmatched if your main pain point is noisy rooms or call-center audio.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You need real-time bidirectional background noise removal on calls</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want accent conversion, call-center manager views, or ConnectWise/Salesforce sync</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You prefer hosted cloud call recordings with link sharing</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Your company wants Enterprise SSO and centralized seat management</li>
+          </ul>
+        </article>
+        <article class="pick pick--lokal reveal">
+          <h3>Pick LokalBot if&hellip;</h3>
+          <p>Built for free, private meeting notes that never leave your hardware.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want bot-free transcription and AI summaries without an $8-$30/mo subscription</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Your call audio and transcripts must stay strictly on your own computer</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want unlimited local history with no 10 GB or 60 GB storage cap</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want Linux support, Obsidian Markdown export, dictation, autocomplete, and local MCP</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── QA ─────────────────────── -->
+    <section class="section faq">
+      <header class="section__head reveal">
+        <p class="eyebrow">Questions</p>
+        <h2 class="section__title">The short answers.</h2>
+      </header>
+      <div class="faq__list reveal">
+        <details class="qa">
+          <summary>Does LokalBot replace Krisp's noise cancellation?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. LokalBot does not act as a live virtual microphone filter for removing barking dogs or café noise during a call. If you rely on Krisp for real-time noise removal, you can keep using noise cancellation (or macOS Voice Isolation) and let LokalBot handle private on-device transcription and notes.</p>
+        </details>
+        <details class="qa">
+          <summary>Does Krisp still have a permanent free plan for AI notes?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Krisp's current pricing centers on a 7-day free trial followed by paid Core ($8/user/mo annual, $16 monthly) and Advanced ($15/user/mo annual, $30 monthly) plans. LokalBot is free with no trial countdown or storage caps.</p>
+        </details>
+        <details class="qa">
+          <summary>Can I migrate Krisp transcripts to Obsidian?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. You can convert Krisp text or JSON exports offline in your browser with the free <a href="/migrate">Meeting Migrator</a> into clean Obsidian Markdown with zero uploads.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── CTA ─────────────────────── -->
+    <section class="section download">
+      <div class="download__panel reveal">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Download</p>
+        <h2 class="section__title">Bot-free meeting notes, without the monthly plan.</h2>
+        <p class="section__lead">Free and open source. Models download on first use; built-in inference then works offline.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          Download for macOS
+        </a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+      </div>
+    </section>
+
+    <section class="section section--tight guide-related" aria-labelledby="compare-guides-title">
+      <p class="eyebrow">Related guides</p>
+      <h2 id="compare-guides-title">Go deeper on local meeting notes</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="best-local-ai-meeting-notes">
+          <span class="guide-card__eyebrow">Compare</span>
+          <strong>Best local and open-source AI meeting note takers (2026)</strong>
+          <span>Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license.</span>
+        </a>
+        <a class="guide-card" href="record-both-sides-mac-meeting-without-bot">
+          <span class="guide-card__eyebrow">Bot-free capture</span>
+          <strong>Record both sides of a Mac meeting without a bot</strong>
+          <span>How LokalBot captures your microphone and meeting-app audio as synchronized tracks on macOS without adding a bot participant.</span>
+        </a>
+        <a class="guide-card" href="local-ai-meeting-notes-windows">
+          <span class="guide-card__eyebrow">Windows</span>
+          <strong>Local AI meeting notes on Windows</strong>
+          <span>Record, transcribe, and summarize Teams, Zoom, and Meet calls on Windows 10/11 without a bot or cloud: per-user install, Vulkan/CUDA, and local models.</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── MORE ─────────────────────── -->
+    <section class="section section--tight" aria-label="More comparisons">
+      <nav class="compare-more" aria-label="More comparisons">
+        <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
+        <a href="lokalbot-vs-apple-notes">LokalBot vs Apple Notes</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
+        <a href="lokalbot-vs-fathom">LokalBot vs Fathom</a>
+        <a href="lokalbot-vs-notion-ai">LokalBot vs Notion AI</a>
+        <a href="lokalbot-vs-read-ai">LokalBot vs Read.ai</a>
+        <a href="lokalbot-vs-jamie">LokalBot vs Jamie</a>
+        <a href="lokalbot-vs-tldv">LokalBot vs tl;dv</a>
+        <a href="lokalbot-vs-tactiq">LokalBot vs Tactiq</a>
+        <a href="lokalbot-vs-plaud">LokalBot vs Plaud</a>
+        <a href="lokalbot-vs-hyprnote">LokalBot vs Anarlog (Hyprnote)</a>
+        <a href="lokalbot-vs-meetily">LokalBot vs Meetily</a>
+        <a href="lokalbot-vs-openwhispr">LokalBot vs OpenWhispr</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
+        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-wispr-flow">LokalBot vs Wispr Flow</a>
+        <a href="lokalbot-vs-cotypist">LokalBot vs Cotypist</a>
+        <a href="lokalbot-vs-handy">LokalBot vs Handy, VoiceInk &amp; Voicenotes</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind / Limitless</a>
+      </nav>
+      <p class="compare-disclaimer">Krisp is a trademark of Krisp Technologies, Inc.; LokalBot is not affiliated with or endorsed by it. Details are based on public pages and pricing as of November 2026 and may change: if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

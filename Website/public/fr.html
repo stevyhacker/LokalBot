@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot (Français) : Notes de réunion IA locales, GPLv3</title>
+  <meta name="description" content="Application open source (GPLv3) pour des notes de réunion IA 100 % locales sans bot, compatible RGPD, export Obsidian et MCP local sur Mac, Windows et Linux." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/fr" />
+  <link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+  <link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+  <link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+  <link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+  <link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+  <link rel="alternate" hreflang="fr" href="https://www.lokalbot.com/fr" />
+  <link rel="alternate" hreflang="es" href="https://www.lokalbot.com/es" />
+  <link rel="alternate" hreflang="ko" href="https://www.lokalbot.com/ko" />
+  <link rel="alternate" hreflang="pt" href="https://www.lokalbot.com/pt" />
+  <link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:locale" content="fr_FR" />
+  <meta property="og:url" content="https://www.lokalbot.com/fr" />
+  <meta property="og:title" content="LokalBot (Français) : Notes de réunion IA locales sans bot" />
+  <meta property="og:description" content="Alternative open source et RGPD à Granola, Jamie, Otter et Wispr Flow. Aucun bot en réunion, aucun compte, aucun sous-traitant cloud." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot : notes de réunion IA locales, recherche et dictée en français" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot (Français) : Notes de réunion IA locales sans bot" />
+  <meta name="twitter:description" content="Alternative open source et RGPD à Granola, Jamie, Otter et Wispr Flow. Aucun bot en réunion, aucun compte, aucun sous-traitant cloud." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
+
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/fr#page","url":"https://www.lokalbot.com/fr","name":"LokalBot (Français) : Notes de réunion IA locales, GPLv3","description":"Application open source (GPLv3) pour des notes de réunion IA 100 % locales sans bot, compatible RGPD, export Obsidian et MCP local sur Mac, Windows et Linux.","inLanguage":"fr","datePublished":"2026-11-26","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Accueil","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Français","item":"https://www.lokalbot.com/fr"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/fr#faq","mainEntity":[{"@type":"Question","name":"LokalBot facilite-t-il la conformité RGPD ?","acceptedAnswer":{"@type":"Answer","text":"Oui sur le plan technique : avec les modèles locaux intégrés, aucune donnée audio ou textuelle ne quitte votre ordinateur et aucun sous-traitant cloud n'intervient. Sur le plan juridique, vous devez toujours informer les participants et disposer d'une base légale avant d'enregistrer."}},{"@type":"Question","name":"LokalBot fonctionne-t-il totalement hors ligne ?","acceptedAnswer":{"@type":"Answer","text":"Oui. Une fois les modèles open source téléchargés, l'enregistrement, la transcription, le résumé, la recherche et la dictée fonctionnent sans connexion Internet."}},{"@type":"Question","name":"Qu'en est-il de Windows et Linux ?","acceptedAnswer":{"@type":"Answer","text":"Windows (x64) et Linux (.deb, .rpm, Arch, .tar.gz) sont disponibles en version alpha native Rust + GPUI et lisent exactement la même base SQLite que la version Mac."}},{"@type":"Question","name":"Puis-je migrer mes anciennes notes Granola, Otter ou Fireflies ?","acceptedAnswer":{"@type":"Answer","text":"Oui. LokalBot les importe directement en local, ou vous pouvez les convertir hors ligne dans votre navigateur en Markdown Obsidian via /migrate sans rien envoyer sur un serveur."}}]}]}</script>
+  <script src="/app.js" defer></script>
+  <style>
+    .loc-page {
+      width: min(1060px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 122px 0 84px;
+    }
+    .loc-langs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 20px;
+    }
+    .loc-lang {
+      padding: 5px 11px;
+      border-radius: var(--pill);
+      font: 600 0.8rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      text-decoration: none;
+    }
+    .loc-lang:hover { border-color: var(--teal); color: var(--accent-text); }
+    .loc-lang[aria-current="page"] {
+      color: var(--accent-text);
+      border-color: rgba(35, 196, 174, 0.42);
+      background: var(--teal-soft);
+    }
+    .loc-hero h1 {
+      margin: 10px 0 16px;
+      font-size: clamp(2rem, 4.2vw, 3.25rem);
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      max-width: 28ch;
+      text-wrap: balance;
+    }
+    .loc-hero__lead {
+      font-size: 1.08rem;
+      line-height: 1.66;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0 0 24px;
+    }
+    .loc-hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .loc-hero__meta {
+      font: 500 0.86rem/1.5 var(--mono);
+      color: var(--text-faint);
+      margin: 0 0 42px;
+    }
+    .loc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin: 0 0 48px;
+    }
+    @media (max-width: 860px) { .loc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 580px) { .loc-grid { grid-template-columns: 1fr; } }
+    .loc-tile {
+      padding: 22px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .loc-tile__kicker {
+      font: 600 0.72rem/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-text);
+      margin: 0 0 8px;
+    }
+    .loc-tile h2 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+      line-height: 1.3;
+      color: var(--text);
+    }
+    .loc-tile p {
+      margin: 0;
+      font-size: 0.93rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+    }
+    .loc-panel {
+      padding: clamp(22px, 3.4vw, 34px);
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint-strong);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+      margin-bottom: 48px;
+    }
+    .loc-panel h2 {
+      margin: 6px 0 12px;
+      font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+      color: var(--text);
+    }
+    .loc-panel > p {
+      margin: 0 0 18px;
+      max-width: 70ch;
+      line-height: 1.62;
+      color: var(--text-dim);
+    }
+    .loc-note {
+      margin-top: 14px;
+      font-size: 0.88rem;
+      color: var(--text-faint);
+      line-height: 1.55;
+    }
+    .loc-note a { color: var(--accent-text); }
+    @media (prefers-reduced-transparency: reduce) {
+      .loc-lang, .loc-tile, .loc-panel {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .loc-lang, .loc-tile, .loc-panel { background: var(--surface); }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">Aller au contenu</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="Accueil LokalBot"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="Navigation principale"><a href="/#demo">Démo</a><a href="/#compare">Comparer</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrer</a><a href="/hardware">Matériel</a><a href="/calculator">Calculateur</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Télécharger</a></div>
+  </header>
+
+  <main class="loc-page" id="main">
+    <nav class="loc-langs" aria-label="Langues">
+      <a class="loc-lang" href="/" hreflang="en">English</a>
+      <a class="loc-lang" href="/de" hreflang="de">Deutsch</a>
+      <a class="loc-lang" href="/zh" hreflang="zh-Hans">中文</a>
+      <a class="loc-lang" href="/ja" hreflang="ja">日本語</a>
+      <a class="loc-lang" href="/ru" hreflang="ru">Русский</a>
+      <a class="loc-lang" href="/fr" hreflang="fr" aria-current="page">Français</a>
+      <a class="loc-lang" href="/es" hreflang="es">Español</a>
+      <a class="loc-lang" href="/ko" hreflang="ko">한국어</a>
+      <a class="loc-lang" href="/pt" hreflang="pt">Português</a>
+    </nav>
+
+    <header class="loc-hero">
+      <p class="eyebrow">100 % LOCAL · GPLv3 · RGPD SANS SOUS-TRAITANT</p>
+      <h1>Notes de réunion IA locales, sans bot et sans cloud.</h1>
+      <p class="loc-hero__lead">LokalBot est l&#x27;alternative gratuite et open source (GPLv3) à Granola, Jamie, Otter.ai et Wispr Flow pour macOS (Apple Silicon), Windows et Linux (alpha). En v0.14.0, quatre modèles Apache-2.0 affinés tournent par défaut sur votre ordinateur : zéro bot dans vos appels, zéro compte et zéro transfert vers un cloud tiers.</p>
+      <div class="loc-hero__actions">
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-download-simple" aria-hidden="true"></i>Télécharger gratuitement</a>
+        <a class="btn btn--ghost btn--lg" href="/benchmarks">Voir les benchmarks</a>
+        <a class="btn btn--ghost btn--lg" href="/migrate">Exporter Granola / Otter</a>
+      </div>
+      <p class="loc-hero__meta">Mis à jour le 26 nov. 2026 · v0.14.0 · GPLv3 · macOS 15+ (Swift) · Windows &amp; Linux alpha (Rust + GPUI) · Sync E2E iOS &amp; Android</p>
+    </header>
+
+    <section class="loc-grid" aria-label="Fonctionnalités de LokalBot">
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">RGPD natif</p>
+        <h2>Sans bot · Zéro sous-traitant cloud</h2>
+        <p>Enregistre votre micro et l&#x27;audio de Zoom, Teams, Google Meet ou FaceTime sur deux pistes locales, sans inviter de bot ni envoyer d&#x27;audio en ligne. Prévenez toujours les participants et recueillez leur accord avant d&#x27;enregistrer.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Français local</p>
+        <h2>Transcription hors ligne Qwen3-ASR v3</h2>
+        <p>Qwen3-ASR 1.7B (LokalBot v3, 52 langues dont le français, 4,53 % WER sur les langues de garde, 0 hallucination sur le silence) tourne localement, avec Parakeet et Whisper large-v3 turbo en option. L&#x27;interface est traduite en français.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Obsidian &amp; Logseq</p>
+        <h2>Export Markdown propre avec propriétés YAML</h2>
+        <p>Écrit automatiquement un fichier .md par réunion avec résumé, décisions, tâches et liens dans votre coffre Obsidian ou Logseq sans écraser vos modifications manuelles.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Dictée &amp; saisie</p>
+        <h2>Dictée vocale locale et autocomplétion 56 ms</h2>
+        <p>Maintenez ⌥ Space (Mac) ou Alt+Space (Windows/Linux) pour dicter localement dans n&#x27;importe quelle application. En option, Gemma 4 E2B (LokalBot v4, 56/56 ancrage mémoire) complète vos phrases en s&#x27;appuyant sur vos réunions.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Agents de code</p>
+        <h2>MCP local en lecture seule (Claude Code, Codex, Cursor)</h2>
+        <p>Désactivé par défaut : autorisez Claude Code, Codex, Cursor, Windsurf, Gemini CLI ou Antigravity à rechercher vos décisions de réunion en local via stdio MCP, avec citations horodatées.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Natif &amp; chiffré</p>
+        <h2>Swift sur Mac, Rust + GPUI sur Windows/Linux</h2>
+        <p>Aucun Electron : binaire natif Swift sur macOS, Rust + GPUI sur Windows et Linux (.deb, .rpm, Arch, installateur Windows). Les apps iOS et Android se synchronisent en chiffrement de bout en bout via LAN ou Tailscale.</p>
+      </article>
+    </section>
+
+    <section class="loc-panel" aria-labelledby="stack-heading">
+      <p class="eyebrow">Benchmarks ouverts (v0.14.0)</p>
+      <h2 id="stack-heading">Modèles locaux par défaut (Apache-2.0)</h2>
+      <p>Chaque modèle par défaut est publié sur Hugging Face avec des scripts reproductibles dans le Local Desktop AI Leaderboard.</p>
+      <div class="guide-table-wrap">
+        <table class="guide-table">
+          <thead><tr><th>Rôle</th><th>Modèle local par défaut</th><th>Mesures et taille</th></tr></thead>
+          <tbody>
+            <tr><td><strong>Transcription</strong></td><td>Qwen3-ASR 1.7B (LokalBot v3, GGUF Q8_0)</td><td>9,79 % AMI ihm · 4,53 % garde (EN/DE/FR/ES/RU) · 0 hallucination · 2,52 Go</td></tr>
+            <tr><td><strong>Diarisation</strong></td><td>Nemotron 3 (Core ML, Mac)</td><td>14,56 % DER · 8/8 nombre de locuteurs exact · 500× temps réel · 0,20 Go</td></tr>
+            <tr><td><strong>Notes &amp; mémoire</strong></td><td>Qwen3.5 4B (LokalBot v4, Q4_K_M)</td><td>118/120 Memory120 · -60,6 % rejets validateur · 13,64 s médiane · 2,74 Go</td></tr>
+            <tr><td><strong>Recherche hybride</strong></td><td>SQLite FTS5 + EmbeddingGemma 2 (Q8_0)</td><td>39 ms médiane · 50 Mo RAM · 0,595 R@10 sur 232 réunions QMSum · 0,31 Go</td></tr>
+            <tr><td><strong>Autocomplétion</strong></td><td>Gemma 4 E2B (LokalBot v4, i1-Q6_K)</td><td>56/56 ancrage contexte · 80,0 % précision email · 20,2 ms · 3,85 Go</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="loc-note">Consultez la méthodologie complète sur le <a href="/benchmarks">Local Desktop AI Leaderboard</a>, notre <a href="/gdpr-local-ai-meeting-notes">guide RGPD</a> et la <a href="/privacy">politique de confidentialité</a>.</p>
+    </section>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">Questions fréquentes</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>LokalBot facilite-t-il la conformité RGPD ?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Oui sur le plan technique : avec les modèles locaux intégrés, aucune donnée audio ou textuelle ne quitte votre ordinateur et aucun sous-traitant cloud n'intervient. Sur le plan juridique, vous devez toujours informer les participants et disposer d'une base légale avant d'enregistrer.</p>
+        </details>
+        <details class="qa">
+          <summary>LokalBot fonctionne-t-il totalement hors ligne ?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Oui. Une fois les modèles open source téléchargés, l'enregistrement, la transcription, le résumé, la recherche et la dictée fonctionnent sans connexion Internet.</p>
+        </details>
+        <details class="qa">
+          <summary>Qu'en est-il de Windows et Linux ?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Windows (x64) et Linux (.deb, .rpm, Arch, .tar.gz) sont disponibles en version alpha native Rust + GPUI et lisent exactement la même base SQLite que la version Mac.</p>
+        </details>
+        <details class="qa">
+          <summary>Puis-je migrer mes anciennes notes Granola, Otter ou Fireflies ?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Oui. LokalBot les importe directement en local, ou vous pouvez les convertir hors ligne dans votre navigateur en Markdown Obsidian via /migrate sans rien envoyer sur un serveur.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Gratuit &amp; Open Source (GPLv3)</p>
+        <h2 class="section__title">Vos réunions restent sur votre ordinateur.</h2>
+        <p class="section__lead">Sans compte, sans abonnement et sans bot. Testez la réunion d&#x27;exemple intégrée dès l&#x27;ouverture.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Télécharger gratuitement</a>
+        <p class="download__sub">Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (Alpha) &middot; <a href="/privacy">PRIVACY.md</a> &middot; <a href="/benchmarks">Benchmarks</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

@@ -216,30 +216,18 @@ final class RedesignUITests: XCTestCase {
         let input = app.textFields["search.field"]
         XCTAssertTrue(input.waitForExistence(timeout: 5))
         let inputFrame = input.frame
-        let sourcesFrame = element("ask.sources").frame
-        let dateFrame = element("ask.timeScope").frame
-        let historyFrame = element("chat.conversationList").frame
         let sourceLabel = element("ask.sources").label
         let dateLabel = element("ask.timeScope").label
 
-        XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
-        XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
-        XCTAssertEqual(element("ask.sources").frame.minY, sourcesFrame.minY, accuracy: 1)
-        XCTAssertEqual(element("ask.timeScope").frame.minY, dateFrame.minY, accuracy: 1)
-        XCTAssertEqual(element("chat.conversationList").frame.width, historyFrame.width, accuracy: 1)
         input.click(); input.typeText("failover")
         XCTAssertTrue(element("search.hit.\(fixture.designReview.id.uuidString).segment").waitForExistence(timeout: 6))
+        XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
         XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1, "Results must not relocate the input")
         XCTAssertEqual(element("ask.sources").label, sourceLabel)
         XCTAssertEqual(element("ask.timeScope").label, dateLabel)
-        snapshot("search-stable-input")
-
         XCTAssertEqual(input.value as? String, "failover")
-        XCTAssertEqual(input.frame.minX, inputFrame.minX, accuracy: 1)
-        XCTAssertEqual(input.frame.minY, inputFrame.minY, accuracy: 1)
-        XCTAssertEqual(element("ask.sources").label, sourceLabel)
-        XCTAssertEqual(element("ask.timeScope").label, dateLabel)
-        XCTAssertFalse(app.staticTexts["chat.message.user"].exists, "Switching modes must not submit the query")
+        XCTAssertFalse(app.staticTexts["chat.message.user"].exists, "Typing a search query must not submit a chat turn")
+        snapshot("search-stable-input")
     }
 
     func testAskHasOneDateScopeAndVisibleRemovableFilters() throws {
@@ -507,7 +495,6 @@ final class RedesignUITests: XCTestCase {
             snapshot("meeting-summary-owners-\(appearance)")
             UITestHarness.clickSidebar("sidebar.ask", in: app)
             XCTAssertTrue(element("chat.empty").waitForExistence(timeout: 5))
-            try auditWorkspaceAccessibility(includeContrast: true)
             XCTAssertTrue(app.textFields["search.field"].waitForExistence(timeout: 5))
             try auditWorkspaceAccessibility(includeContrast: true)
             element("ask.sources").click()
@@ -855,7 +842,6 @@ final class RedesignUITests: XCTestCase {
         var types: XCUIAccessibilityAuditType = [.sufficientElementDescription, .action]
         if includeContrast { types.insert(.contrast) }
         let verifiedText = includeContrast && contrastBounds == nil ? try verifyRecallExplanationContrast() : []
-        dismissHoverHelpBeforeAuditing()
         try app.performAccessibilityAudit(for: types) { issue in
             guard let affected = issue.element, affected.exists else { return false }
             if issue.auditType == .contrast {

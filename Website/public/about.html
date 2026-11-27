@@ -18,17 +18,19 @@
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot: local AI meeting notes, transcription, and search running on your computer." />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="About LokalBot" />
   <meta name="twitter:description" content="What LokalBot is, what it runs, and what it does not do: a free, open-source app for Mac, Windows and Linux for bot-free meeting notes, local transcription, and search." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
+  <meta name="twitter:image:alt" content="LokalBot: local AI meeting notes, transcription, and search running on your computer." />
 
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
 
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AboutPage","@id":"https://www.lokalbot.com/about#page","url":"https://www.lokalbot.com/about","name":"About LokalBot","description":"What LokalBot is, what it runs, and what it does not do: a free, open-source app for Mac, Windows and Linux for bot-free meeting notes, local transcription, and search.","dateModified":"2026-11-21","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"mainEntity":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"About","item":"https://www.lokalbot.com/about"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/about#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free and open source under the GNU General Public License v3. There is no account, subscription, or paid tier."}},{"@type":"Question","name":"Does LokalBot send my meetings to the cloud?","acceptedAnswer":{"@type":"Answer","text":"No, not by default. Recording, transcription, summaries, and search run on your computer. Network access is limited to model downloads, update checks, and any remote AI server you configure; a non-local server must be explicitly approved before it receives meeting or workday context."}},{"@type":"Question","name":"Does LokalBot join my calls as a bot?","acceptedAnswer":{"@type":"Answer","text":"No. It records your microphone and the meeting's audio on your computer as separate tracks, so nothing joins the call. You are responsible for telling participants and getting any consent the law requires."}},{"@type":"Question","name":"Which computers does LokalBot support?","acceptedAnswer":{"@type":"Answer","text":"Apple Silicon Macs (M1 or later) running macOS 15.0 or later, plus Windows 10 and 11 (x64) and Linux (x86_64) in alpha. iPhone and iPad (iOS/iPadOS 18 or later) and Android phones and tablets (Android 10 or later) pair with any of them through the companion apps on the App Store and Google Play. Intel Macs and web browsers are not supported."}},{"@type":"Question","name":"Can I import existing audio files?","acceptedAnswer":{"@type":"Answer","text":"Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"AboutPage","@id":"https://www.lokalbot.com/about#page","url":"https://www.lokalbot.com/about","name":"About LokalBot","description":"What LokalBot is, what it runs, and what it does not do: a free, open-source app for Mac, Windows and Linux for bot-free meeting notes, local transcription, and search.","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"mainEntity":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"About","item":"https://www.lokalbot.com/about"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/about#faq","mainEntity":[{"@type":"Question","name":"Is LokalBot free?","acceptedAnswer":{"@type":"Answer","text":"Yes. LokalBot is free and open source under the GNU General Public License v3. There is no account, subscription, or paid tier."}},{"@type":"Question","name":"Does LokalBot send my meetings to the cloud?","acceptedAnswer":{"@type":"Answer","text":"No, not by default. Recording, transcription, summaries, and search run on your computer. Network access is limited to model downloads, update checks, and any remote AI server you configure; a non-local server must be explicitly approved before it receives meeting or workday context."}},{"@type":"Question","name":"Does LokalBot join my calls as a bot?","acceptedAnswer":{"@type":"Answer","text":"No. It records your microphone and the meeting's audio on your computer as separate tracks, so nothing joins the call. You are responsible for telling participants and getting any consent the law requires."}},{"@type":"Question","name":"Which computers does LokalBot support?","acceptedAnswer":{"@type":"Answer","text":"Apple Silicon Macs (M1 or later) running macOS 15.0 or later, plus Windows 10 and 11 (x64) and Linux (x86_64) in alpha. iPhone and iPad (iOS/iPadOS 18 or later) and Android phones and tablets (Android 10 or later) pair with any of them through the companion apps on the App Store and Google Play. Intel Macs and web browsers are not supported."}},{"@type":"Question","name":"Can I import existing audio files?","acceptedAnswer":{"@type":"Answer","text":"Yes. Import an audio or video file from the Meetings list, or drop it on the list, and LokalBot transcribes and summarizes it like a meeting it recorded."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -36,8 +38,8 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a></div>
   </header>
 
   <main class="guide-page" id="guide">
@@ -46,7 +48,7 @@
       <p class="eyebrow">Fact sheet</p>
       <h1>About LokalBot</h1>
       <p class="guide-hero__lead">Your personal context engine. Free, open-source meeting notes, transcription, and search that run locally on your computer.</p>
-      <p class="guide-byline"><time datetime="2026-11-21">Updated November 21, 2026</time></p>
+      <p class="guide-byline"><time datetime="2026-11-26">Updated November 26, 2026</time></p>
     </header>
 
     <article class="guide-article">
@@ -64,12 +66,13 @@
               <tr><td>Phones and tablets</td><td>iPhone and iPad (iOS/iPadOS 18 or later) on the <a href="https://apps.apple.com/app/id6836773709" target="_blank" rel="noopener">App Store</a>, and Android (Android 10 or later) on <a href="https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion" target="_blank" rel="noopener">Google Play</a>, both pairing with your computer</td></tr>
               <tr><td>Price</td><td>Free, with no account or paid tier</td></tr>
               <tr><td>License</td><td><a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSE" target="_blank" rel="noopener">GNU GPL v3</a>. Code in the Autocomplete engine that was ported from <a href="https://github.com/FuJacob/cotabby" target="_blank" rel="noopener">Cotabby</a> stays under <a href="https://github.com/stevyhacker/lokalbot/blob/master/LICENSES/AGPL-3.0.txt" target="_blank" rel="noopener">AGPLv3</a>. Other third-party components and models retain their own licenses; see the <a href="https://github.com/stevyhacker/lokalbot/blob/master/THIRD_PARTY_NOTICES.md" target="_blank" rel="noopener">third-party notices</a></td></tr>
-              <tr><td>Install</td><td>Mac: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">the DMG</a> from GitHub Releases, or <code>brew install --cask stevyhacker/tap/lokalbot</code>. Windows: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">the installer</a> or the portable zip, not code-signed yet. Linux: <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">the archive</a> and its <code>install.sh</code>, or the .deb, .rpm or Arch package from the same release</td></tr>
+              <tr><td>Install</td><td>Mac: <a href="/dl/mac" data-download-alt data-asset="mac">the DMG</a> from GitHub Releases, or <code>brew install --cask stevyhacker/tap/lokalbot</code>. Windows: <a href="/dl/windows" data-download-alt data-asset="windows">the installer</a> or the portable zip, not code-signed yet. Linux: <a href="/dl/linux-deb" data-download-alt data-asset="linux-deb">.deb</a> (Ubuntu/Debian), <a href="/dl/linux-rpm" data-download-alt data-asset="linux-rpm">.rpm</a> (Fedora), <a href="/dl/linux" data-download-alt data-asset="linux">.tar.gz</a> with <code>install.sh</code>, or the Arch package</td></tr>
               <tr><td>Updates</td><td>Signed in-app updates from GitHub Releases (Sparkle on Mac), installed only when you choose</td></tr>
               <tr><td>Where data lives</td><td>On your computer: LokalBot's Application Support folder on a Mac, <code>%LOCALAPPDATA%\LokalBot</code> on Windows, <code>~/.local/share/LokalBot</code> on Linux</td></tr>
-              <tr><td>Default speech model</td><td>Qwen3-ASR 1.7B on Mac (52 languages and dialects), since version 0.8.1; Qwen3-ASR 0.6B on Windows and Linux</td></tr>
-              <tr><td>Other speech models</td><td>Parakeet TDT, Whisper large-v3 turbo, SenseVoice, GigaAM for Russian, and on Mac, IBM Granite Speech</td></tr>
-              <tr><td>Summaries and chat</td><td>Qwen3.5 4B on llama.cpp, bundled on Mac and downloaded on first use on Windows and Linux</td></tr>
+              <tr><td>Default speech model</td><td>Qwen3-ASR 1.7B LokalBot v3 on Mac (2.52 GB GGUF Q8_0, Apache-2.0 fine-tune, 52 languages and dialects); Qwen3-ASR 0.6B on Windows and Linux</td></tr>
+              <tr><td>Other speech models</td><td>Qwen3-ASR 0.6B LokalBot v1, Parakeet TDT, Whisper large-v3 turbo, SenseVoice, GigaAM for Russian, and on Mac, IBM Granite Speech</td></tr>
+              <tr><td>Summaries and chat</td><td>Qwen3.5 4B LokalBot v4 on llama.cpp (2.74 GB Q4_K_M, Apache-2.0 fine-tune), default on Mac, Windows, and Linux</td></tr>
+              <tr><td>Autocomplete</td><td>Gemma 4 E2B LokalBot v4 (3.85 GB Q6_K, Apache-2.0 fine-tune, optional) or LFM2.5 1.2B</td></tr>
               <tr><td>Search</td><td>Keyword plus semantic search with EmbeddingGemma 2 embeddings</td></tr>
               <tr><td>Optional AI backends</td><td>Ollama, OpenAI-compatible servers, your ChatGPT or Claude plan, and Apple Intelligence on Mac (macOS 26+); remote servers and plans need approval</td></tr>
               <tr><td>Source</td><td><a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">github.com/stevyhacker/lokalbot</a></td></tr>
@@ -158,7 +161,7 @@
         <p class="section__lead">Free, open source, and no account. For Mac, with Windows and Linux in alpha.</p>
         <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
         <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
-        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a></p>
+        <p class="download__sub"><a href="/dl/mac" data-download-alt data-asset="mac">macOS</a> &middot; <a href="/dl/windows" data-download-alt data-asset="windows">Windows</a> &middot; Linux (alpha): <a href="/dl/linux-deb" data-download-alt data-asset="linux-deb">.deb</a>, <a href="/dl/linux-rpm" data-download-alt data-asset="linux-rpm">.rpm</a>, <a href="/dl/linux" data-download-alt data-asset="linux">.tar.gz</a> &middot; <a href="system-requirements">requirements</a></p>
       </div>
     </section>
   </main>
@@ -179,6 +182,7 @@
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
@@ -213,6 +217,17 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span class="footer__langs-label">Languages</span>
+      <a href="/de" hreflang="de">Deutsch</a>
+      <a href="/zh" hreflang="zh-Hans">中文</a>
+      <a href="/ja" hreflang="ja">日本語</a>
+      <a href="/ru" hreflang="ru">Русский</a>
+      <a href="/fr" hreflang="fr">Français</a>
+      <a href="/es" hreflang="es">Español</a>
+      <a href="/ko" hreflang="ko">한국어</a>
+      <a href="/pt" hreflang="pt">Português</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

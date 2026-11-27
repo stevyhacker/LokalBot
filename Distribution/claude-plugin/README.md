@@ -1,6 +1,6 @@
 # LokalBot plugin for Claude Code
 
-LokalBot is your personal context engine: a private work-memory app for macOS, with a Windows and Linux app in alpha. This plugin lets Claude Code read your local LokalBot library through `lokalbot-cli`: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself. Screen memory needs LokalBot's MCP server, which you connect yourself (see [Screen memory](#screen-memory-and-the-mcp-server)). Each kind of data has its own permission in LokalBot, and all of it is off until you turn it on. Claude Code's own data-handling terms still apply.
+LokalBot is a private work-memory app for macOS, with a Windows and Linux app in alpha. This plugin lets Claude Code read your local LokalBot library through `lokalbot-cli`: meetings and their action items, the people in them, the folders you chose under Files, notes saved by coding agents, and what you shared about yourself. Screen memory needs LokalBot's MCP server, which you connect yourself (see [Screen memory](#screen-memory-and-the-mcp-server)). Each kind of data has its own permission in LokalBot, and all of it is off until you turn it on. Claude Code's own data-handling terms still apply.
 
 ## What it gives Claude Code
 
@@ -79,6 +79,7 @@ The commands run `lokalbot-cli` from your PATH, and so does the MCP server if yo
 
 - [LokalBot website](https://www.lokalbot.com/) · [Claude Code & Codex plugins guide](https://www.lokalbot.com/claude-code-codex-plugins)
 - [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks) · [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware)
+- [SaaS AI Cost Calculator](https://www.lokalbot.com/calculator) · [Agent Wrapped (`npx lokalbot`)](https://www.lokalbot.com/wrapped)
 
 ## For maintainers
 

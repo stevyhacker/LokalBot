@@ -422,17 +422,18 @@ actor LlamaCotypingRuntime {
         lastLogitsPosition = nil
         lastLogitsToken = nil
         lastDecodeTokenCount = 0
-        var batch = llama_batch_init(Int32(tokens.count), 0, 1)
-        defer { llama_batch_free(batch) }
+        guard let batch = llama_batch_ext_init(ctx) else { return false }
+        defer { llama_batch_ext_free(batch) }
         for i in 0..<tokens.count {
-            batch.token[i] = tokens[i]
-            batch.pos[i] = startPos + Int32(i)
-            batch.n_seq_id[i] = 1
-            batch.seq_id[i]![0] = 0
-            batch.logits[i] = requestLogits && (!logitsLastOnly || i == tokens.count - 1) ? 1 : 0
+            var position = startPos + Int32(i)
+            let index = llama_batch_ext_add_token(batch, 0, tokens[i])
+            guard index >= 0,
+                  llama_batch_ext_set_pos(batch, index, &position),
+                  llama_batch_ext_set_output_logits(
+                      batch, index, requestLogits && (!logitsLastOnly || i == tokens.count - 1))
+            else { return false }
         }
-        batch.n_tokens = Int32(tokens.count)
-        let succeeded = llama_decode(ctx, batch) == 0
+        let succeeded = llama_process(ctx, LLAMA_PROCESS_TYPE_DECODE, batch) == 0
         if succeeded, requestLogits {
             lastDecodeTokenCount = tokens.count
             lastLogitsPosition = startPos + Int32(tokens.count - 1)

@@ -28,6 +28,17 @@ enum RecordingSystemAudioPolicy: Equatable {
     case microphoneOnly
     case meetingAppWhenAvailable
 
+    func captureIntent(detectedApp: MeetingDetector.DetectedApp?, meetingURL: URL?) -> Meeting.CaptureIntent {
+        let room = meetingURL.flatMap { ConferenceRoom($0.absoluteString) }
+        let detectedDesktopTelemost = room?.service == .telemost
+            && detectedApp?.bundleID == MeetingDetector.telemostBundleID
+            && detectedApp?.meetingURL == nil
+        return .init(
+            systemAudioRequested: self == .meetingAppWhenAvailable,
+            appBundleID: detectedApp?.bundleID,
+            meetingURL: detectedDesktopTelemost ? nil : room.flatMap { URL(string: $0.url) })
+    }
+
     func captureApp(
         detectedApp: MeetingDetector.DetectedApp?,
         fallback: () -> MeetingDetector.DetectedApp?
@@ -216,6 +227,7 @@ final class RecordingController: ObservableObject {
         var stopNotice: String?
     }
     private var pendingFinalizations: [UUID: PendingFinalization] = [:]
+    private(set) var isTerminating = false
     static let silentSystemAudioMessage =
         "System audio capture is silent; LokalBot is keeping the microphone "
         + "recording and will reattach if the meeting audio process changes."
@@ -354,7 +366,8 @@ final class RecordingController: ObservableObject {
         systemAudioRecovery.cancel()
         if isRecording || isStarting { stop(process: false, deferProcessing: true) }
         for pending in retryable { _ = persistFinalization(pending, deferProcessing: true) }
-        return pendingFinalizations.isEmpty
+        isTerminating = pendingFinalizations.isEmpty
+        return isTerminating
     }
 
     func forgetFinalization(meetingIDs: Set<UUID>) {
@@ -383,7 +396,7 @@ final class RecordingController: ObservableObject {
         source: String = "ui",
         systemAudioPolicy: RecordingSystemAudioPolicy
     ) {
-        guard case .idle = status, startTask == nil else { return }
+        guard case .idle = status, startTask == nil, !isTerminating else { return }
         let detectedApp = context?.detectedApp
         let calendarEvent = context?.calendarEvent
         if Self.shouldSuppressCalendarRepeat(
@@ -467,12 +480,8 @@ final class RecordingController: ObservableObject {
                     meeting.meetingURL = url
                     try storage.saveMeta(meeting)
                 }
-                meeting.captureIntent = .init(
-                    systemAudioRequested: systemAudioPolicy == .meetingAppWhenAvailable,
-                    appBundleID: detectedApp?.bundleID,
-                    meetingURL: meeting.meetingURL.flatMap { url in
-                        BrowserMeetingSession.roomURL(url.absoluteString).flatMap(URL.init(string:))
-                    })
+                meeting.captureIntent = systemAudioPolicy.captureIntent(
+                    detectedApp: detectedApp, meetingURL: meeting.meetingURL)
                 try storage.saveMeta(meeting)
                 healthReport = RecordingHealthReport()
                 captureNotifications = CaptureWarningNotifications()

@@ -5,16 +5,89 @@
   <link href="https://www.lokalbot.com/blog/feed.xml" rel="self" type="application/atom+xml" />
   <link href="https://www.lokalbot.com/blog" rel="alternate" type="text/html" />
   <id>https://www.lokalbot.com/blog</id>
-  <updated>2026-11-19T00:00:00Z</updated>
-  <author><name>LokalBot project</name><uri>https://www.lokalbot.com/</uri></author>
+  <updated>2026-11-26T00:00:00Z</updated>
+  <author><name>Stevan Bogosavljević</name><uri>https://github.com/stevyhacker</uri></author>
   <icon>https://www.lokalbot.com/assets/lokalbot-icon-512.png</icon>
+  <entry>
+    <title>Fine-Tuning Four Small Local Models Against a Swift Validator Loop</title>
+    <link href="https://www.lokalbot.com/blog/fine-tuning-four-local-models-swift-validator" />
+    <id>https://www.lokalbot.com/blog/fine-tuning-four-local-models-swift-validator</id>
+    <published>2026-11-26T00:00:00Z</published>
+    <updated>2026-11-26T00:00:00Z</updated>
+    <summary>How we fine-tuned Qwen3.5 4B, Gemma 4 E2B, and Qwen3-ASR 1.7B/0.6B on open datasets against LokalBot's Swift validator, plus what did not work.</summary>
+    <content type="html">&lt;h2&gt;Why fine-tune four small models&lt;/h2&gt;
+&lt;p&gt;Stock small models are trained to be decent at everything, which makes them shaky on narrow app contracts. Inside LokalBot, four models carry the whole local workflow on a laptop: &lt;code&gt;Qwen3.5 4B&lt;/code&gt; writes source-linked meeting notes, decisions, actions, and Personal Context memories; &lt;code&gt;Qwen3-ASR 1.7B&lt;/code&gt; and &lt;code&gt;0.6B&lt;/code&gt; handle meeting transcription and push-to-talk dictation; and &lt;code&gt;Gemma 4 E2B&lt;/code&gt; drives inline autocomplete.&lt;/p&gt;
+&lt;p&gt;In version 0.14.0, all four defaults moved to Apache-2.0 fine-tunes published on Hugging Face. Every row in the training data comes from open-license sources (Apache-2.0, ODC-By-1.0, CC-BY-4.0, MIT, and CC0) plus open-weight teacher outputs. Zero private user meetings or recordings were used in training, and every previous stock model stays selectable in &lt;strong&gt;Settings &amp;gt; Models&lt;/strong&gt; if you want to switch back.&lt;/p&gt;
+
+&lt;h2&gt;1. Qwen3.5 4B (LokalBot v4): training inside the Swift validator loop&lt;/h2&gt;
+&lt;p&gt;LokalBot's meeting pipeline already has a strict Swift evidence and ownership validator in &lt;code&gt;MeetingNotesReplayTests&lt;/code&gt;. Every extracted action or decision must cite real transcript segments and assign an owner supported by the text. Early synthetic datasets looked fine to a generic judge and then failed inside the Swift app.&lt;/p&gt;
+&lt;p&gt;For &lt;code&gt;v4&lt;/code&gt;, we ran every synthetic training meeting through the exact compiled Swift validator until all &lt;strong&gt;4,117 rows&lt;/strong&gt; passed with zero Swift rejections: 2,005 meetings (9,192 actions, 1.4% zero-action rate), 240 on-policy repair examples, 964 Personal Context memory cases (67.8% negative/empty traps), 338 Ask tool-calling trajectories, 170 Day Digest rows, and 400 general replay rows from &lt;code&gt;allenai/tulu-3-sft-mixture&lt;/code&gt;.&lt;/p&gt;
+&lt;p&gt;That loop also exposed a real failure in &lt;code&gt;v3&lt;/code&gt;: our synthetic meetings always had named speakers and a confirmed &lt;code&gt;Me&lt;/code&gt; track, while real calls often arrive with unnamed diarized rosters (&lt;code&gt;them 1..8&lt;/code&gt;, &lt;code&gt;local 1..3&lt;/code&gt;, &lt;code&gt;them unclear&lt;/code&gt;). That mismatch caused six zero-action collapses on our 28-meeting dev replay. Adding 487 unnamed diarized meetings in &lt;code&gt;v4&lt;/code&gt; brought those collapses to zero.&lt;/p&gt;
+&lt;p&gt;We trained a rank-32 bf16 LoRA across all 248 language-model linear projections, merged at &lt;code&gt;scale=1.0&lt;/code&gt; in fp32, and quantized to &lt;code&gt;Q4_K_M&lt;/code&gt; (&lt;code&gt;2.741 GB&lt;/code&gt;, matching stock byte range) with a 64-chunk bilingual English/Serbian/JSON imatrix. Same-GPU replay against stock &lt;code&gt;Qwen3.5-4B-Q4_K_M&lt;/code&gt; on pinned &lt;code&gt;llama.cpp v1.0.0&lt;/code&gt; with &lt;code&gt;enable_thinking=false&lt;/code&gt;:&lt;/p&gt;
+&lt;div class="guide-table-wrap"&gt;
+  &lt;table class="guide-table"&gt;
+    &lt;caption class="visually-hidden"&gt;Qwen3.5-4B stock vs LokalBot v4 benchmark results&lt;/caption&gt;
+    &lt;thead&gt;
+      &lt;tr&gt;&lt;th scope="col"&gt;Suite &amp;amp; metric&lt;/th&gt;&lt;th scope="col"&gt;Stock Qwen3.5 4B&lt;/th&gt;&lt;th scope="col"&gt;Qwen3.5-4B-LokalBot-v4&lt;/th&gt;&lt;/tr&gt;
+    &lt;/thead&gt;
+    &lt;tbody&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Memory120 (Personal Context, 120 cases)&lt;/th&gt;&lt;td&gt;81/120 (67.5%, 12 unwanted)&lt;/td&gt;&lt;td&gt;&lt;strong&gt;118/120 (98.3%, 1 unwanted)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Memory120 Serbian recall (13 gold)&lt;/th&gt;&lt;td&gt;0/13 (9 unwanted)&lt;/td&gt;&lt;td&gt;&lt;strong&gt;13/13 (0 unwanted)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Blind21 completed jobs (21 untouched EN calls)&lt;/th&gt;&lt;td&gt;20/21&lt;/td&gt;&lt;td&gt;&lt;strong&gt;21/21&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Blind21 validator rejections&lt;/th&gt;&lt;td&gt;175 (56 repair passes)&lt;/td&gt;&lt;td&gt;&lt;strong&gt;69 (-60.6%, 28 repair passes)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Blind21 median latency (G4 GPU)&lt;/th&gt;&lt;td&gt;24.24 s&lt;/td&gt;&lt;td&gt;&lt;strong&gt;13.64 s (1.78x faster)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Blind21 decision overlap (40 ref)&lt;/th&gt;&lt;td&gt;3/40 (7.5%)&lt;/td&gt;&lt;td&gt;&lt;strong&gt;18/40 (45.0%)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Blind21 raw action recall (85 ref)&lt;/th&gt;&lt;td&gt;&lt;strong&gt;47/85 (55.3%)&lt;/strong&gt;&lt;/td&gt;&lt;td&gt;40/85 (47.1%, McNemar p=0.2478)&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Private28 dev action recall / rejections&lt;/th&gt;&lt;td&gt;73/147 (49.7%) / 160 rej&lt;/td&gt;&lt;td&gt;&lt;strong&gt;76/147 (51.7%) / 67 rej (-58.1%)&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+      &lt;tr&gt;&lt;th scope="row"&gt;Golden6 Russian drift on Serbian&lt;/th&gt;&lt;td&gt;21 drift hits&lt;/td&gt;&lt;td&gt;&lt;strong&gt;0 drift hits&lt;/strong&gt;&lt;/td&gt;&lt;/tr&gt;
+    &lt;/tbody&gt;
+  &lt;/table&gt;
+&lt;/div&gt;
+
+&lt;h2&gt;What did not work: honest negative results&lt;/h2&gt;
+&lt;p&gt;Publishing only the green rows makes local model numbers useless, so here are the two clearest misses from this cycle:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Blind21 raw action recall dropped versus stock.&lt;/strong&gt; On the 21 untouched English holdout meetings, stock &lt;code&gt;Qwen3.5-4B&lt;/code&gt; still recalled &lt;code&gt;47/85&lt;/code&gt; (&lt;code&gt;55.3%&lt;/code&gt;) reference actions compared to &lt;code&gt;40/85&lt;/code&gt; (&lt;code&gt;47.1%&lt;/code&gt;) for &lt;code&gt;v4&lt;/code&gt; (exact two-sided McNemar &lt;code&gt;p = 0.2478&lt;/code&gt;), and stock produced fewer false-positive decisions on the 9 zero-decision meetings (&lt;code&gt;6&lt;/code&gt; vs &lt;code&gt;25&lt;/code&gt;). Also, when forced into &lt;code&gt;enable_thinking=true&lt;/code&gt; on &lt;code&gt;ThinkOnSmoke6&lt;/code&gt;, &lt;code&gt;v4&lt;/code&gt; passed &lt;code&gt;4/6&lt;/code&gt; with one &lt;code&gt;&amp;lt;/think&amp;gt;&lt;/code&gt; tag leak, which is why LokalBot defaults &lt;code&gt;v4&lt;/code&gt; to thinking off under Automatic. We shipped &lt;code&gt;v4&lt;/code&gt; because &lt;code&gt;118/120&lt;/code&gt; memory restraint, zero Serbian/Russian drift, 60.6% fewer validator rejections, and 1.78x faster extraction beat stock in day-to-day use, while keeping stock one click away.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;The Astra weight-space pilot moved 5,120 weights and zero outputs.&lt;/strong&gt; Before spending GPU hours on LoRA, I ran a bounded weight-editing pilot on &lt;code&gt;Qwen3.5-4B&lt;/code&gt; using a rented RTX 3090 (~$0.14 GPU/disk cost). Guided by four dev traces, we halved two MLP output columns (&lt;code&gt;2416&lt;/code&gt; and &lt;code&gt;8819&lt;/code&gt;) in &lt;code&gt;layers.23.mlp.down_proj.weight&lt;/code&gt;, editing &lt;strong&gt;5,120 BF16 weights&lt;/strong&gt; (&lt;code&gt;27,741&lt;/code&gt; packed bytes in &lt;code&gt;blk.23.ffn_down.weight&lt;/code&gt; after &lt;code&gt;Q4_K_M&lt;/code&gt; quantization). The tensor change survived quantization intact, and all 40 paired outputs (10 dev plus 30 held-out synthetic memory cases) came back byte-identical: &lt;code&gt;22/30&lt;/code&gt; held-out on both arms, zero delta. Two edited columns could not shift behavior on this task; a full rank-32 LoRA across all 248 projections did.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;2. Qwen3-ASR 1.7B (v3) and 0.6B (v1): killing silence ghosts and code-switching errors&lt;/h2&gt;
+&lt;p&gt;Stock &lt;code&gt;Qwen3-ASR 1.7B&lt;/code&gt; had two bugs that showed up immediately in daily use. First, holding the dictation shortcut in a quiet room with a custom vocabulary prompt caused it to echo the prompt or hallucinate speech (only &lt;code&gt;8.3%&lt;/code&gt; clean silence on our holdout, with &lt;code&gt;16&lt;/code&gt; prompt echoes and &lt;code&gt;123&lt;/code&gt; hallucinated words). Second, mid-sentence bilingual code-switching (&lt;code&gt;sr+en&lt;/code&gt; and &lt;code&gt;en+de&lt;/code&gt;) hit &lt;code&gt;37.12%&lt;/code&gt; WER.&lt;/p&gt;
+&lt;p&gt;A decoder-only LoRA (&lt;code&gt;v2&lt;/code&gt;) fixed dictation silence, but far-field meeting audio barely budged. For &lt;strong&gt;Qwen3-ASR-1.7B-LokalBot-v3&lt;/strong&gt;, we unlocked the top 4 &lt;code&gt;audio_tower&lt;/code&gt; transformer layers (&lt;code&gt;layers.20..23&lt;/code&gt;) plus &lt;code&gt;audio_tower.proj1&lt;/code&gt; and &lt;code&gt;proj2&lt;/code&gt; with a rank-16 LoRA at a &lt;code&gt;0.4x&lt;/code&gt; differential learning rate alongside the rank-32 decoder LoRA (&lt;code&gt;scale=1.15&lt;/code&gt;), anchored with Forward KL on guard languages so English, German, French, Spanish, and Russian would not drift.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Code-switching holdout WER (&lt;code&gt;sr+en&lt;/code&gt;, &lt;code&gt;en+de&lt;/code&gt;):&lt;/strong&gt; cut from &lt;code&gt;37.12%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;12.81%&lt;/code&gt;&lt;/strong&gt; (&lt;code&gt;-24.31 pp&lt;/code&gt;).&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Dictation silence &amp;amp; ambient noise:&lt;/strong&gt; &lt;strong&gt;&lt;code&gt;100.0%&lt;/code&gt; clean abstention&lt;/strong&gt; (&lt;code&gt;0&lt;/code&gt; prompt echoes, &lt;code&gt;0&lt;/code&gt; hallucinated words, up from &lt;code&gt;8.3%&lt;/code&gt; / &lt;code&gt;123&lt;/code&gt; words on stock). Custom vocabulary recall rose from &lt;code&gt;86.7%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;100.0%&lt;/code&gt;&lt;/strong&gt; (&lt;code&gt;4.00%&lt;/code&gt; WER vs &lt;code&gt;9.00%&lt;/code&gt;) with zero distractor injections.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;South Slavic (&lt;code&gt;sr/hr/bs&lt;/code&gt;) auto WER:&lt;/strong&gt; dropped from &lt;code&gt;24.64%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;17.79%&lt;/code&gt;&lt;/strong&gt; (&lt;code&gt;-6.85 pp&lt;/code&gt;); out-of-domain Croatian (&lt;code&gt;VoxPopuli hr&lt;/code&gt;) fell from &lt;code&gt;24.95%&lt;/code&gt; to &lt;code&gt;19.06%&lt;/code&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Expanded AMI-400 meetings (&lt;code&gt;200 ihm + 200 sdm&lt;/code&gt;):&lt;/strong&gt; close-mic &lt;code&gt;9.79%&lt;/code&gt; vs &lt;code&gt;10.24%&lt;/code&gt; stock; far-field &lt;code&gt;24.41%&lt;/code&gt; vs &lt;code&gt;26.08%&lt;/code&gt; (&lt;code&gt;-1.67 pp&lt;/code&gt;), at &lt;code&gt;31.24x&lt;/code&gt; real-time on Apple M4 Max Metal (&lt;code&gt;2.52 GB&lt;/code&gt; combined Q8_0 decoder and &lt;code&gt;mmproj&lt;/code&gt;). Tradeoff: &lt;code&gt;2/200&lt;/code&gt; low-SNR far-field clips abstain vs &lt;code&gt;0/200&lt;/code&gt; stock, and guard languages shifted &lt;code&gt;+0.18 pp&lt;/code&gt; (&lt;code&gt;4.35%&lt;/code&gt; to &lt;code&gt;4.53%&lt;/code&gt;).&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;For smaller machines, &lt;strong&gt;Qwen3-ASR-0.6B-LokalBot-v1&lt;/strong&gt; (&lt;code&gt;1.02 GB&lt;/code&gt; combined, &lt;code&gt;52.7x&lt;/code&gt; real-time on M4 Max Metal) keeps the &lt;code&gt;audio_tower&lt;/code&gt; frozen so the stock &lt;code&gt;mmproj&lt;/code&gt; stays bit-identical. On the same 466-clip blind holdout, it cut South Slavic auto WER from &lt;code&gt;52.26%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;30.57%&lt;/code&gt;&lt;/strong&gt; (&lt;code&gt;-21.69 pp&lt;/code&gt;), code-switching WER from &lt;code&gt;49.21%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;20.72%&lt;/code&gt;&lt;/strong&gt; (&lt;code&gt;-28.49 pp&lt;/code&gt;), raised custom vocabulary recall from &lt;code&gt;80.0%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;100.0%&lt;/code&gt;&lt;/strong&gt; with &lt;code&gt;100%&lt;/code&gt; clean silence, and beat stock on AMI-400 (&lt;code&gt;10.72%&lt;/code&gt; ihm, &lt;code&gt;26.23%&lt;/code&gt; sdm) while holding 7 guard languages within &lt;code&gt;+0.13 pp&lt;/code&gt;.&lt;/p&gt;
+
+&lt;h2&gt;3. Gemma 4 E2B (LokalBot v4): 56/56 context grounding at 20.2 ms&lt;/h2&gt;
+&lt;p&gt;Inline autocomplete has the opposite problem from chat models: raising recall slightly too aggressively makes the ghost text annoying. Our earlier high-coverage checkpoint (&lt;code&gt;v3&lt;/code&gt;) boosted word-boundary recall to &lt;code&gt;30.71%&lt;/code&gt;, but added &lt;code&gt;+39&lt;/code&gt; wrong-shown suggestions and missed 2 of 26 memory recall checks.&lt;/p&gt;
+&lt;p&gt;For &lt;strong&gt;Gemma-4-E2B-LokalBot-v4&lt;/strong&gt; (&lt;code&gt;3.845 GB&lt;/code&gt; &lt;code&gt;i1-Q6_K&lt;/code&gt;), we trained a rank-32 LoRA across 275 matrices in all 35 layers (including 70 Per-Layer Embedding projections) on 45,876 open-license rows using a three-regime Forward KL objective: soft-logit distillation from &lt;code&gt;google/gemma-4-26B-A4B&lt;/code&gt; on ungrounded text, grounded window/memory rows, plus 13,400 KL-only calibration anchor rows against stock E2B starting at body token 0.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Context and memory grounding:&lt;/strong&gt; &lt;strong&gt;&lt;code&gt;56/56&lt;/code&gt; (100%)&lt;/strong&gt; across all 7 saved-memory and visible-window suites (&lt;code&gt;8/8&lt;/code&gt; visible dev, &lt;code&gt;18/18&lt;/code&gt; visible held-out, &lt;code&gt;4/4&lt;/code&gt; link, &lt;code&gt;6/6&lt;/code&gt; memory dev, &lt;code&gt;22/22&lt;/code&gt; memory held-out, &lt;code&gt;12/12&lt;/code&gt; relevance held-out), with zero stale facts and zero unsafe outputs across 28 safety checks.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Precision without chatter:&lt;/strong&gt; &lt;code&gt;199&lt;/code&gt; right / &lt;code&gt;182&lt;/code&gt; wrong shown vs &lt;code&gt;182&lt;/code&gt; / &lt;code&gt;181&lt;/code&gt; on stock (&lt;code&gt;+17&lt;/code&gt; right completions for &lt;code&gt;+1&lt;/code&gt; wrong), raising email precision from &lt;code&gt;74.3%&lt;/code&gt; to &lt;strong&gt;&lt;code&gt;80.0%&lt;/code&gt;&lt;/strong&gt;.&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Latency:&lt;/strong&gt; &lt;strong&gt;&lt;code&gt;20.2 ms&lt;/code&gt;&lt;/strong&gt; median boundary latency and &lt;strong&gt;&lt;code&gt;80.0 ms&lt;/code&gt;&lt;/strong&gt; typing p95 on M4 Max Metal (faster than stock &lt;code&gt;21.2 ms&lt;/code&gt; / &lt;code&gt;103.5 ms&lt;/code&gt;). Tradeoff: &lt;code&gt;v4&lt;/code&gt; still has 2 forbidden hits on &lt;code&gt;fresh_holdout_v1&lt;/code&gt; and 1 on &lt;code&gt;fresh_holdout_v2&lt;/code&gt;; &lt;code&gt;v3&lt;/code&gt; stays in the repo for users who want maximum coverage.&lt;/li&gt;
+&lt;/ul&gt;
+
+&lt;h2&gt;Download the Apache-2.0 GGUFs&lt;/h2&gt;
+&lt;p&gt;All four checkpoints are Apache-2.0 and work directly with &lt;code&gt;llama-server&lt;/code&gt;, Ollama, or LokalBot 0.14.0:&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Think (notes, actions, memory, Ask):&lt;/strong&gt; &lt;a href="https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF" target="_blank" rel="noopener"&gt;stevyhacker/Qwen3.5-4B-LokalBot-GGUF&lt;/a&gt; (&lt;code&gt;Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf&lt;/code&gt;, 2.74 GB)&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Transcription (accuracy):&lt;/strong&gt; &lt;a href="https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF" target="_blank" rel="noopener"&gt;stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF&lt;/a&gt; (&lt;code&gt;v3&lt;/code&gt; Q8_0 + paired &lt;code&gt;mmproj&lt;/code&gt;, 2.52 GB)&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Transcription (compact):&lt;/strong&gt; &lt;a href="https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF" target="_blank" rel="noopener"&gt;stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF&lt;/a&gt; (&lt;code&gt;v1&lt;/code&gt; Q8_0 + stock &lt;code&gt;mmproj&lt;/code&gt;, 1.02 GB)&lt;/li&gt;
+  &lt;li&gt;&lt;strong&gt;Autocomplete (Cotyping):&lt;/strong&gt; &lt;a href="https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF" target="_blank" rel="noopener"&gt;stevyhacker/Gemma-4-E2B-LokalBot-GGUF&lt;/a&gt; (&lt;code&gt;Gemma-4-E2B-LokalBot-v4-i1-Q6_K.gguf&lt;/code&gt;, 3.85 GB)&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Fresh installs of LokalBot 0.14.0 pick these defaults automatically. Existing installs keep their current models until you click &lt;strong&gt;Upgrade&lt;/strong&gt; on Today or in &lt;strong&gt;Settings &amp;gt; Models&lt;/strong&gt;. See the full reproducible numbers across every local role on our &lt;a href="https://www.lokalbot.com/benchmarks"&gt;Local Desktop AI Leaderboard&lt;/a&gt;.&lt;/p&gt;</content>
+  </entry>
   <entry>
     <title>39 ms and 50 MB vs. 255 ms and 1 GB: benchmarking local meeting retrieval on QMSum</title>
     <link href="https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark" />
     <id>https://www.lokalbot.com/blog/gbrain-vs-lokalbot-memory-benchmark</id>
     <published>2026-11-19T00:00:00Z</published>
     <updated>2026-11-19T00:00:00Z</updated>
-    <summary>Comparing LokalBot's SQLite FTS5 + EmbeddingGemma 2 retrieval against GBrain on 232 public QMSum meetings and 1,576 questions: recall, latency, context size, memory, and where each system wins.</summary>
+    <summary>Comparing LokalBot's SQLite FTS5 + EmbeddingGemma 2 retrieval against GBrain on 232 QMSum meetings and 1,576 questions: recall, latency, and RAM.</summary>
     <content type="html">&lt;h2&gt;Why we ran this&lt;/h2&gt;
 &lt;p&gt;Every few weeks a new local memory layer promises better recall for coding agents and personal assistants. LokalBot's own retrieval is intentionally plain: SQLite FTS5 BM25 plus EmbeddingGemma 2 (310 MB, 768 dimensions) joined with reciprocal rank fusion. We tested whether replacing it with &lt;a href="https://github.com/garrytan/gbrain" target="_blank" rel="noopener"&gt;GBrain&lt;/a&gt; (v0.60.734.0 on PGLite over stdio MCP) improved meeting recall enough to justify the extra runtime.&lt;/p&gt;
 
@@ -57,7 +130,7 @@
     <id>https://www.lokalbot.com/blog/local-stt-vs-cloud-apis</id>
     <published>2026-11-18T00:00:00Z</published>
     <updated>2026-11-18T00:00:00Z</updated>
-    <summary>We benchmarked LokalBot's local Qwen3-ASR 1.7B and Parakeet TDT 0.6B v3 against Gemini 3.5/3.8, GPT-4o Transcribe, GPT Transcribe, and Qwen-Audio cloud APIs on AMI meetings and two-track calls.</summary>
+    <summary>Benchmarking local Qwen3-ASR 1.7B and Parakeet against Gemini, GPT-4o Transcribe, and Qwen-Audio cloud APIs on AMI meetings and two-track calls.</summary>
     <content type="html">&lt;h2&gt;Why test against cloud APIs&lt;/h2&gt;
 &lt;p&gt;People often assume running transcription on a laptop means trading away accuracy for privacy. We tested LokalBot's default local models—&lt;strong&gt;Qwen3-ASR 1.7B (8-bit)&lt;/strong&gt; and &lt;strong&gt;Parakeet TDT 0.6B v3&lt;/strong&gt; on an Apple M4 Max—head-to-head against direct API calls to OpenAI (&lt;code&gt;gpt-transcribe&lt;/code&gt;, &lt;code&gt;gpt-4o-transcribe&lt;/code&gt;, &lt;code&gt;gpt-4o-mini-transcribe&lt;/code&gt;), Google (&lt;code&gt;gemini-3.5-transcribe&lt;/code&gt;, &lt;code&gt;gemini-3.8-flash&lt;/code&gt;), and Alibaba Model Studio (&lt;code&gt;qwen-audio-3.1-asr-flash&lt;/code&gt;, &lt;code&gt;qwen3-asr-flash&lt;/code&gt;).&lt;/p&gt;
 
@@ -100,7 +173,7 @@
     <id>https://www.lokalbot.com/blog/local-autocomplete-56ms-benchmark</id>
     <published>2026-11-17T00:00:00Z</published>
     <updated>2026-11-19T00:00:00Z</updated>
-    <summary>Headless keystroke-by-keystroke engine benchmark of LokalBot's local autocomplete: 56 ms median with Gemma 4 E2B vs. 26 ms with LFM2.5 1.2B, accuracy across 788 word positions, and five flaws we fixed in our own harness.</summary>
+    <summary>Headless keystroke benchmark of local autocomplete: 56 ms median with Gemma 4 E2B vs 26 ms with LFM2.5 1.2B across 788 word positions.</summary>
     <content type="html">&lt;h2&gt;Measuring autocomplete without fooling ourselves&lt;/h2&gt;
 &lt;p&gt;Our original 28-scenario autocomplete check had five flaws: it treated an intentional confidence-gate silence as a safety failure, accepted only one exact word tail for partial-word completions, mixed 10–40 s cold startup into steady-state latency, stole keyboard focus by launching the full app, and never measured next-word accuracy.&lt;/p&gt;
 &lt;p&gt;We replaced it with a headless engine runner (&lt;code&gt;--cotyping-bench&lt;/code&gt;) that exercises the exact production &lt;code&gt;LlamaCotypingRuntime&lt;/code&gt; with hybrid decoding, certified prefix search, and prefix healing across 28 safety/behaviour checks (5 deterministic passes) plus 96 phrases replayed at all 788 word boundaries and 8 phrases typed one character at a time.&lt;/p&gt;
@@ -158,7 +231,7 @@
     <id>https://www.lokalbot.com/blog/recall-vs-restraint-memory-benchmark</id>
     <published>2026-10-23T00:00:00Z</published>
     <updated>2026-11-02T00:00:00Z</updated>
-    <summary>A 120-case benchmark of local models writing personal memories, scored on what they save and on what they correctly leave out: Qwen3.5 4B and 9B, Hy-Memory 30B-A3B, LFM2.5 24B-A2B, and MemT-1.0-Nano.</summary>
+    <summary>120-case benchmark of local models saving personal memories and abstaining on traps: Qwen3.5 4B/9B, Hy-Memory 30B, LFM2.5 24B, and MemT-1.0-Nano.</summary>
     <content type="html">&lt;h2&gt;Why restraint matters&lt;/h2&gt;
 &lt;p&gt;LokalBot's Personal Context learns facts, preferences, goals, and principles from what you type and say, so that agents you allow can tailor their work to you. A missed memory costs little: the next conversation usually brings it up again. A wrong one is worse. It quietly ends up in the context every agent reads, and nobody notices until an answer is off.&lt;/p&gt;
 &lt;p&gt;So the test asks for both recall and restraint. Three kinds of cases make the difference visible:&lt;/p&gt;
@@ -220,7 +293,7 @@
     <id>https://www.lokalbot.com/blog/windows-and-linux-alpha</id>
     <published>2026-10-20T00:00:00Z</published>
     <updated>2026-11-11T00:00:00Z</updated>
-    <summary>LokalBot 0.11 adds a native Windows and Linux app written in Rust with GPUI: meeting notes, transcription, dictation, autocomplete, and search on your own computer, reading the same library as the Mac app.</summary>
+    <summary>LokalBot adds a native Rust and GPUI app for Windows and Linux: local meeting notes, dictation, autocomplete, and search sharing the Mac library format.</summary>
     <content type="html">&lt;h2&gt;What works&lt;/h2&gt;
         &lt;p&gt;Updated November 3, 2026: most features that were Mac only when this post came out have since been ported, so these lists describe the app as it is now.&lt;/p&gt;
         &lt;p&gt;The Windows and Linux app is written in Rust with &lt;a href="https://www.gpui.rs" target="_blank" rel="noopener"&gt;GPUI&lt;/a&gt;, the UI framework behind the Zed editor. Meetings, transcription, Ask, search, day memory, screen context, dictation, autocomplete, selection actions, spoken summaries, Files, overnight review, Personal Context, meeting note and daily exports, calendar, Agent Mode, and the CLI and MCP server for coding agents all work. Like the Mac app, it runs its models on your computer by default, and it has no account and no telemetry.&lt;/p&gt;
@@ -277,7 +350,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/porting-to-windows-and-linux-with-agents</id>
     <published>2026-10-20T00:00:00Z</published>
     <updated>2026-10-20T00:00:00Z</updated>
-    <summary>The Windows and Linux app was ported from 150,000 lines of Swift to Rust in three days by coding agents. What made it work, how the result was checked, and a link to the full write-up.</summary>
+    <summary>How coding agents ported 150,000 lines of Swift to Rust and GPUI in three days, how the result was verified, and a link to the full write-up.</summary>
     <content type="html">&lt;h2&gt;A first attempt that only looked right&lt;/h2&gt;
 &lt;p&gt;On October 2 a coding agent built a working Windows and Linux app with a native interface and CI on both platforms in one morning. It had its own data model and its own library on disk, so it couldn't open anything recorded on a Mac, and nothing would show when it drifted from how the Mac app behaves. That pull request was closed.&lt;/p&gt;
 
@@ -304,7 +377,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/autocomplete-that-knows-your-meetings</id>
     <published>2026-10-13T00:00:00Z</published>
     <updated>2026-11-19T00:00:00Z</updated>
-    <summary>LokalBot's autocomplete runs Gemma 4 E2B base at about 50 ms a suggestion on an M4 Max and can bring in facts from your own meeting notes. How it compares with Cotypist and Cotabby.</summary>
+    <summary>LokalBot's local autocomplete runs Gemma 4 E2B at ~56 ms median on an M4 Max and brings in recent meeting facts. Compared with Cotypist and Cotabby.</summary>
     <content type="html">&lt;figure class="blog-figure"&gt;
   &lt;img src="https://www.lokalbot.com/assets/blog/autocomplete-memory.gif" width="1650" height="258" alt="Typing an update in TextEdit after a call with John: after “the Harbor beta ships”, autocomplete suggests “Thursday morning, after the accessibility review.” and Tab accepts it word by word." loading="lazy" decoding="async" /&gt;
   &lt;figcaption&gt;A suggestion that comes from a meeting earlier that day. Tab accepts it word by word.&lt;/figcaption&gt;
@@ -351,7 +424,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/raycast-extension</id>
     <published>2026-10-02T00:00:00Z</published>
     <updated>2026-10-02T00:00:00Z</updated>
-    <summary>The LokalBot Raycast extension finds every meeting where a word came up, in titles, summaries, or transcripts, without opening the app. It only reads your local library.</summary>
+    <summary>The LokalBot Raycast extension searches local meeting titles, summaries, and transcripts from Raycast without opening the app or using the network.</summary>
     <content type="html">&lt;figure class="blog-figure"&gt;
   &lt;img src="https://www.lokalbot.com/assets/blog/raycast-quick-recall.webp" width="1600" height="1000" alt="Raycast's Quick Recall command listing meetings that mention onboarding, each match labeled title, summary, or transcript." loading="lazy" decoding="async" /&gt;
   &lt;figcaption&gt;Quick Recall in Raycast, with fictional demo data.&lt;/figcaption&gt;
@@ -376,7 +449,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/five-local-models-6-8-gb</id>
     <published>2026-09-30T00:00:00Z</published>
     <updated>2026-10-26T00:00:00Z</updated>
-    <summary>Since July every model in LokalBot was benchmarked and most defaults swapped for smaller ones. In 0.9.2 the whole stack is 6.8 GB, with faster notes, better speaker labels, and quicker autocomplete.</summary>
+    <summary>Benchmarking every model in LokalBot shrank the 0.9.2 stack to 6.8 GB with faster notes, lower speaker error, and quicker local autocomplete.</summary>
     <content type="html">&lt;p class="blog-note"&gt;&lt;strong&gt;Update, October 2026:&lt;/strong&gt; two defaults have changed since this post. Search now uses EmbeddingGemma 2, and autocomplete uses Gemma 4 E2B; see &lt;a href="https://www.lokalbot.com/blog/autocomplete-that-knows-your-meetings"&gt;Autocomplete that knows your meetings&lt;/a&gt;. Current numbers are on the &lt;a href="https://www.lokalbot.com/benchmarks"&gt;benchmarks page&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2&gt;The stack in 0.9.2&lt;/h2&gt;
@@ -410,7 +483,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/a-workday-on-local-models</id>
     <published>2026-07-21T00:00:00Z</published>
     <updated>2026-10-26T00:00:00Z</updated>
-    <summary>LokalBot 0.5 adds Dreaming, which turns a finished day into a morning brief, plus faster autocomplete and answers right in Quick Recall. What the app does, and the models behind it.</summary>
+    <summary>LokalBot 0.5 adds overnight Dreaming morning briefs, faster local autocomplete, and Quick Recall answers running locally on your Mac.</summary>
     <content type="html">&lt;p class="blog-note"&gt;&lt;strong&gt;Update, October 2026:&lt;/strong&gt; several default models have changed since this post; the current ones are on the &lt;a href="https://www.lokalbot.com/benchmarks"&gt;benchmarks page&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2&gt;What it does&lt;/h2&gt;
@@ -455,7 +528,7 @@ o.bind(&lt;span class="c-str"&gt;"SUPER + ALT + A"&lt;/span&gt;, &lt;span class=
     <id>https://www.lokalbot.com/blog/introducing-lokalbot</id>
     <published>2026-07-01T00:00:00Z</published>
     <updated>2026-10-26T00:00:00Z</updated>
-    <summary>LokalBot is a free, open-source Mac app that records and summarizes meetings, autocompletes your typing in any app, and tracks where your day went, with every model running on your Mac.</summary>
+    <summary>LokalBot is a free, open-source app that records and summarizes meetings, autocompletes your typing, and tracks your day locally on your computer.</summary>
     <content type="html">&lt;p class="blog-note"&gt;&lt;strong&gt;Update, October 2026:&lt;/strong&gt; this is the original announcement. The default models have changed since (see &lt;a href="https://www.lokalbot.com/blog/five-local-models-6-8-gb"&gt;Five local models, 6.8 GB of weights&lt;/a&gt;), the app now checks for updates (see the &lt;a href="https://www.lokalbot.com/privacy"&gt;privacy policy&lt;/a&gt; for every network use), and LokalBot also runs on &lt;a href="https://www.lokalbot.com/blog/windows-and-linux-alpha"&gt;Windows and Linux&lt;/a&gt;.&lt;/p&gt;
 
 &lt;h2&gt;One app instead of several&lt;/h2&gt;

@@ -2,7 +2,7 @@ use crate::i18n::h_flex;
 use gpui_kit::component::button::{Button, ButtonVariant, ButtonVariants as _};
 use gpui_kit::component::input::{Input, InputEvent, InputState};
 use gpui_kit::component::menu::{DropdownMenu as _, PopupMenuItem};
-use gpui_kit::component::{Disableable as _, Sizable as _, WindowExt as _, v_flex};
+use gpui_kit::component::{Disableable as _, Icon, Sizable as _, WindowExt as _, v_flex};
 use gpui_kit::prelude::FluentBuilder as _;
 use gpui_kit::{
     AnyElement, App, AppContext as _, Context, Div, Entity, FontWeight, IntoElement as _,
@@ -150,6 +150,23 @@ pub(super) fn model_purpose(id: &str) -> &'static str {
         Some(_) => lokalbot_i18n::tr("Separates speakers"),
         None => lokalbot_i18n::tr("Model"),
     }
+}
+
+fn downloadable_model_id(patch: &ModelPatch) -> Option<&str> {
+    if let Some(id) = patch.transcription.as_deref() {
+        if lokalbot_speech::models::is_remote(id) {
+            return None;
+        }
+        return Some(id);
+    }
+    patch
+        .assistant_model_id
+        .as_deref()
+        .or(patch.autocomplete_model_id.as_deref())
+}
+
+fn shows_download_mark(checked: bool, model_id: Option<&str>, installed: &[String]) -> bool {
+    !checked && model_id.is_some_and(|id| !installed.iter().any(|have| have == id))
 }
 
 pub fn size_label(bytes: u64) -> String {
@@ -594,16 +611,21 @@ impl SettingsPage {
             .small()
             .label(lokalbot_i18n::tr("Change…"))
             .disabled(self.models.setup.is_switching())
-            .dropdown_menu(move |mut menu, _, _| {
+            .dropdown_menu(move |mut menu, _, cx| {
+                let data = page.read(cx).data.clone();
+                let installed = data.read(cx).models.installed.clone();
                 menu = menu.scrollable(options.len() > 12);
                 for (label, checked, patch, title) in options.iter() {
                     let page = page.clone();
                     let patch = patch.clone();
                     let title = title.clone();
                     let already = *checked;
+                    let needs_download =
+                        shows_download_mark(already, downloadable_model_id(&patch), &installed);
                     menu = menu.item(
                         PopupMenuItem::new(label.clone())
                             .checked(*checked)
+                            .when(needs_download, |item| item.icon(Icon::new(Ico::Download)))
                             .on_click(move |_, _, cx| {
                                 if already {
                                     return;
@@ -1549,6 +1571,48 @@ mod tests {
             settings.approved_remote_inference_origins,
             ["https://gpu.example"]
         );
+    }
+
+    #[test]
+    fn the_change_menu_marks_only_models_that_still_need_a_download() {
+        let installed = ["qwen3.5-0.8b".to_string()];
+        assert!(!shows_download_mark(true, Some("qwen3.5-0.8b"), &installed));
+        assert!(!shows_download_mark(
+            false,
+            Some("qwen3.5-0.8b"),
+            &installed
+        ));
+        assert!(shows_download_mark(false, Some("qwen3.5-4b"), &installed));
+        assert!(!shows_download_mark(true, Some("qwen3.5-4b"), &installed));
+        assert!(!shows_download_mark(false, None, &installed));
+        let server = ModelPatch {
+            backend: Some(SummarizerBackend::Ollama),
+            ..ModelPatch::default()
+        };
+        assert!(downloadable_model_id(&server).is_none());
+        let local = ModelPatch {
+            assistant_model_id: Some("qwen3.5-4b".into()),
+            ..ModelPatch::default()
+        };
+        assert_eq!(downloadable_model_id(&local), Some("qwen3.5-4b"));
+        let autocomplete = ModelPatch {
+            autocomplete_model_id: Some("gemma4-e2b-lokalbot-v4".into()),
+            ..ModelPatch::default()
+        };
+        assert_eq!(
+            downloadable_model_id(&autocomplete),
+            Some("gemma4-e2b-lokalbot-v4")
+        );
+        let remote = ModelPatch {
+            transcription: Some(lokalbot_core::remote_transcription::MODEL_ID.into()),
+            ..ModelPatch::default()
+        };
+        assert!(downloadable_model_id(&remote).is_none());
+        let speech = ModelPatch {
+            transcription: Some("qwen3-asr-0.6b".into()),
+            ..ModelPatch::default()
+        };
+        assert_eq!(downloadable_model_id(&speech), Some("qwen3-asr-0.6b"));
     }
 
     #[test]

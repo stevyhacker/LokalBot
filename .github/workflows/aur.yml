@@ -57,6 +57,7 @@ defaults:
 jobs:
   aur:
     name: Check and publish lokalbot-bin
+    if: github.event_name == 'pull_request' || github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:

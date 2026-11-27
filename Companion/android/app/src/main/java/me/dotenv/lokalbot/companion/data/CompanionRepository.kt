@@ -17,7 +17,19 @@ import me.dotenv.lokalbot.companion.data.model.Person
 import me.dotenv.lokalbot.companion.data.model.Project
 import me.dotenv.lokalbot.companion.data.model.Transcript
 
-interface CompanionRepository {
+interface RecordingSink {
+    suspend fun beginRecording(title: String? = null): DeviceRecording?
+
+    suspend fun finishRecording(id: String, durationSeconds: Double): Boolean
+
+    suspend fun recoverRecordings(): Int
+
+    suspend fun discardRecording(id: String)
+
+    suspend fun setRecordingTitle(id: String, title: String)
+}
+
+interface CompanionRepository : RecordingSink {
     val id: String
 
     val isSample: Boolean
@@ -65,16 +77,6 @@ interface CompanionRepository {
     val recordings: StateFlow<List<DeviceRecording>>
 
     val uploadProgress: StateFlow<UploadProgress?>
-
-    suspend fun beginRecording(title: String? = null): DeviceRecording?
-
-    suspend fun finishRecording(id: String, durationSeconds: Double): Boolean
-
-    suspend fun recoverRecordings(): Int
-
-    suspend fun discardRecording(id: String)
-
-    suspend fun setRecordingTitle(id: String, title: String)
 
     suspend fun retryRecording(id: String)
 

@@ -68,6 +68,31 @@ class ModelDriftTests(unittest.TestCase):
             self.assertEqual(drift.compare(Path(old), Path(new)),
                              ["m/x notes-design-review call 1 (notes): `notes` is empty; the committed answer had 5"])
 
+    def test_a_missing_list_key_or_scalar_json_is_reported(self):
+        note = {"section": "Key points", "text": "Fact.", "source": "s1"}
+        recorded = json.dumps({"notes": [note] * 3, "actions": []})
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
+            self.write(old, "m/x", "notes-design-review", [call("notes", recorded)])
+            self.write(new, "m/x", "notes-design-review", [call("notes", json.dumps({"actions": []}))])
+            self.assertEqual(drift.compare(Path(old), Path(new)),
+                             ["m/x notes-design-review call 1 (notes): `notes` is missing; the committed answer had 3"])
+            self.write(new, "m/x", "notes-design-review", [call("notes", "null")])
+            self.assertIn("not valid JSON", " ".join(drift.compare(Path(old), Path(new))))
+
+    def test_a_partially_recorded_case_missing_a_purpose_is_flagged_unrecorded(self):
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
+            self.write(old, "m/x", "digest-day", [call("digestFocus"), call("digestAggregate")])
+            self.write(new, "m/x", "digest-day", [call("digestFocus")])
+            self.assertEqual(drift.unrecorded(Path(old), Path(new)), [("m/x", "digest-day")])
+
+    def test_conditional_notes_repair_is_optional_in_fresh_recordings(self):
+        with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:
+            self.write(old, "m/x", "notes-design-review", [call("notes"), call("notesRepair")])
+            self.write(new, "m/x", "notes-design-review", [call("notes")])
+            self.assertEqual(drift.unrecorded(Path(old), Path(new)), [])
+            self.write(new, "m/x", "notes-design-review", [])
+            self.assertEqual(drift.unrecorded(Path(old), Path(new)), [("m/x", "notes-design-review")])
+
     def test_a_truncated_answer_is_not_compared_for_emptied_lists(self):
         recorded = json.dumps({"notes": [{"text": "Fact."}], "actions": []})
         with tempfile.TemporaryDirectory() as old, tempfile.TemporaryDirectory() as new:

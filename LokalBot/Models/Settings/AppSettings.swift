@@ -350,6 +350,7 @@ struct AppSettings: Codable, Equatable {
     var meetingNoteExportFolder: String = ""
     var meetingNoteExportFormat: DailyMemoryExportFormat = .markdown
     var meetingNoteExportIncludesTranscript: Bool = true
+    var includeRecapAttribution: Bool = false
 
     var dreamingEnabled: Bool = true
     var dreamingHour: Int = 4
@@ -774,6 +775,7 @@ struct AppSettings: Codable, Equatable {
         case meetingNoteExportFolder
         case meetingNoteExportFormat
         case meetingNoteExportIncludesTranscript
+        case includeRecapAttribution
         case dreamingEnabled
         case dreamingHour
         case dreamingFirstEligibleDayKey
@@ -875,18 +877,27 @@ struct AppSettings: Codable, Equatable {
 
     static let wholeStoreCorruptionMarker = "all settings"
 
-    static func load(from defaults: UserDefaults = Self.defaults) -> AppSettings {
+    static func freshInstall(
+        capability: HardwareCapability = HardwareCapabilityProbe.current()
+    ) -> AppSettings {
+        ModelStackPreset.defaultPreset(for: capability).patch.applying(to: AppSettings())
+    }
+
+    static func load(
+        from defaults: UserDefaults = Self.defaults,
+        capability: HardwareCapability = HardwareCapabilityProbe.current()
+    ) -> AppSettings {
         let loaded: AppSettings
         if let data = defaults.data(forKey: key) {
             do {
                 loaded = try JSONDecoder().decode(AppSettings.self, from: data)
             } catch {
-                var reset = AppSettings()
+                var reset = AppSettings.freshInstall(capability: capability)
                 reset.corruptedSettingsKeys = [wholeStoreCorruptionMarker]
                 loaded = reset
             }
         } else {
-            loaded = AppSettings()
+            loaded = AppSettings.freshInstall(capability: capability)
         }
 #if LOKALBOT_UI_TEST_HOST
         var staged = loaded
@@ -1003,6 +1014,7 @@ struct AppSettings: Codable, Equatable {
         try c.encode(meetingNoteExportFolder, forKey: .meetingNoteExportFolder)
         try c.encode(meetingNoteExportFormat, forKey: .meetingNoteExportFormat)
         try c.encode(meetingNoteExportIncludesTranscript, forKey: .meetingNoteExportIncludesTranscript)
+        try c.encode(includeRecapAttribution, forKey: .includeRecapAttribution)
         try c.encode(dreamingEnabled, forKey: .dreamingEnabled)
         try c.encode(min(23, max(0, dreamingHour)), forKey: .dreamingHour)
         try c.encodeIfPresent(
@@ -1243,6 +1255,8 @@ struct AppSettings: Codable, Equatable {
             .meetingNoteExportFormat, defaults.meetingNoteExportFormat)
         meetingNoteExportIncludesTranscript = decode(
             .meetingNoteExportIncludesTranscript, defaults.meetingNoteExportIncludesTranscript)
+        includeRecapAttribution = decode(
+            .includeRecapAttribution, defaults.includeRecapAttribution)
         dreamingEnabled = decode(.dreamingEnabled, defaults.dreamingEnabled)
         dreamingHour = min(23, max(0, decode(.dreamingHour, defaults.dreamingHour)))
         dreamingFirstEligibleDayKey = decode(.dreamingFirstEligibleDayKey, String?.none)

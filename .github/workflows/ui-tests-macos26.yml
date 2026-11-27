@@ -25,6 +25,7 @@ permissions:
 jobs:
   macos26:
     name: macOS 26
+    if: github.repository == 'stevyhacker/LokalBot'
     uses: ./.github/workflows/ui-tests.yml
     with:
       runner: macos-26

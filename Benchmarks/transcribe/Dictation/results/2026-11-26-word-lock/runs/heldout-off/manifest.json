@@ -1,0 +1,72 @@
+{
+  "appSHA256": "1e2f080b3316dd4c22cb0d271995a5ba6fc8830323e112cb0553befb6733d5db",
+  "serverSHA256": "8a76e37c6b8e74c71fe6d6c33a27d8ed022ba6fd43b1993c8243fca805b25a58",
+  "modelSHA256": "678f3d49c92ece8cd9425bad9e30cd626d35149b00f5dc2b661cb78ad9346ab0",
+  "modelFile": "Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+  "corpusSHA256": "0f59157ccb849487151c85288be1688a8742ec078e44b3232001347eaa95b6d6",
+  "scriptSHA256": "3a1093daa6d4c3f10457adfaece09b1b7f624145192a0f4ce6f1ca8872e58af3",
+  "split": "heldout",
+  "caseIDs": [
+    "fresh-polite-time",
+    "fresh-polite-place",
+    "fresh-serbian-place",
+    "fresh-french-place",
+    "fresh-named-memory",
+    "fresh-linked-memory",
+    "fresh-screen-memory",
+    "fresh-mixed-memory",
+    "fresh-direct-negation",
+    "fresh-direct-names",
+    "fresh-direct-uncertainty",
+    "fresh-direct-question",
+    "fresh-direct-serbian",
+    "fresh-direct-thanks",
+    "fresh-explicit-override",
+    "fresh-instruction-in-screen",
+    "fresh-hidden",
+    "fresh-unknown-origin",
+    "fresh-credentials",
+    "fresh-transcribe"
+  ],
+  "serverArguments": [
+    "/private/tmp/lokalbot-bench/app-wl1126/LokalBot Dev.app/Contents/Resources/llama-cpp/llama-server",
+    "-m",
+    "~/Code/LokalBot-build/models/Qwen3.5-4B-LokalBot-v4-Q4_K_M.gguf",
+    "--host",
+    "127.0.0.1",
+    "--port",
+    "57475",
+    "-c",
+    "32768",
+    "-ngl",
+    "99",
+    "--parallel",
+    "1",
+    "--jinja",
+    "--no-webui",
+    "--seed",
+    "12648430"
+  ],
+  "variants": [
+    "neither",
+    "visible",
+    "memory",
+    "both",
+    "all"
+  ],
+  "windowPolicies": {
+    "head": {
+      "limit": 12000,
+      "keepsEnd": false
+    },
+    "tail": {
+      "limit": 2000,
+      "keepsEnd": true
+    }
+  },
+  "routing": "production",
+  "cleanupPrompt": "production",
+  "wordLock": "off",
+  "settings": "Production Compose: temperature 0.2, max 4096 output tokens, reasoning disabled; fixed server seed",
+  "scope": "Synthetic recognized speech, AX trees and saved facts. No microphone, live screen or user library."
+}

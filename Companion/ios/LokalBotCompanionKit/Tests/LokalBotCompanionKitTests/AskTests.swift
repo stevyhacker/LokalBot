@@ -37,6 +37,26 @@ struct AskCitationParserTests {
         #expect(AskCitationParser.plainText("Three steps [1]. Ship it [2][3].") == "Three steps. Ship it.")
     }
 
+    @Test func shareTextAppendsUniqueCitedMeetingTitles() {
+        let citations = [
+            AskCitation(index: 1, meetingId: "m1", at: 724, label: "Design review · 12:04"),
+            AskCitation(index: 2, meetingId: "m1", at: 910, label: "Design review · 15:10"),
+            AskCitation(index: 3, meetingId: nil, at: nil, label: "Figma · 11:02"),
+            AskCitation(index: 4, meetingId: "m2", at: 120, label: "Call with Northwind · 02:00"),
+        ]
+        let shared = AskCitationParser.shareText(
+            answer: "Cut onboarding to three steps [1] and confirm pricing [2][4].",
+            citations: citations)
+        #expect(shared == """
+        Cut onboarding to three steps and confirm pricing.
+
+        Sources:
+        - Design review
+        - Call with Northwind
+        """)
+        #expect(AskCitationParser.shareText(answer: "Nothing cited.", citations: []) == "Nothing cited.")
+    }
+
     @Test func linkedMarkdownParsesIntoLinkRuns() {
         let attributed = MarkdownInline.attributed(AskCitationParser.linkedMarkdown("**Yes** [1]", valid: [1]))
         let links = attributed.runs.compactMap(\.link)

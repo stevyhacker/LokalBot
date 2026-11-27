@@ -2,11 +2,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
-TAG=b12613
-BUILD_NUMBER=12613
+TAG=v1.1.0
+BUILD_NUMBER=12774
 DEPLOYMENT_TARGET=15.0
 SOURCE_URL="https://github.com/ggml-org/llama.cpp/archive/refs/tags/$TAG.tar.gz"
-SOURCE_SHA256=539f5b7a306c9392e0308094f9c39d1c793041bf18a2c5da5e93f79050be2eb7
+SOURCE_SHA256=370603b8d973f4c02cd68ff2b815859c0f71878a57075cf2758015ceb7fc7990
 SERVER_DIR=Vendor/llama-cpp
 BUILD_MARKER="$TAG-macos$DEPLOYMENT_TARGET-arm64-generic-loader-rpath"
 RUNTIME_MANIFEST=.lokalbot-runtime.sha256

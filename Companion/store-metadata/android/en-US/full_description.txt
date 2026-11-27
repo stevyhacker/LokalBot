@@ -1,0 +1,33 @@
+LokalBot brings your private meeting recorder and work memory to Android phones, tablets, and foldables, with no account, no cloud server, and no third-party tracking.
+
+RECORD MEETINGS RIGHT AWAY
+Start recording an in-person meeting or voice memo immediately after install, even before pairing with a computer.
+- Runs a microphone foreground service with a persistent notification so capture keeps going with the screen locked.
+- Streams directly to a crash-safe ADTS AAC file in private app storage excluded from cloud backups.
+- Sends zero network traffic while unpaired. Review, rename, or delete saved recordings on your device anytime.
+- Pair with LokalBot on Mac, Windows, or Linux whenever you are ready. Saved recordings automatically upload over an end-to-end encrypted direct connection, get transcribed and summarized locally on your computer, and leave your phone once your computer confirms receipt.
+
+DIRECT, END-TO-END ENCRYPTED DESKTOP SYNC
+Your computer remains the source of truth. Pair by scanning a one-time QR code in LokalBot on macOS, Windows, or Linux and approving the device on your desktop.
+- Syncs directly over your local Wi-Fi network or from anywhere with Tailscale on both devices.
+- Every session uses mutual authentication and Noise Protocol encryption (X25519, ChaChaPoly, BLAKE2s).
+- LokalBot operates no sync server, relay, or cloud database.
+- You decide on your computer which data classes and how many days of history to share.
+
+YOUR WORK MEMORY, READABLE OFFLINE
+- Today and Day Digests: review overdue actions, today's meetings, tracked time, and your latest digest offline.
+- Meetings and Transcripts: read summaries, notes, decisions, open questions, and timestamped speaker transcripts.
+- Actions: filter by mine, others, or unclear owner, jump straight to transcript evidence, and mark actions done or deferred offline. Changes sync back on the next connection.
+- Timeline, People, and Projects: inspect work sessions, coding-agent history, open items per person, and project status.
+- Ask with Citations: query your computer's Ask engine from your phone, tap citations to open exact meeting moments, queue questions when your computer is unreachable, and copy or share answers with their cited meeting titles.
+
+BUILT FOR PHONES, TABLETS, AND FOLDABLES
+Adaptive Material 3 layouts scale cleanly across compact phones, tablets, and book or tabletop foldable postures.
+
+TRY BEFORE YOU PAIR
+Tap Try it without a computer to browse a built-in sample library on your device, or tap Record a meeting to capture real audio locally right away.
+
+PRIVACY FIRST
+- Zero accounts, ads, analytics SDKs, or telemetry.
+- Optional biometric or screen-lock App Lock that also hides your library from Recents.
+- Open-source desktop and Android companion code available at github.com/stevyhacker/LokalBot.

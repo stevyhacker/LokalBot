@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Free Meeting Export to Obsidian Markdown Converter (Offline) — LokalBot</title>
-  <meta name="description" content="Convert Granola, Otter.ai, Fireflies, Fathom, Zoom VTT, and SRT meeting exports into clean Obsidian Markdown notes with YAML frontmatter and wikilinks. 100% local in your browser with zero uploads." />
+  <title>Migrate to Obsidian &amp; LokalBot: Free Offline Meeting Converter</title>
+  <meta name="description" content="Migrate Granola, Otter, Fireflies, Fathom, Teams, Zoom, Screenpipe, and Wispr Flow exports to Obsidian Markdown offline in your browser. Zero uploads." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -12,15 +12,15 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/migrate" />
-  <meta property="og:title" content="Convert Granola, Otter, Fireflies &amp; Zoom Exports to Obsidian Markdown — Offline" />
-  <meta property="og:description" content="100% in-browser converter with zero uploads. Turn meeting exports into clean Obsidian Markdown with YAML properties, speaker wikilinks, action checklists, and a ZIP download." />
+  <meta property="og:title" content="Migrate to Obsidian &amp; LokalBot: Free Offline Meeting Converter" />
+  <meta property="og:description" content="100% in-browser converter with zero uploads. Unpack ZIP, DOCX, CSV, JSON, VTT, SRT, and text meeting exports into LokalBot-ready Obsidian Markdown." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="LokalBot offline meeting export converter for Obsidian Markdown." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Convert Granola, Otter, Fireflies &amp; Zoom Exports to Obsidian Markdown — Offline" />
-  <meta name="twitter:description" content="Drop meeting exports in your browser to convert them into Obsidian Markdown with YAML frontmatter and speaker wikilinks. Zero uploads." />
+  <meta name="twitter:title" content="Migrate to Obsidian &amp; LokalBot: Free Offline Meeting Converter" />
+  <meta name="twitter:description" content="Drop ZIP, DOCX, CSV, JSON, VTT, or paste meeting transcripts in your browser to convert them into Obsidian Markdown with YAML frontmatter. Zero uploads." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta name="twitter:image:alt" content="LokalBot offline meeting export converter for Obsidian Markdown." />
   <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
@@ -31,19 +31,48 @@
   <script src="/migrate.js" defer></script>
   <style>
     .migrate-page { max-width: 1080px; margin: 0 auto; padding: 120px 24px 80px; }
-    .migrate-hero h1 { font-size: clamp(2.1rem, 4.2vw, 3.2rem); line-height: 1.08; margin: 12px 0 16px; letter-spacing: -0.03em; color: var(--text); max-width: 22ch; }
-    .migrate-hero__lead { font-size: 1.08rem; line-height: 1.62; color: var(--text-dim); max-width: 66ch; margin: 0 0 22px; }
-    .migrate-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 26px; }
+    .migrate-hero .breadcrumbs { margin-bottom: 14px; }
+    .migrate-hero h1 { font-size: clamp(2rem, 4vw, 3.05rem); line-height: 1.08; margin: 12px 0 16px; letter-spacing: -0.03em; color: var(--text); max-width: 24ch; }
+    .migrate-hero__lead { font-size: 1.06rem; line-height: 1.62; color: var(--text-dim); max-width: 68ch; margin: 0 0 22px; }
+    .migrate-pills { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 24px; }
     .migrate-pill {
       padding: 6px 12px;
       border-radius: var(--pill);
-      font: 600 0.82rem/1.2 var(--mono);
+      font: 600 0.8rem/1.2 var(--mono);
       color: var(--text-dim);
       background: var(--glass-gloss), var(--glass-tint-chip);
       -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
       backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
       border: 1px solid var(--glass-border);
       box-shadow: var(--glass-inset);
+    }
+    .migrate-modes {
+      display: inline-flex;
+      gap: 6px;
+      padding: 5px;
+      border-radius: var(--pill);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      margin-bottom: 14px;
+    }
+    .migrate-mode-btn {
+      appearance: none;
+      border: 0;
+      border-radius: var(--pill);
+      padding: 8px 16px;
+      font: 600 0.86rem/1.2 var(--font);
+      color: var(--text-dim);
+      background: transparent;
+      cursor: pointer;
+      transition: background 140ms var(--ease), color 140ms var(--ease);
+    }
+    .migrate-mode-btn:hover { color: var(--text); }
+    .migrate-mode-btn.is-active {
+      background: var(--teal);
+      color: var(--teal-ink);
     }
     .migrate-dropzone {
       padding: clamp(28px, 4vw, 44px) 24px;
@@ -59,8 +88,43 @@
     }
     .migrate-dropzone:hover,
     .migrate-dropzone.is-dragover { border-color: var(--teal); transform: translateY(-1px); }
-    .migrate-dropzone h2 { margin: 0 0 8px; font-size: 1.25rem; color: var(--text); }
+    .migrate-dropzone h2 { margin: 0 0 8px; font-size: 1.24rem; color: var(--text); }
     .migrate-dropzone p { margin: 0; color: var(--text-dim); font-size: 0.94rem; }
+    .migrate-paste-panel {
+      padding: 20px;
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--glass-border);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .migrate-paste-panel[hidden] { display: none; }
+    .migrate-paste-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .migrate-input,
+    .migrate-textarea {
+      width: 100%;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--line-strong);
+      background: var(--surface-2);
+      color: var(--text);
+      font-family: var(--mono);
+      font-size: 0.86rem;
+      padding: 10px 12px;
+    }
+    .migrate-input { max-width: 420px; font-family: var(--font); }
+    .migrate-textarea { min-height: 170px; resize: vertical; line-height: 1.5; }
+    .migrate-input:focus,
+    .migrate-textarea:focus { outline: 2px solid var(--teal); outline-offset: 1px; }
     .migrate-toolbar {
       display: flex;
       flex-wrap: wrap;
@@ -146,8 +210,36 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+    .migrate-howto {
+      margin-top: 32px;
+      padding: 22px 24px;
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+    }
+    .migrate-howto h2 { margin: 0 0 14px; font-size: 1.2rem; color: var(--text); }
+    .migrate-howto__grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px 22px;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    @media (max-width: 760px) { .migrate-howto__grid { grid-template-columns: 1fr; } }
+    .migrate-howto__grid li {
+      font-size: 0.89rem;
+      line-height: 1.5;
+      color: var(--text-dim);
+      padding: 8px 0;
+      border-top: 1px solid var(--line);
+    }
+    .migrate-howto__grid strong { color: var(--text); }
     .migrate-bridge {
-      margin-top: 48px;
+      margin-top: 44px;
       padding: clamp(24px, 4vw, 36px);
       border-radius: var(--radius-lg);
       background: var(--glass-gloss), var(--glass-tint-strong);
@@ -160,24 +252,36 @@
     .migrate-bridge p { max-width: 68ch; line-height: 1.62; color: var(--text-dim); margin: 0 0 18px; }
     .migrate-bridge strong { color: var(--text); }
     .migrate-bridge__actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-bottom: 14px; }
-    .migrate-faq { margin-top: 52px; }
+    .migrate-faq { margin-top: 48px; }
     .migrate-faq h2 { margin: 0 0 18px; color: var(--text); }
     .migrate-faq details { padding: 16px 0; border-top: 1px solid var(--line); }
     .migrate-faq summary { font-weight: 600; cursor: pointer; color: var(--text); }
     .migrate-faq details p { margin: 10px 0 0; color: var(--text-dim); line-height: 1.62; }
+    .footer__langs {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 0.84rem;
+      color: var(--text-faint);
+    }
+    .footer__langs a { color: var(--text-dim); }
+    .footer__langs a:hover { color: var(--accent-text); }
     @media (prefers-reduced-transparency: reduce) {
-      .migrate-dropzone, .migrate-options, .migrator-item, .migrate-preview-card, .migrate-bridge, .migrate-pill {
+      .migrate-dropzone, .migrate-paste-panel, .migrate-options, .migrator-item, .migrate-preview-card, .migrate-howto, .migrate-bridge, .migrate-pill, .migrate-modes {
         -webkit-backdrop-filter: none;
         backdrop-filter: none;
         background: var(--surface);
       }
     }
     @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
-      .migrate-dropzone, .migrate-options, .migrator-item, .migrate-preview-card, .migrate-bridge { background: var(--surface); }
-      .migrate-pill { background: var(--surface-2); }
+      .migrate-dropzone, .migrate-paste-panel, .migrate-options, .migrator-item, .migrate-preview-card, .migrate-howto, .migrate-bridge { background: var(--surface); }
+      .migrate-pill, .migrate-modes { background: var(--surface-2); }
     }
   </style>
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/migrate#app","name":"LokalBot Meeting Export to Obsidian Markdown Converter","url":"https://www.lokalbot.com/migrate","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (runs locally in browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/migrate#webpage","url":"https://www.lokalbot.com/migrate","name":"Free Meeting Export to Obsidian Markdown Converter (Offline) — LokalBot","description":"Convert Granola, Otter.ai, Fireflies, Fathom, Zoom VTT, and SRT meeting exports into clean Obsidian Markdown notes with YAML frontmatter and wikilinks. 100% local in your browser with zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-19","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"FAQPage","@id":"https://www.lokalbot.com/migrate#faq","mainEntity":[{"@type":"Question","name":"Are my meeting files uploaded to a server?","acceptedAnswer":{"@type":"Answer","text":"No. Every file is read, parsed, and packaged into Markdown or a ZIP archive strictly inside your browser tab using plain JavaScript. You can turn off Wi-Fi or inspect the Network tab in DevTools to verify zero requests are made."}},{"@type":"Question","name":"Which meeting export formats work?","acceptedAnswer":{"@type":"Answer","text":"CSV (including Granola's historical data export), JSON, Markdown, WebVTT (.vtt), SubRip (.srt), and plain text (.txt) exports from Granola, Otter.ai, Fireflies.ai, Fathom, Zoom, and most transcript tools. If you want to import full recordings and searchable history into LokalBot itself, use Recording → Import Meetings From… inside the app."}},{"@type":"Question","name":"How do I automate future calls straight into Obsidian?","acceptedAnswer":{"@type":"Answer","text":"Install LokalBot on macOS, Windows, or Linux and enable Settings → Meetings → Meeting note export with format set to Obsidian, or install the LokalBot plugin for Obsidian to browse, search, sync, and ask your local meetings inside Obsidian."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/migrate#app","name":"Migrate to Obsidian & LokalBot: Free Offline Meeting Converter","url":"https://www.lokalbot.com/migrate","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (runs locally in browser)","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/migrate#webpage","url":"https://www.lokalbot.com/migrate","name":"Migrate to Obsidian & LokalBot: Free Offline Meeting Converter","description":"Migrate Granola, Otter, Fireflies, Fathom, Teams, Zoom, Screenpipe, and Wispr Flow exports to Obsidian Markdown offline in your browser. Zero uploads.","datePublished":"2026-11-19","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Migrate Meetings","item":"https://www.lokalbot.com/migrate"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/migrate#faq","mainEntity":[{"@type":"Question","name":"Are my meeting files uploaded to a server?","acceptedAnswer":{"@type":"Answer","text":"No. Every file, including ZIP archives and Microsoft Teams DOCX transcripts, is unpacked, parsed, and packaged into Markdown or ZIP strictly inside your browser tab. You can turn off Wi-Fi or inspect the Network tab in DevTools to verify zero requests are made."}},{"@type":"Question","name":"Which meeting export formats work?","acceptedAnswer":{"@type":"Answer","text":"Bulk .zip archives, Microsoft Teams .docx and .vtt files, CSV (including Granola and Wispr Flow exports), JSON (Granola, Fireflies, Otter, Fathom, Screenpipe, Krisp, Tactiq, Wispr Flow), Markdown, SubRip (.srt), and plain text (.txt) or pasted transcripts. To import full audio and searchable history into LokalBot itself, open Import Meetings From under the Recording menu inside the app."}},{"@type":"Question","name":"Does the exported Markdown work with obsidian-lokalbot?","acceptedAnswer":{"@type":"Answer","text":"Yes. In Obsidian format, notes emit YAML frontmatter matching LokalBot's native exporter (people, projects, tags with lokalbot/meeting, and source: LokalBot) so the LokalBot Obsidian plugin recognizes migrated notes right away."}},{"@type":"Question","name":"How do I automate future calls straight into Obsidian?","acceptedAnswer":{"@type":"Answer","text":"Install LokalBot on macOS, Windows, or Linux, open Settings, go to Meetings, and turn on Meeting note export with format set to Obsidian. You can also install the LokalBot plugin for Obsidian to browse, search, sync, and ask your local meetings inside Obsidian."}}]}]}</script>
 </head>
 <body>
   <div class="bg-field" aria-hidden="true"></div>
@@ -186,43 +290,56 @@
       <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
       <span class="brand__name">LokalBot</span>
     </a>
-    <nav class="nav__links" aria-label="Primary">
-      <a href="/#features">Features</a>
-      <a href="/guides">Guides</a>
-      <a href="/benchmarks">Benchmarks</a>
-      <a href="/blog">Blog</a>
-    </nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate" aria-current="page">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
     <div class="nav__actions">
       <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
         <i class="ph ph-github-logo" aria-hidden="true"></i>
       </a>
-      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
     </div>
   </header>
 
   <main class="migrate-page">
     <section class="migrate-hero">
-      <p class="eyebrow">100% offline in your browser · Zero uploads · Updated November 19, 2026</p>
-      <h1>Turn cloud meeting exports into Obsidian Markdown.</h1>
-      <p class="migrate-hero__lead">Drop exports from Granola, Otter.ai, Fireflies, Fathom, or Zoom to convert them into clean Obsidian Markdown notes with YAML frontmatter, speaker wikilinks, action checklists, and a one-click ZIP download—without a single byte leaving your computer.</p>
+      <nav class="breadcrumbs" aria-label="Breadcrumb">
+        <a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>Migrate</span>
+      </nav>
+      <p class="eyebrow">100% offline in your browser · Zero uploads · Updated November 26, 2026</p>
+      <h1>Migrate to Obsidian &amp; LokalBot: Free Offline Meeting Converter</h1>
+      <p class="migrate-hero__lead">Drop exports or paste transcripts from Granola, Otter.ai, Fireflies, Fathom, Microsoft Teams, Zoom, Screenpipe, Krisp, Tactiq, or Wispr Flow. Unpack bulk ZIP and DOCX files offline in your browser and export clean Obsidian Markdown with LokalBot-compatible YAML properties.</p>
       <div class="migrate-pills" aria-label="Supported formats">
         <span class="migrate-pill">Granola (.csv / .json / .md)</span>
-        <span class="migrate-pill">Otter.ai (.txt / .srt / .json)</span>
-        <span class="migrate-pill">Fireflies (.json / .srt)</span>
-        <span class="migrate-pill">Fathom (.json / .md)</span>
-        <span class="migrate-pill">Zoom (.vtt / .txt)</span>
+        <span class="migrate-pill">Otter &amp; Zoom (.zip / .vtt / .txt / .srt)</span>
+        <span class="migrate-pill">Teams (.vtt / .docx)</span>
+        <span class="migrate-pill">Fireflies &amp; Fathom (.json / .md)</span>
+        <span class="migrate-pill">Screenpipe (.json / .md)</span>
+        <span class="migrate-pill">Krisp &amp; Tactiq (.txt / .json)</span>
+        <span class="migrate-pill">Wispr Flow (.csv / .json / .txt)</span>
       </div>
     </section>
 
     <section aria-label="Offline converter">
-      <input id="migrator-file-input" type="file" multiple accept=".csv,.json,.md,.markdown,.txt,.vtt,.srt" hidden />
+      <div class="migrate-modes" role="tablist" aria-label="Input mode">
+        <button id="migrator-tab-files" type="button" role="tab" aria-selected="true" class="migrate-mode-btn is-active">Drop files (.zip, .docx, .csv, .json)</button>
+        <button id="migrator-tab-paste" type="button" role="tab" aria-selected="false" class="migrate-mode-btn">Paste text</button>
+      </div>
+
+      <input id="migrator-file-input" type="file" multiple accept=".csv,.json,.md,.markdown,.txt,.vtt,.srt,.zip,.docx" hidden />
       <div id="migrator-dropzone" class="migrate-dropzone" role="button" tabindex="0" aria-label="Choose or drop meeting export files">
         <h2>Drop meeting exports here, or click to pick files</h2>
-        <p>Accepts multiple <code>.csv</code>, <code>.json</code>, <code>.vtt</code>, <code>.srt</code>, <code>.md</code>, or <code>.txt</code> files. Nothing is uploaded.</p>
+        <p>Accepts <code>.zip</code>, <code>.docx</code>, <code>.csv</code>, <code>.json</code>, <code>.vtt</code>, <code>.srt</code>, <code>.md</code>, or <code>.txt</code> files. Nothing is uploaded.</p>
+      </div>
+
+      <div id="migrator-paste-panel" class="migrate-paste-panel" hidden>
+        <div class="migrate-paste-row">
+          <input id="migrator-paste-title" class="migrate-input" type="text" placeholder="Optional meeting title (e.g. Weekly Product Sync)" aria-label="Optional meeting title" />
+          <button id="migrator-paste-btn" type="button" class="btn btn--primary btn--sm">Convert pasted text</button>
+        </div>
+        <textarea id="migrator-paste-input" class="migrate-textarea" placeholder="Paste any copied Granola note, Otter transcript, Teams/Zoom VTT, Wispr Flow log, CSV, JSON, or plain speaker transcript here..."></textarea>
       </div>
 
       <div class="migrate-toolbar">
-        <p id="migrator-status" class="migrate-status">Drop files above or load sample exports to preview locally.</p>
+        <p id="migrator-status" class="migrate-status">Drop files above, paste text, or load sample exports to preview locally.</p>
         <div class="migrate-toolbar__group">
           <button id="migrator-sample-btn" type="button" class="btn btn--ghost btn--sm">Try sample exports</button>
           <button id="migrator-clear-btn" type="button" class="btn btn--ghost btn--sm" hidden>Clear</button>
@@ -231,7 +348,7 @@
       </div>
 
       <div class="migrate-options" aria-label="Output formatting options">
-        <label><input id="opt-obsidian" type="checkbox" checked /> Obsidian format</label>
+        <label><input id="opt-obsidian" type="checkbox" checked /> Obsidian + LokalBot format</label>
         <label><input id="opt-frontmatter" type="checkbox" checked /> YAML frontmatter</label>
         <label><input id="opt-collapse" type="checkbox" checked /> Collapse transcript callout</label>
         <label><input id="opt-wikilinks" type="checkbox" checked /> <code>[[Speaker]]</code> wikilinks</label>
@@ -253,13 +370,28 @@
       </div>
     </section>
 
+    <section class="migrate-howto" aria-labelledby="migrate-howto-title">
+      <h2 id="migrate-howto-title">How to export from your current app</h2>
+      <ul class="migrate-howto__grid">
+        <li><strong>Granola:</strong> Open Account Settings, choose Export Data (CSV or JSON), or copy any note transcript and use Paste text.</li>
+        <li><strong>Otter.ai:</strong> Open a conversation, choose Export, and save TXT, SRT, DOCX, or a bulk ZIP archive.</li>
+        <li><strong>Fireflies.ai:</strong> Open a meeting, select Download, and export JSON, DOCX, SRT, or CSV.</li>
+        <li><strong>Fathom:</strong> Open a call summary, choose Export or Copy Transcript as Markdown, JSON, or TXT.</li>
+        <li><strong>Wispr Flow:</strong> Export your dictation log as CSV, JSON, or plain text from Wispr Flow settings.</li>
+        <li><strong>Screenpipe:</strong> Export audio transcripts from your local timeline or API as JSON or Markdown.</li>
+        <li><strong>Microsoft Teams:</strong> Open the meeting Recap tab, open Transcript, and click Download as <code>.vtt</code> or <code>.docx</code>.</li>
+        <li><strong>Zoom:</strong> Save the <code>.vtt</code>, <code>.txt</code>, or bulk <code>.zip</code> transcript from Cloud Recordings or your local Zoom folder.</li>
+      </ul>
+    </section>
+
     <section class="migrate-bridge">
       <p class="eyebrow">Stop exporting by hand after every call</p>
-      <h2>Record future calls locally with no bot — straight into Obsidian.</h2>
-      <p><strong>LokalBot</strong> is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux. It records both sides of Zoom, Teams, Meet, and Slack calls locally with no meeting bot, imports your existing Granola, Otter, Fireflies, Fathom, Zoom, Voice Memos, and MacWhisper history, and writes Markdown notes straight into your Obsidian vault. Pair it with the open-source <strong>LokalBot Obsidian plugin</strong> to search, sync, and ask your meetings without leaving Obsidian.</p>
+      <h2>Record future calls locally with no bot, straight into Obsidian.</h2>
+      <p><strong>LokalBot</strong> is a free, open-source (GPLv3) desktop app for macOS, Windows, and Linux. It records both sides of Zoom, Teams, Meet, and Slack calls locally with no meeting bot, imports your existing Granola, Otter, Fireflies, Fathom, Zoom, Voice Memos, and MacWhisper history, and writes Markdown notes straight into your Obsidian vault. Pair it with the open-source <strong>LokalBot Obsidian plugin</strong> to search, sync, and ask your meetings inside Obsidian.</p>
       <div class="migrate-bridge__actions">
-        <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" target="_blank" rel="noopener">Download LokalBot</a>
+        <a class="btn btn--primary" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download LokalBot</a>
         <a class="btn btn--ghost" href="https://github.com/stevyhacker/obsidian-lokalbot" target="_blank" rel="noopener">LokalBot for Obsidian plugin</a>
+        <a class="btn btn--ghost" href="/calculator">Calculate SaaS savings</a>
         <a class="btn btn--ghost" href="/meeting-transcripts-obsidian-markdown">Obsidian workflow guide</a>
       </div>
       <p class="home-install">macOS Homebrew: <span class="home-install__cmd"><code>brew install --cask stevyhacker/tap/lokalbot</code><button type="button" class="home-install__copy" data-copy-text="brew install --cask stevyhacker/tap/lokalbot" aria-label="Copy the Homebrew command"><i class="ph ph-copy" aria-hidden="true"></i></button></span><span class="visually-hidden" role="status" aria-live="polite" data-copy-status></span></p>
@@ -269,33 +401,74 @@
       <h2 id="migrate-faq-title">Frequently asked questions</h2>
       <details>
         <summary>Are my meeting files uploaded to a server?</summary>
-        <p>No. Every file is read, parsed, and packaged into Markdown or a ZIP archive strictly inside your browser tab using plain JavaScript. You can turn off Wi-Fi or inspect the Network tab in DevTools to verify zero requests are made.</p>
+        <p>No. Every file, including ZIP archives and Microsoft Teams DOCX transcripts, is unpacked, parsed, and packaged into Markdown or ZIP strictly inside your browser tab. You can turn off Wi-Fi or inspect the Network tab in DevTools to verify zero requests are made.</p>
       </details>
       <details>
         <summary>Which meeting export formats work?</summary>
-        <p>CSV (including Granola's historical data export), JSON, Markdown, WebVTT (<code>.vtt</code>), SubRip (<code>.srt</code>), and plain text (<code>.txt</code>) exports from Granola, Otter.ai, Fireflies.ai, Fathom, Zoom, and most transcript tools. If you want to import full recordings and searchable history into LokalBot itself, use <strong>Recording → Import Meetings From…</strong> inside the app.</p>
+        <p>Bulk <code>.zip</code> archives, Microsoft Teams <code>.docx</code> and <code>.vtt</code> files, CSV (including Granola and Wispr Flow exports), JSON (Granola, Fireflies, Otter, Fathom, Screenpipe, Krisp, Tactiq, Wispr Flow), Markdown, SubRip (<code>.srt</code>), and plain text (<code>.txt</code>) or pasted transcripts. To import full recordings and searchable history into LokalBot itself, choose <strong>Import Meetings From</strong> under the <strong>Recording</strong> menu inside the app.</p>
+      </details>
+      <details>
+        <summary>Does the exported Markdown work with obsidian-lokalbot?</summary>
+        <p>Yes. When Obsidian + LokalBot format is enabled, every exported file writes YAML frontmatter matching LokalBot's native exporter (<code>people:</code>, <code>projects:</code>, <code>tags: [lokalbot/meeting]</code>, and <code>source: LokalBot</code>) so the <a href="https://github.com/stevyhacker/obsidian-lokalbot" target="_blank" rel="noopener">LokalBot plugin for Obsidian</a> picks up migrated notes immediately.</p>
       </details>
       <details>
         <summary>How do I automate future calls straight into Obsidian?</summary>
-        <p>Install LokalBot on macOS, Windows, or Linux and enable <strong>Settings → Meetings → Meeting note export</strong> with format set to <strong>Obsidian</strong>, or install the <a href="https://github.com/stevyhacker/obsidian-lokalbot" target="_blank" rel="noopener">LokalBot plugin for Obsidian</a> to browse, search, sync, and ask your local meetings inside Obsidian.</p>
+        <p>Install LokalBot on macOS, Windows, or Linux, open <strong>Settings</strong>, go to <strong>Meetings</strong>, and enable <strong>Meeting note export</strong> with format set to <strong>Obsidian</strong>. You can also install the <a href="https://github.com/stevyhacker/obsidian-lokalbot" target="_blank" rel="noopener">LokalBot plugin for Obsidian</a> to browse, search, sync, and ask your local meetings inside Obsidian.</p>
       </details>
     </section>
   </main>
 
-  <footer class="footer footer--legal">
+  <footer class="footer">
     <div class="footer__brand">
-      <a class="brand" href="/"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" /><span class="brand__name">LokalBot</span></a>
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
       <p>Your personal context engine.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
     </div>
-    <nav class="footer__col" aria-label="Project">
-      <h3>Project</h3>
-      <a href="/">Home</a>
-      <a href="/guides">Guides</a>
-      <a href="/blog">Blog</a>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
-      <a href="/privacy">Privacy</a>
+      <a href="/calculator">SaaS Cost Calculator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span>Languages:</span>
+      <a href="/">English</a>
+      <a href="/de">Deutsch</a>
+      <a href="/zh">中文</a>
+      <a href="/ja">日本語</a>
+      <a href="/ru">Русский</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

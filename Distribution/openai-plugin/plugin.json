@@ -1,8 +1,8 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "lokalbot",
-  "version": "0.2.4",
-  "description": "Your personal context engine. Reads your local LokalBot library on macOS, Windows, or Linux: meetings and their action items, the people in them, the folders you chose under Files, and what you shared about yourself, each behind its own permission in LokalBot.",
+  "version": "0.2.5",
+  "description": "Local-first meeting notes and work memory on macOS, Windows, or Linux. Reads your local LokalBot library through lokalbot-cli: meetings and action items, people, chosen Files folders, coding-agent notes, and what you shared about yourself, each behind its own permission in LokalBot.",
   "author": {
     "name": "stevyhacker",
     "url": "https://github.com/stevyhacker"
@@ -25,8 +25,8 @@
       "onboardingSkill": "./skills/lokalbot-setup/SKILL.md",
       "interface": {
         "displayName": "LokalBot",
-        "shortDescription": "Your personal context engine",
-        "longDescription": "LokalBot is a private work-memory app that records, transcribes, and summarizes your meetings on your own computer, and remembers your workday. This plugin lets ChatGPT and Codex read that library through LokalBot's command-line tool, lokalbot-cli, which runs on your computer.\n\nAsk what was decided in a meeting, what you owe and to whom, everything about one person, or where a topic came up, and get answers cited by meeting title and date. It can also search the folders you chose under Files (documents, PDFs, screenshots, and pictures), read what you shared about yourself before giving personal advice, give a short catch-up on your recent work, and draft a reply from what your meetings say.\n\nWith a separate permission, it can check and change LokalBot's settings. Anything that widens what LokalBot captures, reads, records, or sends, and every API key, waits for your approval in the LokalBot app. The setup skill installs LokalBot and sets it up with you on a Mac, and walks you through it on Windows and Linux.\n\nLimitations: desktop only, because it runs lokalbot-cli on your computer, and it needs the LokalBot app installed (macOS on Apple Silicon; Windows and Linux in alpha). Each kind of data is off until you turn it on in LokalBot. The plugin never changes your meetings or files. Screen memory needs LokalBot's MCP server, which this plugin doesn't include. LokalBot keeps your library on your computer and sends its content elsewhere only to a remote model server you set up and approve; ChatGPT processes what the plugin retrieves under OpenAI's terms.",
+        "shortDescription": "Local meeting notes & memory",
+        "longDescription": "LokalBot is a private work-memory app that records, transcribes, and summarizes your meetings on your own computer, and remembers your workday. This plugin lets ChatGPT and Codex read that library through LokalBot's command-line tool, lokalbot-cli, which runs on your computer.\n\nAsk what was decided in a meeting, what you owe and to whom, everything about one person, or where a topic came up, and get answers cited by meeting title and date. It can also search the folders you chose under Files (documents, PDFs, screenshots, and pictures), search notes your coding agents saved for later sessions, read what you shared about yourself before giving personal advice, give a short catch-up on your recent work, and draft a reply from what your meetings say.\n\nWith a separate permission, it can check and change LokalBot's settings. Anything that widens what LokalBot captures, reads, records, or sends, and every API key, waits for your approval in the LokalBot app. The setup skill installs LokalBot and sets it up with you on a Mac, and walks you through it on Windows and Linux.\n\nLimitations: desktop only, because it runs lokalbot-cli on your computer, and it needs the LokalBot app installed (macOS on Apple Silicon; Windows and Linux in alpha). Each kind of data is off until you turn it on in LokalBot. The plugin never changes your meetings or files. Screen memory needs LokalBot's MCP server, which this plugin doesn't include. LokalBot keeps your library on your computer and sends its content elsewhere only to a remote model server you set up and approve; ChatGPT processes what the plugin retrieves under OpenAI's terms.",
         "developerName": "LokalBot",
         "category": "Productivity",
         "capabilities": [
@@ -34,6 +34,7 @@
           "List action items: what you owe, what others owe you, and what is overdue",
           "Summarize everything about one person across your meetings",
           "Search the folders you chose under Files: documents, PDFs, screenshots, and pictures",
+          "Search notes saved by Claude Code and Codex across sessions",
           "Catch you up on your recent work and open commitments",
           "Install and set up LokalBot with your approval"
         ],

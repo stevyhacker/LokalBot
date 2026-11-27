@@ -1,6 +1,7 @@
 package me.dotenv.lokalbot.companion.data
 
 import android.util.Log
+import java.io.File
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Base64
@@ -48,6 +49,7 @@ class RustRepository(
     private val onQueuedAnswer: (AskRequest, AskResult) -> Unit = { _, _ -> },
     private val onRevoked: () -> Unit = {},
     private val onRecordingsWaiting: () -> Unit = {},
+    private val unpairedStore: UnpairedRecordingsStore? = null,
     private val io: CoroutineDispatcher = Dispatchers.IO,
 ) : CompanionRepository {
 
@@ -70,7 +72,7 @@ class RustRepository(
     private val _syncState = MutableStateFlow<SyncState>(SyncState.Idle(statusInfo()))
     override val syncState: StateFlow<SyncState> = _syncState.asStateFlow()
 
-    override val canRecord: Boolean = !isSample && macKey != null
+    override val canRecord: Boolean = (!isSample && macKey != null) || unpairedStore != null
 
     private val _recordings = MutableStateFlow(loadRecordings())
     override val recordings: StateFlow<List<DeviceRecording>> = _recordings.asStateFlow()
@@ -95,44 +97,48 @@ class RustRepository(
 
     private fun <T> String.decode(serializer: KSerializer<T>): T = RecordJson.decodeFromString(serializer, this)
 
-    override suspend fun manifest(): Manifest? = core { client.manifest()?.decode(Manifest.serializer()) }
+    override suspend fun manifest(): Manifest? = core { client.manifest()?.let { decodeOrNull(it, Manifest.serializer()) } }
 
     override suspend fun meetings(fromDay: String?, toDay: String?, limit: Int): List<Meeting> = core {
-        client.meetings(fromDay, toDay, limit.toUInt()).map { it.decode(Meeting.serializer()) }.filter { it.mergedInto == null }
+        decodeAll(client.meetings(fromDay, toDay, limit.toUInt()), Meeting.serializer()).filter { it.mergedInto == null }
     }
 
     override suspend fun newestMeetings(limit: Int): MeetingsPage = core {
-        val rows = client.meetings(null, null, (limit + 1).toUInt())
-        MeetingsPage(rows.take(limit).map { it.decode(Meeting.serializer()) }, hasMore = rows.size > limit)
+        newestMeetingsPage(client.meetings(null, null, (limit + 1).toUInt()), limit)
     }
 
-    override suspend fun meeting(id: String): Meeting? = core { client.meeting(id)?.decode(Meeting.serializer()) }
+    override suspend fun meeting(id: String): Meeting? = core { client.meeting(id)?.let { decodeOrNull(it, Meeting.serializer()) } }
 
-    override suspend fun transcript(meetingId: String): Transcript? = core { client.transcript(meetingId)?.decode(Transcript.serializer()) }
+    override suspend fun transcript(meetingId: String): Transcript? = core {
+        client.transcript(meetingId)?.let { decodeOrNull(it, Transcript.serializer()) }
+    }
 
     override suspend fun days(limit: Int): List<String> = core { client.days(limit.toUInt()) }
 
-    override suspend fun day(date: String): DayRecord? = core { client.day(date)?.decode(DayRecord.serializer()) }
+    override suspend fun day(date: String): DayRecord? = core { client.day(date)?.let { decodeOrNull(it, DayRecord.serializer()) } }
 
     override suspend fun actions(filter: ActionFilter): List<ActionRow> = core {
-        val rows = client.actions(
-            RustActionFilter(
-                mineOnly = filter.mineOnly,
-                status = filter.status?.wireName,
-                ownerUnclearOnly = filter.ownerUnclearOnly,
-                dueBefore = filter.dueBefore,
+        val rows = decodeAll(
+            client.actions(
+                RustActionFilter(
+                    mineOnly = filter.mineOnly,
+                    status = filter.status?.wireName,
+                    ownerUnclearOnly = filter.ownerUnclearOnly,
+                    dueBefore = filter.dueBefore,
+                ),
             ),
-        ).map { it.decode(ActionRow.serializer()) }
+            ActionRow.serializer(),
+        )
         if (filter.othersOnly) rows.filter { ActionOrdering.matches(it, filter) } else rows
     }
 
-    override suspend fun people(): List<Person> = core { client.people().map { it.decode(Person.serializer()) } }
+    override suspend fun people(): List<Person> = core { decodeAll(client.people(), Person.serializer()) }
 
-    override suspend fun person(id: String): Person? = core { client.person(id)?.decode(Person.serializer()) }
+    override suspend fun person(id: String): Person? = core { client.person(id)?.let { decodeOrNull(it, Person.serializer()) } }
 
-    override suspend fun projects(): List<Project> = core { client.projects().map { it.decode(Project.serializer()) } }
+    override suspend fun projects(): List<Project> = core { decodeAll(client.projects(), Project.serializer()) }
 
-    override suspend fun project(id: String): Project? = core { client.project(id)?.decode(Project.serializer()) }
+    override suspend fun project(id: String): Project? = core { client.project(id)?.let { decodeOrNull(it, Project.serializer()) } }
 
     override suspend fun search(query: String, limit: Int): List<SearchHit> = core {
         client.search(query, limit.toUInt()).map { hit ->
@@ -191,11 +197,11 @@ class RustRepository(
     }
 
     override suspend fun queuedQuestions(): List<AskRequest> = core {
-        client.queuedQuestions().map { it.decode(AskRequest.serializer()) }
+        decodeAll(client.queuedQuestions(), AskRequest.serializer())
     }
 
     override suspend fun askHistory(limit: Int): List<AskExchange> = core {
-        client.askHistory(limit.toUInt()).map { it.decode(AskExchange.serializer()) }
+        decodeAll(client.askHistory(limit.toUInt()), AskExchange.serializer())
     }
 
     override suspend fun sync(): SyncOutcome {
@@ -244,6 +250,11 @@ class RustRepository(
     }
 
     override suspend fun beginRecording(title: String?): DeviceRecording? {
+        if (macKey == null || isSample) {
+            val local = unpairedStore?.beginRecording(title) ?: return null
+            recordingsChanged()
+            return local
+        }
         val recording = try {
             core { client.beginRecording(title) }
         } catch (e: SyncException) {
@@ -255,6 +266,11 @@ class RustRepository(
     }
 
     override suspend fun finishRecording(id: String, durationSeconds: Double): Boolean {
+        if (unpairedStore?.contains(id) == true) {
+            val kept = unpairedStore.finishRecording(id, durationSeconds)
+            recordingsChanged()
+            return kept
+        }
         val kept = try {
             core { client.finishRecording(id, durationSeconds) }
             true
@@ -267,30 +283,90 @@ class RustRepository(
     }
 
     override suspend fun recoverRecordings(): Int {
-        val kept = core { client.recoverRecordings() }.toInt()
+        val keptCore = core { client.recoverRecordings() }.toInt()
+        val keptLocal = unpairedStore?.recoverRecordings() ?: 0
         recordingsChanged()
-        if (kept > 0) sendWaitingRecordings()
-        return kept
+        if (keptCore > 0) sendWaitingRecordings()
+        return keptCore + keptLocal
     }
 
     override suspend fun discardRecording(id: String) {
-        core { client.discardRecording(id) }
+        if (unpairedStore?.contains(id) == true) {
+            unpairedStore.discardRecording(id)
+        } else {
+            core { client.discardRecording(id) }
+        }
         recordingsChanged()
     }
 
     override suspend fun setRecordingTitle(id: String, title: String) {
-        core { client.setRecordingTitle(id, title) }
+        if (unpairedStore?.contains(id) == true) {
+            unpairedStore.setRecordingTitle(id, title)
+        } else {
+            core { client.setRecordingTitle(id, title) }
+        }
         recordingsChanged()
     }
 
     override suspend fun retryRecording(id: String) {
+        if (unpairedStore?.contains(id) == true) {
+            if (migrateLocalRecordings() > 0) sendWaitingRecordings()
+            return
+        }
         core { client.retryRecording(id) }
         recordingsChanged()
         sendWaitingRecordings()
     }
 
+    suspend fun migrateLocalRecordings(): Int {
+        val migrated = uploadLock.withLock { migrateLocalLocked() }
+        if (migrated > 0) recordingsChanged()
+        return migrated
+    }
+
+    private suspend fun migrateLocalLocked(): Int {
+        val store = unpairedStore ?: return 0
+        if (macKey == null || isSample) return 0
+        var migrated = 0
+        for (item in store.waitingForMigration()) {
+            val source = File(item.filePath)
+            if (!source.isFile || source.length() <= 0L) {
+                store.discardRecording(item.id)
+                continue
+            }
+            val queued = core {
+                runCatching {
+                    val created = client.beginRecording(item.title.ifBlank { null })
+                    try {
+                        val destination = File(created.filePath)
+                        destination.parentFile?.mkdirs()
+                        source.copyTo(destination, overwrite = true)
+                        client.finishRecording(created.id, item.durationSeconds ?: 0.0)
+                    } catch (error: Throwable) {
+                        runCatching { client.discardRecording(created.id) }
+                        throw error
+                    }
+                }.onFailure { Log.w(TAG, "local recording migration failed: ${it::class.simpleName}: ${it.message}") }
+                    .isSuccess
+            }
+            if (!queued) break
+            store.discardRecording(item.id)
+            migrated += 1
+        }
+        return migrated
+    }
+
     override suspend fun uploadRecordings(): UploadOutcome {
-        val outcome = uploadLock.withLock { uploadWaiting() }
+        val outcome = uploadLock.withLock {
+            migrateLocalLocked()
+            val uploaded = uploadWaiting()
+            val unmigrated = if (macKey == null || isSample) 0 else unpairedStore?.waitingForMigration()?.size ?: 0
+            if (uploaded is UploadOutcome.Finished && unmigrated > 0) {
+                uploaded.copy(waiting = uploaded.waiting + unmigrated)
+            } else {
+                uploaded
+            }
+        }
         when {
             outcome is UploadOutcome.Finished && outcome.uploaded > 0 -> sync()
             outcome is UploadOutcome.Failed && outcome.reason == SyncFailure.Revoked -> onRevoked()
@@ -337,8 +413,11 @@ class RustRepository(
         changed()
     }
 
-    private fun loadRecordings(): List<DeviceRecording> =
-        runCatching { client.recordings().map(::deviceRecording) }.getOrDefault(emptyList())
+    private fun loadRecordings(): List<DeviceRecording> {
+        val coreRows = runCatching { client.recordings().map(::deviceRecording) }.getOrDefault(emptyList())
+        val localRows = unpairedStore?.recordings?.value.orEmpty()
+        return (coreRows + localRows).sortedByDescending { it.startedAt }
+    }
 
     private fun deviceRecording(info: RecordingInfo) = DeviceRecording(
         id = info.id,
@@ -400,5 +479,14 @@ class RustRepository(
         fun decodeKey(value: String): ByteArray? =
             runCatching { Base64.getUrlDecoder().decode(value) }.getOrNull()
                 ?: runCatching { Base64.getDecoder().decode(value) }.getOrNull()
+
+        internal fun <T> decodeOrNull(json: String, serializer: KSerializer<T>): T? =
+            runCatching { RecordJson.decodeFromString(serializer, json) }.getOrNull()
+
+        internal fun <T> decodeAll(rows: List<String>, serializer: KSerializer<T>): List<T> =
+            rows.mapNotNull { decodeOrNull(it, serializer) }
+
+        internal fun newestMeetingsPage(rows: List<String>, limit: Int): MeetingsPage =
+            MeetingsPage(decodeAll(rows.take(limit), Meeting.serializer()), hasMore = rows.size > limit)
     }
 }

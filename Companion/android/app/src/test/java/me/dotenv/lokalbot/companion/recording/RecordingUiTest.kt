@@ -17,6 +17,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -26,6 +27,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.window.core.layout.WindowSizeClass
 import androidx.window.core.layout.computeWindowSizeClass
 import com.google.common.truth.Truth.assertThat
+import java.nio.file.Files
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import me.dotenv.lokalbot.companion.FakeCapture
@@ -36,6 +38,7 @@ import me.dotenv.lokalbot.companion.TestLibrary
 import me.dotenv.lokalbot.companion.data.CompanionRepository
 import me.dotenv.lokalbot.companion.data.DeviceRecording
 import me.dotenv.lokalbot.companion.data.RecordingState
+import me.dotenv.lokalbot.companion.data.UnpairedRecordingsStore
 import me.dotenv.lokalbot.companion.ui.LokalBotApp
 import me.dotenv.lokalbot.companion.ui.PairingLinkFixture
 import me.dotenv.lokalbot.companion.ui.navigation.AppNavigator
@@ -69,19 +72,42 @@ class RecordingUiTest {
     )
 
     @Test
-    fun `the welcome screen holds recordings the computer never got`() {
-        var deleted = 0
+    fun `the welcome screen holds recordings on this device and lets the user record or delete`() {
+        var deletedAll = 0
+        var deletedId: String? = null
+        var recorded = 0
+        val held = listOf(
+            DeviceRecording(id = "r1", title = "Coffee chat", state = RecordingState.Waiting, startedAt = TestLibrary.now.toString(), durationSeconds = 120.0),
+            DeviceRecording(id = "r2", title = "Standup", state = RecordingState.Waiting, startedAt = TestLibrary.now.minusSeconds(3600).toString(), durationSeconds = 300.0),
+        )
         compose.setContent {
             LokalBotTheme(darkTheme = false, reduceMotion = true) {
-                WelcomeScreen(onPair = {}, onTrySample = {}, heldRecordings = 2, onDeleteHeldRecordings = { deleted++ })
+                WelcomeScreen(
+                    onPair = {},
+                    onTrySample = {},
+                    onRecord = { recorded++ },
+                    heldRecordings = held,
+                    onDeleteHeldRecording = { deletedId = it },
+                    onDeleteHeldRecordings = { deletedAll++ },
+                )
             }
         }
         compose.onNodeWithText(resources.getQuantityString(R.plurals.welcome_held_recordings_title, 2, 2)).assertIsDisplayed()
-        compose.onNodeWithText(resources.getString(R.string.welcome_held_recordings_delete)).performClick()
-        assertThat(deleted).isEqualTo(0)
+        compose.onNodeWithText(resources.getString(R.string.recording_unpaired_prompt)).assertIsDisplayed()
+        compose.onNodeWithText("Coffee chat").assertIsDisplayed()
+        compose.onNodeWithText(resources.getString(R.string.welcome_record)).performClick()
+        assertThat(recorded).isEqualTo(1)
+
+        compose.onAllNodesWithContentDescription(resources.getString(R.string.recording_delete))[0].performClick()
         compose.onNode(hasText(resources.getString(R.string.welcome_held_recordings_delete)) and hasAnyAncestor(isDialog())).performClick()
         compose.waitForIdle()
-        assertThat(deleted).isEqualTo(1)
+        assertThat(deletedId).isEqualTo("r1")
+
+        compose.onNodeWithText(resources.getString(R.string.welcome_held_recordings_delete_all)).performClick()
+        assertThat(deletedAll).isEqualTo(0)
+        compose.onNode(hasText(resources.getString(R.string.welcome_held_recordings_delete_all)) and hasAnyAncestor(isDialog())).performClick()
+        compose.waitForIdle()
+        assertThat(deletedAll).isEqualTo(1)
     }
 
     @Test
@@ -130,17 +156,28 @@ class RecordingUiTest {
         DeviceRecording(id = id, title = "", state = state, startedAt = TestLibrary.now.toString(), durationSeconds = 120.0, message = message)
 
     @Test
-    fun `the sample library has no record button`() {
-        show(TestLibrary.repository())
-        compose.onNodeWithContentDescription("Record a meeting").assertDoesNotExist()
-        compose.onNodeWithText("From this device").assertDoesNotExist()
+    fun `the sample library with local recordings offers the record button`() {
+        val dir = Files.createTempDirectory("lokalbot-ui-sample").toFile()
+        try {
+            val sample = TestLibrary.repository(localRecordings = UnpairedRecordingsStore(dir))
+            show(sample)
+            compose.onNodeWithContentDescription("Record a meeting").assertIsDisplayed()
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     @Test
-    fun `the sample library's menu has no record entry`() {
-        show(TestLibrary.repository(), Destination.Today)
-        compose.onNodeWithContentDescription("More").performClick()
-        compose.onNodeWithText("Record").assertDoesNotExist()
+    fun `the sample library's menu offers record when backed by local recordings`() {
+        val dir = Files.createTempDirectory("lokalbot-ui-sample-menu").toFile()
+        try {
+            val sample = TestLibrary.repository(localRecordings = UnpairedRecordingsStore(dir))
+            show(sample, Destination.Today)
+            compose.onNodeWithContentDescription("More").performClick()
+            compose.onNodeWithText("Record").assertIsDisplayed()
+        } finally {
+            dir.deleteRecursively()
+        }
     }
 
     @Test
@@ -177,9 +214,11 @@ class RecordingUiTest {
     }
 
     @Test
-    fun `row wording names the computer`() {
+    fun `row wording names the computer or unpaired prompt`() {
         assertThat(RecordingStatus.Waiting(null).text(resources, "Dev Computer").headline).isEqualTo("Waiting for Dev Computer")
         assertThat(RecordingStatus.Waiting(null).text(resources, null).headline).isEqualTo("Waiting for your computer")
+        assertThat(RecordingStatus.Waiting(null, unpaired = true).text(resources, null).headline)
+            .isEqualTo(resources.getString(R.string.recording_unpaired_prompt))
         assertThat(RecordingStatus.Sending(42).text(resources, "Dev Computer").headline).isEqualTo("Sending… 42%")
         assertThat(RecordingStatus.Processing.text(resources, "Dev Computer").headline).isEqualTo("Processing on Dev Computer")
         assertThat(RecordingStatus.Recording.text(resources, "Dev Computer").headline).isEqualTo("Recording")

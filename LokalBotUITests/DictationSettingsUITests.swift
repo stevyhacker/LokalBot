@@ -20,10 +20,12 @@ final class DictationSettingsUITests: XCTestCase {
 
         XCTAssertTrue(app.descendants(matching: .any)["today.header"]
             .waitForExistence(timeout: 10), "main window never rendered its Today landing")
-        UITestHarness.clickSidebar("sidebar.settings", in: app)
-        UITestHarness.selectSettingsCategory("Dictation", in: app)
-        XCTAssertTrue(dictationForm.waitForExistence(timeout: 8),
-                      "Dictation tab did not render")
+        if !name.contains("testDedicatedCompositionModelSelectionPersistsAcrossRelaunch") {
+            UITestHarness.clickSidebar("sidebar.settings", in: app)
+            UITestHarness.selectSettingsCategory("Dictation", in: app)
+            XCTAssertTrue(dictationForm.waitForExistence(timeout: 8),
+                          "Dictation tab did not render")
+        }
     }
 
     override func tearDownWithError() throws {

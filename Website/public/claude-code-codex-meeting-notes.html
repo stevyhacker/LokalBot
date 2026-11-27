@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Let Claude Code or Codex Search Your Meeting Notes</title>
-  <meta name="description" content="Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot." />
+  <title>Meeting Notes MCP for Claude Code, Codex & Cursor</title>
+  <meta name="description" content="Connect local meeting notes over stdio MCP to Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity. Read-only, zero cloud bots." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -12,20 +12,21 @@
   <meta property="og:type" content="article" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/claude-code-codex-meeting-notes" />
-  <meta property="og:title" content="Let Claude Code or Codex Search Your Meeting Notes" />
-  <meta property="og:description" content="Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot." />
+  <meta property="og:title" content="Meeting Notes MCP for Claude Code, Codex & Cursor" />
+  <meta property="og:description" content="Connect local meeting notes over stdio MCP to Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity. Read-only, zero cloud bots." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="How do I connect meeting notes via MCP to Claude Code, Codex, and Cursor?" />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Let Claude Code or Codex Search Your Meeting Notes" />
-  <meta name="twitter:description" content="Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot." />
+  <meta name="twitter:title" content="Meeting Notes MCP for Claude Code, Codex & Cursor" />
+  <meta name="twitter:description" content="Connect local meeting notes over stdio MCP to Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity. Read-only, zero cloud bots." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="styles.css" />
   <link rel="stylesheet" href="icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Article","headline":"How do I let Claude Code or Codex search my meeting notes?","description":"Give Claude Code, Codex, or another MCP client read-only access to meetings recorded and transcribed on your computer, with no cloud notetaker or meeting bot.","datePublished":"2026-10-14","dateModified":"2026-11-10","mainEntityOfPage":"https://www.lokalbot.com/claude-code-codex-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"},"publisher":{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot project","url":"https://www.lokalbot.com/"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I let Claude Code or Codex search my meeting notes?","item":"https://www.lokalbot.com/claude-code-codex-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/claude-code-codex-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Does the agent get my audio?","acceptedAnswer":{"@type":"Answer","text":"No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio."}},{"@type":"Question","name":"Can the agent edit or delete meetings?","acceptedAnswer":{"@type":"Answer","text":"No. The CLI and MCP server only read your meetings; changes to them happen in the LokalBot app. Changing LokalBot's settings is a separate permission, off until you turn it on."}},{"@type":"Question","name":"Does this work with other MCP clients?","acceptedAnswer":{"@type":"Answer","text":"Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"Article","headline":"How do I connect meeting notes via MCP to Claude Code, Codex, and Cursor?","description":"Connect local meeting notes over stdio MCP to Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity. Read-only, zero cloud bots.","datePublished":"2026-10-14","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/claude-code-codex-meeting-notes","image":"https://www.lokalbot.com/assets/og-image.png","author":{"@id":"https://www.lokalbot.com/#author"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"isPartOf":{"@id":"https://www.lokalbot.com/#website"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"How do I connect meeting notes via MCP to Claude Code, Codex, and Cursor?","item":"https://www.lokalbot.com/claude-code-codex-meeting-notes"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/claude-code-codex-meeting-notes#faq","mainEntity":[{"@type":"Question","name":"Does the MCP server work with Cursor, Windsurf, Gemini CLI, and Antigravity?","acceptedAnswer":{"@type":"Answer","text":"Yes. Any MCP client that launches a local stdio server works with command 'lokalbot-cli' and args ['mcp']. That covers Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity on Mac, Windows, and Linux."}},{"@type":"Question","name":"Does the agent receive raw meeting audio or screenshots?","acceptedAnswer":{"@type":"Answer","text":"No. The MCP server returns text only: meeting metadata, summaries, transcripts, action items, names, cited answers, and (if explicitly enabled) extracted screen text. It never returns audio files or screenshot pixels."}},{"@type":"Question","name":"Can the MCP server edit or delete my meetings?","acceptedAnswer":{"@type":"Answer","text":"No. The read-only MCP server cannot edit or delete meetings. Changing settings or reprocessing a meeting via CLI requires a separate opt-in toggle."}}]}]}</script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -33,60 +34,68 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides" aria-current="page">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a></div>
   </header>
 
   <main class="guide-page" id="guide">
     <header class="guide-hero">
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>Agents and MCP</span></nav>
       <p class="eyebrow">Agents and MCP</p>
-      <h1>How do I let Claude Code or Codex search my meeting notes?</h1>
-      <p class="guide-hero__lead">Keep the meetings on your computer and give the agent a local, read-only way in. LokalBot records and transcribes calls on-device and includes an MCP server: turn on agent access, add it to Claude Code or Codex, and the agent can search, read, and ask about your meetings without a notetaker bot or a cloud account.</p>
-      <p class="guide-byline"><time datetime="2026-11-10">Updated November 10, 2026</time> · 5 min read</p>
+      <h1>How do I connect meeting notes via MCP to Claude Code, Codex, and Cursor?</h1>
+      <p class="guide-hero__lead">Keep your meeting library on your computer and connect your coding agent through a local, read-only stdio MCP server. LokalBot records and transcribes calls on-device and exposes <code>lokalbot-cli mcp</code> for Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity.</p>
+      <p class="guide-byline"><time datetime="2026-11-26">Updated November 26, 2026</time> · 6 min read</p>
     </header>
 
     <article class="guide-article">
 <h2>Three pieces, all on your computer</h2>
-        <p>An agent can only answer “what did we decide about the launch date?” if it can reach the conversation. The usual route is a cloud notetaker: a bot or app sends the audio to a vendor, and the vendor's connector hands transcripts to the agent. A local setup replaces each step:</p>
+        <p>A coding agent can only answer "what did we decide about the API migration?" if it can query the call. Cloud notetakers require a bot or cloud upload plus OAuth tokens. A local MCP setup replaces each piece:</p>
         <ol>
-          <li><strong>Capture without a bot.</strong> LokalBot records your microphone and the meeting app's audio on separate tracks. Nothing joins the call.</li>
-          <li><strong>Transcribe and index on-device.</strong> Speech recognition, summaries, and the search index run on your computer and stay in a local library.</li>
-          <li><strong>Open it read-only.</strong> The bundled <code>lokalbot-cli</code> is both a command-line tool and an MCP server that your agent starts on your computer over stdio. It is off until you turn it on.</li>
+          <li><strong>Capture without a bot.</strong> LokalBot records your microphone and the meeting app's audio on two local tracks. Nothing joins the call.</li>
+          <li><strong>Transcribe and index on-device.</strong> Fine-tuned Qwen3-ASR, Qwen3.5 4B (LokalBot v4), and EmbeddingGemma 2 run locally and store everything in SQLite (39 ms hybrid search).</li>
+          <li><strong>Expose read-only stdio MCP.</strong> The bundled <code>lokalbot-cli mcp</code> command starts a local Model Context Protocol server over stdio. It stays completely off until you enable agent access in Settings.</li>
         </ol>
 
-        <h2>Set it up</h2>
+        <h2>Step 1: enable read-only access in LokalBot</h2>
         <ol>
-          <li>Install LokalBot, let the models download, and record a short test meeting.</li>
-          <li>On a Mac, in <strong>Settings → External Agents</strong>, turn on <strong>Allow external agents to read your LokalBot data</strong> and keep <strong>Meetings</strong> ticked. On Windows and Linux, turn on <strong>Allow external agents to read your meeting library</strong> in <strong>Settings → Privacy &amp; Data</strong>.</li>
-          <li>In <strong>Settings → External Agents → Agent CLI</strong> on a Mac, or <strong>Settings → Advanced → Agent CLI</strong> on Windows and Linux, choose <strong>Install for your coding agent…</strong>. It installs a skill that explains the commands to agents and puts <code>lokalbot-cli</code> in <code>~/.local/bin</code> on a Mac or Linux. On Windows it goes in <code>%LOCALAPPDATA%\Programs\LokalBot\bin</code>; add that folder to your PATH.</li>
-          <li>Register the MCP server with your agent:</li>
+          <li>Install LokalBot on Mac, Windows, or Linux (alpha), let the models finish downloading, and record a test call.</li>
+          <li>On Mac, open <strong>Settings &gt; External Agents</strong>, enable <strong>Allow external agents to read your LokalBot data</strong>, and check <strong>Meetings</strong>. On Windows and Linux, enable <strong>Allow external agents to read your meeting library</strong> in <strong>Settings &gt; Privacy &amp; Data</strong>.</li>
+          <li>In <strong>Settings &gt; External Agents &gt; Agent CLI</strong> on a Mac, or <strong>Settings &gt; Advanced &gt; Agent CLI</strong> on Windows and Linux, choose <strong>Install for your coding agent...</strong> to install the skill and the <code>lokalbot-cli</code> binary (<code>~/.local/bin</code> on Mac/Linux, <code>%LOCALAPPDATA%\Programs\LokalBot\bin</code> on Windows). Add that folder to your PATH if it isn't there already, then restart your terminal. Apps opened from the Dock or Finder, such as Cursor or Claude Desktop, don't read your shell's PATH, so give them the full binary path shown below.</li>
         </ol>
-        <pre class="code" aria-label="Add LokalBot's MCP server to Claude Code or Codex"><span class="c-op"># Claude Code</span>
+
+        <h2>Step 2: connect your MCP client</h2>
+        <p>Use the one-line CLI commands for Claude Code and Codex:</p>
+        <pre class="code" aria-label="Add LokalBot MCP server to Claude Code and Codex"><span class="c-op"># Claude Code</span>
 <span class="c-prompt">$</span> claude mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp
 
 <span class="c-op"># Codex</span>
 <span class="c-prompt">$</span> codex mcp add lokalbot <span class="c-op">--</span> lokalbot-cli mcp</pre>
-        <p>These commands work on Mac, Windows, and Linux once <code>lokalbot-cli</code> is on your PATH. Otherwise, use its full path, such as <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code> on a Mac. The Windows and Linux versions (alpha) have the same MCP tools as the Mac.</p>
-        <p>Claude Code and Codex can also install the <a href="claude-code-codex-plugins">LokalBot plugin</a>, which adds a catch-up brief, recall with citations, and guided setup. The plugin doesn't start the MCP server, so keep the command above for screen memory. Other MCP clients that can start a local command, such as Cursor, use the same <code>lokalbot-cli mcp</code>.</p>
+        <p>For <strong>Cursor</strong> (<code>~/.cursor/mcp.json</code>), <strong>Windsurf</strong> (<code>~/.codeium/windsurf/mcp_config.json</code>), <strong>Gemini CLI</strong> (<code>~/.gemini/settings.json</code>), and <strong>Antigravity</strong>, add the exact same stdio command under <code>mcpServers</code>:</p>
+        <pre class="code" aria-label="JSON MCP configuration for Cursor, Windsurf, Gemini CLI, and Antigravity">{
+  <span class="c-str">"mcpServers"</span>: {
+    <span class="c-str">"lokalbot"</span>: {
+      <span class="c-str">"command"</span>: <span class="c-str">"lokalbot-cli"</span>,
+      <span class="c-str">"args"</span>: [<span class="c-str">"mcp"</span>]
+    }
+  }
+}</pre>
+        <p>If <code>lokalbot-cli</code> is not on your PATH yet, pass its full binary path (on Mac: <code>/Applications/LokalBot.app/Contents/Helpers/lokalbot-cli</code>). Claude Code and Codex users can also install the <a href="claude-code-codex-plugins">LokalBot plugins</a> for <code>/lokalbot:brief</code> and <code>/lokalbot:recall</code> skills, and version 0.14.0 can also read local Antigravity and T3 Code coding sessions alongside Claude Code and Codex in day memory.</p>
 
-        <h2>What the agent can do</h2>
+        <h2>MCP tools your agent receives</h2>
         <ul>
-          <li><strong>Find meetings.</strong> <code>list_meetings</code> filters by date and title, and <code>search_meetings</code> searches titles, summaries, and transcripts by word.</li>
-          <li><strong>Read one.</strong> <code>get_meeting</code> returns a meeting's metadata, summary, or transcript as Markdown, so the agent can ask for just the summary.</li>
-          <li><strong>Ask a question.</strong> <code>ask_library</code> has LokalBot's local model answer from your library, with meeting citations. The agent gets the answer instead of raw transcripts, which also keeps long calls out of its context window. The LokalBot app must be running, and the first answer can take up to a minute while the model loads.</li>
-          <li><strong>Follow up.</strong> <code>get_action_items</code> lists open actions with your corrections applied, and <code>list_people</code> shows who you meet, by name only. Email addresses are never returned.</li>
+          <li><strong><code>list_meetings</code> and <code>search_meetings</code>:</strong> Filter meetings by date or title and run local hybrid search across titles, summaries, and transcripts.</li>
+          <li><strong><code>get_meeting</code>:</strong> Return a meeting's metadata, summary, or transcript as Markdown so the agent pulls only what it needs.</li>
+          <li><strong><code>ask_library</code>:</strong> Ask LokalBot's local model a question across your library and return a compact cited answer (~1,248 characters median) instead of dumping raw transcripts into your agent's context window.</li>
+          <li><strong><code>get_action_items</code> and <code>list_people</code>:</strong> Fetch open actions with your edits applied and people by name (email addresses are never returned).</li>
+          <li><strong>Opt-in screen memory and Files:</strong> Separate switches grant read-only access to captured screen text (never pixels) and keyword search over folders you chose under Files (<code>search_files</code>).</li>
         </ul>
-        <p>An agent without MCP can run the same commands in a shell. For example, <code>lokalbot-cli search "pricing decision"</code> prints matching meetings as JSON.</p>
-        <p>Screen memory has its own permission: on a Mac, the <strong>Screen memory</strong> box under the same switch; on Windows and Linux, a second toggle, <strong>Allow external agents to read screen memory</strong>. It grants today, the last seven days, or all retained history. Those tools return captured text and metadata, never screenshot pixels.</p>
-        <p>The <strong>Files</strong> box on a Mac, or <strong>Allow external agents to search your files</strong> on Windows and Linux, lets the agent search the folders you chose under Files with <code>search_files</code>, by their words. It gets each matching file's path, a short excerpt, and the passage that matched. LokalBot never changes the files.</p>
+        <p>Agents without MCP support can call the exact same commands from a shell, such as <code>lokalbot-cli search "pricing decision"</code> or <code>lokalbot-cli brief</code>.</p>
 
         <h2>Where your meetings go once an agent reads them</h2>
-        <p>LokalBot doesn't upload your library, and its agent tools only read it, so the agent can't change or delete meetings. Changing LokalBot's settings is a separate switch, <strong>Allow external agents to change LokalBot settings</strong>, and anything that widens what LokalBot captures waits for your approval in the app. But whatever a tool returns becomes part of the agent's conversation, and Claude Code and Codex send that conversation to Anthropic or OpenAI under their own terms. Treat it like pasting the text in yourself:</p>
+        <p>LokalBot never uploads your library, and its default MCP tools are strictly read-only. Changing LokalBot settings or running <code>lokalbot-cli reprocess</code> requires a separate opt-in switch (<strong>Allow external agents to change LokalBot settings</strong>). Remember that whatever text an MCP tool returns enters your agent's prompt, which Claude Code, Codex, Cursor, Windsurf, or Gemini CLI send to their configured model provider under that provider's terms:</p>
         <ul>
-          <li>Prefer <code>search_meetings</code> and <code>ask_library</code> to pulling whole transcripts.</li>
-          <li>Turn access on only for agents you trust with that content, tick only what they need, and turn the switch off to cut access again.</li>
-          <li>The switch controls LokalBot's CLI and MCP server. An agent that can run shell commands as you can also read any file your account can, so use the agent's own permission settings to limit file access.</li>
+          <li>Prefer <code>search_meetings</code> and <code>ask_library</code> over pulling full raw transcripts.</li>
+          <li>Enable only the data scopes (Meetings, Files, Screen memory, Personal Context) you want that agent to see, and flip the master switch off anytime to revoke access immediately.</li>
         </ul>
     </article>
 
@@ -95,16 +104,16 @@
       <h2 id="faq-title">Questions about this guide</h2>
       <div class="faq__list">
         <details class="qa">
-          <summary>Does the agent get my audio?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. The MCP tools return text: meeting metadata, summaries, transcripts, action items, names, and answers. They don't return audio.</p>
+          <summary>Does the MCP server work with Cursor, Windsurf, Gemini CLI, and Antigravity?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. Any MCP client that launches a local stdio server works with command 'lokalbot-cli' and args ['mcp']. That covers Claude Code, Codex, Cursor, Windsurf, Gemini CLI, and Antigravity on Mac, Windows, and Linux.</p>
         </details>
         <details class="qa">
-          <summary>Can the agent edit or delete meetings?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. The CLI and MCP server only read your meetings; changes to them happen in the LokalBot app. Changing LokalBot's settings is a separate permission, off until you turn it on.</p>
+          <summary>Does the agent receive raw meeting audio or screenshots?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. The MCP server returns text only: meeting metadata, summaries, transcripts, action items, names, cited answers, and (if explicitly enabled) extracted screen text. It never returns audio files or screenshot pixels.</p>
         </details>
         <details class="qa">
-          <summary>Does this work with other MCP clients?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes. Any MCP client that can start a local command can run lokalbot-cli mcp, for example Cursor. Each client's own data handling applies.</p>
+          <summary>Can the MCP server edit or delete my meetings?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. The read-only MCP server cannot edit or delete meetings. Changing settings or reprocessing a meeting via CLI requires a separate opt-in toggle.</p>
         </details>
       </div>
     </section>
@@ -118,10 +127,10 @@
           <strong>LokalBot plugins for Claude Code and Codex</strong>
           <span>Add LokalBot to Claude Code or Codex to catch up on your work and find what was said in meetings, from a library that stays on your computer.</span>
         </a>
-        <a class="guide-card" href="local-ai-meeting-notes-mac">
-          <span class="guide-card__eyebrow">Local meeting notes</span>
-          <strong>Local AI meeting notes on your Mac</strong>
-          <span>How local AI meeting notes work on a Mac: bot-free capture, on-device transcription, private summaries, trade-offs, and setup.</span>
+        <a class="guide-card" href="best-local-ai-meeting-notes">
+          <span class="guide-card__eyebrow">Compare</span>
+          <strong>Best local and open-source AI meeting note takers (2026)</strong>
+          <span>Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license.</span>
         </a>
         <a class="guide-card" href="open-source-ai-meeting-notes">
           <span class="guide-card__eyebrow">Open source</span>
@@ -150,8 +159,8 @@
         <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
         <span class="brand__name">LokalBot</span>
       </a>
-      <p>Your personal context engine.</p>
-      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; open source</p>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
     </div>
     <nav class="footer__col" aria-label="Product">
       <h3>Product</h3>
@@ -160,12 +169,14 @@
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
       <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
       <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
       <a href="/lokalbot-vs-granola">vs Granola</a>
       <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
@@ -174,12 +185,19 @@
       <a href="/lokalbot-vs-fathom">vs Fathom</a>
       <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
       <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
       <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
       <a href="/lokalbot-vs-meetily">vs Meetily</a>
       <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
       <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
       <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
       <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
       <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
       <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
     </nav>
@@ -189,11 +207,22 @@
       <a href="/guides">Guides</a>
       <a href="/blog">Blog</a>
       <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
       <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
       <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

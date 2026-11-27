@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Local Desktop AI Leaderboard — Speech, Memory, Search &amp; Autocomplete Benchmarks | LokalBot</title>
-  <meta name="description" content="Independent, reproducible local AI benchmarks for desktop workflows: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and TTS." />
+  <title>Local Desktop AI Benchmarks &amp; Leaderboard | LokalBot</title>
+  <meta name="description" content="Reproducible local AI benchmarks for speech-to-text, diarization, memory, autocomplete, hybrid search, and v0.14.0 Apache-2.0 fine-tunes." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -13,15 +13,15 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/benchmarks" />
-  <meta property="og:title" content="Local Desktop AI Leaderboard — Reproducible On-Device Benchmarks" />
-  <meta property="og:description" content="7 desktop AI workloads, 17 reproducible suites: Qwen3-ASR vs. OpenAI &amp; Gemini STT, Nemotron 3 diarization, MemT vs. Qwen memory restraint, 56 ms autocomplete, and 39 ms hybrid QMSum retrieval." />
+  <meta property="og:title" content="Local Desktop AI Benchmarks &amp; Leaderboard | LokalBot" />
+  <meta property="og:description" content="7 desktop AI workloads, 20 reproducible suites: v0.14.0 Apache-2.0 fine-tunes, Qwen3-ASR vs. OpenAI and Gemini STT, Nemotron 3 diarization, memory restraint, autocomplete, and hybrid QMSum retrieval." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-benchmarks.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="Local Desktop AI Leaderboard by LokalBot: reproducible speech, diarization, memory, autocomplete, and hybrid retrieval benchmarks." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Local Desktop AI Leaderboard — Reproducible On-Device Benchmarks" />
-  <meta name="twitter:description" content="7 desktop AI workloads, 17 reproducible suites comparing local models head-to-head against cloud baselines. Public JSON dataset + open harnesses." />
+  <meta name="twitter:title" content="Local Desktop AI Benchmarks &amp; Leaderboard | LokalBot" />
+  <meta name="twitter:description" content="7 desktop AI workloads, 20 reproducible suites comparing local models and v0.14.0 Apache-2.0 fine-tunes against cloud baselines." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-benchmarks.png" />
   <meta name="twitter:image:alt" content="Local Desktop AI Leaderboard by LokalBot: reproducible speech, diarization, memory, autocomplete, and hybrid retrieval benchmarks." />
 
@@ -30,7 +30,7 @@
 
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://www.lokalbot.com/benchmarks#article","headline":"Local Desktop AI Leaderboard","description":"Independent, reproducible local AI benchmarks for desktop workflows: speech-to-text vs. cloud APIs, speaker diarization, memory recall vs. restraint, 56 ms autocomplete, hybrid QMSum retrieval, structured extraction, OCR, and TTS.","datePublished":"2026-09-24","dateModified":"2026-11-20","mainEntityOfPage":"https://www.lokalbot.com/benchmarks","image":"https://www.lokalbot.com/assets/og-benchmarks.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"Dataset","@id":"https://www.lokalbot.com/benchmarks#dataset","name":"Local Desktop AI Leaderboard (LokalBot Benchmarks)","description":"Reproducible engine-level benchmarks covering local speech recognition vs. cloud APIs, speaker diarization, personal memory recall vs. restraint, inline autocomplete latency and accuracy, hybrid QMSum meeting retrieval, structured extraction, screenshot OCR, and local TTS.","url":"https://www.lokalbot.com/benchmarks","sameAs":["https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks"],"creator":{"@id":"https://www.lokalbot.com/#organization"},"license":"https://www.gnu.org/licenses/gpl-3.0.en.html","isAccessibleForFree":true,"temporalCoverage":"2026-06-24/2026-11-18","measurementTechnique":["Normalized word error rate","Diarization error rate","Recall vs. restraint scoring","Latency percentiles","Hybrid Recall@k and MRR","Token F1","Next-word precision"],"variableMeasured":["Word error rate","Realtime factor","Diarization error rate","Memory recall and unwanted proposals","Autocomplete keystroke latency","Hybrid retrieval Recall@1 and MRR","OCR token F1"],"distribution":[{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://www.lokalbot.com/benchmarks.json"},{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/summary.json"},{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/scores.json"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Benchmarks","item":"https://www.lokalbot.com/benchmarks"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/benchmarks#faq","mainEntity":[{"@type":"Question","name":"What hardware were these benchmarks measured on?","acceptedAnswer":{"@type":"Answer","text":"Primary desktop runs used an Apple M4 Max MacBook Pro with 48 GB of unified memory. The memory-restraint and Spark-X2.6 suites ran on an Ubuntu Linux AMD Ryzen 7 9700X host (64 GB RAM), and the community-suggested MemT-1.0-Nano extension ran with experimental NF4 expert offload on Windows with a Radeon RX 6600 XT. M1, M2, and M3 Macs have not been measured yet."}},{"@type":"Question","name":"How did local Qwen3-ASR 1.7B compare with closed speech-to-text APIs?","acceptedAnswer":{"@type":"Answer","text":"On 27.4 minutes of overlapped AMI Mix-Headset audio, local Qwen3-ASR 1.7B scored 17.6% WER at 44× realtime and $0/hr, ahead of GPT-4o Transcribe (23.0%), GPT Transcribe (22.2%), GPT-4o mini Transcribe (21.8%), and Alibaba's cloud Qwen APIs, and within confidence intervals of Gemini 3.8 Flash (16.7%). On three real two-track meetings, Qwen3-ASR 1.7B had the lowest consensus disagreement (4.2%), while Gemini 3.8 Flash invented 115 words on quiet clips and GPT-4o Transcribe dropped 278 words."}},{"@type":"Question","name":"Why do memory benchmarks score both recall and restraint?","acceptedAnswer":{"@type":"Answer","text":"A personal memory writer that saves every sentence can reach 100% recall while polluting a user's profile with temporary tasks, third-party details, and excluded sensitive facts. Our 120-case suite scores eligible recall alongside unwanted proposals and empty cases correctly left blank so tradeoffs stay visible."}},{"@type":"Question","name":"Can I reproduce these results or submit a new model or chip run?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every suite links directly to its harness, frozen cases, pinned model hashes, and raw results in the Benchmarks folder on GitHub, and all aggregated rows are served as machine-readable JSON at lokalbot.com/benchmarks.json. Open a pull request with a new model or hardware run (such as M1–M3, Linux Vulkan/CUDA, or Windows) or file an issue to suggest a model."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"TechArticle","@id":"https://www.lokalbot.com/benchmarks#article","headline":"Local Desktop AI Leaderboard","description":"Reproducible local AI benchmarks for speech-to-text, diarization, memory, autocomplete, hybrid search, and v0.14.0 Apache-2.0 fine-tunes.","datePublished":"2026-09-24","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/benchmarks","image":"https://www.lokalbot.com/assets/og-benchmarks.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"Dataset","@id":"https://www.lokalbot.com/benchmarks#dataset","name":"Local Desktop AI Leaderboard (LokalBot Benchmarks)","description":"Reproducible engine-level benchmarks covering v0.14.0 Apache-2.0 fine-tuned models, local speech recognition vs. cloud APIs, speaker diarization, personal memory recall vs. restraint, inline autocomplete latency and accuracy, hybrid QMSum meeting retrieval, structured extraction, screenshot OCR, and local TTS.","url":"https://www.lokalbot.com/benchmarks","sameAs":["https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks"],"creator":{"@id":"https://www.lokalbot.com/#organization"},"license":"https://www.gnu.org/licenses/gpl-3.0.en.html","isAccessibleForFree":true,"temporalCoverage":"2026-06-24/2026-11-26","measurementTechnique":["Normalized word error rate","Diarization error rate","Recall vs. restraint scoring","Latency percentiles","Hybrid Recall@k and MRR","Token F1","Next-word precision"],"variableMeasured":["Word error rate","Realtime factor","Diarization error rate","Memory recall and unwanted proposals","Autocomplete keystroke latency","Hybrid retrieval Recall@1 and MRR","OCR token F1"],"distribution":[{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://www.lokalbot.com/benchmarks.json"},{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/CloudSTT/results/2026-09-30/summary.json"},{"@type":"DataDownload","encodingFormat":"application/json","contentUrl":"https://github.com/stevyhacker/LokalBot/blob/master/Benchmarks/transcribe/NemotronDiarization/results/2026-09-23/scores.json"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Benchmarks","item":"https://www.lokalbot.com/benchmarks"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/benchmarks#faq","mainEntity":[{"@type":"Question","name":"What hardware were these benchmarks measured on?","acceptedAnswer":{"@type":"Answer","text":"Primary desktop runs used an Apple M4 Max MacBook Pro with 48 GB of unified memory. The memory-restraint and Spark-X2.6 suites ran on an Ubuntu Linux AMD Ryzen 7 9700X host (64 GB RAM), the v0.14.0 Qwen3.5 4B fine-tune replay ran back-to-back on an NVIDIA RTX PRO 6000 Blackwell GPU with pinned llama.cpp v1.0.0, and the community-suggested MemT-1.0-Nano extension ran with experimental NF4 expert offload on Windows with a Radeon RX 6600 XT."}},{"@type":"Question","name":"How did local Qwen3-ASR 1.7B compare with closed speech-to-text APIs?","acceptedAnswer":{"@type":"Answer","text":"On 27.4 minutes of overlapped AMI Mix-Headset audio, local Qwen3-ASR 1.7B scored 17.6% WER at 44x realtime and $0/hr, ahead of GPT-4o Transcribe (23.0%), GPT Transcribe (22.2%), GPT-4o mini Transcribe (21.8%), and Alibaba's cloud Qwen APIs. The v0.14.0 Apache-2.0 Qwen3-ASR 1.7B (LokalBot v3) fine-tune further improves expanded AMI-400 (9.79% ihm, 24.41% sdm) and reaches 100.0% clean silence with 0 hallucinated words."}},{"@type":"Question","name":"Why do memory benchmarks score both recall and restraint?","acceptedAnswer":{"@type":"Answer","text":"A personal memory writer that saves every sentence can reach 100% recall while polluting a user's profile with temporary tasks, third-party details, and excluded sensitive facts. Our 120-case suite scores eligible recall alongside unwanted proposals and empty cases correctly left blank so tradeoffs stay visible."}},{"@type":"Question","name":"Can I reproduce these results or submit a new model or chip run?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every suite links directly to its harness, frozen cases, pinned model hashes, and raw reports in the Benchmarks folder on GitHub or the Hugging Face model cards, and all aggregated rows are served as machine-readable JSON at lokalbot.com/benchmarks.json."}}]}]}</script>
   <script src="/app.js" defer></script>
   <script src="/benchmarks.js" defer></script>
   <style>
@@ -603,6 +603,18 @@
       .lb-tab.is-active { background: #0c8275; border-color: #0c8275; color: #ffffff; }
     }
 
+    .footer__langs {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 0.84rem;
+      color: var(--text-faint);
+    }
+    .footer__langs a { color: var(--text-dim); }
+    .footer__langs a:hover { color: var(--accent-text); }
     /* Reduced transparency & no-backdrop-filter fallbacks */
     @media (prefers-reduced-transparency: reduce) {
       .lb-chip, .lb-stack-card, .lb-tab, .lb-panel, .lb-card {
@@ -625,41 +637,42 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides">Guides</a><a href="/benchmarks" aria-current="page">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks" aria-current="page">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a></div>
   </header>
 
   <main class="lb-page" id="guide">
     <header class="lb-hero">
       <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>Benchmarks</span></nav>
-      <p class="eyebrow">Local Desktop AI Leaderboard</p>
+      <p class="eyebrow">Local Desktop AI Leaderboard · v0.14.0 Apache-2.0 stack</p>
       <h1>Measured local models for everyday desktop work</h1>
-      <p class="lb-hero__lead">Independent, reproducible benchmarks across seven real desktop AI roles—speech-to-text, speaker diarization, personal memory restraint, inline autocomplete, hybrid meeting search, structured extraction, and OCR—scored head-to-head against cloud baselines with every harness and raw report checked into Git.</p>
+      <p class="lb-hero__lead">Independent, reproducible benchmarks across seven real desktop AI roles (speech-to-text, speaker diarization, personal memory restraint, inline autocomplete, hybrid meeting search, structured extraction, and OCR), scored head-to-head against stock and cloud baselines with every harness and raw report linked.</p>
       <div class="lb-hero__meta">
-        <span class="lb-chip"><time datetime="2026-11-20">Updated Nov 20, 2026</time></span>
-        <span class="lb-chip">7 workloads · 17 suites</span>
+        <span class="lb-chip"><time datetime="2026-11-26">Updated Nov 26, 2026</time></span>
+        <span class="lb-chip">7 workloads · 20 suites</span>
         <a class="lb-chip" href="/benchmarks.json">JSON API: /benchmarks.json</a>
-        <a class="lb-chip" href="/hardware">RAM &amp; hardware calculator &rarr;</a>
-        <a class="lb-chip lb-chip--accent" href="#contribute">Submit a model or chip run ↓</a>
+        <a class="lb-chip" href="/hardware">RAM &amp; hardware calculator</a>
+        <a class="lb-chip" href="/calculator">SaaS cost calculator</a>
+        <a class="lb-chip lb-chip--accent" href="#contribute">Submit a model or chip run</a>
       </div>
     </header>
 
     <section class="lb-stack-section" aria-labelledby="stack-title">
       <div class="lb-section-head">
-        <h2 id="stack-title">Current local reference stack (~9.6 GB total on disk)</h2>
+        <h2 id="stack-title">v0.14.0 local reference stack (~9.7 GB total on disk)</h2>
         <p>Click any role to jump to its interactive leaderboard.</p>
       </div>
       <div class="lb-stack-grid">
-        <a class="lb-stack-card" href="#stt-ami-cloud" data-lb-jump-cat="stt" data-lb-jump-suite="stt-ami-cloud">
-          <div class="lb-stack-card__top"><span class="lb-stack-card__role">Transcription</span><span class="lb-stack-card__size">2.47 GB</span></div>
-          <div class="lb-stack-card__model">Qwen3-ASR 1.7B</div>
-          <div class="lb-stack-card__stat">17.6% WER · 44× RT</div>
-          <div class="lb-stack-card__sub">Lowest disagreement (4.2%) on real 2-track calls; $0/hr vs. cloud APIs.</div>
+        <a class="lb-stack-card" href="#stt-lokalbot-v3" data-lb-jump-cat="stt" data-lb-jump-suite="stt-lokalbot-v3">
+          <div class="lb-stack-card__top"><span class="lb-stack-card__role">Transcription</span><span class="lb-stack-card__size">2.52 GB</span></div>
+          <div class="lb-stack-card__model">Qwen3-ASR 1.7B (LokalBot v3)</div>
+          <div class="lb-stack-card__stat">9.79% AMI ihm · 100% clean silence</div>
+          <div class="lb-stack-card__sub">Apache-2.0 GGUF Q8_0 fine-tune: -24.3 pp code-switch WER, 31.7x RT, $0/hr.</div>
         </a>
         <a class="lb-stack-card" href="#diarization-ami" data-lb-jump-cat="diarization" data-lb-jump-suite="diarization-ami">
           <div class="lb-stack-card__top"><span class="lb-stack-card__role">Speaker Diarization</span><span class="lb-stack-card__size">~0.20 GB</span></div>
           <div class="lb-stack-card__model">Nemotron 3</div>
-          <div class="lb-stack-card__stat">14.56% DER · 500× RT</div>
+          <div class="lb-stack-card__stat">14.56% DER · 500x RT</div>
           <div class="lb-stack-card__sub">8/8 correct speaker counts vs. 43.44% DER for Pyannote Community-1.</div>
         </a>
         <a class="lb-stack-card" href="#retrieval-qmsum" data-lb-jump-cat="retrieval" data-lb-jump-suite="retrieval-qmsum">
@@ -668,23 +681,23 @@
           <div class="lb-stack-card__stat">39 ms p50 · 50 MB RAM</div>
           <div class="lb-stack-card__sub">0.280 R@1 / 0.595 R@10 across 232 QMSum meetings (1,576 questions).</div>
         </a>
-        <a class="lb-stack-card" href="#autocomplete-engine" data-lb-jump-cat="autocomplete" data-lb-jump-suite="autocomplete-engine">
+        <a class="lb-stack-card" href="#autocomplete-lokalbot-v4" data-lb-jump-cat="autocomplete" data-lb-jump-suite="autocomplete-lokalbot-v4">
           <div class="lb-stack-card__top"><span class="lb-stack-card__role">Inline Autocomplete</span><span class="lb-stack-card__size">3.85 GB</span></div>
-          <div class="lb-stack-card__model">Gemma 4 E2B Base</div>
-          <div class="lb-stack-card__stat">56 ms · 50.1% precision</div>
-          <div class="lb-stack-card__sub">0/140 unsafe; 49–53 ms after 5-min idle warm-up fix (or 26 ms w/ LFM2.5).</div>
+          <div class="lb-stack-card__model">Gemma 4 E2B (LokalBot v4)</div>
+          <div class="lb-stack-card__stat">56/56 grounded · 52.2% prec</div>
+          <div class="lb-stack-card__sub">Apache-2.0 fine-tune: 20.2 ms boundary median, 80.0% email precision, 0 unsafe.</div>
         </a>
-        <a class="lb-stack-card" href="#memory-english" data-lb-jump-cat="memory" data-lb-jump-suite="memory-english">
+        <a class="lb-stack-card" href="#summaries-lokalbot-v4" data-lb-jump-cat="summaries" data-lb-jump-suite="summaries-lokalbot-v4">
           <div class="lb-stack-card__top"><span class="lb-stack-card__role">Summaries &amp; Memory</span><span class="lb-stack-card__size">2.74 GB</span></div>
-          <div class="lb-stack-card__model">Qwen3.5 4B</div>
-          <div class="lb-stack-card__stat">33.4 s warm · 95.5% restraint</div>
-          <div class="lb-stack-card__sub">6/6 native tool calls; 42/44 empty memory cases clean (3 unwanted).</div>
+          <div class="lb-stack-card__model">Qwen3.5 4B (LokalBot v4)</div>
+          <div class="lb-stack-card__stat">118/120 memory · 1.78x faster</div>
+          <div class="lb-stack-card__sub">Apache-2.0 fine-tune: 60.6% fewer rejections, 45% Blind21 decisions, 6/6 tools.</div>
         </a>
         <a class="lb-stack-card" href="#ocr-synthetic" data-lb-jump-cat="ocr-tts" data-lb-jump-suite="ocr-synthetic">
           <div class="lb-stack-card__top"><span class="lb-stack-card__role">Screen OCR &amp; Voice</span><span class="lb-stack-card__size">Built-in + 0.1 GB</span></div>
           <div class="lb-stack-card__model">Apple Vision + Kokoro 82M</div>
           <div class="lb-stack-card__stat">0.971 F1 · 119.6 ms OCR</div>
-          <div class="lb-stack-card__sub">57× faster than PP-OCRv6; Kokoro TTS peaks at 0.81 GiB vs. 6.42 GiB.</div>
+          <div class="lb-stack-card__sub">57x faster than PP-OCRv6; Kokoro TTS peaks at 0.81 GiB vs. 6.42 GiB.</div>
         </a>
       </div>
     </section>
@@ -695,20 +708,20 @@
         <div class="lb-panel__head">
           <div>
             <p class="lb-panel__eyebrow">Headline benchmark tables</p>
-            <h2 class="lb-panel__title">AMI Speech-to-Text, Memory Restraint, Hybrid Retrieval &amp; Autocomplete</h2>
-            <p class="lb-panel__summary">Enable JavaScript to switch across all 17 suites, sort columns, filter by model footprint, view the Memory Restraint Pareto chart, or copy Markdown tables. All raw data is also available at <a href="/benchmarks.json">/benchmarks.json</a>.</p>
+            <h2 class="lb-panel__title">v0.14.0 Fine-Tunes, AMI Speech-to-Text, Memory Restraint, Hybrid Retrieval &amp; Autocomplete</h2>
+            <p class="lb-panel__summary">Enable JavaScript to switch across all 20 suites, sort columns, filter by model footprint, view the Memory Restraint Pareto chart, save PNG charts, or copy Markdown tables. All raw data is also available at <a href="/benchmarks.json">/benchmarks.json</a>.</p>
           </div>
         </div>
         <div class="guide-table-wrap">
           <table class="guide-table">
             <thead><tr><th>Suite</th><th>Leading local configuration</th><th>Headline measurement</th><th>Comparison baseline</th></tr></thead>
             <tbody>
-              <tr><td>AMI Speech-to-Text (27.4 min)</td><td>Qwen3-ASR 1.7B (MLX 8-bit, $0/hr)</td><td>17.6% WER · 44× RT · 4.2% meeting disagreement</td><td>Gemini 3.8 Flash 16.7% (115 invented words) · GPT-4o Transcribe 23.0%</td></tr>
-              <tr><td>Speaker Diarization (8 AMI runs)</td><td>Nemotron 3 offline (Core ML)</td><td>14.56% DER (0 ms collar) · 8/8 speakers · 500× RT</td><td>Pyannote Community-1 43.44% · Muse Voice Transcribe cloud 60.4%</td></tr>
-              <tr><td>Memory Recall vs. Restraint (96 EN)</td><td>MemT-1.0-Nano / Qwen3.5 4B default</td><td>MemT 51/52 recall, 6 unw. · Qwen 4B 30/52, 3 unw., 95.5% empty</td><td>Hy-Memory 30B 52/52 recall, 76 unwanted, 0/44 empty</td></tr>
-              <tr><td>Inline Autocomplete (788 pos.)</td><td>Gemma 4 E2B Base Q6_K / LFM2.5 1.2B</td><td>50.1% precision · 56 ms p50 (49–53 ms post-5m pause)</td><td>LFM2.5 1.2B 43.0% precision · 26 ms p50 · 0.73 GB</td></tr>
+              <tr><td>v0.14.0 ASR Fine-Tunes (AMI-400 + Holdout)</td><td>Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB GGUF Q8_0)</td><td>9.79% ihm · 24.41% sdm · 100% clean silence · 12.81% code-switch</td><td>Stock Qwen3-ASR 1.7B Q8_0: 10.24% ihm · 26.08% sdm · 8.3% clean silence</td></tr>
+              <tr><td>AMI Speech-to-Text (27.4 min)</td><td>Qwen3-ASR 1.7B (local, $0/hr)</td><td>17.6% WER · 44x RT · 4.2% meeting disagreement</td><td>Gemini 3.8 Flash 16.7% (115 invented words) · GPT-4o Transcribe 23.0%</td></tr>
+              <tr><td>Speaker Diarization (8 AMI runs)</td><td>Nemotron 3 offline (Core ML)</td><td>14.56% DER (0 ms collar) · 8/8 speakers · 500x RT</td><td>Pyannote Community-1 43.44% · Muse Voice Transcribe cloud 60.4%</td></tr>
+              <tr><td>v0.14.0 Think &amp; Memory (120 cases + Blind21)</td><td>Qwen3.5 4B (LokalBot v4, 2.74 GB Q4_K_M)</td><td>118/120 memory (1 unw.) · 45% Blind21 decisions · 1.78x faster</td><td>Stock Qwen3.5 4B: 81/120 memory (12 unw.) · 7.5% Blind21 decisions</td></tr>
+              <tr><td>v0.14.0 Inline Autocomplete (788 pos. + 56 grounded)</td><td>Gemma 4 E2B (LokalBot v4, 3.85 GB i1-Q6_K)</td><td>56/56 grounded · 52.2% precision · 20.2 ms boundary median</td><td>Stock Gemma 4 E2B Base: 49/56 grounded · 50.1% precision · 21.2 ms</td></tr>
               <tr><td>Hybrid Retrieval (QMSum, 1,576 Qs)</td><td>LokalBot Hybrid (FTS5 + EmbeddingGemma 2)</td><td>0.280 R@1 · 0.475 R@4 · 0.595 R@10 · 39 ms · 50 MB</td><td>GBrain Hybrid 0.239 R@1 · 0.367 R@4 · 255 ms · ~1 GB</td></tr>
-              <tr><td>Extraction &amp; Tool Calls (4B)</td><td>Qwen3.5 4B Q4_K_M</td><td>93.0% fields · 6/6 native tools · 33.4 s warm recap</td><td>MiniCPM5 2B 79.1% · Spark-X2.6-4B 12/12 short, 5/6 tools</td></tr>
               <tr><td>Screenshot OCR &amp; Local TTS</td><td>Apple Vision / Kokoro 82M</td><td>0.971 F1 at 119.6 ms (243 ms real) · Kokoro 0.81 GiB</td><td>PP-OCRv6 0.974 F1 at 6.78 s · Breeze TTS 2 6.42 GiB</td></tr>
             </tbody>
           </table>
@@ -724,11 +737,11 @@
         <ol class="lb-steps">
           <li><strong>Pick a harness</strong> under <code>Benchmarks/</code> (speech, diarization, memory restraint, autocomplete, QMSum retrieval, extraction, or OCR) and keep the frozen dataset and scorer unchanged.</li>
           <li><strong>Record exact provenance:</strong> pinned Hugging Face revision + SHA-256, runtime version, quantization, OS, chip/GPU, and raw outputs.</li>
-          <li><strong>Open a PR</strong> adding your <code>REPORT.md</code> and row to <code>Website/public/benchmarks.json</code>—or open an issue to suggest a model for the next run.</li>
+          <li><strong>Open a PR</strong> adding your <code>REPORT.md</code> and row to <code>Website/public/benchmarks.json</code>, or open an issue to suggest a model for the next run.</li>
         </ol>
         <div class="lb-card__actions">
-          <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/LokalBot/issues/new?title=Benchmark+suggestion%3A+&amp;body=**Workload%20(STT%20%2F%20Diarization%20%2F%20Memory%20%2F%20Autocomplete%20%2F%20Retrieval%20%2F%20Summaries%20%2F%20OCR):**%0A%0A**Model%20%26%20Hugging%20Face%20repo%20%2F%20quantization:**%0A%0A**Why%20it%20is%20worth%20measuring:**%0A" target="_blank" rel="noopener">Suggest a model ↗</a>
-          <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks" target="_blank" rel="noopener">Browse harnesses on GitHub ↗</a>
+          <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/LokalBot/issues/new?title=Benchmark+suggestion%3A+&amp;body=**Workload%20(STT%20%2F%20Diarization%20%2F%20Memory%20%2F%20Autocomplete%20%2F%20Retrieval%20%2F%20Summaries%20%2F%20OCR):**%0A%0A**Model%20%26%20Hugging%20Face%20repo%20%2F%20quantization:**%0A%0A**Why%20it%20is%20worth%20measuring:**%0A" target="_blank" rel="noopener">Suggest a model</a>
+          <a class="btn btn--ghost btn--sm" href="https://github.com/stevyhacker/LokalBot/tree/master/Benchmarks" target="_blank" rel="noopener">Browse harnesses on GitHub</a>
         </div>
       </div>
 
@@ -796,7 +809,7 @@
         <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
         <p class="eyebrow">Built for LokalBot</p>
         <h2 class="section__title">Run this entire stack locally.</h2>
-        <p class="section__lead">LokalBot is the free, GPLv3 desktop app behind these harnesses—no account, no meeting bot, no cloud upload.</p>
+        <p class="section__lead">LokalBot is the free, GPLv3 desktop app behind these harnesses, with no account, no meeting bot, and no cloud upload.</p>
         <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
         <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
         <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="/system-requirements">requirements</a></p>
@@ -819,10 +832,11 @@
       <a href="/#how">How it works</a>
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
+      <a href="/calculator">SaaS Cost Calculator</a>
       <a href="/hardware">Hardware calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
@@ -854,6 +868,14 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span>Languages:</span>
+      <a href="/">English</a>
+      <a href="/de">Deutsch</a>
+      <a href="/zh">中文</a>
+      <a href="/ja">日本語</a>
+      <a href="/ru">Русский</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

@@ -13,9 +13,13 @@ import subprocess
 import sys
 
 UI_PATTERNS = [
-    "LokalBot/**", "LokalBotUITests/**", "project.yml", "Scripts/test/ui-tests.sh",
+    "LokalBot/**", "LokalBotUITests/**", "CLI/**", "project.yml", "Scripts/test/ui-tests.sh",
     "LokalBot.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved",
-    "Scripts/ci/**", "Scripts/build/fetch-llama.sh", "Scripts/build/fetch-sherpa.sh",
+    "Scripts/ci/**", "Scripts/build/**",
+    "LinuxWindows/crates/lokalbot-sync/**", ".github/actions/lokalbot-sync/**",
+    "LokalBotTests/Fixtures/stub-openai.ts",
+    ".agents/skills/lokalbot-cli/SKILL.md",
+    "LICENSE", "PRIVACY.md", "THIRD_PARTY_NOTICES.md", "LICENSES/**",
     ".github/workflows/ui-tests.yml",
 ]
 SIZE_WARNING_FILES = 60
@@ -28,6 +32,8 @@ def matches(path, pattern):
 
 
 def relevant(paths):
+    if not paths:
+        return True
     return any(matches(path, pattern) for path in paths for pattern in UI_PATTERNS)
 
 

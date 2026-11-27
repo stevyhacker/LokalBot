@@ -371,8 +371,8 @@ class CompleteCoverageTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
-        self.plan = shards.plan()
-        self.env = patch.dict(os.environ, GITHUB_RUN_ID='42', GITHUB_RUN_ATTEMPT='1')
+        self.plan = shards.plan(include_visual_matrix=True)
+        self.env = patch.dict(os.environ, GITHUB_RUN_ID='42', GITHUB_RUN_ATTEMPT='1', UI_INCLUDE_VISUAL='true')
         self.env.start()
         self.addCleanup(self.env.stop)
         self.sha = patch.object(shards.subprocess, 'check_output', return_value='candidate')
@@ -397,6 +397,36 @@ class CompleteCoverageTests(unittest.TestCase):
         self.assertEqual(len(tests), len(set(tests)))
         self.assertEqual(set(tests) | {shards.VISUAL}, set(shards.inventory()))
         self.verify()
+
+    def test_pr_mode_skips_visual_matrix_and_verifies_without_captures(self):
+        pr_plan = shards.plan(include_visual_matrix=False)
+        self.assertFalse(any(phase.startswith('visual-') for phase in pr_plan))
+        self.assertNotIn(shards.VISUAL, [t for tests in pr_plan.values() for t in tests])
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            for phase, tests in pr_plan.items():
+                (root / f'{phase}.json').write_text(json.dumps(dict(
+                    commit='candidate', run='42', attempt='1', exit=0, tests=[[t, 'Passed'] for t in tests])))
+            shards.verify(root, pr_plan)
+
+    def test_explicit_visual_phase_enables_visual_plan_without_env(self):
+        seen = []
+        with patch.dict(os.environ, {'CI': 'true', 'UI_INCLUDE_VISUAL': ''}), \
+                patch.object(shards, 'run_phase', side_effect=lambda phase, selected: (seen.append(phase), 0)[1]):
+            self.assertEqual(shards.execute('visual'), 0)
+        self.assertEqual(seen, [f'visual-{size}' for size in shards.SIZES])
+        with tempfile.TemporaryDirectory() as folder:
+            previous = os.getcwd()
+            os.chdir(folder)
+            try:
+                with patch.dict(os.environ, {'UI_INCLUDE_VISUAL': ''}), \
+                        patch.object(shards, 'plan', return_value=self.plan) as mocked, \
+                        patch.object(shards.subprocess, 'Popen', side_effect=RuntimeError('stop-after-plan')):
+                    with self.assertRaisesRegex(RuntimeError, 'stop-after-plan'):
+                        shards.run_phase('visual-1000x700', None)
+            finally:
+                os.chdir(previous)
+        mocked.assert_called_once_with(include_visual_matrix=True)
 
     def test_missing_failed_skipped_stale_or_duplicate_test_rejected(self):
         path = self.root / 'smoke.json'
@@ -571,7 +601,7 @@ class NightlyTests(unittest.TestCase):
         self.assertIn('products_only: true', call)
         failed = nightly.split('\n  build-failed:\n', 1)[1]
         self.assertIn('needs: build', failed)
-        self.assertIn("if: failure() && github.event_name == 'schedule'", failed)
+        self.assertIn("if: failure() && github.event_name == 'schedule' && github.repository == 'stevyhacker/LokalBot'", failed)
         self.assertIn('gh issue create', failed)
 
     def test_a_drift_run_that_could_not_record_opens_an_issue(self):
@@ -581,7 +611,7 @@ class NightlyTests(unittest.TestCase):
         self.assertNotIn('continue-on-error', job)
         self.assertNotIn('|| true', compare)
         unchecked = job.split('      - name: Open or update the unchecked-drift issue\n', 1)[1]
-        self.assertIn("if: failure() && github.event_name != 'pull_request'", unchecked)
+        self.assertIn("if: failure() && github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'", unchecked)
         self.assertIn('gh issue create', unchecked)
 
     def test_a_drift_run_without_the_key_is_a_notice_on_pull_requests_and_a_failure_elsewhere(self):
@@ -630,7 +660,7 @@ class ReleaseBundleAndRegistryTests(unittest.TestCase):
     def test_release_calls_the_job_for_every_stable_tag(self):
         release = (ROOT / '.github/workflows/release.yml').read_text()
         call = release.split('\n  mcp-registry:\n', 1)[1].split('\n\n', 1)[0]
-        self.assertIn("if: github.event_name == 'push' && !contains(github.ref_name, '-')", call)
+        self.assertIn("if: github.repository == 'stevyhacker/LokalBot' && github.event_name == 'push' && !contains(github.ref_name, '-')", call)
         self.assertIn('needs: release', call)
         self.assertIn('uses: ./.github/workflows/mcp-registry.yml', call)
         self.assertIn('tag: ${{ github.ref_name }}', call)
@@ -638,7 +668,7 @@ class ReleaseBundleAndRegistryTests(unittest.TestCase):
             self.assertIn(grant, call)
 
     def test_the_bundle_is_attached_whatever_the_registry_switch_says(self):
-        self.assertIn("    if: github.event_name != 'pull_request'\n", self.bundle)
+        self.assertIn("    if: github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'\n", self.bundle)
         steps = self.bundle.split('    steps:\n', 1)[1]
         self.assertIn('./Scripts/release/build-mcpb.sh', steps)
         self.assertIn('gh release upload "$TAG"', steps)
@@ -655,7 +685,7 @@ class ReleaseBundleAndRegistryTests(unittest.TestCase):
                 self.assertEqual(output, '')
         publish = self.workflow.split('\n  publish:\n', 1)[1].split('    steps:', 1)[0]
         self.assertIn('needs: bundle', publish)
-        self.assertIn("if: needs.bundle.outputs.publish == 'true'", publish)
+        self.assertIn("if: needs.bundle.outputs.publish == 'true' && github.repository == 'stevyhacker/LokalBot'", publish)
 
 
 class WorkdayBesideUnitTestsTests(unittest.TestCase):
@@ -666,7 +696,7 @@ class WorkdayBesideUnitTestsTests(unittest.TestCase):
         workday = tests.split('id: workday\n', 1)[1].split('      - name:', 1)[0]
         for setting in ['background: true', 'continue-on-error: true', 'timeout-minutes:']:
             self.assertIn(setting, workday)
-        wait = tests.index('wait: [workday, audio-recovery, macos-helpers]')
+        wait = tests.index('wait: [workday, audio-recovery, macos-helpers, pi-runtime]')
         self.assertLess(tests.index('Run unit tests without rebuilding'), wait)
         self.assertLess(wait, tests.index('Keep the failed library'))
         report = build.split('\n  day-in-the-life:\n', 1)[1]

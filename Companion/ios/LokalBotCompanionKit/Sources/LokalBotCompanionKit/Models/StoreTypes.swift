@@ -132,7 +132,7 @@ public struct SyncReport: Sendable, Hashable {
 }
 
 public struct RecordingItem: Sendable, Hashable, Identifiable {
-    public enum State: String, Sendable, Hashable {
+    public enum State: String, Codable, Sendable, Hashable {
         case recording
         case waiting
         case failed

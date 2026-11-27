@@ -18,6 +18,7 @@
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-image.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot guides, questions, and comparisons for private local AI meeting notes" />
   <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="{{TITLE}}" />
   <meta name="twitter:description" content="{{META_DESCRIPTION}}" />
@@ -36,8 +37,8 @@
   <div class="bg-field" aria-hidden="true"></div>
   <header class="nav" id="top">
     <a class="brand" href="/" aria-label="LokalBot home"><img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
-    <nav class="nav__links" aria-label="Primary"><a href="/#features">Features</a><a href="/guides" aria-current="page">Guides</a><a href="/benchmarks">Benchmarks</a><a href="/blog">Blog</a></nav>
-    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a></div>
+    {{PRIMARY_NAV}}
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a></div>
   </header>
   <main class="guides-page" id="guides">
     <header class="guide-hero guide-hero--index">
@@ -71,11 +72,25 @@
 {{COMPARE_CARDS}}
       </div>
     </section>
+    <section class="guide-related guide-related--compare" id="tools" aria-labelledby="tools-title" data-guide-section>
+      <p class="eyebrow">Tools</p>
+      <h2 id="tools-title">Free local browser tools</h2>
+      <div class="guide-card-grid">
+{{TOOL_CARDS}}
+      </div>
+    </section>
     <section class="guide-related guide-related--compare" id="reference" aria-labelledby="reference-title" data-guide-section>
       <p class="eyebrow">Reference</p>
       <h2 id="reference-title">Facts and measurements</h2>
       <div class="guide-card-grid">
 {{REFERENCE_CARDS}}
+      </div>
+    </section>
+    <section class="guide-related guide-related--compare" id="languages" aria-labelledby="languages-title" data-guide-section>
+      <p class="eyebrow">Languages</p>
+      <h2 id="languages-title">LokalBot in your language</h2>
+      <div class="guide-card-grid">
+{{LANGUAGE_CARDS}}
       </div>
     </section>
     <p class="guide-filter-empty" data-guide-filter-empty hidden>No pages match that filter. <button class="text-button" type="button" data-guide-filter-clear>Show all pages</button></p>

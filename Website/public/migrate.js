@@ -15,6 +15,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const MAX_ZIP_ENTRIES = 500;
+  const MAX_ZIP_ENTRY_BYTES = 50 * 1024 * 1024;
+  const SUPPORTED_ARCHIVE_EXTS = new Set(["csv", "json", "md", "markdown", "txt", "vtt", "srt", "docx"]);
+
   function pad2(n) {
     return String(n).padStart(2, "0");
   }
@@ -28,6 +32,14 @@
     return h > 0 ? pad2(h) + ":" + pad2(m) + ":" + pad2(s) : pad2(m) + ":" + pad2(s);
   }
 
+  function formatIsoTime(value) {
+    if (!value) return "";
+    const match = /T(\d{2}:\d{2}(?::\d{2})?)/.exec(String(value));
+    if (match) return match[1];
+    const spaceMatch = /\b(\d{1,2}:\d{2}(?::\d{2})?)\b/.exec(String(value));
+    return spaceMatch ? spaceMatch[1] : "";
+  }
+
   function extractIsoDay(value) {
     if (!value) return "";
     if (typeof value === "number") {
@@ -37,10 +49,15 @@
       return "";
     }
     const str = String(value).trim();
-    const direct = /^(\d{4}-\d{2}-\d{2})/.exec(str);
+    const direct = /(\d{4}-\d{2}-\d{2})/.exec(str);
     if (direct) return direct[1];
     const parsed = new Date(str);
     if (!Number.isNaN(parsed.getTime())) return parsed.toISOString().slice(0, 10);
+    const monthMatch = /\b(January|February|March|April|May|June|July|August|September|October|November|December|Jan|Feb|Mar|Apr|Jun|Jul|Aug|Sep|Sept|Oct|Nov|Dec)\.?\s+(\d{1,2}),?\s+(\d{4})\b/i.exec(str);
+    if (monthMatch) {
+      const monthDate = new Date(monthMatch[1].replace(/\.$/, "") + " " + monthMatch[2] + ", " + monthMatch[3] + " UTC");
+      if (!Number.isNaN(monthDate.getTime())) return monthDate.toISOString().slice(0, 10);
+    }
     return "";
   }
 
@@ -55,6 +72,28 @@
 
   function escapeYaml(value) {
     return '"' + String(value || "").replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\r?\n/g, " ") + '"';
+  }
+
+  function normalizeProjects(raw) {
+    const seen = new Set();
+    const out = [];
+    const add = function (val) {
+      if (typeof val === "string") {
+        val.split(/[,;]+/).forEach(function (part) {
+          const cleaned = part.trim().replace(/^\[\[|\]\]$/g, "");
+          if (cleaned && !seen.has(cleaned)) {
+            seen.add(cleaned);
+            out.push(cleaned);
+          }
+        });
+      } else if (val && typeof val === "object") {
+        const name = val.name || val.title || val.label;
+        if (typeof name === "string") add(name);
+      }
+    };
+    if (Array.isArray(raw)) raw.forEach(add);
+    else if (raw) add(raw);
+    return out;
   }
 
   function flattenProseMirror(node) {
@@ -88,12 +127,152 @@
   }
 
   function stripExtension(name) {
-    return String(name || "Untitled meeting").replace(/\.[^.]+$/, "");
+    const base = String(name || "Untitled meeting").split(/[\\/]/).pop() || "Untitled meeting";
+    return base.replace(/\.[^.]+$/, "");
+  }
+
+  function decodeXmlEntities(str) {
+    return String(str || "")
+      .replace(/&#x([0-9a-fA-F]+);/g, function (_, hex) {
+        return String.fromCodePoint(parseInt(hex, 16));
+      })
+      .replace(/&#(\d+);/g, function (_, dec) {
+        return String.fromCodePoint(parseInt(dec, 10));
+      })
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&amp;/g, "&");
+  }
+
+  async function inflateRawBytes(compressedBytes) {
+    if (typeof DecompressionStream !== "function") {
+      throw new Error("Browser does not support DecompressionStream deflate-raw");
+    }
+    const ds = new DecompressionStream("deflate-raw");
+    const writer = ds.writable.getWriter();
+    const writePromise = writer.write(compressedBytes).then(function () {
+      return writer.close();
+    });
+    const reader = ds.readable.getReader();
+    const chunks = [];
+    let total = 0;
+    while (true) {
+      const step = await reader.read();
+      if (step.done) break;
+      total += step.value.byteLength;
+      if (total > MAX_ZIP_ENTRY_BYTES) {
+        throw new Error("Archive entry exceeds safety limit");
+      }
+      chunks.push(step.value);
+    }
+    await writePromise;
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (let i = 0; i < chunks.length; i++) {
+      out.set(chunks[i], offset);
+      offset += chunks[i].byteLength;
+    }
+    return out;
+  }
+
+  async function extractZipEntries(inputBytes) {
+    const bytes = inputBytes instanceof Uint8Array ? inputBytes : new Uint8Array(inputBytes);
+    if (bytes.byteLength < 22) return [];
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const minEocd = Math.max(0, bytes.byteLength - 65557);
+    let eocdOffset = -1;
+    for (let i = bytes.byteLength - 22; i >= minEocd; i--) {
+      if (view.getUint32(i, true) === 0x06054b50) {
+        eocdOffset = i;
+        break;
+      }
+    }
+    if (eocdOffset === -1) return [];
+
+    const entryCount = Math.min(view.getUint16(eocdOffset + 10, true), MAX_ZIP_ENTRIES);
+    const centralOffset = view.getUint32(eocdOffset + 16, true);
+    const decoder = new TextDecoder("utf-8");
+    const entries = [];
+    let ptr = centralOffset;
+
+    for (let i = 0; i < entryCount && ptr + 46 <= bytes.byteLength; i++) {
+      if (view.getUint32(ptr, true) !== 0x02014b50) break;
+      const method = view.getUint16(ptr + 10, true);
+      const compSize = view.getUint32(ptr + 20, true);
+      const uncompSize = view.getUint32(ptr + 24, true);
+      const nameLen = view.getUint16(ptr + 28, true);
+      const extraLen = view.getUint16(ptr + 30, true);
+      const commentLen = view.getUint16(ptr + 32, true);
+      const localOffset = view.getUint32(ptr + 42, true);
+      const name = decoder.decode(bytes.subarray(ptr + 46, ptr + 46 + nameLen));
+      ptr += 46 + nameLen + extraLen + commentLen;
+
+      if (
+        !name ||
+        name.endsWith("/") ||
+        name.startsWith("__MACOSX/") ||
+        /(^|\/)\.DS_Store$/.test(name) ||
+        uncompSize > MAX_ZIP_ENTRY_BYTES
+      ) {
+        continue;
+      }
+      if (localOffset + 30 > bytes.byteLength) continue;
+      if (view.getUint32(localOffset, true) !== 0x04034b50) continue;
+      const localNameLen = view.getUint16(localOffset + 26, true);
+      const localExtraLen = view.getUint16(localOffset + 28, true);
+      const dataStart = localOffset + 30 + localNameLen + localExtraLen;
+      const dataEnd = dataStart + compSize;
+      if (dataEnd > bytes.byteLength) continue;
+
+      const rawSlice = bytes.subarray(dataStart, dataEnd);
+      if (method === 0) {
+        entries.push({ name: name, bytes: new Uint8Array(rawSlice) });
+      } else if (method === 8) {
+        try {
+          const inflated = await inflateRawBytes(rawSlice);
+          entries.push({ name: name, bytes: inflated });
+        } catch (_e) {
+        }
+      }
+    }
+    return entries;
+  }
+
+  async function extractDocxText(inputBytes) {
+    const entries = await extractZipEntries(inputBytes);
+    const docEntry = entries.find(function (e) {
+      return e.name.toLowerCase() === "word/document.xml";
+    });
+    if (!docEntry) return "";
+    const xml = new TextDecoder("utf-8").decode(docEntry.bytes);
+    const paragraphs = [];
+    const pRe = /<w:p(?:\s[^>]*)?>([\s\S]*?)<\/w:p>/g;
+    let pMatch;
+    while ((pMatch = pRe.exec(xml)) !== null) {
+      const inner = pMatch[1]
+        .replace(/<w:tab(?:\s[^>]*)?\/>/g, "  ")
+        .replace(/<w:br(?:\s[^>]*)?\/>/g, "\n");
+      let text = "";
+      const tokenRe = /<w:t(?:\s[^>]*)?>([\s\S]*?)<\/w:t>|(\n)|(\s{2})/g;
+      let tMatch;
+      while ((tMatch = tokenRe.exec(inner)) !== null) {
+        if (tMatch[1] !== undefined) text += decodeXmlEntities(tMatch[1]);
+        else if (tMatch[2]) text += "\n";
+        else if (tMatch[3]) text += "  ";
+      }
+      const trimmed = text.replace(/[ \t]+\n/g, "\n").trim();
+      if (trimmed) paragraphs.push(trimmed);
+    }
+    return paragraphs.join("\n");
   }
 
   function parseVttOrSrt(text, fileName) {
     const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n");
     const isVtt = /^WEBVTT\b/i.test(clean.trimStart());
+    const hasVoiceTag = /<v\s+[^>]+>/i.test(clean);
+    const hasTeamsCue = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/\d+-\d+/i.test(clean);
     const blocks = clean.split(/\n{2,}/);
     const turns = [];
     const speakers = new Set();
@@ -109,14 +288,14 @@
       if (timeIdx === -1) continue;
       const startRaw = lines[timeIdx].split("-->")[0].trim().replace(",", ".").replace(/\.\d+$/, "");
       const bodyLines = lines.slice(timeIdx + 1).map(function (l) {
-        return l.replace(/<\/?v[^>]*>/g, function (m) {
+        return l.replace(/<\/?v[^>]*>/gi, function (m) {
           const vMatch = /<v\s+([^>]+)>/i.exec(m);
           return vMatch ? vMatch[1].trim() + ": " : "";
         }).replace(/<[^>]+>/g, "").trim();
       }).filter(Boolean);
       if (bodyLines.length === 0) continue;
       const joined = bodyLines.join(" ");
-      const spkMatch = /^([^:]{1,50}):\s+(.+)$/.exec(joined);
+      const spkMatch = /^([^:]{1,60}):\s+(.+)$/.exec(joined);
       const speaker = spkMatch ? spkMatch[1].trim() : "";
       const utterance = spkMatch ? spkMatch[2].trim() : joined;
       if (speaker) speakers.add(speaker);
@@ -128,69 +307,238 @@
       }
     }
 
+    let source = isVtt ? "Zoom / WebVTT" : "SRT transcript";
+    if (hasVoiceTag || hasTeamsCue || /teams/i.test(fileName)) {
+      source = "Microsoft Teams";
+    }
+
     return [{
       title: stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Meeting transcript",
       date: extractIsoDay(fileName) || "",
-      source: isVtt ? "Zoom / WebVTT" : "SRT transcript",
+      source: source,
       attendees: Array.from(speakers),
+      projects: [],
       summary: "",
       actions: [],
       transcript: turns,
     }];
   }
 
-  function parseOtterOrPlainText(text, fileName) {
+  function parseScreenpipeMarkdown(text, fileName) {
     const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
     const lines = clean.split("\n");
     const turns = [];
     const speakers = new Set();
-    const otterHeader = /^(.{1,50}?)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$/;
+    let title = "";
+    let date = extractIsoDay(fileName) || "";
+    const audioLineRe = /^\[?(\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?Z?)\]?\s*(?:\(([^)]+)\)|\[([^\]]+)\])?:?\s*(.+)$/;
+    const spkTurnRe = /^\*\*([^*]{1,50})\*\*\s*(?:\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?)?:?\s+(.+)$/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      if (/^#\s+/.test(line) && !title) {
+        title = line.replace(/^#\s+/, "").trim();
+        continue;
+      }
+      const mAudio = audioLineRe.exec(line);
+      if (mAudio) {
+        if (!date) date = extractIsoDay(mAudio[1]);
+        const ts = formatIsoTime(mAudio[1]);
+        const speaker = (mAudio[2] || mAudio[3] || "").trim();
+        if (speaker) speakers.add(speaker);
+        turns.push({ speaker: speaker, timestamp: ts, text: mAudio[4].trim() });
+        continue;
+      }
+      const mSpk = spkTurnRe.exec(line);
+      if (mSpk) {
+        const spk = mSpk[1].trim();
+        speakers.add(spk);
+        turns.push({ speaker: spk, timestamp: (mSpk[2] || "").trim(), text: mSpk[3].trim() });
+      }
+    }
+
+    return [{
+      title: title || stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Screenpipe capture",
+      date: date,
+      source: "Screenpipe",
+      attendees: Array.from(speakers),
+      projects: [],
+      summary: "",
+      actions: [],
+      transcript: turns,
+    }];
+  }
+
+  function parseWisprPlainText(text, fileName) {
+    const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+    const lines = clean.split("\n");
+    const turns = [];
+    let date = extractIsoDay(fileName) || "";
+    const bracketRe = /^\[(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2}(?::\d{2})?)\]\s*(?:\(([^)]+)\)\s*)?(.+)$/;
+    const dashRe = /^(\d{4}-\d{2}-\d{2})[T ](\d{1,2}:\d{2}(?::\d{2})?)\s*-\s*([^:]{1,40}):\s+(.+)$/;
+
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line || /^wispr\s*flow/i.test(line)) continue;
+      const mBracket = bracketRe.exec(line);
+      if (mBracket) {
+        if (!date) date = mBracket[1];
+        const appLabel = mBracket[3] ? mBracket[3].trim() : "Dictation";
+        turns.push({ speaker: appLabel, timestamp: mBracket[2], text: mBracket[4].trim() });
+        continue;
+      }
+      const mDash = dashRe.exec(line);
+      if (mDash) {
+        if (!date) date = mDash[1];
+        turns.push({ speaker: mDash[3].trim(), timestamp: mDash[2], text: mDash[4].trim() });
+        continue;
+      }
+      turns.push({ speaker: "Dictation", timestamp: "", text: line });
+    }
+
+    return [{
+      title: stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Wispr Flow dictations",
+      date: date,
+      source: "Wispr Flow",
+      attendees: [],
+      projects: [],
+      summary: "",
+      actions: [],
+      transcript: turns,
+    }];
+  }
+
+  function parseOtterOrPlainText(text, fileName, forcedSource) {
+    const clean = text.replace(/^\uFEFF/, "").replace(/\r\n/g, "\n").trim();
+    const lines = clean.split("\n");
+    const turns = [];
+    const speakers = new Set();
+    const summaryLines = [];
+    const actions = [];
+    const otterHeader = /^(.{1,55}?)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$/;
+    const teamsInlineTs = /^([A-Z][\w .,'()-]{1,50}?)\s+(\d{1,2}:\d{2}(?::\d{2})?)\s*$/;
+    const krispParenLine = /^([^:(\n]{1,50}?)\s*\((\d{1,2}:\d{2}(?::\d{2})?)\):\s+(.+)$/;
+    const krispDashLine = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s*[-|]\s*([^:]{1,50}):\s+(.+)$/;
+    const krispPipeHeader = /^([^|\n]{1,50}?)\s*\|\s*(\d{1,2}:\d{2}(?::\d{2})?)\s*$/;
     const colonLine = /^\[?(\d{1,2}:\d{2}(?::\d{2})?)\]?\s+([^:]{1,45}):\s+(.+)$/;
     const speakerOnly = /^([A-Z][\w .'-]{0,40}):\s+(.+)$/;
+    const bareTimestamp = /^(\d{1,2}:\d{2}(?::\d{2})?)$/;
+
     let otterCount = 0;
+    let teamsCount = 0;
     let detectedTitle = "";
     let detectedDate = extractIsoDay(fileName) || "";
-    let detectedSource = "";
+    let detectedSource = forcedSource || "";
     let startIdx = 0;
 
-    const transcriptMarkerIdx = lines.findIndex(function (l) { return l.trim() === "Transcript:"; });
-    if (transcriptMarkerIdx !== -1 && transcriptMarkerIdx <= 8) {
+    if (/tactiq/i.test(fileName) || /exported by tactiq|tactiq\.io/i.test(clean)) {
+      detectedSource = "Tactiq";
+    } else if (/krisp/i.test(fileName) || /^krisp\b/im.test(clean)) {
+      detectedSource = "Krisp";
+    } else if (/teams/i.test(fileName)) {
+      detectedSource = "Microsoft Teams";
+    }
+
+    const transcriptMarkerIdx = lines.findIndex(function (l) {
+      return /^Transcript:?$/i.test(l.trim());
+    });
+    if (transcriptMarkerIdx !== -1 && transcriptMarkerIdx <= 40) {
+      let section = "header";
       for (let h = 0; h < transcriptMarkerIdx; h++) {
         const hl = lines[h].trim();
-        if (/^Meeting Title:\s*/i.test(hl)) detectedTitle = hl.replace(/^Meeting Title:\s*/i, "").trim();
-        else if (/^Date:\s*/i.test(hl)) detectedDate = extractIsoDay(hl.replace(/^Date:\s*/i, "")) || detectedDate;
-        else if (/^Meeting participants:\s*/i.test(hl)) {
+        if (!hl) continue;
+        if (/^Transcribed by https?:\/\/otter\.ai/i.test(hl) || /^Transcript exported by Tactiq/i.test(hl)) continue;
+        if (/^https?:\/\/meet\.google\.com\//i.test(hl)) {
+          if (!detectedSource) detectedSource = "Tactiq";
+          continue;
+        }
+        if (/^(Summary|Key Points|Highlights):?$/i.test(hl)) {
+          section = "summary";
+          continue;
+        }
+        if (/^Action Items:?$/i.test(hl)) {
+          section = "actions";
+          continue;
+        }
+        if (section === "summary") {
+          summaryLines.push(hl);
+          continue;
+        }
+        if (section === "actions") {
+          const item = hl.replace(/^[-*•\[\] xX]+/, "").trim();
+          if (item) actions.push(item);
+          continue;
+        }
+        if (/^Meeting participants:\s*/i.test(hl)) {
+          if (!detectedSource) detectedSource = "Granola";
           hl.replace(/^Meeting participants:\s*/i, "").split(/[,;]+/).forEach(function (p) {
             if (p.trim()) speakers.add(p.trim());
           });
-        }
-      }
-      detectedSource = "Granola";
-      startIdx = transcriptMarkerIdx + 1;
-    } else {
-      const firstOtterIdx = lines.findIndex(function (l) { return otterHeader.test(l.trim()); });
-      if (firstOtterIdx > 0 && firstOtterIdx <= 6) {
-        for (let h = 0; h < firstOtterIdx; h++) {
-          const hl = lines[h].trim();
-          if (!hl) continue;
+        } else if (/^(?:Meeting Title|Meeting):\s*/i.test(hl)) {
+          detectedTitle = hl.replace(/^(?:Meeting Title|Meeting):\s*/i, "").trim();
+          if (/^Meeting Title:/i.test(hl) && !detectedSource) detectedSource = "Granola";
+        } else if (/^Date:\s*/i.test(hl)) {
+          detectedDate = extractIsoDay(hl.replace(/^Date:\s*/i, "")) || detectedDate;
+        } else if (/^\d+m\s*\d+s$/.test(hl) || /^\d+h\s*\d+m/.test(hl)) {
+          if (!detectedSource) detectedSource = "Microsoft Teams";
+        } else {
           const maybeDate = extractIsoDay(hl);
           if (maybeDate && !detectedDate) detectedDate = maybeDate;
-          else if (!detectedTitle && !maybeDate) detectedTitle = hl;
+          else if (!detectedTitle && !maybeDate) detectedTitle = hl.replace(/^#\s+/, "");
         }
-        startIdx = firstOtterIdx;
+      }
+      startIdx = transcriptMarkerIdx + 1;
+    } else {
+      const firstHeaderIdx = lines.findIndex(function (l) {
+        const t = l.trim();
+        return otterHeader.test(t) || colonLine.test(t) || krispParenLine.test(t) || krispDashLine.test(t);
+      });
+      if (firstHeaderIdx > 0 && firstHeaderIdx <= 8) {
+        for (let h = 0; h < firstHeaderIdx; h++) {
+          const hl = lines[h].trim();
+          if (!hl || /^Transcript exported by Tactiq/i.test(hl) || /^https?:\/\/meet\.google\.com\//i.test(hl)) continue;
+          const maybeDate = extractIsoDay(hl);
+          if (maybeDate && !detectedDate) detectedDate = maybeDate;
+          else if (!detectedTitle && !maybeDate) detectedTitle = hl.replace(/^#\s+/, "");
+        }
+        startIdx = firstHeaderIdx;
       }
     }
 
     for (let i = startIdx; i < lines.length; i++) {
       const line = lines[i].trim();
-      if (!line || /^Transcribed by https?:\/\/otter\.ai/i.test(line)) continue;
+      if (!line || /^Transcribed by https?:\/\/otter\.ai/i.test(line) || /^Transcript exported by Tactiq/i.test(line)) {
+        continue;
+      }
+      if (/^Action Items:?$/i.test(line)) {
+        while (i + 1 < lines.length && lines[i + 1].trim() && !/^(Transcript|Summary|Highlights):?$/i.test(lines[i + 1].trim())) {
+          i++;
+          const cleaned = lines[i].trim().replace(/^[-*•\[\] xX]+/, "").trim();
+          if (cleaned) actions.push(cleaned);
+        }
+        continue;
+      }
+      if (/^(Highlights|Key Points|Summary):?$/i.test(line)) {
+        while (i + 1 < lines.length && lines[i + 1].trim() && !/^(Transcript|Action Items):?$/i.test(lines[i + 1].trim())) {
+          i++;
+          summaryLines.push(lines[i].trim());
+        }
+        continue;
+      }
+
       const mOtter = otterHeader.exec(line);
       if (mOtter) {
         otterCount++;
         const spk = mOtter[1].trim();
         const ts = mOtter[2].trim();
         const body = [];
-        while (i + 1 < lines.length && lines[i + 1].trim() && !otterHeader.test(lines[i + 1].trim())) {
+        while (
+          i + 1 < lines.length &&
+          lines[i + 1].trim() &&
+          !otterHeader.test(lines[i + 1].trim()) &&
+          !teamsInlineTs.test(lines[i + 1].trim())
+        ) {
           i++;
           body.push(lines[i].trim());
         }
@@ -198,12 +546,79 @@
         turns.push({ speaker: spk, timestamp: ts, text: body.join(" ") });
         continue;
       }
+
+      const mPipe = krispPipeHeader.exec(line);
+      if (mPipe) {
+        if (!detectedSource) detectedSource = "Krisp";
+        const spk = mPipe[1].trim();
+        const ts = mPipe[2].trim();
+        const body = [];
+        while (i + 1 < lines.length && lines[i + 1].trim() && !krispPipeHeader.test(lines[i + 1].trim())) {
+          i++;
+          body.push(lines[i].trim());
+        }
+        if (spk) speakers.add(spk);
+        turns.push({ speaker: spk, timestamp: ts, text: body.join(" ") });
+        continue;
+      }
+
+      const mTeams = teamsInlineTs.exec(line);
+      if (mTeams && i + 1 < lines.length && lines[i + 1].trim() && !teamsInlineTs.test(lines[i + 1].trim())) {
+        teamsCount++;
+        const spk = mTeams[1].trim();
+        const ts = mTeams[2].trim();
+        const body = [];
+        while (i + 1 < lines.length && lines[i + 1].trim() && !teamsInlineTs.test(lines[i + 1].trim())) {
+          i++;
+          body.push(lines[i].trim());
+        }
+        if (spk) speakers.add(spk);
+        turns.push({ speaker: spk, timestamp: ts, text: body.join(" ") });
+        continue;
+      }
+
+      if (i + 2 < lines.length && bareTimestamp.test(lines[i + 1].trim()) && !bareTimestamp.test(line)) {
+        teamsCount++;
+        const spk = line;
+        const ts = lines[i + 1].trim();
+        i += 2;
+        const body = [lines[i].trim()];
+        while (
+          i + 1 < lines.length &&
+          lines[i + 1].trim() &&
+          !(i + 2 < lines.length && bareTimestamp.test(lines[i + 2].trim()))
+        ) {
+          i++;
+          body.push(lines[i].trim());
+        }
+        speakers.add(spk);
+        turns.push({ speaker: spk, timestamp: ts, text: body.join(" ") });
+        continue;
+      }
+
+      const mKrispParen = krispParenLine.exec(line);
+      if (mKrispParen) {
+        if (!detectedSource) detectedSource = "Krisp";
+        speakers.add(mKrispParen[1].trim());
+        turns.push({ speaker: mKrispParen[1].trim(), timestamp: mKrispParen[2].trim(), text: mKrispParen[3].trim() });
+        continue;
+      }
+
+      const mKrispDash = krispDashLine.exec(line);
+      if (mKrispDash) {
+        if (!detectedSource) detectedSource = "Krisp";
+        speakers.add(mKrispDash[2].trim());
+        turns.push({ speaker: mKrispDash[2].trim(), timestamp: mKrispDash[1].trim(), text: mKrispDash[3].trim() });
+        continue;
+      }
+
       const mColon = colonLine.exec(line);
       if (mColon) {
         speakers.add(mColon[2].trim());
         turns.push({ speaker: mColon[2].trim(), timestamp: mColon[1].trim(), text: mColon[3].trim() });
         continue;
       }
+
       const mSpk = speakerOnly.exec(line);
       if (mSpk) {
         speakers.add(mSpk[1].trim());
@@ -213,23 +628,104 @@
       turns.push({ speaker: "", timestamp: "", text: line });
     }
 
+    const finalSource =
+      detectedSource ||
+      (teamsCount > 0 ? "Microsoft Teams" : otterCount > 0 ? "Otter.ai" : "Transcript");
+
     return [{
       title: detectedTitle || stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Meeting note",
       date: detectedDate,
-      source: detectedSource || (otterCount > 0 ? "Otter.ai" : "Transcript"),
+      source: finalSource,
       attendees: Array.from(speakers),
+      projects: [],
+      summary: summaryLines.join("\n"),
+      actions: actions,
+      transcript: turns,
+    }];
+  }
+
+  function parseScreenpipeJson(items, fileName) {
+    const turns = [];
+    const speakers = new Set();
+    let date = extractIsoDay(fileName) || "";
+
+    for (let i = 0; i < items.length; i++) {
+      const entry = items[i];
+      if (!entry || typeof entry !== "object") continue;
+      const content = entry.content && typeof entry.content === "object" ? entry.content : entry;
+      const entryType = String(entry.type || "").toLowerCase();
+      const text = String(content.transcription || content.text || "").trim();
+      if (!text) continue;
+      if (!date) date = extractIsoDay(content.timestamp || entry.timestamp);
+      const ts = formatIsoTime(content.timestamp || entry.timestamp);
+      let speaker = "";
+      if (content.speaker && typeof content.speaker === "object" && content.speaker.name) {
+        speaker = String(content.speaker.name).trim();
+      } else if (typeof content.speaker_name === "string" && content.speaker_name.trim()) {
+        speaker = content.speaker_name.trim();
+      } else if (content.speaker_id !== undefined && content.speaker_id !== null) {
+        speaker = "Speaker " + content.speaker_id;
+      } else if (entryType === "ocr" && content.app_name) {
+        speaker = String(content.app_name).trim();
+      } else if (content.device_name) {
+        speaker = String(content.device_name).trim();
+      }
+      if (speaker && entryType !== "ocr") speakers.add(speaker);
+      turns.push({ speaker: speaker, timestamp: ts, text: text });
+    }
+    if (turns.length === 0) return [];
+
+    return [{
+      title: stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Screenpipe audio export",
+      date: date,
+      source: "Screenpipe",
+      attendees: Array.from(speakers),
+      projects: [],
       summary: "",
       actions: [],
       transcript: turns,
     }];
   }
 
+  function parseWisprJson(items, fileName) {
+    const byDay = new Map();
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (!item || typeof item !== "object") continue;
+      const text = String(item.formatted_text || item.asr_text || item.dictation || item.text || item.transcript || "").trim();
+      if (!text) continue;
+      const rawTs = item.timestamp || item.created_at || item.createdAt || item.date || "";
+      const day = extractIsoDay(rawTs) || extractIsoDay(fileName) || "";
+      const time = formatIsoTime(rawTs);
+      const appLabel = String(item.app || item.app_name || item.application || "Dictation").trim();
+      if (!byDay.has(day)) byDay.set(day, []);
+      byDay.get(day).push({ speaker: appLabel, timestamp: time, text: text });
+    }
+    if (byDay.size === 0) return [];
+
+    const results = [];
+    byDay.forEach(function (turns, day) {
+      results.push({
+        title: day ? "Wispr Flow Dictations " + day : stripExtension(fileName).replace(/[_-]+/g, " ").trim() || "Wispr Flow Dictations",
+        date: day,
+        source: "Wispr Flow",
+        attendees: [],
+        projects: [],
+        summary: "",
+        actions: [],
+        transcript: turns,
+      });
+    });
+    return results;
+  }
+
   function parseJsonRecord(rec, fallbackTitle, defaultSource) {
     if (!rec || typeof rec !== "object") return null;
-    const title = rec.title || rec.meeting_title || rec.name || fallbackTitle || "Untitled meeting";
+    const title = rec.title || rec.meeting_title || rec.meeting_name || rec.name || fallbackTitle || "Untitled meeting";
     const date =
       extractIsoDay(rec.created_at) ||
       extractIsoDay(rec.date) ||
+      extractIsoDay(rec.meetingDate) ||
       extractIsoDay(rec.dateString) ||
       extractIsoDay(rec.start_time) ||
       extractIsoDay(rec.started_at) ||
@@ -257,6 +753,10 @@
       });
     }
 
+    const projects = normalizeProjects(
+      rec.projects || rec.project || rec.workspace_name || rec.workspace || rec.folder || null
+    );
+
     let summary = "";
     if (typeof rec.notes_markdown === "string" && rec.notes_markdown.trim()) {
       summary = rec.notes_markdown.trim();
@@ -266,6 +766,8 @@
       summary = flattenProseMirror(rec.notes).trim();
     } else if (typeof rec.notes === "string" && rec.notes.trim()) {
       summary = rec.notes.trim();
+    } else if (typeof rec.meeting_notes === "string" && rec.meeting_notes.trim()) {
+      summary = rec.meeting_notes.trim();
     } else if (typeof rec.summary === "string" && rec.summary.trim()) {
       summary = rec.summary.trim();
     } else if (rec.summary && typeof rec.summary === "object") {
@@ -279,9 +781,20 @@
       summary = parts.filter(Boolean).join("\n\n");
     }
 
+    const extraBullets = Array.isArray(rec.key_points) ? rec.key_points : (Array.isArray(rec.highlights) ? rec.highlights : []);
+    if (extraBullets.length > 0) {
+      const bulletMd = extraBullets.map(function (b) {
+        if (typeof b === "string") return "- " + b.trim();
+        if (b && typeof b === "object" && (b.text || b.summary)) return "- " + String(b.text || b.summary).trim();
+        return "";
+      }).filter(Boolean).join("\n");
+      if (bulletMd) summary = summary ? summary + "\n\n" + bulletMd : bulletMd;
+    }
+
     const actions = [];
     const rawActions =
       rec.action_items ||
+      rec.actionItems ||
       (rec.summary && rec.summary.action_items) ||
       rec.actions ||
       [];
@@ -306,6 +819,7 @@
       rec.segments ||
       rec.speeches ||
       rec.utterances ||
+      rec.entries ||
       [];
     const turns = [];
     if (Array.isArray(rawTranscript)) {
@@ -322,6 +836,7 @@
           typeof seg.start_offset === "number" ? seg.start_offset / 1000 : NaN;
         const ts =
           typeof seg.timestamp === "string" ? seg.timestamp :
+          typeof seg.time === "string" ? seg.time :
           Number.isFinite(startSec) ? formatSeconds(startSec) : "";
         turns.push({ speaker: speaker, timestamp: ts, text: text });
       });
@@ -347,6 +862,10 @@
       source = "Otter.ai";
     } else if (rec.recording_id || rec.fathom_url) {
       source = "Fathom";
+    } else if (rec.krisp_id || rec.meeting_name || Array.isArray(rec.key_points)) {
+      source = "Krisp";
+    } else if (rec.meetingDate || Array.isArray(rec.highlights) || Array.isArray(rec.actionItems) || Array.isArray(rec.entries)) {
+      source = "Tactiq";
     }
 
     return {
@@ -354,6 +873,7 @@
       date: date,
       source: source,
       attendees: Array.from(attendees),
+      projects: projects,
       summary: summary,
       actions: actions,
       transcript: turns,
@@ -370,9 +890,9 @@
     for (let i = 0; i < input.length; i++) {
       const ch = input[i];
       if (inQuotes) {
-        if (ch === "\"") {
-          if (input[i + 1] === "\"") {
-            field += "\"";
+        if (ch === '"') {
+          if (input[i + 1] === '"') {
+            field += '"';
             i++;
           } else {
             inQuotes = false;
@@ -380,7 +900,7 @@
         } else {
           field += ch;
         }
-      } else if (ch === "\"") {
+      } else if (ch === '"') {
         inQuotes = true;
       } else if (ch === ",") {
         row.push(field);
@@ -413,6 +933,25 @@
       }
       return "";
     };
+
+    const isWispr =
+      headers.includes("formatted_text") ||
+      headers.includes("asr_text") ||
+      headers.includes("dictation") ||
+      (/wispr/i.test(fileName) && (headers.includes("text") || headers.includes("transcript")));
+    if (isWispr) {
+      const items = [];
+      for (let r = 1; r < rows.length; r++) {
+        const cells = rows[r];
+        items.push({
+          formatted_text: col(cells, ["formatted_text", "dictation", "text", "asr_text", "transcript"]),
+          timestamp: col(cells, ["timestamp", "created_at", "date", "time"]),
+          app: col(cells, ["app", "app_name", "application"]),
+        });
+      }
+      return parseWisprJson(items, fileName);
+    }
+
     const isGranola = headers.includes("document_title") || headers.includes("document_created") || headers.includes("document_id");
     const results = [];
     for (let r = 1; r < rows.length; r++) {
@@ -434,11 +973,13 @@
           if (cleaned) attendees.add(cleaned);
         });
       }
+      const projects = normalizeProjects(col(cells, ["projects", "project", "workspace_name", "workspace", "folder"]));
       results.push({
         title: title,
         date: date,
         source: isGranola ? "Granola" : "CSV export",
         attendees: Array.from(attendees),
+        projects: projects,
         summary: summaryParts.join("\n\n"),
         actions: [],
         transcript: parsedTranscript ? parsedTranscript.transcript : [],
@@ -447,19 +988,67 @@
     return results;
   }
 
+  function looksLikeKnownCsv(trimmed) {
+    const firstLine = trimmed.split(/\r?\n/, 1)[0].toLowerCase();
+    return (
+      firstLine.includes(",") &&
+      (
+        firstLine.includes("document_title") ||
+        firstLine.includes("document_id") ||
+        firstLine.includes("formatted_text") ||
+        firstLine.includes("asr_text") ||
+        (firstLine.includes("title") && firstLine.includes("transcript"))
+      )
+    );
+  }
+
   function parseFile(fileName, content) {
-    const ext = (fileName.split(".").pop() || "").toLowerCase();
+    const ext = (String(fileName || "").split(".").pop() || "").toLowerCase();
     const trimmed = String(content || "").trim();
     if (!trimmed) return [];
 
-    if (ext === "csv") {
+    const looksLikeJson = trimmed.startsWith("{") || trimmed.startsWith("[");
+    if (ext === "csv" || (ext !== "json" && !looksLikeJson && looksLikeKnownCsv(trimmed))) {
       const csvMeetings = parseCsvExport(content, fileName);
       if (csvMeetings.length > 0) return csvMeetings;
     }
 
-    if (ext === "json" || trimmed.startsWith("{") || trimmed.startsWith("[")) {
+    if (ext === "json" || looksLikeJson) {
       try {
         const parsed = JSON.parse(trimmed);
+        if (
+          parsed &&
+          Array.isArray(parsed.data) &&
+          parsed.data.length > 0 &&
+          parsed.data[0] &&
+          parsed.data[0].content &&
+          (parsed.data[0].type === "Audio" || parsed.data[0].type === "OCR" || parsed.data[0].content.transcription !== undefined)
+        ) {
+          const sp = parseScreenpipeJson(parsed.data, fileName);
+          if (sp.length > 0) return sp;
+        }
+        if (
+          Array.isArray(parsed) &&
+          parsed.length > 0 &&
+          parsed[0] &&
+          ((parsed[0].content && parsed[0].content.transcription !== undefined) || parsed[0].transcription !== undefined)
+        ) {
+          const spArr = parseScreenpipeJson(parsed, fileName);
+          if (spArr.length > 0) return spArr;
+        }
+        const wisprList = Array.isArray(parsed)
+          ? parsed
+          : (parsed && (parsed.dictations || parsed.history || parsed.items));
+        if (
+          Array.isArray(wisprList) &&
+          wisprList.length > 0 &&
+          wisprList[0] &&
+          (wisprList[0].formatted_text !== undefined || wisprList[0].asr_text !== undefined || (/wispr/i.test(fileName) && wisprList[0].text !== undefined))
+        ) {
+          const wp = parseWisprJson(wisprList, fileName);
+          if (wp.length > 0) return wp;
+        }
+
         let list = [];
         if (Array.isArray(parsed)) {
           list = parsed;
@@ -476,7 +1065,13 @@
         } else {
           list = [parsed];
         }
-        const defaultSource = /granola/i.test(fileName) ? "Granola" : "JSON export";
+        let defaultSource = "JSON export";
+        if (/granola/i.test(fileName)) defaultSource = "Granola";
+        else if (/krisp/i.test(fileName)) defaultSource = "Krisp";
+        else if (/tactiq/i.test(fileName)) defaultSource = "Tactiq";
+        else if (/screenpipe/i.test(fileName)) defaultSource = "Screenpipe";
+        else if (/wispr/i.test(fileName)) defaultSource = "Wispr Flow";
+
         const results = [];
         for (let i = 0; i < list.length; i++) {
           const item = parseJsonRecord(list[i], stripExtension(fileName), defaultSource);
@@ -491,6 +1086,22 @@
       return parseVttOrSrt(content, fileName);
     }
 
+    if (
+      /screenpipe/i.test(fileName) ||
+      /^#\s*screenpipe\b/im.test(trimmed) ||
+      (/\[\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(trimmed) && /\((?:microphone|system|output|input|speaker)/i.test(trimmed))
+    ) {
+      const screenpipe = parseScreenpipeMarkdown(content, fileName);
+      if (screenpipe.some(function (meeting) { return meeting.transcript.length > 0; })) return screenpipe;
+    }
+
+    if (
+      /wispr/i.test(fileName) ||
+      /^\[\d{4}-\d{2}-\d{2}[T ]\d{1,2}:\d{2}(?::\d{2})?\]\s*\([^)]+\)\s+/m.test(trimmed)
+    ) {
+      return parseWisprPlainText(content, fileName);
+    }
+
     if (ext === "md" || ext === "markdown") {
       const heading = /^#\s+(.+)$/m.exec(trimmed);
       const title = heading ? heading[1].trim() : stripExtension(fileName);
@@ -499,6 +1110,7 @@
         date: extractIsoDay(fileName) || "",
         source: "Markdown export",
         attendees: [],
+        projects: [],
         summary: trimmed.replace(/^#\s+.+\n+/, "").trim(),
         actions: [],
         transcript: [],
@@ -506,6 +1118,44 @@
     }
 
     return parseOtterOrPlainText(content, fileName);
+  }
+
+  async function parseBinaryFile(fileName, inputBytes) {
+    const bytes = inputBytes instanceof Uint8Array ? inputBytes : new Uint8Array(inputBytes);
+    const ext = (String(fileName || "").split(".").pop() || "").toLowerCase();
+
+    if (ext === "docx") {
+      const docxText = await extractDocxText(bytes);
+      if (!docxText.trim()) return [];
+      const forcedSource = /otter/i.test(fileName)
+        ? "Otter.ai"
+        : /fireflies/i.test(fileName)
+          ? "Fireflies.ai"
+          : "Microsoft Teams";
+      return parseOtterOrPlainText(docxText, fileName, forcedSource);
+    }
+
+    if (ext === "zip") {
+      const entries = await extractZipEntries(bytes);
+      const decoder = new TextDecoder("utf-8");
+      const out = [];
+      for (let i = 0; i < entries.length; i++) {
+        const entry = entries[i];
+        const entryExt = (entry.name.split(".").pop() || "").toLowerCase();
+        if (!SUPPORTED_ARCHIVE_EXTS.has(entryExt)) continue;
+        if (entryExt === "docx") {
+          const parsedDocx = await parseBinaryFile(entry.name, entry.bytes);
+          parsedDocx.forEach(function (m) { out.push(m); });
+        } else {
+          const text = decoder.decode(entry.bytes);
+          parseFile(entry.name, text).forEach(function (m) { out.push(m); });
+        }
+      }
+      return out;
+    }
+
+    const decoded = new TextDecoder("utf-8").decode(bytes);
+    return parseFile(fileName, decoded);
   }
 
   function renderNote(meeting, opts) {
@@ -520,21 +1170,47 @@
       opts || {},
     );
 
+    const attendees = Array.isArray(meeting.attendees) ? meeting.attendees : [];
+    const projects = Array.isArray(meeting.projects) ? meeting.projects : [];
+    const actions = Array.isArray(meeting.actions) ? meeting.actions : [];
+    const transcript = Array.isArray(meeting.transcript) ? meeting.transcript : [];
+
     const lines = [];
     if (options.includeFrontmatter) {
       lines.push("---");
       lines.push("title: " + escapeYaml(meeting.title));
-      if (meeting.date) lines.push("date: " + escapeYaml(meeting.date));
-      lines.push("source: " + escapeYaml(meeting.source));
-      if (meeting.attendees.length > 0) {
-        lines.push("attendees:");
-        meeting.attendees.forEach(function (person) {
+      if (options.obsidianFormat) {
+        lines.push("aliases:");
+        lines.push("  - " + escapeYaml(meeting.title));
+      }
+      if (meeting.date) {
+        const iso = /^\d{4}-\d{2}-\d{2}$/.test(meeting.date);
+        lines.push("date: " + (iso ? meeting.date : escapeYaml(meeting.date)));
+      }
+      if (meeting.source) {
+        lines.push("app: " + escapeYaml(meeting.source));
+      }
+      if (attendees.length > 0) {
+        lines.push("people:");
+        attendees.forEach(function (person) {
           const val = options.obsidianFormat && options.linkSpeakers ? "[[" + person + "]]" : person;
           lines.push("  - " + escapeYaml(val));
         });
+      } else if (options.obsidianFormat) {
+        lines.push("people: []");
+      }
+      if (projects.length > 0) {
+        lines.push("projects:");
+        projects.forEach(function (project) {
+          const val = options.obsidianFormat && options.linkSpeakers ? "[[" + project + "]]" : project;
+          lines.push("  - " + escapeYaml(val));
+        });
+      } else if (options.obsidianFormat) {
+        lines.push("projects: []");
       }
       lines.push("tags:");
-      lines.push("  - meeting");
+      lines.push("  - " + (options.obsidianFormat ? "lokalbot/meeting" : "meeting"));
+      lines.push("source: " + (options.obsidianFormat ? "LokalBot" : escapeYaml(meeting.source || "Transcript")));
       lines.push("---");
       lines.push("");
     }
@@ -544,21 +1220,27 @@
     const meta = [];
     if (meeting.date) meta.push("**Date:** " + meeting.date);
     if (meeting.source) meta.push("**Imported from:** " + meeting.source);
-    if (meeting.attendees.length > 0) {
-      const formatted = meeting.attendees.map(function (p) {
+    if (attendees.length > 0) {
+      const formatted = attendees.map(function (p) {
         return options.obsidianFormat && options.linkSpeakers ? "[[" + p + "]]" : p;
       }).join(", ");
-      meta.push("**Participants:** " + formatted);
+      meta.push("**People:** " + formatted);
+    }
+    if (projects.length > 0) {
+      const formattedProjects = projects.map(function (p) {
+        return options.obsidianFormat && options.linkSpeakers ? "[[" + p + "]]" : p;
+      }).join(", ");
+      meta.push("**Projects:** " + formattedProjects);
     }
     if (meta.length > 0) {
       lines.push(meta.join(" · "));
       lines.push("");
     }
 
-    if (meeting.actions.length > 0) {
+    if (actions.length > 0) {
       lines.push("## Action items");
       lines.push("");
-      meeting.actions.forEach(function (a) {
+      actions.forEach(function (a) {
         lines.push("- [ ] " + a);
       });
       lines.push("");
@@ -571,8 +1253,8 @@
       lines.push("");
     }
 
-    if (meeting.transcript.length > 0) {
-      const renderedTurns = meeting.transcript.map(function (t) {
+    if (transcript.length > 0) {
+      const renderedTurns = transcript.map(function (t) {
         const spk = t.speaker
           ? (options.obsidianFormat && options.linkSpeakers ? "**[[" + t.speaker + "]]**" : "**" + t.speaker + "**")
           : "";
@@ -628,17 +1310,20 @@
     const localParts = [];
     const centralParts = [];
     let offset = 0;
-    const usedNames = new Map();
+    const usedNames = new Set();
 
     for (let i = 0; i < entries.length; i++) {
-      let name = entries[i].filename;
+      const original = entries[i].filename;
+      let name = original;
       if (usedNames.has(name)) {
-        const count = usedNames.get(name) + 1;
-        usedNames.set(name, count);
-        name = name.replace(/\.md$/i, "") + " (" + count + ").md";
-      } else {
-        usedNames.set(name, 1);
+        const stem = original.replace(/\.md$/i, "");
+        let count = 2;
+        do {
+          name = stem + " (" + count + ").md";
+          count += 1;
+        } while (usedNames.has(name));
       }
+      usedNames.add(name);
       const nameBytes = encoder.encode(name);
       const dataBytes = encoder.encode(entries[i].markdown);
       const sum = crc32(dataBytes);
@@ -713,6 +1398,7 @@
       content: JSON.stringify({
         title: "Q4 Pricing & Launch Review",
         created_at: "2026-11-18T14:00:00Z",
+        workspace_name: "Desktop Launch",
         people: [{ name: "Maya Chen" }, { name: "Alex Rivera" }],
         notes_markdown: "- Team tier stays at $15/seat billed annually.\n- Ship desktop beta Thursday morning after accessibility sign-off.\n- Keep all audio transcription strictly on-device.",
         action_items: [
@@ -726,17 +1412,17 @@
       }, null, 2),
     },
     {
-      name: "2026-11-17-zoom-design-sync.vtt",
+      name: "2026-11-17-teams-design-sync.vtt",
       content: [
         "WEBVTT",
         "",
-        "1",
+        "a1b2c3d4-0000-0000-0000-000000000001/1-0",
         "00:00:05.000 --> 00:00:11.000",
-        "Elena Novak: Let's keep the Obsidian export as plain Markdown with collapsible transcripts.",
+        "<v Elena Novak>Let's keep the Obsidian export as plain Markdown with collapsible transcripts.</v>",
         "",
-        "2",
+        "a1b2c3d4-0000-0000-0000-000000000001/2-0",
         "00:00:12.000 --> 00:00:18.500",
-        "Sam Patel: Agreed, and wikilinks on participant names make backlinks work automatically.",
+        "<v Sam Patel>Agreed, and wikilinks on participant names make backlinks work automatically.</v>",
       ].join("\n"),
     },
   ];
@@ -744,6 +1430,12 @@
   function initUI() {
     const dropzone = document.getElementById("migrator-dropzone");
     const fileInput = document.getElementById("migrator-file-input");
+    const tabFiles = document.getElementById("migrator-tab-files");
+    const tabPaste = document.getElementById("migrator-tab-paste");
+    const pastePanel = document.getElementById("migrator-paste-panel");
+    const pasteTitle = document.getElementById("migrator-paste-title");
+    const pasteInput = document.getElementById("migrator-paste-input");
+    const pasteBtn = document.getElementById("migrator-paste-btn");
     const sampleBtn = document.getElementById("migrator-sample-btn");
     const clearBtn = document.getElementById("migrator-clear-btn");
     const downloadAllBtn = document.getElementById("migrator-download-all");
@@ -760,6 +1452,23 @@
     let rawMeetings = [];
     let renderedNotes = [];
     let selectedIndex = 0;
+
+    function setMode(mode) {
+      const isPaste = mode === "paste";
+      if (dropzone) dropzone.hidden = isPaste;
+      if (pastePanel) pastePanel.hidden = !isPaste;
+      if (tabFiles) {
+        tabFiles.classList.toggle("is-active", !isPaste);
+        tabFiles.setAttribute("aria-selected", !isPaste ? "true" : "false");
+      }
+      if (tabPaste) {
+        tabPaste.classList.toggle("is-active", isPaste);
+        tabPaste.setAttribute("aria-selected", isPaste ? "true" : "false");
+      }
+    }
+
+    if (tabFiles) tabFiles.addEventListener("click", function () { setMode("files"); });
+    if (tabPaste) tabPaste.addEventListener("click", function () { setMode("paste"); });
 
     function getOptions() {
       return {
@@ -795,7 +1504,7 @@
       downloadAllBtn.hidden = !hasNotes;
 
       if (!hasNotes) {
-        statusEl.textContent = "Drop files above or load sample exports to preview locally.";
+        statusEl.textContent = "Drop files above, paste text, or load sample exports to preview locally.";
         return;
       }
 
@@ -833,8 +1542,15 @@
       const added = [];
       for (let i = 0; i < fileList.length; i++) {
         const f = fileList[i];
-        const text = await f.text();
-        parseFile(f.name, text).forEach(function (m) { added.push(m); });
+        const ext = (f.name.split(".").pop() || "").toLowerCase();
+        if (ext === "zip" || ext === "docx") {
+          const buf = await f.arrayBuffer();
+          const parsed = await parseBinaryFile(f.name, new Uint8Array(buf));
+          parsed.forEach(function (m) { added.push(m); });
+        } else {
+          const text = await f.text();
+          parseFile(f.name, text).forEach(function (m) { added.push(m); });
+        }
       }
       if (added.length > 0) {
         rawMeetings = rawMeetings.concat(added);
@@ -843,6 +1559,29 @@
       } else {
         statusEl.textContent = "No recognizable meeting content found in the dropped files.";
       }
+    }
+
+    if (pasteBtn && pasteInput) {
+      pasteBtn.addEventListener("click", function () {
+        const raw = pasteInput.value;
+        if (!raw || !raw.trim()) {
+          statusEl.textContent = "Paste a meeting transcript, JSON, CSV, or VTT snippet first.";
+          return;
+        }
+        const customTitle = pasteTitle && pasteTitle.value.trim() ? pasteTitle.value.trim() : "";
+        const nameHint = customTitle ? customTitle + ".txt" : "pasted-meeting.txt";
+        const parsed = parseFile(nameHint, raw);
+        if (parsed.length > 0) {
+          if (customTitle && parsed.length === 1) {
+            parsed[0].title = customTitle;
+          }
+          rawMeetings = rawMeetings.concat(parsed);
+          selectedIndex = rawMeetings.length - parsed.length;
+          rerender();
+        } else {
+          statusEl.textContent = "Could not parse the pasted text as a meeting note.";
+        }
+      });
     }
 
     dropzone.addEventListener("click", function () { fileInput.click(); });
@@ -883,6 +1622,8 @@
       rawMeetings = [];
       renderedNotes = [];
       selectedIndex = 0;
+      if (pasteInput) pasteInput.value = "";
+      if (pasteTitle) pasteTitle.value = "";
       rerender();
     });
 
@@ -921,6 +1662,9 @@
 
   return {
     parseFile: parseFile,
+    parseBinaryFile: parseBinaryFile,
+    extractZipEntries: extractZipEntries,
+    extractDocxText: extractDocxText,
     renderNote: renderNote,
     buildZip: buildZip,
     initUI: initUI,

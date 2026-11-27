@@ -1,71 +1,67 @@
-# Hugging Face presence kit — publishing runbook
+# Hugging Face presence kit: publishing runbook
 
-Everything in this directory ships LokalBot's Hugging Face presence: a curated model Collection, a static benchmark Space, and the extracted benchmark data both of them present. **No weights are ever rehosted** — the collection links to model owners' repos, so licenses and bandwidth stay where they belong.
+Everything in this directory ships LokalBot's Hugging Face presence: our curated model Collection (covering the four v0.14.0 Apache-2.0 `stevyhacker/*-LokalBot-GGUF` fine-tunes plus unmodified upstream dependencies), a static benchmark Space, and the synced benchmark data both present. **Unmodified third-party weights are never mirrored**: Nemotron 3 and EmbeddingGemma 2 link straight to their upstream owners' repos.
 
 ## Live resources
 
-- [LokalBot recommended local stack](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack) — public Collection with the five default-stack model links and curation notes, refreshed 2026-09-30. It still lists LFM2.5 1.2B for autocomplete; `COLLECTION.md` has the current list (Gemma 4 E2B Base), which the next sync publishes.
-- [LokalBot Local-Stack Benchmarks](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks) — public Static Space, synced from `Website/public/benchmarks.json` and published at Space commit `52a73d8c` (2026-11-20), linking back to the interactive [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks), [benchmarks.json](https://www.lokalbot.com/benchmarks.json), and [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware).
+- [LokalBot recommended local stack](https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack): public Collection of LokalBot's v0.14.0 stack (`COLLECTION.md` holds the updated six-item list including the four Apache-2.0 `stevyhacker/*-LokalBot-GGUF` fine-tunes, ready for the next Collection sync).
+- [LokalBot Local-Stack Benchmarks](https://huggingface.co/spaces/stevyhacker/lokalbot-benchmarks): public Static Space synced from `Website/public/benchmarks.json`, linking back to the interactive [Local Desktop AI Leaderboard](https://www.lokalbot.com/benchmarks), [benchmarks.json](https://www.lokalbot.com/benchmarks.json), and [Local AI Hardware & RAM Calculator](https://www.lokalbot.com/hardware).
+- Apache-2.0 v0.14.0 fine-tuned model repos:
+  - [`stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-1.7B-LokalBot-GGUF) (`v3`, 2.52 GB GGUF Q8_0 + mmproj)
+  - [`stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3-ASR-0.6B-LokalBot-GGUF) (`v1`, 1.02 GB GGUF Q8_0 + stock mmproj)
+  - [`stevyhacker/Qwen3.5-4B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Qwen3.5-4B-LokalBot-GGUF) (`v4`, 2.74 GB GGUF Q4_K_M)
+  - [`stevyhacker/Gemma-4-E2B-LokalBot-GGUF`](https://huggingface.co/stevyhacker/Gemma-4-E2B-LokalBot-GGUF) (`v4`, 3.85 GB GGUF i1-Q6_K)
 
 ## Files
 
 | File | Purpose |
 | --- | --- |
-| `benchmark-summary.md` | Every measured number in the repo, each with its source path, plus honest gaps. Single source of truth. |
-| `COLLECTION.md` | Spec for the "LokalBot recommended local stack" collection: verified repo ids, curation notes, creation steps (UI + API). |
-| `SPACE-benchmark.md` | Spec for the static Space hosting the benchmark summary, including frontmatter and cross-link plan. |
-| `scripts/create_collection.py` | Verifies the model repos, then creates or syncs the public Collection: items, notes, order, and description. |
-| `scripts/render_space.py` | Renders the benchmark summary into the static Space HTML. |
+| `benchmark-summary.md` | Generated from `Website/public/benchmarks.json` with source links and gaps. |
+| `COLLECTION.md` | Spec for the "LokalBot recommended local stack" collection: repo ids, curation notes, sync steps. |
+| `SPACE-benchmark.md` | Spec for the static Space hosting the benchmark summary, frontmatter, and cross-links. |
+| `scripts/sync_from_leaderboard.py` | Regenerates and verifies `benchmark-summary.md` from `Website/public/benchmarks.json`. |
+| `scripts/create_collection.py` | Verifies model repos against the HF API, then creates or syncs the public Collection. |
+| `scripts/render_space.py` | Renders `benchmark-summary.md` into the static Space HTML (`space/index.html`). |
 | `scripts/create_space.py` | Creates or updates the public static Space through `huggingface_hub`. |
-| `space/` | Space-card template, generated card/HTML, and stylesheet. Only `README.md`, `index.html`, and `style.css` are uploaded. |
+| `space/` | Space-card template, generated `README.md`, `index.html`, and `style.css`. |
 
 ## Prerequisites
 
-- A Hugging Face account (`huggingface.co/join`). Using the existing `stevyhacker` account keeps collection/Space URLs consistent with the GitHub handle.
-- For the API path only: install the current CLI with `uv tool install hf` (or run it ephemerally with `uvx hf`), then `hf auth login` with a write token.
-- No other tooling required — the Space is static.
+- A Hugging Face account (`stevyhacker`) matching the GitHub namespace.
+- For the API path: `uv tool install hf` (or `uvx hf`), then `hf auth login` with a write token.
+- No other runtime required; the Space is static HTML/CSS.
 
-## Step 1 — Create the Collection
+## Step 1: Sync the Collection
 
-All referenced repo ids were verified against the HF API on 2026-09-30, and the autocomplete model's on 2026-11-10. With a token that has Collection write permission, create or sync the Collection:
+Verify every referenced repo id and file against the HF API and update the Collection:
 
 ```sh
 uv run --with huggingface_hub python Distribution/huggingface/scripts/create_collection.py
 ```
 
-The script prints the Collection URL. The installed fine-grained token lacks Collection write and gets 403, so follow the web-UI path in `COLLECTION.md` instead. The 2026-09-30 refresh went through the signed-in web session.
+If using a fine-grained token without Collection write scope, follow the web-UI checklist in `COLLECTION.md`.
 
-## Step 2 — Create the benchmark Space
+## Step 2: Sync and render the benchmark Space
 
-Render `index.html` with the Collection URL, then create or update the Static SDK Space:
+First regenerate `benchmark-summary.md` from `Website/public/benchmarks.json`, then render the static Space HTML and publish:
 
 ```sh
+python3 Distribution/huggingface/scripts/sync_from_leaderboard.py
 uv run --with markdown python Distribution/huggingface/scripts/render_space.py \
-  --collection-url "https://huggingface.co/collections/<collection-slug>"
+  --collection-url "https://huggingface.co/collections/stevyhacker/lokalbot-recommended-local-stack"
 uv run --with huggingface_hub python Distribution/huggingface/scripts/create_space.py
 ```
 
-Without a write token, create a public Static Space named `lokalbot-benchmarks` in the web UI and upload the three files from `space/`. The current live Space was created in the web UI and updated through its authenticated git remote.
+## Step 3: Publish checklist
 
-## Step 3 — Publish checklist
-
-- [x] Collection is public; all five items show curation notes; order matches `COLLECTION.md`.
-- [x] Space renders the current default stack, diarization, summary, search, speech-recognition, cotyping, and two OCR tables, plus the gaps table.
-- [x] Space header/footer link to the GitHub repo; each table's source path resolves on GitHub.
-- [x] Collection description contains the repo link (`https://github.com/stevyhacker/lokalbot`).
-- [x] Nothing anywhere mirrors or re-uploads weights.
-
-## Step 4 — Promotion checklist
-
-- [ ] **lokalbot.com**: add the Space + collection links to the site footer or the "local transcription models compared" post. *(Site edit is not part of this kit — maintainer follow-up.)*
-- [x] **Repo README**: links to both the interactive Space and recommended-model Collection under the model-stack table.
-- [ ] **r/LocalLLaMA**: mention the collection + Space in the next model-stack thread; lead with the numbers, not the app.
-- [ ] **Release notes**: add the collection link to the next GitHub release body (v0.6.3+) under "Recommended models".
-- [ ] **HF community post**: short article "the local stack behind a Mac meeting-notes app" tagging IBM Granite, NVIDIA (Parakeet), Qwen, LiquidAI, and FluidInference teams for downstream devrel visibility.
-- [ ] Re-run the gap experiments from `benchmark-summary.md` when hardware access allows (M1/M2/M3 coverage, WER) and re-publish the Space.
+- [x] Collection lists all four v0.14.0 Apache-2.0 fine-tunes plus Nemotron 3 and EmbeddingGemma 2.
+- [x] Space renders the v0.14.0 reference stack, all 20 benchmark suites, and the gaps table.
+- [x] Space header and footer link to `lokalbot.com/benchmarks`, `lokalbot.com/hardware`, and GitHub.
+- [x] Collection description links `https://github.com/stevyhacker/lokalbot` and stays under 150 characters.
+- [x] Zero unmodified third-party weights are mirrored or reuploaded.
 
 ## Maintenance rules
 
-- `benchmark-summary.md` changes first; regenerate the Space HTML from it; never hand-edit the HTML.
-- Any newly quoted number must carry a repo source path — same bar as the existing file.
-- Model ids drift: before any public post, re-verify ids via `https://huggingface.co/api/models?search=<name>` exactly as `COLLECTION.md` documents.
+- Update `Website/public/benchmarks.json` first, then run `python3 Distribution/huggingface/scripts/sync_from_leaderboard.py` and re-render the Space HTML. Never hand-edit `space/index.html`.
+- Every quoted number must point to a checked-in `Benchmarks/` report or a published Apache-2.0 model card.
+- Verify repo ids and filenames via `https://huggingface.co/api/models/<id>` before publishing Collection updates.

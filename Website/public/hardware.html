@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Local AI Hardware &amp; RAM Calculator — Can My Mac or PC Run Local Models? | LokalBot</title>
-  <meta name="description" content="Free local AI RAM, VRAM, and disk calculator for Apple Silicon Macs, Windows, and Linux. See which speech-to-text, summarizer, embedding, and autocomplete models fit your machine's memory." />
+  <title>Local AI Hardware &amp; RAM Calculator | LokalBot</title>
+  <meta name="description" content="Free local AI RAM, VRAM, and disk calculator for Mac, Windows, and Linux. See which v0.14.0 LokalBot models fit your memory cap." />
   <meta name="color-scheme" content="light dark" />
   <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
   <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
@@ -13,15 +13,15 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="LokalBot" />
   <meta property="og:url" content="https://www.lokalbot.com/hardware" />
-  <meta property="og:title" content="Local AI Hardware &amp; RAM Calculator — Can My Mac or PC Run Local Models?" />
+  <meta property="og:title" content="Local AI Hardware &amp; RAM Calculator | LokalBot" />
   <meta property="og:description" content="Pick your Mac, Windows, or Linux RAM and workloads to see exact disk downloads, resident RAM, GPU VRAM fit, and LokalBot's 50% memory residency cap." />
   <meta property="og:image" content="https://www.lokalbot.com/assets/og-hardware.png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   <meta property="og:image:alt" content="LokalBot Local AI Hardware and RAM Calculator for Apple Silicon Macs, Windows, and Linux." />
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="Local AI Hardware &amp; RAM Calculator — Mac, Windows &amp; Linux" />
-  <meta name="twitter:description" content="Check which local transcription, summarization, search, and autocomplete models fit your 8 GB, 16 GB, 24 GB, or 48 GB machine." />
+  <meta name="twitter:title" content="Local AI Hardware &amp; RAM Calculator | Mac, Windows &amp; Linux" />
+  <meta name="twitter:description" content="Check which v0.14.0 local transcription, summarization, search, and autocomplete models fit your 8 GB, 16 GB, 24 GB, or 48 GB machine." />
   <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-hardware.png" />
   <meta name="twitter:image:alt" content="LokalBot Local AI Hardware and RAM Calculator for Apple Silicon Macs, Windows, and Linux." />
 
@@ -30,7 +30,7 @@
 
   <link rel="stylesheet" href="/styles.css" />
   <link rel="stylesheet" href="/icons.css" />
-  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/hardware#app","name":"LokalBot Local AI Hardware & RAM Calculator","url":"https://www.lokalbot.com/hardware","description":"Interactive client-side calculator for estimating local AI disk downloads, resident memory, KV-cache overhead, GPU VRAM offload, and model recommendations on Apple Silicon Macs, Windows, and Linux.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (browser-based)","isAccessibleForFree":true,"datePublished":"2026-11-20","dateModified":"2026-11-20","image":"https://www.lokalbot.com/assets/og-hardware.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI Hardware Calculator","item":"https://www.lokalbot.com/hardware"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/hardware#faq","mainEntity":[{"@type":"Question","name":"Can an 8 GB Apple Silicon Mac run local AI meeting notes and autocomplete?","acceptedAnswer":{"@type":"Answer","text":"Yes, with compact models. Pair Qwen3-ASR 0.6B (1.02 GB) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs."}},{"@type":"Question","name":"What is the best local AI model stack for a 16 GB Mac?","acceptedAnswer":{"@type":"Answer","text":"A 16 GB Apple Silicon Mac runs LokalBot's full default stack (~9.6 GB total on disk): Qwen3-ASR 1.7B (2.52 GB) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B Q4_K_M (2.74 GB) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency automatically swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory."}},{"@type":"Question","name":"Why does total disk size differ from active RAM?","acceptedAnswer":{"@type":"Answer","text":"Two reasons: first, models do not all run at the same time — transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings)."}},{"@type":"Question","name":"Do I need a dedicated GPU on Windows or Linux?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot's bundled llama.cpp runs on a Vulkan or CUDA GPU when available and falls back to x86_64 CPU otherwise. On an AMD Ryzen 7 9700X (CPU-only, 8 threads), Qwen3.5 4B finished short extraction in 2.86 seconds and a long-meeting stress test in 120 seconds with 6/6 native tool calls in our Linux CPU benchmark. An 8 GB+ GPU fits the default 4B summarizer and autocomplete models in VRAM for faster responses."}},{"@type":"Question","name":"Does this calculator send my hardware specs to a server?","acceptedAnswer":{"@type":"Answer","text":"No. Every calculation runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string."}}]}]}</script>
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebApplication","@id":"https://www.lokalbot.com/hardware#app","name":"LokalBot Local AI Hardware & RAM Calculator","url":"https://www.lokalbot.com/hardware","description":"Interactive client-side calculator for estimating local AI disk downloads, resident memory, KV-cache overhead, GPU VRAM offload, and v0.14.0 Apache-2.0 model recommendations on Apple Silicon Macs, Windows, and Linux.","applicationCategory":"UtilitiesApplication","operatingSystem":"Any (browser-based)","isAccessibleForFree":true,"datePublished":"2026-11-20","dateModified":"2026-11-26","image":"https://www.lokalbot.com/assets/og-hardware.png","author":{"@id":"https://www.lokalbot.com/#organization"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"about":{"@id":"https://www.lokalbot.com/#software"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"Local AI Hardware Calculator","item":"https://www.lokalbot.com/hardware"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/hardware#faq","mainEntity":[{"@type":"Question","name":"Can an 8 GB Apple Silicon Mac run local AI meeting notes and autocomplete?","acceptedAnswer":{"@type":"Answer","text":"Yes, with compact models. Pair Qwen3-ASR 0.6B (LokalBot v1, 1.02 GB GGUF Q8_0) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs."}},{"@type":"Question","name":"What is the best local AI model stack for a 16 GB Mac?","acceptedAnswer":{"@type":"Answer","text":"A 16 GB Apple Silicon Mac runs LokalBot's full v0.14.0 Apache-2.0 default stack (~9.7 GB total on disk): Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB GGUF Q8_0) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B (LokalBot v4, 2.74 GB Q4_K_M) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (LokalBot v4, 3.85 GB i1-Q6_K) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory."}},{"@type":"Question","name":"Why does total disk size differ from active RAM?","acceptedAnswer":{"@type":"Answer","text":"Two reasons: first, models do not all run at the same time because transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings)."}},{"@type":"Question","name":"Do I need a dedicated GPU on Windows or Linux?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot's bundled llama.cpp runs on a Vulkan or CUDA GPU when available and falls back to x86_64 CPU otherwise. On an AMD Ryzen 7 9700X (CPU-only, 8 threads), Qwen3.5 4B finished short extraction in 2.86 seconds and a long-meeting stress test in 120 seconds with 6/6 native tool calls in our Linux CPU benchmark. An 8 GB+ GPU fits the default 4B summarizer and autocomplete models in VRAM for faster responses."}},{"@type":"Question","name":"Does this calculator send my hardware specs to a server?","acceptedAnswer":{"@type":"Answer","text":"No. Every calculation and PNG card export runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string."}}]}]}</script>
   <script src="/app.js" defer></script>
   <script src="/hardware.js" defer></script>
   <style>
@@ -576,6 +576,18 @@
       line-height: 1.6;
     }
 
+    .footer__langs {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px 14px;
+      padding-top: 14px;
+      border-top: 1px solid var(--line);
+      font-size: 0.84rem;
+      color: var(--text-faint);
+    }
+    .footer__langs a { color: var(--text-dim); }
+    .footer__langs a:hover { color: var(--accent-text); }
     @media (prefers-reduced-transparency: reduce) {
       .hw-chip, .hw-preset, .hw-panel, .hw-verdict, .hw-kpi, .hw-meter, .hw-stack-card {
         -webkit-backdrop-filter: none;
@@ -599,15 +611,10 @@
       <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
       <span class="brand__name">LokalBot</span>
     </a>
-    <nav class="nav__links" aria-label="Primary">
-      <a href="/#features">Features</a>
-      <a href="/guides">Guides</a>
-      <a href="/benchmarks">Benchmarks</a>
-      <a href="/blog">Blog</a>
-    </nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware" aria-current="page">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
     <div class="nav__actions">
       <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a>
-      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
     </div>
   </header>
 
@@ -616,12 +623,13 @@
       <nav class="breadcrumbs" aria-label="Breadcrumb">
         <a href="/">Home</a><span aria-hidden="true">/</span><a href="/guides">Guides</a><span aria-hidden="true">/</span><span>Hardware Calculator</span>
       </nav>
-      <p class="eyebrow">Hardware sizing</p>
+      <p class="eyebrow">Hardware sizing · v0.14.0 Apache-2.0 stack</p>
       <h1>Can my Mac or PC run local AI?</h1>
-      <p class="hw-hero__lead">Pick your machine's RAM, GPU VRAM, and desktop AI workloads to see exact disk downloads, resident memory, KV-cache overhead, and which open-weight speech, summary, search, and autocomplete models fit without starving your other apps.</p>
+      <p class="hw-hero__lead">Pick your machine's RAM, GPU VRAM, and desktop AI workloads to see exact disk downloads, resident memory, KV-cache overhead, and which v0.14.0 LokalBot speech, summary, search, and autocomplete models fit without starving your other apps.</p>
       <div class="hw-hero__meta">
-        <span class="hw-chip hw-chip--accent">Updated Nov 20, 2026</span>
-        <a class="hw-chip" href="/benchmarks">View full benchmark leaderboard &rarr;</a>
+        <span class="hw-chip hw-chip--accent">Updated Nov 26, 2026</span>
+        <a class="hw-chip" href="/benchmarks">View full benchmark leaderboard</a>
+        <a class="hw-chip" href="/calculator">SaaS cost calculator</a>
         <a class="hw-chip" href="/system-requirements">System requirements</a>
         <a class="hw-chip" href="https://github.com/stevyhacker/LokalBot/blob/master/LokalBot/Engines/ModelResidency.swift" target="_blank" rel="noopener">ModelResidency.swift</a>
       </div>
@@ -694,19 +702,19 @@
           <div class="hw-kpis">
             <div class="hw-kpi">
               <span class="hw-kpi__label">Disk download</span>
-              <span class="hw-kpi__value" id="hw-kpi-disk">—</span>
+              <span class="hw-kpi__value" id="hw-kpi-disk">--</span>
             </div>
             <div class="hw-kpi">
               <span class="hw-kpi__label">Warm resident RAM</span>
-              <span class="hw-kpi__value" id="hw-kpi-warm">—</span>
+              <span class="hw-kpi__value" id="hw-kpi-warm">--</span>
             </div>
             <div class="hw-kpi">
               <span class="hw-kpi__label">Combined peak</span>
-              <span class="hw-kpi__value" id="hw-kpi-peak">—</span>
+              <span class="hw-kpi__value" id="hw-kpi-peak">--</span>
             </div>
             <div class="hw-kpi">
               <span class="hw-kpi__label">50% RAM cap</span>
-              <span class="hw-kpi__value" id="hw-kpi-cap">—</span>
+              <span class="hw-kpi__value" id="hw-kpi-cap">--</span>
             </div>
           </div>
 
@@ -720,6 +728,7 @@
               <h2>Recommended local model stack (swap any row to test)</h2>
               <div class="hw-actions">
                 <button type="button" class="hw-btn-ghost" id="hw-reset-overrides" hidden>Reset swaps</button>
+                <button type="button" class="hw-btn-ghost" id="hw-save-png">Save Stack Card PNG</button>
                 <button type="button" class="hw-btn-ghost" id="hw-copy-link">Copy link</button>
                 <button type="button" class="hw-btn-ghost" id="hw-copy-md">Copy Markdown</button>
               </div>
@@ -764,36 +773,36 @@
             <tr>
               <th scope="row">Mac · 8 GB unified</th>
               <td>4 GB</td>
-              <td>Qwen3-ASR 0.6B (1.02 GB) or Parakeet v3 (0.60 GB)</td>
+              <td>Qwen3-ASR 0.6B (LokalBot v1, 1.02 GB) or Parakeet v3 (0.60 GB)</td>
               <td>Qwen3.5 0.8B Q4_K_M (0.53 GB)</td>
               <td>LFM2.5 1.2B Q4_K_M (0.73 GB)</td>
               <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
               <td>~2.8 GB</td>
             </tr>
             <tr>
-              <th scope="row">Mac · 16 GB unified (Default)</th>
+              <th scope="row">Mac · 16 GB unified (v0.14.0 Default)</th>
               <td>8 GB</td>
-              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
-              <td>Qwen3.5 4B Q4_K_M (2.74 GB)</td>
-              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <td>Qwen3.5 4B (LokalBot v4, 2.74 GB)</td>
+              <td>Gemma 4 E2B (LokalBot v4, 3.85 GB)</td>
               <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
               <td>~9.6 GB</td>
             </tr>
             <tr>
               <th scope="row">Mac · 24 GB unified</th>
               <td>12 GB</td>
-              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
-              <td>Qwen3.5 4B (2.74 GB) or Gemma 4 12B (7.12 GB)</td>
-              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <td>Qwen3.5 4B (LokalBot v4, 2.74 GB) or Gemma 4 12B (7.12 GB)</td>
+              <td>Gemma 4 E2B (LokalBot v4, 3.85 GB)</td>
               <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
-              <td>~9.6–14.0 GB</td>
+              <td>~9.6-14.0 GB</td>
             </tr>
             <tr>
-              <th scope="row">Mac · 32–48 GB+ unified</th>
-              <td>16–24 GB+</td>
-              <td>Qwen3-ASR 1.7B (2.52 GB) + Nemotron 3 (0.20 GB)</td>
+              <th scope="row">Mac · 32-48 GB+ unified</th>
+              <td>16-24 GB+</td>
+              <td>Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB) + Nemotron 3 (0.20 GB)</td>
               <td>Qwen3.6 35B-A3B MoE (17.73 GB) or Qwen3.6 27B (16.82 GB)</td>
-              <td>Gemma 4 E2B i1-Q6_K (3.85 GB)</td>
+              <td>Gemma 4 E2B (LokalBot v4, 3.85 GB)</td>
               <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
               <td>~24.6 GB</td>
             </tr>
@@ -801,10 +810,10 @@
               <th scope="row">Windows / Linux x64 (alpha)</th>
               <td>50% RAM (+ GPU VRAM)</td>
               <td>Qwen3-ASR 0.6B int8 (0.88 GB) + pyannote/TitaNet (0.08 GB)</td>
-              <td>Qwen3.5 4B Q4_K_M (2.74 GB) on Vulkan/CUDA or CPU</td>
-              <td>Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB)</td>
+              <td>Qwen3.5 4B (LokalBot v4, 2.74 GB) on Vulkan/CUDA or CPU</td>
+              <td>Gemma 4 E2B (LokalBot v4, 3.85 GB) or LFM2.5 1.2B (0.73 GB)</td>
               <td>EmbeddingGemma 2 Q8_0 (0.31 GB)</td>
-              <td>~4.7–7.9 GB</td>
+              <td>~4.7-7.9 GB</td>
             </tr>
           </tbody>
         </table>
@@ -817,15 +826,15 @@
       <div class="faq__list">
         <details class="qa">
           <summary>Can an 8 GB Apple Silicon Mac run local AI meeting notes and autocomplete?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Yes, with compact models. Pair Qwen3-ASR 0.6B (1.02 GB) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs.</p>
+          <p>Yes, with compact models. Pair Qwen3-ASR 0.6B (LokalBot v1, 1.02 GB GGUF Q8_0) or Parakeet TDT 0.6B v3 (0.60 GB) for transcription, Qwen3.5 0.8B (0.53 GB) for summaries, EmbeddingGemma 2 (0.31 GB) for search, and LFM2.5 1.2B (0.73 GB) for lightweight autocomplete. LokalBot's memory governor caps resident models at 50% of physical RAM (4 GB on an 8 GB Mac) and evicts idle models automatically when another task runs.</p>
         </details>
         <details class="qa">
           <summary>What is the best local AI model stack for a 16 GB Mac?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>A 16 GB Apple Silicon Mac runs LokalBot's full default stack (~9.6 GB total on disk): Qwen3-ASR 1.7B (2.52 GB) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B Q4_K_M (2.74 GB) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (3.85 GB) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency automatically swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory.</p>
+          <p>A 16 GB Apple Silicon Mac runs LokalBot's full v0.14.0 Apache-2.0 default stack (~9.6 GB total on disk): Qwen3-ASR 1.7B (LokalBot v3, 2.52 GB GGUF Q8_0) for transcription, Nemotron 3 Core ML (0.20 GB) for speaker separation, Qwen3.5 4B (LokalBot v4, 2.74 GB Q4_K_M) for summaries and work memory, EmbeddingGemma 2 Q8_0 (0.31 GB, 496 MB server peak) for hybrid search, and Gemma 4 E2B (LokalBot v4, 3.85 GB i1-Q6_K) or LFM2.5 1.2B (0.73 GB) for autocomplete. ModelResidency automatically swaps idle models inside its 8 GB cap so macOS, browsers, and call apps keep half of system memory.</p>
         </details>
         <details class="qa">
           <summary>Why does total disk size differ from active RAM?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>Two reasons: first, models do not all run at the same time — transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings).</p>
+          <p>Two reasons: first, models do not all run at the same time because transcription and speaker diarization load after a meeting and unload when idle, before the summarizer runs. Second, an active language model needs extra memory beyond its GGUF file size for KV cache and runtime buffers (LokalBot budgets +3.0 GiB for the 32K-context main LLM, +768 MiB for 4K autocomplete, and +384 MiB for embeddings).</p>
         </details>
         <details class="qa">
           <summary>Do I need a dedicated GPU on Windows or Linux?<i class="ph ph-plus" aria-hidden="true"></i></summary>
@@ -833,7 +842,7 @@
         </details>
         <details class="qa">
           <summary>Does this calculator send my hardware specs to a server?<i class="ph ph-plus" aria-hidden="true"></i></summary>
-          <p>No. Every calculation runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string.</p>
+          <p>No. Every calculation and PNG card export runs locally in your browser with zero analytics scripts, cookies, or network requests. Share links encode only the selections you choose in the URL query string.</p>
         </details>
       </div>
     </section>
@@ -846,7 +855,7 @@
         <p class="section__lead">Free, open source (GPLv3), and no account. Download only the models you pick.</p>
         <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>Download for macOS</a>
         <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; or with Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
-        <p class="download__sub"><a href="/benchmarks">Benchmarks</a> &middot; <a href="/system-requirements">System requirements</a> &middot; <a href="/migrate">Meeting Migrator</a> &middot; <a href="/guides">All guides</a></p>
+        <p class="download__sub"><a href="/benchmarks">Benchmarks</a> &middot; <a href="/calculator">SaaS cost calculator</a> &middot; <a href="/migrate">Meeting Migrator</a> &middot; <a href="/guides">All guides</a></p>
       </div>
     </section>
   </main>
@@ -866,10 +875,11 @@
       <a href="/#how">How it works</a>
       <a href="/wrapped">Agent Wrapped</a>
       <a href="/migrate">Meeting Migrator</a>
+      <a href="/calculator">SaaS Cost Calculator</a>
       <a href="/hardware">Hardware calculator</a>
       <a href="/system-requirements">System requirements</a>
       <a href="/#mobile">iOS &amp; Android apps</a>
-      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac" target="_blank" rel="noopener">Download</a>
     </nav>
     <nav class="footer__col" aria-label="Compare">
       <h3>Compare</h3>
@@ -901,6 +911,14 @@
       <a href="/privacy">Privacy</a>
       <a href="/terms">Terms</a>
       <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__langs" aria-label="Languages">
+      <span>Languages:</span>
+      <a href="/">English</a>
+      <a href="/de">Deutsch</a>
+      <a href="/zh">中文</a>
+      <a href="/ja">日本語</a>
+      <a href="/ru">Русский</a>
     </nav>
     <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
   </footer>

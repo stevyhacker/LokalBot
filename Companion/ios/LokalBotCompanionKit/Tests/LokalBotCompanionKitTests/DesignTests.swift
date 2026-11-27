@@ -4,37 +4,34 @@ import Testing
 
 @Suite("Design")
 struct DesignTests {
-    static func macHue(_ app: String) -> UInt64 {
-        var hash: UInt64 = 5381
-        for byte in app.utf8 { hash = hash &* 33 &+ UInt64(byte) }
-        return hash % 360
-    }
-
-    @Test(arguments: ["", "a", "Xcode", "Onboarding", "Pricing", "Google Meet", "Claude Code",
-                      "Visual Studio Code — Insiders", "Ünïcödé 日本語", "Other"])
-    func nameColorMatchesTheMac(_ name: String) {
-        #expect(UInt64(NameColor.hueDegrees(for: name)) == Self.macHue(name))
+    @Test(arguments: [
+        ("Onboarding", 304),
+        ("Pricing", 25),
+        ("Xcode", 224),
+        ("Zoom", 82),
+        ("Other", 207),
+        ("Safari", 339),
+        ("Google Meet", 21),
+        ("Claude Code", 270),
+        ("", 341),
+        ("Café Zürich", 186),
+    ])
+    func nameColorMatchesFrozenMacGoldenHues(_ pair: (String, Int)) {
+        #expect(NameColor.hueDegrees(for: pair.0) == pair.1)
     }
 
     @Test func djb2KnownValues() {
         #expect(NameColor.djb2("") == 5381)
-        #expect(NameColor.djb2("a") == 5381 * 33 + 97)
-        #expect(NameColor.djb2(String(repeating: "x", count: 64)) == {
-            var hash: UInt64 = 5381
-            for _ in 0..<64 { hash = hash &* 33 &+ 120 }
-            return hash
-        }())
-        #expect(NameColor.hueDegrees(for: "Xcode") == Int(NameColor.djb2("Xcode") % 360))
+        #expect(NameColor.djb2("a") == 177_670)
+        #expect(NameColor.hueDegrees(for: "Xcode") == 224)
     }
 
-    @Test(arguments: ["Maya Chen", "Ben Ortiz", "Priya Nair", "Alex Romero", "Zoë  O'Brien", ""])
-    func avatarColorMatchesTheMac(_ name: String) {
-        let normalized = name.folding(options: [.caseInsensitive, .diacriticInsensitive], locale: nil)
-            .components(separatedBy: CharacterSet.letters.union(.decimalDigits).inverted)
-            .filter { !$0.isEmpty }
-            .joined(separator: " ")
-        let hash = normalized.unicodeScalars.reduce(0) { ($0 &* 31 &+ Int($1.value)) & 0xFFFF }
-        #expect(InitialsAvatar.colorIndex(for: name) == hash % 8)
+    @Test func avatarColorMatchesFrozenMacGoldenIndices() {
+        #expect(InitialsAvatar.colorIndex(for: "Maya Chen") == InitialsAvatar.colorIndex(for: "MAYA  chen"))
+        #expect(InitialsAvatar.colorIndex(for: "Zoë  O'Brien") == InitialsAvatar.colorIndex(for: "zoe o brien"))
+        #expect(InitialsAvatar.colorIndex(for: "") == 0)
+        #expect(InitialsAvatar.colorIndex(for: "Maya Chen") == 2)
+        #expect(InitialsAvatar.colorIndex(for: "Ben Ortiz") == 5)
     }
 
     @Test func initials() {

@@ -50,6 +50,11 @@ on:
         description: "Exact 40-character commit SHA requested by the dispatching checkout"
         required: true
         type: string
+      include_visual:
+        description: "Include the 78-capture visual matrix (runs automatically on schedule)"
+        required: false
+        default: false
+        type: boolean
   workflow_call:
     inputs:
       runner:
@@ -86,6 +91,7 @@ defaults:
 jobs:
   changes:
     name: UI relevance
+    if: github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-latest
     outputs:
       relevant: ${{ steps.decide.outputs.relevant }}
@@ -232,6 +238,7 @@ jobs:
       - name: Package UI products
         env:
           CODE_SIGNING_ALLOWED: "NO"
+          UI_INCLUDE_VISUAL: ${{ github.event_name == 'schedule' || inputs.include_visual == true }}
         run: |
           python3 Scripts/ci/ui-shards.py plan > .build/ui-results/inventory.json
           python3 Scripts/ci/test-products.py pack ui
@@ -328,6 +335,7 @@ jobs:
         env:
           CODE_SIGNING_ALLOWED: "NO"
           CAPTURE_MODE: ${{ inputs.capture_mode || 'ready' }}
+          UI_INCLUDE_VISUAL: ${{ github.event_name == 'schedule' || inputs.include_visual == true }}
         run: python3 Scripts/ci/ui-shards.py run runner-2
       - name: Save shard evidence
         if: always()
@@ -341,7 +349,7 @@ jobs:
   complete:
     name: ${{ (inputs.filter != '' || inputs.capture_mode == 'legacy') && 'UI focused / comparison (macOS)' || 'XCUITest (macOS)' }}
     needs: [changes, build, build-smoke, shards]
-    if: always()
+    if: always() && (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
@@ -370,4 +378,6 @@ jobs:
           path: .build/evidence
       - name: Verify complete test and capture coverage
         if: needs.changes.outputs.relevant == 'true' && inputs.filter == ''
+        env:
+          UI_INCLUDE_VISUAL: ${{ github.event_name == 'schedule' || inputs.include_visual == true }}
         run: python3 Scripts/ci/ui-shards.py verify .build/evidence

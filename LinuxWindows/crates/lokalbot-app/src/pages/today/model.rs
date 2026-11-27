@@ -263,7 +263,7 @@ pub(super) fn next_meeting<'a>(
         .cloned()
         .collect();
     let next = selector::primary(&candidates, now, None)?;
-    if next.end <= now || (next.start - now).num_seconds() > NEXT_MEETING_WINDOW_SECONDS {
+    if next.end <= now {
         return None;
     }
     schedule.iter().find(|e| e.external_id == next.external_id)
@@ -923,15 +923,17 @@ mod tests {
     }
 
     #[test]
-    fn the_next_meeting_appears_within_the_hour_only() {
-        let schedule = vec![event("review", at(11, 0))];
+    fn the_next_meeting_appears_however_far_ahead_it_is() {
+        let schedule = vec![event("review", at(16, 30)), event("later", at(18, 0))];
         let none = HashSet::new();
-        assert!(next_meeting(&schedule, at(9, 59), &none).is_none());
         assert_eq!(
-            next_meeting(&schedule, at(10, 0), &none).map(|e| e.external_id.as_str()),
+            next_meeting(&schedule, at(8, 0), &none).map(|e| e.external_id.as_str()),
             Some("review")
         );
-        assert!(next_meeting(&schedule, at(10, 48), &none).is_some());
+        assert_eq!(
+            next_meeting(&schedule, at(16, 0), &none).map(|e| e.external_id.as_str()),
+            Some("review")
+        );
     }
 
     #[test]

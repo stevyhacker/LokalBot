@@ -1,0 +1,1 @@
+Record meetings offline right after install. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale for private local transcription and summaries.

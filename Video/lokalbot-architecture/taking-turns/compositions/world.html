@@ -156,9 +156,9 @@
     .tt-name {
       position: absolute;
       left: 20px;
-      top: 18px;
+      top: 16px;
       font-weight: 800;
-      font-size: 32px;
+      font-size: 30px;
       letter-spacing: -0.02em;
       line-height: 1.15;
       white-space: nowrap;
@@ -166,17 +166,35 @@
     .tt-size {
       position: absolute;
       left: 20px;
-      top: 60px;
+      top: 78px;
       font-family: "JetBrains Mono", monospace;
       font-weight: 500;
-      font-size: 28px;
+      font-size: 24px;
       line-height: 1.2;
+      white-space: nowrap;
+    }
+    .tt-ver {
+      position: absolute;
+      left: 20px;
+      top: 52px;
+      font-family: "JetBrains Mono", monospace;
+      font-weight: 700;
+      font-size: 20px;
+      line-height: 1.2;
+      color: #0e141c;
+      opacity: 0.78;
       white-space: nowrap;
     }
     .tt-copy .tt-name {
       left: 16px;
-      top: 36px;
-      font-size: 28px;
+      top: 32px;
+      font-size: 26px;
+      opacity: 0;
+    }
+    .tt-copy .tt-ver {
+      left: 16px;
+      top: 68px;
+      font-size: 20px;
       opacity: 0;
     }
     /* Amber: the one model that is working right now. */
@@ -770,10 +788,10 @@
       <div id="line8"><span class="tt-l8">Five models.</span> <span class="tt-l8">One Mac.</span> <span class="tt-l8">Taking turns.</span></div>
 
       <!-- The five model files. Widths are their sizes on disk, 125 px a gigabyte. -->
-      <div class="tt-file" id="f-asr" style="left: 330px; width: 309px"><div class="tt-name">Qwen3-ASR 1.7B</div><div class="tt-size">2.47 GB</div></div>
+      <div class="tt-file" id="f-asr" style="left: 330px; width: 309px"><div class="tt-name">Qwen3-ASR 1.7B</div><div class="tt-ver">LokalBot v3</div><div class="tt-size">2.52 GB</div></div>
       <div class="tt-file tt-thin" id="f-nemo" style="left: 663px; width: 25px"></div>
-      <div class="tt-file" id="f-think" style="left: 712px; width: 343px"><div class="tt-name">Qwen3.5 4B</div><div class="tt-size">2.74 GB</div></div>
-      <div class="tt-file" id="f-gemma" style="left: 1079px; width: 481px"><div class="tt-name">Gemma 4 E2B</div><div class="tt-size">3.85 GB</div></div>
+      <div class="tt-file" id="f-think" style="left: 712px; width: 343px"><div class="tt-name">Qwen3.5 4B</div><div class="tt-ver">LokalBot v4</div><div class="tt-size">2.74 GB</div></div>
+      <div class="tt-file" id="f-gemma" style="left: 1079px; width: 481px"><div class="tt-name">Gemma 4 E2B</div><div class="tt-ver">LokalBot v4</div><div class="tt-size">3.85 GB</div></div>
       <div class="tt-file tt-thin" id="f-embed" style="left: 1584px; width: 39px"></div>
       <div class="tt-flag" id="fl-nemo" style="left: 598px; top: 668px"><b>Nemotron 3</b><span>0.20 GB</span></div>
       <div class="tt-leader" id="fll-nemo" style="left: 674px; top: 740px; height: 20px"></div>
@@ -782,12 +800,11 @@
       <div class="tt-tag mono" id="tag-asr" style="left: 346px">after the call</div>
       <div class="tt-tag mono" id="tag-gemma" style="left: 1095px"><span class="tt-pause"><i></i><i></i></span>paused while recording</div>
 
-      <!-- Copies in memory: a file stays on the shelf, its copy comes up to the desk. Widths 105 px a gigabyte. -->
       <div class="tt-copy tt-thin" id="c-nemo" style="left: 160px; width: 28px"><div class="tt-edge"></div></div>
-      <div class="tt-copy" id="c-asr" style="left: 204px; width: 259px"><div class="tt-edge"></div><div class="tt-name">Qwen3-ASR 1.7B</div></div>
-      <div class="tt-copy" id="c-think" style="left: 160px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div></div>
-      <div class="tt-copy" id="c-gemma" style="left: 160px; width: 404px"><div class="tt-edge"></div><div class="tt-name">Gemma 4 E2B</div></div>
-      <div class="tt-copy" id="c-think2" style="left: 580px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div></div>
+      <div class="tt-copy" id="c-asr" style="left: 204px; width: 259px"><div class="tt-edge"></div><div class="tt-name">Qwen3-ASR 1.7B</div><div class="tt-ver">LokalBot v3</div></div>
+      <div class="tt-copy" id="c-think" style="left: 160px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div><div class="tt-ver">LokalBot v4</div></div>
+      <div class="tt-copy" id="c-gemma" style="left: 160px; width: 404px"><div class="tt-edge"></div><div class="tt-name">Gemma 4 E2B</div><div class="tt-ver">LokalBot v4</div></div>
+      <div class="tt-copy" id="c-think2" style="left: 580px; width: 288px"><div class="tt-edge"></div><div class="tt-name">Qwen3.5 4B</div><div class="tt-ver">LokalBot v4</div></div>
       <div class="tt-copy tt-thin" id="c-embed" style="left: 160px; width: 33px"><div class="tt-edge"></div></div>
       <div class="tt-flag" id="cfl-nemo" style="left: 160px; top: 246px">Nemotron 3</div>
       <div class="tt-leader" id="cfll-nemo" style="left: 172px; top: 282px; height: 66px"></div>
@@ -911,8 +928,8 @@
       tl.set(copy, { opacity: 0 }, at + duration);
       return at + duration;
     };
-    const named = (id, at) => tl.fromTo(`#${id} .tt-name`, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "power2.out", immediateRender: false }, at);
-    const unnamed = (id, at) => tl.set(`#${id} .tt-name`, { opacity: 0 }, at);
+    const named = (id, at) => tl.fromTo(`#${id} .tt-name, #${id} .tt-ver`, { opacity: 0 }, { opacity: 1, duration: 0.15, ease: "power2.out", immediateRender: false }, at);
+    const unnamed = (id, at) => tl.set(`#${id} .tt-name, #${id} .tt-ver`, { opacity: 0 }, at);
     const working = (id, from, to) => {
       tl.set(`#${id} .tt-edge`, { opacity: 1 }, from);
       tl.set(`#${id} .tt-edge`, { opacity: 0 }, to);
@@ -945,7 +962,7 @@
     for (const [id, file] of Object.entries(FILES)) {
       gsap.set("#f-" + id, { transformOrigin: "0 0", x: file.tower[0] - file.x, y: file.tower[1] - SHELF_TOP, scale: TOWER_SCALE });
     }
-    gsap.set(".tt-file .tt-size, .tt-flag b, .tt-flag span, .tt-leader, .tt-tag", { opacity: 0 });
+    gsap.set(".tt-file .tt-size, .tt-file .tt-ver, .tt-flag b, .tt-flag span, .tt-leader, .tt-tag", { opacity: 0 });
     gsap.set("#budget-zone", { opacity: 0 });
     gsap.set("#lb-mem, #lb-disk, #lb-disk-sub, #rec, .tt-trk, #notes, .tt-note, #bubble, #field, #budget, #lb-budget, #lb-queue, .tt-tk, #tk-answer, #st-arrow, .tt-cdt, .tt-cdb, .tt-who, .ck-ev", { opacity: 0 });
     gsap.set("#ev-call", { opacity: 1 });
@@ -1003,7 +1020,7 @@
     show("#fl-embed b, #fll-embed", apart + 3 * NEXT + FLIGHT);
     show("#fl-nemo b, #fll-nemo", apart + 4 * NEXT + FLIGHT);
     show("#lb-disk", W("c02", "disk") + 0.1);
-    ["#f-asr .tt-size", "#fl-nemo span", "#f-think .tt-size", "#f-gemma .tt-size", "#fl-embed span"].forEach((size, index) => {
+    ["#f-asr .tt-size, #f-asr .tt-ver", "#fl-nemo span", "#f-think .tt-size, #f-think .tt-ver", "#f-gemma .tt-size, #f-gemma .tt-ver", "#fl-embed span"].forEach((size, index) => {
       show(size, W("c02", "ten") + index * 0.06);
     });
     tl.fromTo("#big-n", { opacity: 0, filter: "blur(8px)" }, { opacity: 1, filter: "blur(0px)", duration: 0.15, ease: "power2.out" }, W("c02", "ten") - 0.04);

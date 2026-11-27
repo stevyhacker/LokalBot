@@ -1,12 +1,16 @@
 # LokalBot for Android
 
-The phone, tablet and foldable companion to LokalBot on the Mac. It reads
-the Mac's shared meetings, actions, Timeline, Day Digests, people and projects,
-and asks the Mac questions. Data moves only over the local network or
-Tailscale, end-to-end encrypted, through the Rust sync core
-(`LinuxWindows/crates/lokalbot-sync`). The plan is
+The phone, tablet, and foldable companion to LokalBot on Mac, Windows, and
+Linux. It records meetings offline right after install, reads your computer's
+shared meetings, actions, Timeline, Day Digests, people, and projects, and asks
+your computer questions. Data moves only over the local network or Tailscale,
+end-to-end encrypted, through the Rust sync core
+(`LinuxWindows/crates/lokalbot-sync`). Unpaired recordings stay strictly in
+private on-device storage until you pair. The plan is
 [Docs/plans/companion-apps-plan-2026-10-30.md](../../Docs/plans/companion-apps-plan-2026-10-30.md);
-the wire contract is in [Companion/protocol](../protocol).
+the wire contract is in [Companion/protocol](../protocol); Google Play store
+copy and screenshot plans live in
+[Companion/store-metadata/android/en-US/](../store-metadata/android/en-US/).
 
 - `app/`: the app, `me.dotenv.lokalbot.companion` (Kotlin, Compose, Material 3 Adaptive),
   published on [Google Play](https://play.google.com/store/apps/details?id=me.dotenv.lokalbot.companion).
@@ -95,17 +99,18 @@ Either way, the APK carries arm64-v8a and x86_64 only.
 
 ## Pair
 
-**With the Mac app.**
+**With the desktop app (Mac, Windows, or Linux).**
 
-1. On the Mac, open Settings → Phones & tablets → Add a device.
+1. On your computer, open Settings > Phones & tablets > Add a device.
 2. On the phone, tap Pair with your computer, then scan the code or paste the
    link.
-3. Check the device name the Mac will show, and tap Pair.
-4. Allow the device on the Mac.
+3. Check the device name your computer will show, and tap Pair.
+4. Allow the device on your computer.
 
-Both devices need the same Wi-Fi, or Tailscale.
+Both devices need the same Wi-Fi, or Tailscale. Any recordings already saved on
+the phone queue and upload automatically once paired.
 
-**With the stand-in host** (no Mac needed). From `LinuxWindows/`:
+**With the stand-in host** (no desktop app needed). From `LinuxWindows/`:
 
 ```sh
 cargo run -p lokalbot-sync --example companion_host -- --name "Dev Mac"
@@ -130,9 +135,13 @@ adb shell am start -a android.intent.action.VIEW -d "lokalbot://pair?d=…" me.d
 
 ## Recording
 
-A person can record a meeting on the phone for their paired computer. The Rust
-core owns the queue, the upload and the deleting (`Companion/protocol/ffi.md`).
-The app owns the microphone:
+A person can record a meeting on the phone immediately after install (before
+pairing) as well as while exploring the sample library or while paired. Before
+pairing, `UnpairedRecordingsStore` keeps the ADTS AAC files and metadata inside
+`noBackupFilesDir/unpaired-recordings/` with zero network access; once paired,
+they migrate into the Rust core (`Companion/protocol/ffi.md`), upload over the
+end-to-end encrypted link, and delete from the phone after the computer confirms
+receipt. The app owns the microphone:
 
 - `recording/MeetingRecorder` is the one recording in progress, for the whole
   process. Screens read their state from it.
@@ -157,11 +166,14 @@ under `uploads/` as `received-<id>.aac`. The stand-in makes no meeting, so the r
   `versionCode` follow the desktop release (`Scripts/release/bump-version.py`). See the
   [Android release guide](../../Docs/releasing/android.md).
 - **Testing.** Ship through Play internal testing first, then production.
-- **Play review.** Reviewers can't pair with a Mac. The review notes should
-  send them to **Try it without a computer** on the first screen, and explain the
-  Mac app, the local network and Tailscale.
+- **Play review.** Reviewers can tap **Record a meeting** directly on the
+  welcome screen to exercise the microphone foreground service offline, and tap
+  **Try it without a computer** to browse the sample library. Review notes and
+  store listing copy live in
+  [Companion/store-metadata/android/en-US/](../store-metadata/android/en-US/).
 - **Data safety.** LokalBot collects nothing; data stays on the person's own
-  devices. Recordings go only to the paired computer.
+  devices. Unpaired recordings remain strictly local; paired recordings go only
+  to the paired Mac, Windows, or Linux computer.
 - **Foreground service.** Recording declares `FOREGROUND_SERVICE_MICROPHONE`, which
   Play asks to have explained and shown in a video.
 - **targetSdk 37.** At 37, local network access needs the runtime permission

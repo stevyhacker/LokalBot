@@ -15,20 +15,21 @@ const lb = require(path.join(publicDir, "benchmarks.js"));
 const data = JSON.parse(fs.readFileSync(path.join(publicDir, "benchmarks.json"), "utf8"));
 const html = fs.readFileSync(path.join(publicDir, "benchmarks.html"), "utf8");
 
-test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
+test("benchmarks.json schema, counts, v0.14.0 fine-tunes, and tracked source paths", () => {
   assert.equal(data.schemaVersion, 1);
   assert.match(data.updated, /^\d{4}-\d{2}-\d{2}$/);
   assert.equal(data.categories.length, 7);
   assert.equal(data.referenceStack.length, 6);
+  assert.ok(Array.isArray(data.fineTunedModels) && data.fineTunedModels.length === 4);
 
-  const tracked = new Set(
-    execFileSync("git", ["ls-files", "Benchmarks/"], { cwd: repoRoot, encoding: "utf8" })
+  const trackedFiles = new Set(
+    execFileSync("git", ["ls-files", "Benchmarks/", "LokalBot/"], { cwd: repoRoot, encoding: "utf8" })
       .trim()
       .split("\n")
       .filter(Boolean)
   );
   const trackedDirs = new Set();
-  for (const file of tracked) {
+  for (const file of trackedFiles) {
     let dir = path.dirname(file);
     while (dir && dir !== ".") {
       trackedDirs.add(dir);
@@ -53,14 +54,23 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
       assert.ok(suite.rows.length >= 2);
 
       const reportPrefix = "https://github.com/stevyhacker/LokalBot/blob/master/";
-      assert.ok(suite.reportUrl.startsWith(reportPrefix), `unexpected reportUrl: ${suite.reportUrl}`);
-      const relReport = suite.reportUrl.slice(reportPrefix.length);
-      assert.ok(tracked.has(relReport), `reportUrl not tracked in git: ${relReport}`);
+      const hfPrefix = "https://huggingface.co/stevyhacker/";
+      if (suite.reportUrl.startsWith(reportPrefix)) {
+        const relReport = suite.reportUrl.slice(reportPrefix.length);
+        assert.ok(trackedFiles.has(relReport), `reportUrl not tracked in git: ${relReport}`);
+      } else {
+        assert.ok(suite.reportUrl.startsWith(hfPrefix), `unexpected reportUrl: ${suite.reportUrl}`);
+      }
 
-      const harnessPrefix = "https://github.com/stevyhacker/LokalBot/tree/master/";
-      assert.ok(suite.harnessUrl.startsWith(harnessPrefix), `unexpected harnessUrl: ${suite.harnessUrl}`);
-      const relHarness = suite.harnessUrl.slice(harnessPrefix.length);
-      assert.ok(trackedDirs.has(relHarness), `harnessUrl not tracked in git: ${relHarness}`);
+      const harnessTreePrefix = "https://github.com/stevyhacker/LokalBot/tree/master/";
+      if (suite.harnessUrl.startsWith(harnessTreePrefix)) {
+        const relHarness = suite.harnessUrl.slice(harnessTreePrefix.length);
+        assert.ok(trackedDirs.has(relHarness), `harnessUrl not tracked in git: ${relHarness}`);
+      } else {
+        assert.ok(suite.harnessUrl.startsWith(reportPrefix), `unexpected harnessUrl: ${suite.harnessUrl}`);
+        const relHarnessFile = suite.harnessUrl.slice(reportPrefix.length);
+        assert.ok(trackedFiles.has(relHarnessFile), `harnessUrl file not tracked in git: ${relHarnessFile}`);
+      }
 
       for (const row of suite.rows) {
         rowCount++;
@@ -75,8 +85,8 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
     }
   }
 
-  assert.equal(suiteCount, 17);
-  assert.ok(rowCount >= 50, `expected >= 50 rows, got ${rowCount}`);
+  assert.equal(suiteCount, 20);
+  assert.ok(rowCount >= 59, `expected >= 59 rows, got ${rowCount}`);
 
   for (const item of data.referenceStack) {
     const resolved = lb.findCategoryAndSuite(data, item.suiteId);
@@ -85,12 +95,24 @@ test("benchmarks.json schema, counts, and tracked GitHub source paths", () => {
   }
 });
 
-test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown export", () => {
+test("benchmarks.js hash lookup, query persistence, filtering, sorting, PNG spec, scatter, and Markdown export", () => {
   assert.equal(lb.findCategoryAndSuite(data, "#memory").suite.id, "memory-english");
   assert.equal(lb.findCategoryAndSuite(data, "#stt-llamacpp-vs-mlx").category.id, "stt");
+  assert.equal(lb.findCategoryAndSuite(data, "#stt-lokalbot-v3").category.id, "stt");
   assert.equal(lb.findCategoryAndSuite(data, "#nonexistent").suite.id, "stt-ami-cloud");
 
+  const parsedQs = lb.parseQueryParams("?filter=local&sort=speed:desc");
+  assert.deepEqual(parsedQs, { filter: "local", sortKey: "speed", sortDir: "desc" });
   const ami = lb.findCategoryAndSuite(data, "#stt-ami-cloud").suite;
+  assert.equal(
+    lb.serializeQueryParams(ami, { filter: "local", sortKey: "speed", sortDir: "desc" }),
+    "filter=local&sort=speed%3Adesc"
+  );
+  assert.equal(
+    lb.serializeQueryParams(ami, { filter: "all", sortKey: "wer", sortDir: "asc" }),
+    ""
+  );
+
   const localOnly = lb.filterRows(ami.rows, "local");
   assert.equal(localOnly.length, 2);
   assert.ok(localOnly.every((r) => r.kind === "local"));
@@ -114,19 +136,36 @@ test("benchmarks.js hash lookup, filtering, sorting, bars, scatter, and Markdown
     assert.ok(svg.includes(row.model), `scatter missing ${row.model}`);
   }
 
+  const chartSpec = lb.buildChartCardSpec(ami, localOnly, { filter: "local", sortKey: "wer", sortDir: "asc" });
+  assert.equal(chartSpec.suiteId, "stt-ami-cloud");
+  assert.equal(chartSpec.items.length, 2);
+  assert.equal(chartSpec.footer, "lokalbot.com/benchmarks?filter=local#stt-ami-cloud");
+
   const md = lb.toMarkdownTable(ami, ami.rows);
   assert.ok(md.includes("| Model | Type / Runtime | AMI WER ↓"));
   assert.ok(md.includes("**Qwen3-ASR 1.7B**"));
   assert.ok(md.includes("https://www.lokalbot.com/benchmarks#stt-ami-cloud"));
 });
 
-test("benchmarks.html SEO, JSON-LD, OG image, and CSS fallback invariants", () => {
+test("benchmarks.html SEO, JSON-LD, OG image, download CTA, and CSS fallback invariants", () => {
   assert.ok(html.includes('<link rel="canonical" href="https://www.lokalbot.com/benchmarks" />'));
   assert.ok(html.includes("https://www.lokalbot.com/assets/og-benchmarks.png"));
+  assert.ok(html.includes('property="og:image:alt"'));
+  assert.ok(html.includes('data-download data-asset="mac"'));
   assert.ok(fs.existsSync(path.join(publicDir, "assets", "og-benchmarks.png")));
   assert.ok(html.includes("prefers-reduced-transparency: reduce"));
   assert.ok(html.includes("@supports not ((-webkit-backdrop-filter: blur(1px))"));
   assert.ok(!/href="(?!https?:\/\/)[^"]+\.html"/.test(html), "benchmarks.html should use extensionless internal links");
+  assert.ok(!html.includes("\u2014"), "benchmarks.html should not contain em-dashes");
+
+  const titleMatch = html.match(/<title>([^<]+)<\/title>/);
+  assert.ok(titleMatch);
+  const decodedTitle = titleMatch[1].replace(/&amp;/g, "&");
+  assert.ok(decodedTitle.length <= 65, `benchmarks.html title too long (${decodedTitle.length}): ${decodedTitle}`);
+
+  const descMatch = html.match(/<meta name="description" content="([^"]+)"/);
+  assert.ok(descMatch);
+  assert.ok(descMatch[1].length <= 160, `benchmarks.html description too long (${descMatch[1].length})`);
 
   const ldMatch = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
   assert.ok(ldMatch, "missing JSON-LD script");

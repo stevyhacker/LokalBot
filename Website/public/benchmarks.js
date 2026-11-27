@@ -54,6 +54,36 @@
     return { category: categories[0], suite: (categories[0].suites && categories[0].suites[0]) || null };
   }
 
+  function parseQueryParams(searchStr) {
+    var params = new URLSearchParams(searchStr || "");
+    var rawFilter = (params.get("filter") || "").trim().toLowerCase();
+    var filter = ["all", "local", "small", "compact"].indexOf(rawFilter) !== -1 ? rawFilter : null;
+    var rawSort = (params.get("sort") || "").trim();
+    var sortKey = null;
+    var sortDir = null;
+    if (rawSort) {
+      var parts = rawSort.split(":");
+      sortKey = parts[0].trim() || null;
+      if (parts[1] === "asc" || parts[1] === "desc") {
+        sortDir = parts[1];
+      }
+    }
+    return { filter: filter, sortKey: sortKey, sortDir: sortDir };
+  }
+
+  function serializeQueryParams(suite, state) {
+    var params = new URLSearchParams();
+    if (state.filter && state.filter !== "all") {
+      params.set("filter", state.filter);
+    }
+    var defKey = suite && suite.defaultSort ? suite.defaultSort.key : null;
+    var defDir = suite && suite.defaultSort ? suite.defaultSort.dir : "asc";
+    if (state.sortKey && (state.sortKey !== defKey || state.sortDir !== defDir)) {
+      params.set("sort", state.sortKey + ":" + (state.sortDir || "asc"));
+    }
+    return params.toString();
+  }
+
   function filterRows(rows, filterMode) {
     var list = Array.isArray(rows) ? rows.slice() : [];
     if (!filterMode || filterMode === "all") return list;
@@ -112,11 +142,11 @@
     }
     if (hasSmall) {
       var smallCount = sizedLocals.filter(function (r) { return r.sizeGb <= 1.0; }).length;
-      opts.push({ id: "small", label: "≤ 1 GB (" + smallCount + ")" });
+      opts.push({ id: "small", label: "<= 1 GB (" + smallCount + ")" });
     }
     if (hasCompact) {
       var compactCount = sizedLocals.filter(function (r) { return r.sizeGb <= 4.0; }).length;
-      opts.push({ id: "compact", label: "≤ 4 GB (" + compactCount + ")" });
+      opts.push({ id: "compact", label: "<= 4 GB (" + compactCount + ")" });
     }
     return opts;
   }
@@ -139,13 +169,132 @@
       ];
       for (var j = 0; j < cols.length; j++) {
         var cell = row.values && row.values[cols[j].key];
-        cells.push(cell ? cell.display : "—");
+        cells.push(cell ? cell.display : "-");
       }
       lines.push("| " + cells.join(" | ") + " |");
     }
     lines.push("");
     lines.push("Source: https://www.lokalbot.com/benchmarks#" + suite.id + " · Hardware: " + suite.hardware + " · Report: " + suite.reportUrl);
     return lines.join("\n");
+  }
+
+  function buildChartCardSpec(suite, rows, state) {
+    var pMetric = suite.primaryMetric || (suite.columns && suite.columns[0] ? { key: suite.columns[0].key, dir: "asc", max: 100 } : null);
+    var pCol = (suite.columns || []).find(function (c) { return pMetric && c.key === pMetric.key; }) || (suite.columns && suite.columns[0]);
+    var items = (rows || []).map(function (row) {
+      var cell = pMetric && row.values ? row.values[pMetric.key] : null;
+      var num = cell && typeof cell.num === "number" ? cell.num : null;
+      return {
+        model: row.model,
+        status: row.status || "option",
+        kind: row.kind || "local",
+        display: cell ? cell.display : "-",
+        pct: computeBarPercent(num, pMetric),
+      };
+    });
+    var qs = state ? serializeQueryParams(suite, state) : "";
+    return {
+      suiteId: suite.id,
+      title: suite.label,
+      metricLabel: pCol ? pCol.label : "",
+      meta: "Run " + suite.runDate + " · " + suite.hardware,
+      items: items,
+      footer: "lokalbot.com/benchmarks" + (qs ? "?" + qs : "") + "#" + suite.id,
+    };
+  }
+
+  function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function renderChartCanvas(suite, rows, state) {
+    var spec = buildChartCardSpec(suite, rows, state);
+    var width = 760;
+    var rowH = 44;
+    var visible = spec.items.slice(0, 12);
+    var height = 230 + Math.max(1, visible.length) * rowH;
+    var scale = 2;
+
+    var canvas = document.createElement("canvas");
+    canvas.width = width * scale;
+    canvas.height = height * scale;
+    var ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+
+    var grad = ctx.createLinearGradient(0, 0, width, height);
+    grad.addColorStop(0, "#080d14");
+    grad.addColorStop(1, "#0f1c29");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, width, height);
+
+    drawRoundedRect(ctx, 22, 22, width - 44, height - 44, 20);
+    ctx.fillStyle = "rgba(18, 28, 40, 0.94)";
+    ctx.fill();
+    ctx.strokeStyle = "rgba(110, 242, 220, 0.28)";
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    ctx.fillStyle = "#6ef2dc";
+    ctx.font = "700 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText("LOKALBOT BENCHMARKS · " + String(spec.metricLabel || "").toUpperCase(), 46, 56);
+
+    ctx.fillStyle = "#ecf3f7";
+    ctx.font = "700 20px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif";
+    ctx.fillText(spec.title.slice(0, 62), 46, 86);
+
+    ctx.fillStyle = "#8ba2b0";
+    ctx.font = "500 12px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(spec.meta.slice(0, 88), 46, 110);
+
+    var barX = 320;
+    var barMaxW = 300;
+    var y = 148;
+    for (var i = 0; i < visible.length; i++) {
+      var it = visible[i];
+      ctx.fillStyle = it.status === "default" ? "#6ef2dc" : "#ecf3f7";
+      ctx.font = (it.status === "default" ? "700" : "600") + " 13px -apple-system, BlinkMacSystemFont, Helvetica, Arial, sans-serif";
+      ctx.fillText((i + 1) + ". " + it.model.slice(0, 34), 46, y);
+
+      drawRoundedRect(ctx, barX, y - 12, barMaxW, 14, 7);
+      ctx.fillStyle = "rgba(150, 180, 200, 0.14)";
+      ctx.fill();
+
+      var fillW = Math.max(6, Math.round((it.pct / 100) * barMaxW));
+      drawRoundedRect(ctx, barX, y - 12, fillW, 14, 7);
+      ctx.fillStyle = it.status === "default"
+        ? "#23c4ae"
+        : it.kind === "cloud"
+          ? "#64748b"
+          : "#60a5fa";
+      ctx.fill();
+
+      ctx.fillStyle = "#ecf3f7";
+      ctx.font = "700 13px ui-monospace, SFMono-Regular, Menlo, monospace";
+      ctx.fillText(it.display, barX + barMaxW + 14, y);
+
+      y += rowH;
+    }
+
+    var footY = height - 42;
+    ctx.fillStyle = "#6ef2dc";
+    ctx.font = "700 12px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(spec.footer, 46, footY);
+    var legend = "Teal: Default · Blue: Local · Slate: Cloud";
+    ctx.fillStyle = "#8ba2b0";
+    ctx.font = "500 11px ui-monospace, SFMono-Regular, Menlo, monospace";
+    ctx.fillText(legend, width - 46 - ctx.measureText(legend).width, footY);
+
+    return canvas;
   }
 
   function renderScatterSvg(suite, rows) {
@@ -237,8 +386,8 @@
         '<svg viewBox="0 0 ' + w + ' ' + h + '" class="lb-scatter" role="img" aria-label="' + escapeHtml(sc.title) + '">' +
           idealBox +
           grid.join("") +
-          '<text x="' + (padL + plotW / 2) + '" y="' + (h - 8) + '" text-anchor="middle" class="lb-scatter__axis">' + escapeHtml(sc.xLabel) + ' →</text>' +
-          '<text x="18" y="' + (padT + plotH / 2) + '" text-anchor="middle" transform="rotate(-90 18 ' + (padT + plotH / 2) + ')" class="lb-scatter__axis">' + escapeHtml(sc.yLabel) + ' →</text>' +
+          '<text x="' + (padL + plotW / 2) + '" y="' + (h - 8) + '" text-anchor="middle" class="lb-scatter__axis">' + escapeHtml(sc.xLabel) + ' (higher)</text>' +
+          '<text x="18" y="' + (padT + plotH / 2) + '" text-anchor="middle" transform="rotate(-90 18 ' + (padT + plotH / 2) + ')" class="lb-scatter__axis">' + escapeHtml(sc.yLabel) + ' (higher)</text>' +
           points.join("") +
         '</svg>' +
       '</figure>'
@@ -249,18 +398,34 @@
     if (!rootEl || !data || !Array.isArray(data.categories) || !data.categories.length) return null;
 
     var initial = findCategoryAndSuite(data, typeof window !== "undefined" ? window.location.hash : "");
+    var parsedQuery = parseQueryParams(typeof window !== "undefined" ? window.location.search : "");
+    var initialSortKey = initial.suite.defaultSort ? initial.suite.defaultSort.key : null;
+    var initialSortDir = initial.suite.defaultSort ? initial.suite.defaultSort.dir : "asc";
+    if (parsedQuery.sortKey && (initial.suite.columns || []).some(function (c) { return c.key === parsedQuery.sortKey && c.sortable; })) {
+      var matchedCol = initial.suite.columns.find(function (c) { return c.key === parsedQuery.sortKey; });
+      initialSortKey = parsedQuery.sortKey;
+      initialSortDir = parsedQuery.sortDir || (matchedCol && matchedCol.dir) || "asc";
+    }
+
     var state = {
       categoryId: initial.category.id,
       suiteId: initial.suite.id,
-      filter: "all",
-      sortKey: initial.suite.defaultSort ? initial.suite.defaultSort.key : null,
-      sortDir: initial.suite.defaultSort ? initial.suite.defaultSort.dir : "asc",
+      filter: parsedQuery.filter || "all",
+      sortKey: initialSortKey,
+      sortDir: initialSortDir,
     };
 
     function getActive() {
       var cat = data.categories.find(function (c) { return c.id === state.categoryId; }) || data.categories[0];
       var suite = (cat.suites || []).find(function (s) { return s.id === state.suiteId; }) || cat.suites[0];
       return { cat: cat, suite: suite };
+    }
+
+    function syncUrl(suite) {
+      if (typeof window === "undefined" || !window.history || !window.history.replaceState) return;
+      var qs = serializeQueryParams(suite, state);
+      var target = window.location.pathname + (qs ? "?" + qs : "") + "#" + suite.id;
+      window.history.replaceState(null, "", target);
     }
 
     function selectCategory(catId, suiteId, pushHash) {
@@ -273,9 +438,7 @@
       state.filter = "all";
       state.sortKey = suite.defaultSort ? suite.defaultSort.key : null;
       state.sortDir = suite.defaultSort ? suite.defaultSort.dir : "asc";
-      if (pushHash && typeof window !== "undefined" && window.history && window.history.replaceState) {
-        window.history.replaceState(null, "", "#" + suite.id);
-      }
+      if (pushHash) syncUrl(suite);
       render();
     }
 
@@ -368,7 +531,7 @@
         var rowCls = "lb-row lb-row--" + escapeHtml(row.status || "option");
         var cellsHtml = suite.columns.map(function (col) {
           var cell = row.values && row.values[col.key];
-          var display = cell ? cell.display : "—";
+          var display = cell ? cell.display : "-";
           var sub = cell && cell.sub ? '<span class="lb-cell-sub">' + escapeHtml(cell.sub) + '</span>' : "";
           var alignCls = col.align === "right" ? " is-num" : "";
           var isPrimary = pMetric && pMetric.key === col.key && cell && typeof cell.num === "number";
@@ -428,8 +591,11 @@
 
       var scatterHtml = renderScatterSvg(suite, rows);
       var blogLink = suite.blogUrl
-        ? '<a class="lb-meta-link" href="' + escapeHtml(suite.blogUrl) + '">Deep dive →</a>'
+        ? '<a class="lb-meta-link" href="' + escapeHtml(suite.blogUrl) + '">Deep dive</a>'
         : "";
+      var reportLabel = String(suite.reportUrl || "").indexOf("huggingface.co/") !== -1
+        ? "Model card & evals (HF)"
+        : "Full REPORT.md";
 
       rootEl.innerHTML =
         '<div class="lb-tabs" role="tablist" aria-label="Benchmark categories">' + catTabsHtml + '</div>' +
@@ -441,6 +607,7 @@
               '<p class="lb-panel__summary">' + escapeHtml(cat.summary) + '</p>' +
             '</div>' +
             '<div class="lb-panel__actions">' +
+              '<button type="button" class="lb-action-btn" data-lb-save-png>Save Chart PNG</button>' +
               '<button type="button" class="lb-action-btn" data-lb-copy-link>Copy link</button>' +
               '<button type="button" class="lb-action-btn" data-lb-copy-md>Copy Markdown</button>' +
             '</div>' +
@@ -464,8 +631,8 @@
             '<p><strong>Dataset:</strong> ' + escapeHtml(suite.dataset) + '. ' + escapeHtml(suite.note) + '</p>' +
             '<p class="lb-caveat"><strong>Honest caveat:</strong> ' + escapeHtml(suite.caveat) + '</p>' +
             '<div class="lb-links">' +
-              '<a class="lb-meta-link" href="' + escapeHtml(suite.reportUrl) + '" target="_blank" rel="noopener">Full REPORT.md ↗</a>' +
-              '<a class="lb-meta-link" href="' + escapeHtml(suite.harnessUrl) + '" target="_blank" rel="noopener">Reproduce harness ↗</a>' +
+              '<a class="lb-meta-link" href="' + escapeHtml(suite.reportUrl) + '" target="_blank" rel="noopener">' + reportLabel + '</a>' +
+              '<a class="lb-meta-link" href="' + escapeHtml(suite.harnessUrl) + '" target="_blank" rel="noopener">Reproduce / catalog source</a>' +
               blogLink +
             '</div>' +
           '</div>' +
@@ -486,6 +653,7 @@
       rootEl.querySelectorAll("[data-lb-filter]").forEach(function (btn) {
         btn.addEventListener("click", function () {
           state.filter = btn.getAttribute("data-lb-filter");
+          syncUrl(suite);
           render();
         });
       });
@@ -500,14 +668,34 @@
             state.sortKey = key;
             state.sortDir = defDir;
           }
+          syncUrl(suite);
           render();
         });
       });
 
+      var savePngBtn = rootEl.querySelector("[data-lb-save-png]");
+      if (savePngBtn) {
+        savePngBtn.addEventListener("click", function () {
+          var canvas = renderChartCanvas(suite, rows, state);
+          canvas.toBlob(function (blob) {
+            if (!blob) return;
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement("a");
+            a.href = url;
+            a.download = "lokalbot-benchmark-" + suite.id + ".png";
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+          }, "image/png");
+        });
+      }
+
       var copyLinkBtn = rootEl.querySelector("[data-lb-copy-link]");
       if (copyLinkBtn) {
         copyLinkBtn.addEventListener("click", function () {
-          var url = "https://www.lokalbot.com/benchmarks#" + suite.id;
+          var qs = serializeQueryParams(suite, state);
+          var url = "https://www.lokalbot.com/benchmarks" + (qs ? "?" + qs : "") + "#" + suite.id;
           copyText(url, copyLinkBtn, "Copied link");
         });
       }
@@ -573,11 +761,15 @@
 
   return {
     findCategoryAndSuite: findCategoryAndSuite,
+    parseQueryParams: parseQueryParams,
+    serializeQueryParams: serializeQueryParams,
     filterRows: filterRows,
     sortRows: sortRows,
     computeBarPercent: computeBarPercent,
     availableFilters: availableFilters,
     toMarkdownTable: toMarkdownTable,
+    buildChartCardSpec: buildChartCardSpec,
+    renderChartCanvas: renderChartCanvas,
     renderScatterSvg: renderScatterSvg,
     initUI: initUI,
     boot: boot,

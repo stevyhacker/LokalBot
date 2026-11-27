@@ -36,6 +36,7 @@ defaults:
 
 jobs:
   build:
+    if: github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot'
     uses: ./.github/workflows/build.yml
     with:
       cache_mode: warm
@@ -46,7 +47,7 @@ jobs:
   build-failed:
     name: Report a failed nightly build
     needs: build
-    if: failure() && github.event_name == 'schedule'
+    if: failure() && github.event_name == 'schedule' && github.repository == 'stevyhacker/LokalBot'
     runs-on: ubuntu-latest
     steps:
       - name: Open or update the nightly build issue
@@ -66,7 +67,9 @@ jobs:
   model-drift:
     name: Model drift
     needs: build
-    if: github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || inputs.jobs == 'model-drift'
+    if: >-
+      (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
+      && (github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || inputs.jobs == 'model-drift')
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -124,7 +127,7 @@ jobs:
           path: .build/model-recordings
           retention-days: 30
       - name: Open or update the drift issue
-        if: steps.compare.outputs.drift == 'true' && github.event_name != 'pull_request'
+        if: steps.compare.outputs.drift == 'true' && github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -138,7 +141,7 @@ jobs:
       # A rejected key, spent credit or a renamed model leaves cases with no
       # answer; the comparison then fails instead of calling that no drift.
       - name: Open or update the unchecked-drift issue
-        if: failure() && github.event_name != 'pull_request'
+        if: failure() && github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -157,7 +160,9 @@ jobs:
   day-in-the-life-real:
     name: Day in the life with real Parakeet
     needs: build
-    if: github.event_name == 'schedule' || inputs.jobs == 'all' || inputs.jobs == 'day-in-the-life'
+    if: >-
+      (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
+      && (github.event_name == 'schedule' || inputs.jobs == 'all' || inputs.jobs == 'day-in-the-life')
     runs-on: macos-26
     timeout-minutes: 60
     steps:
@@ -198,7 +203,7 @@ jobs:
             .build/day-in-the-life-real.log
           retention-days: 14
       - name: Open or update the real-ASR issue
-        if: failure() && github.event_name != 'pull_request'
+        if: failure() && github.event_name != 'pull_request' && github.repository == 'stevyhacker/LokalBot'
         env:
           GH_TOKEN: ${{ github.token }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
@@ -216,7 +221,9 @@ jobs:
   scale:
     name: Scale and concurrency
     needs: build
-    if: github.event_name == 'schedule' || inputs.jobs == 'all' || inputs.jobs == 'scale'
+    if: >-
+      (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
+      && (github.event_name == 'schedule' || inputs.jobs == 'all' || inputs.jobs == 'scale')
     runs-on: macos-26
     timeout-minutes: 45
     steps:
@@ -254,7 +261,7 @@ jobs:
           export LOKALBOT_APP="$PWD/.build/dd/Build/Products/Debug/LokalBot.app"
           bash Scripts/test/scale/two-instances.sh
       - name: Open or update the nightly issue
-        if: failure() && github.event_name == 'schedule'
+        if: failure() && github.event_name == 'schedule' && github.repository == 'stevyhacker/LokalBot'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -266,7 +273,9 @@ jobs:
   # A pin stops the download once upstream replaces its asset, so say so.
   model-pins:
     name: Model pins
-    if: github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || inputs.jobs == 'model-pins'
+    if: >-
+      (github.event_name != 'schedule' || github.repository == 'stevyhacker/LokalBot')
+      && (github.event_name != 'workflow_dispatch' || inputs.jobs == 'all' || inputs.jobs == 'model-pins')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -276,7 +285,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: python3 Scripts/ci/check-model-pins.py --report model-pins.md
       - name: Open or update the pins issue
-        if: failure() && github.event_name == 'schedule'
+        if: failure() && github.event_name == 'schedule' && github.repository == 'stevyhacker/LokalBot'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

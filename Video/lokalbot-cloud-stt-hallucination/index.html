@@ -1,0 +1,815 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1080, height=1350" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.14.2/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1080px;
+        height: 1350px;
+        overflow: hidden;
+        background: #0e151d;
+        font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
+        color: #f2f7f5;
+      }
+      #root {
+        position: relative;
+        width: 1080px;
+        height: 1350px;
+        overflow: hidden;
+        background: radial-gradient(120% 55% at 50% 0%, #162635 0%, #0e151d 58%, #0a1017 100%);
+      }
+      .mono {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+      }
+      #grid-bg {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(110, 242, 220, 0.045) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(110, 242, 220, 0.045) 1px, transparent 1px);
+        background-size: 64px 64px;
+      }
+      #top-bar {
+        position: absolute;
+        left: 52px;
+        top: 44px;
+        width: 976px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 20;
+      }
+      .brand-lockup {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+      .brand-icon {
+        width: 50px;
+        height: 50px;
+        border-radius: 12px;
+        box-shadow: 0 0 0 1.5px rgba(242, 247, 245, 0.22);
+      }
+      .brand-name {
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: #f2f7f5;
+      }
+      .top-pill {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 19px;
+        font-weight: 700;
+        letter-spacing: 0.06em;
+        color: #6ef2dc;
+        background: rgba(35, 196, 174, 0.14);
+        border: 1.5px solid rgba(110, 242, 220, 0.4);
+        border-radius: 999px;
+        padding: 8px 18px;
+      }
+      #stage {
+        position: absolute;
+        left: 52px;
+        top: 122px;
+        width: 976px;
+        height: 890px;
+        z-index: 10;
+      }
+      .beat {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      .eyebrow {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 22px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6ef2dc;
+        margin-bottom: 20px;
+      }
+      #b1-title {
+        font-size: 92px;
+        font-weight: 900;
+        letter-spacing: -0.045em;
+        line-height: 1.06;
+        color: #f2f7f5;
+      }
+      #b1-title .hl-coral {
+        display: inline-block;
+        color: #0e141c;
+        background: #ff8a80;
+        border-radius: 16px;
+        padding: 2px 22px 8px;
+        margin-top: 8px;
+      }
+      .wave-card {
+        margin-top: 42px;
+        background: #141f2b;
+        border: 2px solid #2b3f52;
+        border-radius: 24px;
+        padding: 26px 28px;
+      }
+      .wave-meta {
+        display: flex;
+        justify-content: space-between;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 22px;
+        font-weight: 700;
+        color: #a9c4c0;
+        margin-bottom: 18px;
+      }
+      .wave-meta .db-badge {
+        color: #fbbf24;
+      }
+      .wave-box {
+        position: relative;
+        height: 146px;
+        background: #0c131c;
+        border-radius: 16px;
+        border: 1.5px solid #233344;
+        overflow: hidden;
+      }
+      .wave-bars {
+        position: absolute;
+        inset: 0;
+      }
+      .wave-bars i {
+        position: absolute;
+        top: 50%;
+        width: 8px;
+        border-radius: 4px;
+      }
+      .scan-head {
+        position: absolute;
+        top: 10px;
+        bottom: 10px;
+        left: 0;
+        width: 5px;
+        border-radius: 3px;
+        background: #fbbf24;
+        box-shadow: 0 0 18px rgba(251, 191, 36, 0.8);
+      }
+      .wave-axis {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 14px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 20px;
+        color: #9bb7b4;
+      }
+      #beat2 {
+        gap: 24px;
+      }
+      .split-card {
+        height: 374px;
+        background: #141f2b;
+        border-radius: 26px;
+        padding: 26px 28px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .split-cloud {
+        border: 2.5px solid rgba(255, 138, 128, 0.65);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+      }
+      .split-local {
+        border: 2.5px solid rgba(110, 242, 220, 0.7);
+        box-shadow: 0 18px 48px rgba(0, 0, 0, 0.4);
+      }
+      .split-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .split-title {
+        font-size: 34px;
+        font-weight: 900;
+        letter-spacing: -0.03em;
+      }
+      .split-cloud .split-title {
+        color: #ff9e96;
+      }
+      .split-local .split-title {
+        color: #6ef2dc;
+      }
+      .split-cost {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 21px;
+        font-weight: 700;
+        padding: 6px 14px;
+        border-radius: 999px;
+      }
+      .split-cloud .split-cost {
+        color: #ffaba4;
+        background: rgba(255, 138, 128, 0.16);
+      }
+      .split-local .split-cost {
+        color: #6ef2dc;
+        background: rgba(110, 242, 220, 0.15);
+      }
+      .mini-wave {
+        position: relative;
+        height: 68px;
+        background: #0b121b;
+        border-radius: 12px;
+        border: 1px solid #253647;
+        overflow: hidden;
+      }
+      .tok-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px 8px;
+        align-content: flex-start;
+        min-height: 112px;
+      }
+      .tok-chip {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 19px;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(255, 138, 128, 0.22);
+        border: 1px solid rgba(255, 138, 128, 0.55);
+        color: #ffd0cc;
+      }
+      .split-status {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .status-bad {
+        color: #ff9e96;
+      }
+      .status-good {
+        color: #6ef2dc;
+      }
+      .silence-box {
+        background: rgba(35, 196, 174, 0.12);
+        border: 2px solid rgba(110, 242, 220, 0.45);
+        border-radius: 16px;
+        padding: 24px 26px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .silence-tag {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 36px;
+        font-weight: 800;
+        color: #6ef2dc;
+      }
+      .silence-sub {
+        font-size: 26px;
+        font-weight: 700;
+        color: #eafffa;
+      }
+      #beat3 {
+        gap: 22px;
+      }
+      .b3-heading {
+        font-size: 52px;
+        font-weight: 900;
+        letter-spacing: -0.035em;
+        line-height: 1.1;
+      }
+      .stat-card {
+        background: #141f2b;
+        border: 2px solid #2b3f52;
+        border-left: 10px solid #6ef2dc;
+        border-radius: 22px;
+        padding: 28px 32px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+      .stat-card.amber {
+        border-left-color: #fbbf24;
+      }
+      .stat-num {
+        font-size: 86px;
+        font-weight: 900;
+        letter-spacing: -0.045em;
+        line-height: 1;
+        color: #6ef2dc;
+        white-space: nowrap;
+      }
+      .stat-card.amber .stat-num {
+        color: #fbbf24;
+      }
+      .stat-copy {
+        flex: 1;
+        text-align: right;
+      }
+      .stat-title {
+        font-size: 34px;
+        font-weight: 800;
+        color: #f2f7f5;
+      }
+      .stat-sub {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 21px;
+        color: #a9c4c0;
+        margin-top: 6px;
+      }
+      #beat4 {
+        justify-content: center;
+      }
+      .b4-title {
+        font-size: 44px;
+        font-weight: 900;
+        letter-spacing: -0.035em;
+        line-height: 1.08;
+      }
+      .b4-sub {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 20px;
+        color: #a9c4c0;
+        margin-top: 8px;
+        margin-bottom: 20px;
+      }
+      .ami-list {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+      .ami-row {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .ami-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .ami-right {
+        display: flex;
+        align-items: baseline;
+        gap: 14px;
+      }
+      .ami-name {
+        font-size: 25px;
+        font-weight: 700;
+        color: #d3e5e2;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .ami-local .ami-name {
+        color: #f2f7f5;
+        font-weight: 900;
+      }
+      .ami-badge {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 16px;
+        font-weight: 800;
+        color: #0e141c;
+        background: #fbbf24;
+        padding: 3px 9px;
+        border-radius: 7px;
+      }
+      .ami-val {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 26px;
+        font-weight: 800;
+        color: #c2dad6;
+      }
+      .ami-local .ami-val {
+        color: #6ef2dc;
+      }
+      .ami-track {
+        height: 30px;
+        background: #141f2b;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1.5px solid #26384a;
+      }
+      .ami-fill {
+        height: 100%;
+        border-radius: 8px;
+        background: #557379;
+        transform-origin: 0 50%;
+      }
+      .ami-local .ami-fill {
+        background: linear-gradient(90deg, #23c4ae, #6ef2dc);
+      }
+      #ami-r-3 .ami-fill,
+      #ami-r-4 .ami-fill,
+      #ami-r-5 .ami-fill {
+        background: #a56468;
+      }
+      .ami-meta {
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 18px;
+        color: #9bb7b4;
+      }
+      #ami-callout {
+        margin-top: 20px;
+        background: rgba(251, 191, 36, 0.14);
+        border: 2px solid #fbbf24;
+        border-radius: 16px;
+        padding: 15px 22px;
+        font-size: 26px;
+        font-weight: 800;
+        color: #fde68a;
+        text-align: center;
+      }
+      #end-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 30;
+        pointer-events: none;
+      }
+      #end-ground {
+        position: absolute;
+        inset: 0;
+        background: #c9f1e7;
+      }
+      #end-spark {
+        position: absolute;
+        left: 514px;
+        top: 649px;
+        width: 52px;
+        height: 52px;
+        border-radius: 26px;
+        background: #fbbf24;
+      }
+      #end-content {
+        position: absolute;
+        left: 52px;
+        right: 52px;
+        top: 148px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        color: #0e141c;
+      }
+      #end-icon-wrap {
+        width: 176px;
+        height: 176px;
+        margin-bottom: 20px;
+      }
+      #end-name {
+        font-size: 102px;
+        font-weight: 900;
+        letter-spacing: -0.045em;
+        line-height: 1.05;
+        color: #0e141c;
+      }
+      #end-model {
+        margin-top: 16px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 28px;
+        font-weight: 700;
+        color: #16403a;
+        background: rgba(14, 20, 28, 0.08);
+        padding: 9px 22px;
+        border-radius: 999px;
+      }
+      #end-tag {
+        margin-top: 22px;
+        font-size: 40px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        color: #0e141c;
+      }
+      #end-url {
+        margin-top: 18px;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 32px;
+        font-weight: 800;
+        color: #0e141c;
+      }
+      #end-note {
+        margin-top: 24px;
+        font-size: 21px;
+        font-weight: 600;
+        color: #29504a;
+        max-width: 820px;
+        line-height: 1.35;
+      }
+      #progress-bar {
+        position: absolute;
+        left: 52px;
+        top: 1024px;
+        width: 976px;
+        height: 6px;
+        border-radius: 999px;
+        background: rgba(234, 255, 250, 0.16);
+        overflow: hidden;
+        z-index: 40;
+      }
+      #progress-fill {
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(90deg, #23c4ae, #6ef2dc, #fbbf24);
+        transform-origin: 0 50%;
+      }
+      #captions {
+        position: absolute;
+        left: 52px;
+        top: 1044px;
+        width: 976px;
+        height: 208px;
+        z-index: 45;
+      }
+      .cap-phrase {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 50%;
+        margin-top: -64px;
+        display: flex;
+        justify-content: center;
+      }
+      .cap-line {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 8px 10px;
+        font-size: 42px;
+        font-weight: 800;
+        letter-spacing: -0.025em;
+        line-height: 1.28;
+        text-align: center;
+      }
+      .cap-word {
+        color: #b7cec9;
+        padding: 4px 11px 6px;
+        border-radius: 11px;
+      }
+      #cap-p-8 .cap-line {
+        background: #0e151d;
+        padding: 14px 22px;
+        border-radius: 20px;
+        box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+      }
+      #footer {
+        position: absolute;
+        left: 52px;
+        top: 1280px;
+        width: 976px;
+        display: flex;
+        justify-content: space-between;
+        font-family: "JetBrains Mono", ui-monospace, monospace;
+        font-size: 21px;
+        font-weight: 600;
+        color: #9ec5be;
+        z-index: 25;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root" data-composition-id="main" data-start="0" data-duration="30" data-width="1080" data-height="1350">
+      <div id="grid-bg" data-layout-ignore></div>
+      <div id="top-bar">
+        <div class="brand-lockup"><svg class="brand-icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="mb-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222e3d" /><stop offset="1" stop-color="#0e141c" /></linearGradient><linearGradient id="mb-body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ef2dc" /><stop offset="1" stop-color="#23c4ae" /></linearGradient></defs><rect x="64" y="64" width="896" height="896" rx="204" fill="url(#mb-bg)" /><rect x="372" y="206" width="36" height="86" rx="18" fill="#3a7d72" /><circle cx="390" cy="186" r="42" fill="#fbbf24" /><rect x="268" y="276" width="244" height="484" rx="62" fill="url(#mb-body)" /><rect x="268" y="592" width="492" height="168" rx="62" fill="url(#mb-body)" /><rect x="312" y="326" width="156" height="118" rx="38" fill="#0e141c" /><circle cx="390" cy="385" r="34" fill="#6ef2dc" /><circle cx="402" cy="373" r="10" fill="#eafffa" /><rect x="206" y="430" width="44" height="180" rx="22" fill="#3a7d72" /><g fill="#0e141c"><rect x="556" y="646" width="26" height="60" rx="13" /><rect x="602" y="624" width="26" height="104" rx="13" /><rect x="648" y="638" width="26" height="76" rx="13" /><rect x="694" y="654" width="26" height="44" rx="13" /></g></svg><span class="brand-name">LokalBot</span></div>
+        <div class="top-pill">CLOUD STT VS LOCAL ASR</div>
+      </div>
+
+      <div id="stage">
+        <div class="beat" id="beat1">
+          <div class="eyebrow">REAL MEETING BENCHMARK · SEP 2026</div>
+          <div id="b1-title">1.2s quiet clip.<br />Cloud AI invented<br /><span class="hl-coral">30 words.</span></div>
+          <div class="wave-card">
+            <div class="wave-meta"><span>MIC CLIP · 16 kHz MONO WAV</span><span class="db-badge">-46 dB · QUIET</span></div>
+            <div class="wave-box">
+              <div class="wave-bars" id="wave-hook" data-layout-ignore></div>
+              <div class="scan-head" id="scan-hook" data-layout-ignore></div>
+            </div>
+            <div class="wave-axis"><span>0.0 s</span><span>0.4 s</span><span>0.8 s</span><span>1.2 s</span></div>
+          </div>
+        </div>
+
+        <div class="beat" id="beat2">
+          <div class="split-card split-cloud" id="card-cloud">
+            <div class="split-head">
+              <div class="split-title">Gemini 3.8 Flash</div>
+              <div class="split-cost">CLOUD · $0.33/hr</div>
+            </div>
+            <div class="mini-wave">
+              <div class="wave-bars" id="wave-cloud" data-layout-ignore></div>
+              <div class="scan-head" id="scan-cloud" style="background:#ff8a80" data-layout-ignore></div>
+            </div>
+            <div class="tok-grid" id="tok-grid"><span class="tok-chip" id="tok-0">01</span><span class="tok-chip" id="tok-1">02</span><span class="tok-chip" id="tok-2">03</span><span class="tok-chip" id="tok-3">04</span><span class="tok-chip" id="tok-4">05</span><span class="tok-chip" id="tok-5">06</span><span class="tok-chip" id="tok-6">07</span><span class="tok-chip" id="tok-7">08</span><span class="tok-chip" id="tok-8">09</span><span class="tok-chip" id="tok-9">10</span><span class="tok-chip" id="tok-10">11</span><span class="tok-chip" id="tok-11">12</span><span class="tok-chip" id="tok-12">13</span><span class="tok-chip" id="tok-13">14</span><span class="tok-chip" id="tok-14">15</span><span class="tok-chip" id="tok-15">16</span><span class="tok-chip" id="tok-16">17</span><span class="tok-chip" id="tok-17">18</span><span class="tok-chip" id="tok-18">19</span><span class="tok-chip" id="tok-19">20</span><span class="tok-chip" id="tok-20">21</span><span class="tok-chip" id="tok-21">22</span><span class="tok-chip" id="tok-22">23</span><span class="tok-chip" id="tok-23">24</span><span class="tok-chip" id="tok-24">25</span><span class="tok-chip" id="tok-25">26</span><span class="tok-chip" id="tok-26">27</span><span class="tok-chip" id="tok-27">28</span><span class="tok-chip" id="tok-28">29</span><span class="tok-chip" id="tok-29">30</span></div>
+            <div class="split-status">
+              <span class="status-bad" id="cloud-count">30 invented words on 1.2s clip</span>
+              <span class="mono" style="color:#c9a9a7;font-size:19px">115 invented in 15 clips</span>
+            </div>
+          </div>
+
+          <div class="split-card split-local" id="card-local">
+            <div class="split-head">
+              <div class="split-title">Qwen3-ASR 1.7B LokalBot v3</div>
+              <div class="split-cost">LOCAL · $0/hr</div>
+            </div>
+            <div class="mini-wave">
+              <div class="wave-bars" id="wave-local" data-layout-ignore></div>
+              <div class="scan-head" id="scan-local" style="background:#6ef2dc" data-layout-ignore></div>
+            </div>
+            <div class="silence-box" id="silence-box">
+              <div class="silence-tag">[silence]</div>
+              <div class="silence-sub">100% clean · 0 hallucinated words</div>
+            </div>
+            <div class="split-status">
+              <span class="status-good">0 bytes uploaded</span>
+              <span class="mono" style="color:#a9c4c0;font-size:19px">2.52 GB GGUF Q8_0</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="beat" id="beat3">
+          <div class="eyebrow">V0.14.0 DEFAULT · APACHE-2.0 FINE-TUNE</div>
+          <div class="b3-heading">Qwen3-ASR 1.7B LokalBot v3</div>
+          <div class="stat-card" id="stat-1">
+            <div class="stat-num">0</div>
+            <div class="stat-copy">
+              <div class="stat-title">Hallucinated words</div>
+              <div class="stat-sub">100% clean silence vs 115 invented by Gemini Flash</div>
+            </div>
+          </div>
+          <div class="stat-card amber" id="stat-2">
+            <div class="stat-num">$0/hr</div>
+            <div class="stat-copy">
+              <div class="stat-title">API cost forever</div>
+              <div class="stat-sub">Cloud STT APIs ran $0.13 to $0.36 per audio hour</div>
+            </div>
+          </div>
+          <div class="stat-card" id="stat-3">
+            <div class="stat-num">0 B</div>
+            <div class="stat-copy">
+              <div class="stat-title">Audio uploaded</div>
+              <div class="stat-sub">2.52 GB GGUF Q8_0 runs locally on llama.cpp</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="beat" id="beat4">
+          <div class="eyebrow">PUBLIC AMI FAR-FIELD MEETINGS</div>
+          <div class="b4-title">Lower Word Error Rate wins</div>
+          <div class="b4-sub">16 Mix-Headset windows · 27.4 min · 4,160 reference words</div>
+          <div class="ami-list">
+          <div class="ami-row ami-local" id="ami-r-0">
+            <div class="ami-head"><span class="ami-name">Qwen3-ASR 1.7B (Local)<span class="ami-badge">LOCAL · $0/HR</span></span><span class="ami-right"><span class="ami-meta">44x RT · $0/hr</span><span class="ami-val">17.6% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-0" style="width:70.4%"></div></div>
+          </div>
+          <div class="ami-row" id="ami-r-1">
+            <div class="ami-head"><span class="ami-name">Qwen3-ASR Flash (Cloud)</span><span class="ami-right"><span class="ami-meta">$0.13/hr</span><span class="ami-val">18.1% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-1" style="width:72.4%"></div></div>
+          </div>
+          <div class="ami-row" id="ami-r-2">
+            <div class="ami-head"><span class="ami-name">Qwen-Audio 3.1 Flash</span><span class="ami-right"><span class="ami-meta">$0.02/hr</span><span class="ami-val">18.5% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-2" style="width:74.0%"></div></div>
+          </div>
+          <div class="ami-row" id="ami-r-3">
+            <div class="ami-head"><span class="ami-name">GPT-4o mini Transcribe</span><span class="ami-right"><span class="ami-meta">$0.18/hr</span><span class="ami-val">21.8% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-3" style="width:87.2%"></div></div>
+          </div>
+          <div class="ami-row" id="ami-r-4">
+            <div class="ami-head"><span class="ami-name">GPT Transcribe</span><span class="ami-right"><span class="ami-meta">$0.27/hr</span><span class="ami-val">22.2% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-4" style="width:88.8%"></div></div>
+          </div>
+          <div class="ami-row" id="ami-r-5">
+            <div class="ami-head"><span class="ami-name">GPT-4o Transcribe</span><span class="ami-right"><span class="ami-meta">$0.36/hr</span><span class="ami-val">23.0% WER</span></span></div>
+            <div class="ami-track"><div class="ami-fill" id="ami-f-5" style="width:92.0%"></div></div>
+          </div>
+          </div>
+          <div id="ami-callout">17.6% WER locally, beating all 3 OpenAI cloud APIs</div>
+        </div>
+      </div>
+
+      <div id="end-overlay" data-layout-allow-overflow>
+        <div id="end-ground" data-layout-ignore></div>
+        <div id="end-spark" data-layout-ignore></div>
+        <div id="end-content">
+          <div id="end-icon-wrap"><svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg"><defs><linearGradient id="lb-bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222e3d" /><stop offset="1" stop-color="#0e141c" /></linearGradient><linearGradient id="lb-body" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ef2dc" /><stop offset="1" stop-color="#23c4ae" /></linearGradient></defs><rect x="64" y="64" width="896" height="896" rx="204" fill="url(#lb-bg)" /><rect x="372" y="206" width="36" height="86" rx="18" fill="#3a7d72" /><circle id="end-light" cx="390" cy="186" r="42" fill="#fbbf24" /><rect x="268" y="276" width="244" height="484" rx="62" fill="url(#lb-body)" /><rect x="268" y="592" width="492" height="168" rx="62" fill="url(#lb-body)" /><rect x="312" y="326" width="156" height="118" rx="38" fill="#0e141c" /><circle cx="390" cy="385" r="34" fill="#6ef2dc" /><circle cx="402" cy="373" r="10" fill="#eafffa" /><rect x="206" y="430" width="44" height="180" rx="22" fill="#3a7d72" /><g fill="#0e141c"><rect x="556" y="646" width="26" height="60" rx="13" /><rect x="602" y="624" width="26" height="104" rx="13" /><rect x="648" y="638" width="26" height="76" rx="13" /><rect x="694" y="654" width="26" height="44" rx="13" /></g></svg></div>
+          <div id="end-name">LokalBot</div>
+          <div id="end-model">Qwen3-ASR 1.7B LokalBot v3</div>
+          <div id="end-tag">Local by default. Free and open source.</div>
+          <div id="end-url">lokalbot.com/benchmarks</div>
+          <div id="end-note">Direct vendor APIs tested Sep 2026 on Apple M4 Max (48 GB). Full report in Benchmarks/transcribe/CloudSTT.</div>
+        </div>
+      </div>
+
+      <div id="progress-bar" data-layout-ignore><div id="progress-fill"></div></div>
+      <div id="captions" data-layout-allow-overflow>
+          <div class="cap-phrase" id="cap-p-0"><div class="cap-line"><span class="cap-word" id="cap-w-0-0">We</span> <span class="cap-word" id="cap-w-0-1">fed</span> <span class="cap-word" id="cap-w-0-2">a</span> <span class="cap-word" id="cap-w-0-3">quiet</span> <span class="cap-word" id="cap-w-0-4">1.2-second</span> <span class="cap-word" id="cap-w-0-5">meeting</span> <span class="cap-word" id="cap-w-0-6">clip</span></div></div>
+          <div class="cap-phrase" id="cap-p-1"><div class="cap-line"><span class="cap-word" id="cap-w-1-0">to</span> <span class="cap-word" id="cap-w-1-1">cloud</span> <span class="cap-word" id="cap-w-1-2">APIs</span> <span class="cap-word" id="cap-w-1-3">and</span> <span class="cap-word" id="cap-w-1-4">LokalBot&#x27;s</span> <span class="cap-word" id="cap-w-1-5">local</span> <span class="cap-word" id="cap-w-1-6">model.</span></div></div>
+          <div class="cap-phrase" id="cap-p-2"><div class="cap-line"><span class="cap-word" id="cap-w-2-0">Gemini</span> <span class="cap-word" id="cap-w-2-1">Flash</span> <span class="cap-word" id="cap-w-2-2">invented</span> <span class="cap-word" id="cap-w-2-3">a</span> <span class="cap-word" id="cap-w-2-4">30-word</span> <span class="cap-word" id="cap-w-2-5">sentence</span> <span class="cap-word" id="cap-w-2-6">on</span> <span class="cap-word" id="cap-w-2-7">silence.</span></div></div>
+          <div class="cap-phrase" id="cap-p-3"><div class="cap-line"><span class="cap-word" id="cap-w-3-0">Qwen3-ASR</span> <span class="cap-word" id="cap-w-3-1">v3</span> <span class="cap-word" id="cap-w-3-2">returned</span> <span class="cap-word" id="cap-w-3-3">100%</span> <span class="cap-word" id="cap-w-3-4">clean</span> <span class="cap-word" id="cap-w-3-5">silence</span> <span class="cap-word" id="cap-w-3-6">and</span> <span class="cap-word" id="cap-w-3-7">0</span> <span class="cap-word" id="cap-w-3-8">words.</span></div></div>
+          <div class="cap-phrase" id="cap-p-4"><div class="cap-line"><span class="cap-word" id="cap-w-4-0">Zero</span> <span class="cap-word" id="cap-w-4-1">hallucinated</span> <span class="cap-word" id="cap-w-4-2">words.</span> <span class="cap-word" id="cap-w-4-3">Zero</span> <span class="cap-word" id="cap-w-4-4">API</span> <span class="cap-word" id="cap-w-4-5">fees.</span></div></div>
+          <div class="cap-phrase" id="cap-p-5"><div class="cap-line"><span class="cap-word" id="cap-w-5-0">Zero</span> <span class="cap-word" id="cap-w-5-1">bytes</span> <span class="cap-word" id="cap-w-5-2">uploaded</span> <span class="cap-word" id="cap-w-5-3">in</span> <span class="cap-word" id="cap-w-5-4">2.52</span> <span class="cap-word" id="cap-w-5-5">GB</span> <span class="cap-word" id="cap-w-5-6">GGUF</span> <span class="cap-word" id="cap-w-5-7">Q8_0.</span></div></div>
+          <div class="cap-phrase" id="cap-p-6"><div class="cap-line"><span class="cap-word" id="cap-w-6-0">On</span> <span class="cap-word" id="cap-w-6-1">AMI</span> <span class="cap-word" id="cap-w-6-2">far-field</span> <span class="cap-word" id="cap-w-6-3">meetings,</span> <span class="cap-word" id="cap-w-6-4">local</span> <span class="cap-word" id="cap-w-6-5">Qwen3-ASR</span> <span class="cap-word" id="cap-w-6-6">hits</span> <span class="cap-word" id="cap-w-6-7">17.6%</span> <span class="cap-word" id="cap-w-6-8">WER,</span></div></div>
+          <div class="cap-phrase" id="cap-p-7"><div class="cap-line"><span class="cap-word" id="cap-w-7-0">beating</span> <span class="cap-word" id="cap-w-7-1">OpenAI</span> <span class="cap-word" id="cap-w-7-2">GPT-4o</span> <span class="cap-word" id="cap-w-7-3">and</span> <span class="cap-word" id="cap-w-7-4">GPT</span> <span class="cap-word" id="cap-w-7-5">Transcribe</span> <span class="cap-word" id="cap-w-7-6">cloud</span> <span class="cap-word" id="cap-w-7-7">APIs.</span></div></div>
+          <div class="cap-phrase" id="cap-p-8"><div class="cap-line"><span class="cap-word" id="cap-w-8-0">LokalBot.</span> <span class="cap-word" id="cap-w-8-1">Local</span> <span class="cap-word" id="cap-w-8-2">by</span> <span class="cap-word" id="cap-w-8-3">default,</span> <span class="cap-word" id="cap-w-8-4">free</span> <span class="cap-word" id="cap-w-8-5">and</span> <span class="cap-word" id="cap-w-8-6">open</span> <span class="cap-word" id="cap-w-8-7">source.</span></div></div>
+      </div>
+      <div id="footer"><span>lokalbot.com/benchmarks</span><span>GPLv3 · No cloud upload</span></div>
+
+    </div>
+    <script>
+      gsap.config({ force3D: false });
+      const tl = gsap.timeline({ paused: true });
+      const CAPTIONS = [{"start": 0.25, "end": 2.35, "words": [{"text": "We", "start": 0.25, "end": 0.37}, {"text": "fed", "start": 0.37, "end": 0.55}, {"text": "a", "start": 0.55, "end": 0.67}, {"text": "quiet", "start": 0.67, "end": 0.97}, {"text": "1.2-second", "start": 0.97, "end": 1.57}, {"text": "meeting", "start": 1.57, "end": 1.99}, {"text": "clip", "start": 1.99, "end": 2.23}]}, {"start": 2.4, "end": 4.7, "words": [{"text": "to", "start": 2.4, "end": 2.525}, {"text": "cloud", "start": 2.525, "end": 2.836}, {"text": "APIs", "start": 2.836, "end": 3.085}, {"text": "and", "start": 3.085, "end": 3.272}, {"text": "LokalBot's", "start": 3.272, "end": 3.895}, {"text": "local", "start": 3.895, "end": 4.206}, {"text": "model.", "start": 4.206, "end": 4.58}]}, {"start": 4.95, "end": 8.2, "words": [{"text": "Gemini", "start": 4.95, "end": 5.358}, {"text": "Flash", "start": 5.358, "end": 5.698}, {"text": "invented", "start": 5.698, "end": 6.243}, {"text": "a", "start": 6.243, "end": 6.379}, {"text": "30-word", "start": 6.379, "end": 6.855}, {"text": "sentence", "start": 6.855, "end": 7.4}, {"text": "on", "start": 7.4, "end": 7.536}, {"text": "silence.", "start": 7.536, "end": 8.08}]}, {"start": 8.28, "end": 12.05, "words": [{"text": "Qwen3-ASR", "start": 8.28, "end": 8.994}, {"text": "v3", "start": 8.994, "end": 9.153}, {"text": "returned", "start": 9.153, "end": 9.788}, {"text": "100%", "start": 9.788, "end": 10.105}, {"text": "clean", "start": 10.105, "end": 10.502}, {"text": "silence", "start": 10.502, "end": 11.057}, {"text": "and", "start": 11.057, "end": 11.295}, {"text": "0", "start": 11.295, "end": 11.454}, {"text": "words.", "start": 11.454, "end": 11.93}]}, {"start": 12.35, "end": 14.8, "words": [{"text": "Zero", "start": 12.35, "end": 12.624}, {"text": "hallucinated", "start": 12.624, "end": 13.446}, {"text": "words.", "start": 13.446, "end": 13.858}, {"text": "Zero", "start": 13.858, "end": 14.132}, {"text": "API", "start": 14.132, "end": 14.337}, {"text": "fees.", "start": 14.337, "end": 14.68}]}, {"start": 14.88, "end": 17.35, "words": [{"text": "Zero", "start": 14.88, "end": 15.156}, {"text": "bytes", "start": 15.156, "end": 15.502}, {"text": "uploaded", "start": 15.502, "end": 16.055}, {"text": "in", "start": 16.055, "end": 16.193}, {"text": "2.52", "start": 16.193, "end": 16.47}, {"text": "GB", "start": 16.47, "end": 16.608}, {"text": "GGUF", "start": 16.608, "end": 16.884}, {"text": "Q8_0.", "start": 16.884, "end": 17.23}]}, {"start": 17.75, "end": 21.2, "words": [{"text": "On", "start": 17.75, "end": 17.883}, {"text": "AMI", "start": 17.883, "end": 18.083}, {"text": "far-field", "start": 18.083, "end": 18.682}, {"text": "meetings,", "start": 18.682, "end": 19.282}, {"text": "local", "start": 19.282, "end": 19.615}, {"text": "Qwen3-ASR", "start": 19.615, "end": 20.214}, {"text": "hits", "start": 20.214, "end": 20.481}, {"text": "17.6%", "start": 20.481, "end": 20.814}, {"text": "WER,", "start": 20.814, "end": 21.08}]}, {"start": 21.28, "end": 24.8, "words": [{"text": "beating", "start": 21.28, "end": 21.809}, {"text": "OpenAI", "start": 21.809, "end": 22.262}, {"text": "GPT-4o", "start": 22.262, "end": 22.716}, {"text": "and", "start": 22.716, "end": 22.942}, {"text": "GPT", "start": 22.942, "end": 23.169}, {"text": "Transcribe", "start": 23.169, "end": 23.924}, {"text": "cloud", "start": 23.924, "end": 24.302}, {"text": "APIs.", "start": 24.302, "end": 24.68}]}, {"start": 25.45, "end": 29.6, "words": [{"text": "LokalBot.", "start": 25.45, "end": 26.314}, {"text": "Local", "start": 26.314, "end": 26.793}, {"text": "by", "start": 26.793, "end": 26.985}, {"text": "default,", "start": 26.985, "end": 27.753}, {"text": "free", "start": 27.753, "end": 28.137}, {"text": "and", "start": 28.137, "end": 28.425}, {"text": "open", "start": 28.425, "end": 28.808}, {"text": "source.", "start": 28.808, "end": 29.48}]}];
+      let rngState = 20260930;
+      const rnd = () => {
+        rngState = (rngState * 1664525 + 1013904223) >>> 0;
+        return rngState / 4294967296;
+      };
+      const fillWave = (hostId, count, widthPx, color) => {
+        const host = document.getElementById(hostId);
+        const step = widthPx / count;
+        for (let i = 0; i < count; i++) {
+          const bar = document.createElement("i");
+          const quietSpike = i === 18 || i === 19 ? 28 : 8 + Math.round(rnd() * 14);
+          bar.style.left = `${Math.round(i * step + 4)}px`;
+          bar.style.height = `${quietSpike}px`;
+          bar.style.marginTop = `${-quietSpike / 2}px`;
+          bar.style.background = color;
+          host.appendChild(bar);
+        }
+      };
+      fillWave("wave-hook", 56, 916, "#6ef2dc");
+      fillWave("wave-cloud", 52, 916, "#ff8a80");
+      fillWave("wave-local", 52, 916, "#6ef2dc");
+
+      gsap.set(["#beat2", "#beat3", "#beat4", "#end-content"], { opacity: 0 });
+      gsap.set("#end-ground", { clipPath: "circle(0px at 50% 50%)" });
+      gsap.set("#end-spark", { opacity: 0, scale: 0.4 });
+      gsap.set(".tok-chip", { opacity: 0, scale: 0.7 });
+      gsap.set("#silence-box", { opacity: 0, y: 12 });
+      gsap.set(["#stat-1", "#stat-2", "#stat-3"], { opacity: 0, y: 24 });
+      gsap.set(".ami-fill", { scaleX: 0 });
+      gsap.set("#ami-callout", { opacity: 0, y: 16 });
+      gsap.set(".cap-phrase", { opacity: 0 });
+
+      tl.fromTo("#b1-title", { opacity: 0, y: 24 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 0.15);
+      tl.fromTo("#scan-hook", { x: 10 }, { x: 898, duration: 3.1, ease: "none" }, 0.7);
+      tl.to("#beat1", { opacity: 0, y: -20, duration: 0.3, ease: "power2.in" }, 4.5);
+
+      tl.fromTo("#beat2", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.35, ease: "power2.out" }, 4.8);
+      tl.fromTo("#scan-cloud", { x: 8 }, { x: 898, duration: 1.4, ease: "none" }, 5.1);
+      tl.fromTo("#scan-local", { x: 8 }, { x: 898, duration: 1.4, ease: "none" }, 5.1);
+      for (let i = 0; i < 30; i++) {
+        tl.to(`#tok-${i}`, { opacity: 1, scale: 1, duration: 0.12, ease: "back.out(1.6)" }, 6.45 + i * 0.105);
+      }
+      tl.to("#silence-box", { opacity: 1, y: 0, duration: 0.35, ease: "power3.out" }, 6.55);
+      tl.to("#beat2", { opacity: 0, y: -20, duration: 0.3, ease: "power2.in" }, 11.9);
+
+      tl.fromTo("#beat3", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 12.2);
+      tl.to("#stat-1", { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" }, 12.55);
+      tl.to("#stat-2", { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" }, 13.40);
+      tl.to("#stat-3", { opacity: 1, y: 0, duration: 0.38, ease: "power3.out" }, 14.25);
+      tl.to("#beat3", { opacity: 0, y: -20, duration: 0.3, ease: "power2.in" }, 17.2);
+
+      tl.fromTo("#beat4", { opacity: 0 }, { opacity: 1, duration: 0.3, ease: "power2.out" }, 17.5);
+      for (let i = 0; i < 6; i++) {
+        tl.to(`#ami-f-${i}`, { scaleX: 1, duration: 0.65, ease: "power3.out" }, 17.9 + i * 0.24);
+      }
+      tl.to("#ami-callout", { opacity: 1, y: 0, duration: 0.4, ease: "back.out(1.4)" }, 20.85);
+      tl.to("#beat4", { opacity: 0, duration: 0.25, ease: "power2.in" }, 24.75);
+      tl.to(["#top-bar", "#progress-bar", "#footer"], { opacity: 0, duration: 0.2, ease: "power2.in" }, 24.9);
+
+      tl.to("#end-spark", { opacity: 1, scale: 1, duration: 0.22, ease: "back.out(2)" }, 24.9);
+      tl.to("#end-ground", { clipPath: "circle(1350px at 50% 50%)", duration: 0.55, ease: "power2.inOut" }, 25.05);
+      tl.to("#end-spark", { opacity: 0, scale: 0.3, duration: 0.2, ease: "power2.in" }, 25.45);
+      tl.fromTo("#end-content", { opacity: 0, y: 20 }, { opacity: 1, y: 0, duration: 0.45, ease: "power3.out" }, 25.4);
+
+      CAPTIONS.forEach((phrase, pIdx) => {
+        const pSel = `#cap-p-${pIdx}`;
+        tl.set(pSel, { opacity: 1 }, phrase.start);
+        phrase.words.forEach((word, wIdx) => {
+          const wSel = `#cap-w-${pIdx}-${wIdx}`;
+          const nextWord = phrase.words[wIdx + 1];
+          const clearAt = nextWord ? nextWord.start : phrase.end;
+          tl.set(wSel, { backgroundColor: "#fbbf24", color: "#0e141c" }, word.start);
+          tl.set(wSel, { backgroundColor: "transparent", color: "#f2f7f5" }, clearAt);
+        });
+        tl.set(pSel, { opacity: 0 }, phrase.end);
+      });
+
+      tl.fromTo("#progress-fill", { scaleX: 0 }, { scaleX: 1, duration: 30, ease: "none" }, 0);
+      tl.set({}, {}, 30);
+      window.__timelines["main"] = tl;
+      tl.seek(0);
+    </script>
+  </body>
+</html>

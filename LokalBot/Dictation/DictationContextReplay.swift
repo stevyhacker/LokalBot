@@ -12,6 +12,7 @@ enum DictationContextReplay {
         var windowTextPolicy: DictationWindowTextPolicy?
         var routing: DictationRequestRouting?
         var cleanupPrompt: DictationCleanupPrompt?
+        var wordLock: DictationWordLock?
     }
 
     struct Case: Decodable {
@@ -106,6 +107,7 @@ enum DictationContextReplay {
                 windowTextPolicy: fixture.windowTextPolicy ?? .production,
                 routing: fixture.routing ?? .production,
                 cleanupPrompt: fixture.cleanupPrompt ?? .production,
+                wordLock: fixture.wordLock ?? .production,
                 makeEngine: { _ in engine })
             output = prepared.text
             routed = prepared.contextUse?.wasWritingRequest

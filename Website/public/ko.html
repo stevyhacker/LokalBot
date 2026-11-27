@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot (한국어): 봇 없는 100% 로컬 오픈소스 AI 회의록</title>
+  <meta name="description" content="회의 봇 없이 내 PC에서 녹음·전사·요약·검색이 끝나는 무료 GPLv3 앱. v0.14.0 미세조정 로컬 모델, Obsidian 마크다운 내보내기, Claude Code/Cursor 로컬 MCP 지원." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/ko" />
+  <link rel="alternate" hreflang="en" href="https://www.lokalbot.com/" />
+  <link rel="alternate" hreflang="de" href="https://www.lokalbot.com/de" />
+  <link rel="alternate" hreflang="zh-Hans" href="https://www.lokalbot.com/zh" />
+  <link rel="alternate" hreflang="ja" href="https://www.lokalbot.com/ja" />
+  <link rel="alternate" hreflang="ru" href="https://www.lokalbot.com/ru" />
+  <link rel="alternate" hreflang="fr" href="https://www.lokalbot.com/fr" />
+  <link rel="alternate" hreflang="es" href="https://www.lokalbot.com/es" />
+  <link rel="alternate" hreflang="ko" href="https://www.lokalbot.com/ko" />
+  <link rel="alternate" hreflang="pt" href="https://www.lokalbot.com/pt" />
+  <link rel="alternate" hreflang="x-default" href="https://www.lokalbot.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:locale" content="ko_KR" />
+  <meta property="og:url" content="https://www.lokalbot.com/ko" />
+  <meta property="og:title" content="LokalBot (한국어): 봇 없는 100% 로컬 오픈소스 AI 회의록" />
+  <meta property="og:description" content="클라우드 업로드 제로, 계정 불필요. Zoom·Teams·Meet 양쪽 오디오를 로컬 녹음하고 v0.14.0 Apache-2.0 모델로 요약해 Obsidian에 저장하세요." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/og-home.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot: 봇 없는 100% 로컬 오픈소스 AI 회의록 및 작업 메모리" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot (한국어): 봇 없는 100% 로컬 오픈소스 AI 회의록" />
+  <meta name="twitter:description" content="클라우드 업로드 제로, 계정 불필요. Zoom·Teams·Meet 양쪽 오디오를 로컬 녹음하고 v0.14.0 Apache-2.0 모델로 요약해 Obsidian에 저장하세요." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/og-home.png" />
+
+  <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"WebPage","@id":"https://www.lokalbot.com/ko#page","url":"https://www.lokalbot.com/ko","name":"LokalBot (한국어): 봇 없는 100% 로컬 오픈소스 AI 회의록","description":"회의 봇 없이 내 PC에서 녹음·전사·요약·검색이 끝나는 무료 GPLv3 앱. v0.14.0 미세조정 로컬 모델, Obsidian 마크다운 내보내기, Claude Code/Cursor 로컬 MCP 지원.","inLanguage":"ko","datePublished":"2026-11-26","dateModified":"2026-11-26","isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":{"@id":"https://www.lokalbot.com/#software"},"publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"홈","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"한국어","item":"https://www.lokalbot.com/ko"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/ko#faq","mainEntity":[{"@type":"Question","name":"인터넷 없이 완전히 오프라인으로 동작하나요?","acceptedAnswer":{"@type":"Answer","text":"네. 최초 1회 오픈소스 모델을 다운로드한 뒤에는 비행기 모드에서도 녹음, 전사, 요약, 검색, 받아쓰기가 모두 동작합니다."}},{"@type":"Question","name":"회사 보안 정책상 회의 봇이 금지되어 있어도 쓸 수 있나요?","acceptedAnswer":{"@type":"Answer","text":"LokalBot은 회의에 봇을 참여시키지 않으며 오디오와 텍스트를 외부 클라우드로 전송하지 않습니다. 다만 사내 녹음 규정 확인과 참석자 사전 동의는 반드시 필요합니다."}},{"@type":"Question","name":"Windows와 Linux 버전은 어느 정도 완성되었나요?","acceptedAnswer":{"@type":"Answer","text":"Windows(x64)와 Linux(.deb, .rpm, Arch, .tar.gz)는 Rust + GPUI 네이티브 알파로 제공되며 Mac과 동일한 SQLite 라이브러리를 공유합니다. Windows 설치 프로그램은 코드 서명 준비 중입니다."}},{"@type":"Question","name":"기존 Granola, Otter, Fireflies 기록을 가져올 수 있나요?","acceptedAnswer":{"@type":"Answer","text":"네. LokalBot 앱에서 직접 가져오거나, 서버 업로드 없는 브라우저 오프라인 변환기(/migrate)로 Obsidian 마크다운으로 변환할 수 있습니다."}}]}]}</script>
+  <script src="/app.js" defer></script>
+  <style>
+    .loc-page {
+      width: min(1060px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 122px 0 84px;
+    }
+    .loc-langs {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+      margin: 0 0 20px;
+    }
+    .loc-lang {
+      padding: 5px 11px;
+      border-radius: var(--pill);
+      font: 600 0.8rem/1.2 var(--mono);
+      color: var(--text-dim);
+      background: var(--glass-gloss), var(--glass-tint-chip);
+      -webkit-backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur-chip)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset);
+      text-decoration: none;
+    }
+    .loc-lang:hover { border-color: var(--teal); color: var(--accent-text); }
+    .loc-lang[aria-current="page"] {
+      color: var(--accent-text);
+      border-color: rgba(35, 196, 174, 0.42);
+      background: var(--teal-soft);
+    }
+    .loc-hero h1 {
+      margin: 10px 0 16px;
+      font-size: clamp(2rem, 4.2vw, 3.25rem);
+      line-height: 1.14;
+      letter-spacing: -0.025em;
+      color: var(--text);
+      max-width: 28ch;
+      text-wrap: balance;
+    }
+    .loc-hero__lead {
+      font-size: 1.08rem;
+      line-height: 1.66;
+      color: var(--text-dim);
+      max-width: 68ch;
+      margin: 0 0 24px;
+    }
+    .loc-hero__actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+    .loc-hero__meta {
+      font: 500 0.86rem/1.5 var(--mono);
+      color: var(--text-faint);
+      margin: 0 0 42px;
+    }
+    .loc-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 16px;
+      margin: 0 0 48px;
+    }
+    @media (max-width: 860px) { .loc-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+    @media (max-width: 580px) { .loc-grid { grid-template-columns: 1fr; } }
+    .loc-tile {
+      padding: 22px;
+      border-radius: var(--radius);
+      background: var(--glass-gloss), var(--glass-tint);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+    }
+    .loc-tile__kicker {
+      font: 600 0.72rem/1.2 var(--mono);
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--accent-text);
+      margin: 0 0 8px;
+    }
+    .loc-tile h2 {
+      margin: 0 0 8px;
+      font-size: 1.08rem;
+      line-height: 1.3;
+      color: var(--text);
+    }
+    .loc-tile p {
+      margin: 0;
+      font-size: 0.93rem;
+      line-height: 1.6;
+      color: var(--text-dim);
+    }
+    .loc-panel {
+      padding: clamp(22px, 3.4vw, 34px);
+      border-radius: var(--radius-lg);
+      background: var(--glass-gloss), var(--glass-tint-strong);
+      -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+      border: 1px solid var(--glass-border);
+      box-shadow: var(--glass-inset), var(--glass-shadow);
+      margin-bottom: 48px;
+    }
+    .loc-panel h2 {
+      margin: 6px 0 12px;
+      font-size: clamp(1.35rem, 2.5vw, 1.75rem);
+      color: var(--text);
+    }
+    .loc-panel > p {
+      margin: 0 0 18px;
+      max-width: 70ch;
+      line-height: 1.62;
+      color: var(--text-dim);
+    }
+    .loc-note {
+      margin-top: 14px;
+      font-size: 0.88rem;
+      color: var(--text-faint);
+      line-height: 1.55;
+    }
+    .loc-note a { color: var(--accent-text); }
+    @media (prefers-reduced-transparency: reduce) {
+      .loc-lang, .loc-tile, .loc-panel {
+        -webkit-backdrop-filter: none;
+        backdrop-filter: none;
+        background: var(--surface);
+      }
+    }
+    @supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))) {
+      .loc-lang, .loc-tile, .loc-panel { background: var(--surface); }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+  <div class="bg-field" aria-hidden="true"></div>
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot 홈"><img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" /><span class="brand__name">LokalBot</span></a>
+    <nav class="nav__links" aria-label="주요 메뉴"><a href="/#demo">데모</a><a href="/#compare">비교</a><a href="/benchmarks">벤치마크</a><a href="/guides">가이드</a><a href="/blog">블로그</a><a href="/migrate">이전</a><a href="/hardware">하드웨어</a><a href="/calculator">계산기</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions"><a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener"><i class="ph ph-github-logo" aria-hidden="true"></i></a><a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">다운로드</a></div>
+  </header>
+
+  <main class="loc-page" id="main">
+    <nav class="loc-langs" aria-label="언어">
+      <a class="loc-lang" href="/" hreflang="en">English</a>
+      <a class="loc-lang" href="/de" hreflang="de">Deutsch</a>
+      <a class="loc-lang" href="/zh" hreflang="zh-Hans">中文</a>
+      <a class="loc-lang" href="/ja" hreflang="ja">日本語</a>
+      <a class="loc-lang" href="/ru" hreflang="ru">Русский</a>
+      <a class="loc-lang" href="/fr" hreflang="fr">Français</a>
+      <a class="loc-lang" href="/es" hreflang="es">Español</a>
+      <a class="loc-lang" href="/ko" hreflang="ko" aria-current="page">한국어</a>
+      <a class="loc-lang" href="/pt" hreflang="pt">Português</a>
+    </nav>
+
+    <header class="loc-hero">
+      <p class="eyebrow">100% 로컬 · GPLv3 · v0.14.0 미세조정 모델</p>
+      <h1>봇 없이, 클라우드 없이 내 컴퓨터에서 끝나는 AI 회의록.</h1>
+      <p class="loc-hero__lead">LokalBot은 macOS(Apple Silicon), Windows, Linux(알파)를 위한 무료 오픈소스(GPLv3) 회의록 및 작업 메모리 앱입니다. v0.14.0부터 4종의 Apache-2.0 미세조정 로컬 모델을 기본 탑재해 계정이나 서버 전송 없이 녹음, 전사, 요약, 검색, 음성 입력을 기기 안에서 처리합니다.</p>
+      <div class="loc-hero__actions">
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-download-simple" aria-hidden="true"></i>무료 다운로드</a>
+        <a class="btn btn--ghost btn--lg" href="/benchmarks">벤치마크 보기</a>
+        <a class="btn btn--ghost btn--lg" href="/migrate">Granola / Otter 변환</a>
+      </div>
+      <p class="loc-hero__meta">업데이트 2026년 11월 26일 · v0.14.0 · GPLv3 · macOS 15+ · Windows &amp; Linux 알파 (Rust + GPUI) · iOS &amp; Android LAN E2E 동기화</p>
+    </header>
+
+    <section class="loc-grid" aria-label="LokalBot 주요 기능">
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">봇 없는 녹음</p>
+        <h2>Zoom·Teams·Meet 양쪽 오디오 로컬 분리 녹음</h2>
+        <p>회의방에 외부 봇을 초대하지 않고 내 마이크와 회의 앱 오디오를 별도 트랙으로 녹음합니다. 계정과 텔레메트리가 전혀 없습니다. 녹음 전에는 반드시 참석자 동의를 구하세요.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">한국어 지원</p>
+        <h2>Qwen3-ASR v3 온디바이스 전사 &amp; CJK 구문 검색</h2>
+        <p>기본 탑재된 Qwen3-ASR 1.7B (LokalBot v3)는 한국어를 포함한 52개 언어 전사와 무음 환각 0건을 달성했습니다. 한국어 UI와 SQLite FTS5 기반 CJK 부분 문자열 검색을 기본 지원합니다.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">Obsidian 연동</p>
+        <h2>YAML 프론트매터 포함 Markdown 자동 저장</h2>
+        <p>회의 종료 후 요약, 결정 사항, 할 일을 타임스탬프와 함께 Obsidian 또는 Logseq 폴더에 자동 저장하며, 사용자가 직접 수정한 노트는 덮어쓰지 않습니다.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">음성 입력 &amp; 보완</p>
+        <h2>로컬 받아쓰기와 56 ms 자동완성</h2>
+        <p>⌥ Space(Mac) 또는 Alt+Space(Windows/Linux)를 길게 눌러 어느 앱에서나 오프라인 음성 입력이 가능합니다. Gemma 4 E2B (LokalBot v4, 문맥 56/56 통과) 기반 자동완성도 제공합니다.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">코딩 에이전트</p>
+        <h2>Claude Code·Codex·Cursor용 읽기 전용 로컬 MCP</h2>
+        <p>기본 비활성화 상태이며, 설정에서 켜면 Claude Code, Codex, Cursor, Windsurf, Gemini CLI, Antigravity가 로컬 stdio MCP로 회의 결정 사항을 출처와 함께 검색할 수 있습니다.</p>
+      </article>
+      <article class="loc-tile">
+        <p class="loc-tile__kicker">네이티브 앱</p>
+        <h2>Electron 없이 Swift + Rust/GPUI</h2>
+        <p>macOS는 네이티브 Swift, Windows·Linux(알파)는 Rust + GPUI로 제작되었습니다. iOS 및 Android 컴패니언 앱은 클라우드 서버 없이 LAN 또는 Tailscale로 종단간 암호화 동기화합니다.</p>
+      </article>
+    </section>
+
+    <section class="loc-panel" aria-labelledby="stack-heading">
+      <p class="eyebrow">공개 벤치마크 (v0.14.0)</p>
+      <h2 id="stack-heading">기본 로컬 모델 스택 (Apache-2.0 미세조정)</h2>
+      <p>모든 기본 모델 선정 근거와 스크립트는 GitHub 및 Hugging Face의 Local Desktop AI Leaderboard에 투명하게 공개되어 있습니다.</p>
+      <div class="guide-table-wrap">
+        <table class="guide-table">
+          <thead><tr><th>역할</th><th>기본 로컬 모델</th><th>측정 결과 및 용량</th></tr></thead>
+          <tbody>
+            <tr><td><strong>음성 인식</strong></td><td>Qwen3-ASR 1.7B (LokalBot v3, Q8_0)</td><td>AMI 근접 9.79% · 코드스위칭 12.81% WER · 무음 환각 0 · 2.52 GB</td></tr>
+            <tr><td><strong>화자 분리</strong></td><td>Nemotron 3 (Core ML, Mac)</td><td>14.56% DER · 8/8 화자 수 일치 · 500× 실시간 · 0.20 GB</td></tr>
+            <tr><td><strong>요약 및 기억</strong></td><td>Qwen3.5 4B (LokalBot v4, Q4_K_M)</td><td>Memory120 118/120 (98.3%) · 검증 오류 -60.6% · 13.64초 · 2.74 GB</td></tr>
+            <tr><td><strong>하이브리드 검색</strong></td><td>SQLite FTS5 + EmbeddingGemma 2 (Q8_0)</td><td>QMSum 232개 회의 중앙값 39 ms · 50 MB RAM · R@10 0.595 · 0.31 GB</td></tr>
+            <tr><td><strong>자동완성</strong></td><td>Gemma 4 E2B (LokalBot v4, i1-Q6_K)</td><td>문맥 그라운딩 56/56 · 이메일 정밀도 80.0% · 경계 20.2 ms · 3.85 GB</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="loc-note">세부 측정 조건(주 테스트 Apple M4 Max 48 GB)과 원시 리포트는 <a href="/benchmarks">Local Desktop AI Leaderboard</a>와 <a href="/privacy">개인정보 처리방침</a>에서 확인하세요.</p>
+    </section>
+
+    <section class="guide-faq" aria-labelledby="faq-title">
+      <p class="eyebrow">FAQ</p>
+      <h2 id="faq-title">자주 묻는 질문</h2>
+      <div class="faq__list">
+        <details class="qa">
+          <summary>인터넷 없이 완전히 오프라인으로 동작하나요?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>네. 최초 1회 오픈소스 모델을 다운로드한 뒤에는 비행기 모드에서도 녹음, 전사, 요약, 검색, 받아쓰기가 모두 동작합니다.</p>
+        </details>
+        <details class="qa">
+          <summary>회사 보안 정책상 회의 봇이 금지되어 있어도 쓸 수 있나요?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>LokalBot은 회의에 봇을 참여시키지 않으며 오디오와 텍스트를 외부 클라우드로 전송하지 않습니다. 다만 사내 녹음 규정 확인과 참석자 사전 동의는 반드시 필요합니다.</p>
+        </details>
+        <details class="qa">
+          <summary>Windows와 Linux 버전은 어느 정도 완성되었나요?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Windows(x64)와 Linux(.deb, .rpm, Arch, .tar.gz)는 Rust + GPUI 네이티브 알파로 제공되며 Mac과 동일한 SQLite 라이브러리를 공유합니다. Windows 설치 프로그램은 코드 서명 준비 중입니다.</p>
+        </details>
+        <details class="qa">
+          <summary>기존 Granola, Otter, Fireflies 기록을 가져올 수 있나요?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>네. LokalBot 앱에서 직접 가져오거나, 서버 업로드 없는 브라우저 오프라인 변환기(/migrate)로 Obsidian 마크다운으로 변환할 수 있습니다.</p>
+        </details>
+      </div>
+    </section>
+
+    <section class="section download guide-download">
+      <div class="download__panel">
+        <img class="download__icon" src="/assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">무료 오픈소스 (GPLv3)</p>
+        <h2 class="section__title">회의 기록을 내 컴퓨터 안에 안전하게 보관하세요.</h2>
+        <p class="section__lead">계정 없음, 구독 없음, 회의 봇 없음. 설치 직후 내장 샘플 회의로 바로 테스트할 수 있습니다.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac"><i class="ph ph-apple-logo" aria-hidden="true"></i>무료 다운로드</a>
+        <p class="download__sub">Homebrew: <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (Alpha) &middot; <a href="/privacy">PRIVACY.md</a> &middot; <a href="/benchmarks">Benchmarks</a></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

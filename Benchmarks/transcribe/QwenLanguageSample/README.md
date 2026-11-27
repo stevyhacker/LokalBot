@@ -51,6 +51,8 @@ shasum -a 256 $QLS_OUT/llama-models/*.gguf   # compare with QwenLlamaASR.accurac
 .venv/bin/python simulate.py --shares 0.8 0.85 0.9 --sizes 4 8 12 16 --resample 2000 --results results/<date>
 ```
 
+Set `LOKALBOT_QWEN_SAMPLE_WEIGHTS=lokalbot-v3` (as `TEST_RUNNER_LOKALBOT_QWEN_SAMPLE_WEIGHTS`) to replay with the LokalBot v3 weights instead of the pinned ggml-org pair; the model folder then holds the v3 GGUF and projector.
+
 `run_replay.sh` runs `Scripts/test/unit-tests.sh QwenLanguageSampleReplayTests/testReplayBenchmarkTracks` with the manifest and the model folder passed to the test host (`TEST_RUNNER_` variables). It needs `Vendor/llama-cpp` (`Scripts/build/fetch-llama.sh`) and the Silero VAD model the app already keeps under `~/Library/Application Support/FluidAudio/Models`.
 
 ## Running the model elsewhere

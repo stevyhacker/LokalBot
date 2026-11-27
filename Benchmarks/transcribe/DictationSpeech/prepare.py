@@ -5,8 +5,10 @@
 import argparse
 import hashlib
 import json
+import shutil
 import subprocess
 import tarfile
+import tempfile
 import wave
 from pathlib import Path
 
@@ -33,8 +35,14 @@ def extract(downloads, work):
         if md5(archive) != expected:
             raise SystemExit(f'{archive.name}: checksum mismatch')
         if not (root / subset).exists():
-            with tarfile.open(archive) as tar:
-                tar.extractall(work, filter='data')
+            staging = Path(tempfile.mkdtemp(prefix=f'{subset}-', dir=work))
+            try:
+                with tarfile.open(archive) as tar:
+                    tar.extractall(staging, filter='data')
+                root.mkdir(exist_ok=True)
+                (staging / 'LibriSpeech' / subset).rename(root / subset)
+            finally:
+                shutil.rmtree(staging, ignore_errors=True)
     return root
 
 

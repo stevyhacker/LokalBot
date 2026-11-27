@@ -1,0 +1,16 @@
+No account or login is required.
+
+To test recording and the microphone foreground service without a desktop computer:
+1. On the welcome screen, tap "Record a meeting" and allow microphone (and notification) permissions.
+2. The app starts `RecordingService` (`FOREGROUND_SERVICE_MICROPHONE`) with an ongoing notification showing a live timer and a "Stop" action so users can lock the screen or switch apps during long in-person meetings.
+3. Tap "Stop". The recording is saved strictly in private on-device storage (`noBackupFilesDir`) with zero network traffic, and appears on the welcome screen with its timestamp, duration, and delete control.
+
+To test the full work-memory UI without pairing a computer:
+1. On the welcome screen, tap "Try it without a computer".
+2. Browse Today, Meetings, Actions, Timeline, People, Projects, and Ask (including sample answers with clickable citations and the Copy / Share actions).
+3. Recording is also available from Meetings or the overflow menu while in sample mode; recordings stay on device until paired.
+
+Desktop pairing and Data Safety:
+- Pairing connects directly to the user's own LokalBot desktop app (macOS, Windows, or Linux) over LAN or Tailscale using Noise Protocol end-to-end encryption.
+- Camera permission is used only for QR pairing codes.
+- LokalBot operates no backend server and collects or shares zero user data with third parties.

@@ -107,12 +107,12 @@ enum TodayAgenda {
         in schedule: [CalendarMeetingCandidate],
         now: Date,
         recordedEventIDs: Set<String> = [],
-        window: TimeInterval = nextMeetingWindow
+        window: TimeInterval? = nil
     ) -> CalendarMeetingCandidate? {
         guard let next = UpcomingMeetingSelector.primary(
             from: schedule.filter { !recordedEventIDs.contains($0.externalID) }, now: now),
-            next.endDate > now,
-            next.startDate.timeIntervalSince(now) <= window else { return nil }
+            next.endDate > now else { return nil }
+        if let window, next.startDate.timeIntervalSince(now) > window { return nil }
         return next
     }
 }

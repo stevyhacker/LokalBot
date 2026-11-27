@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Page not found — LokalBot</title>
+  <title>Page not found: LokalBot</title>
   <meta name="description" content="This page does not exist. Find LokalBot's guides, comparisons, benchmarks, and download from here." />
   <meta name="robots" content="noindex" />
   <meta name="color-scheme" content="light dark" />
@@ -13,6 +13,7 @@
   <link rel="icon" href="/assets/lokalbot-icon.svg" type="image/svg+xml" />
   <link rel="apple-touch-icon" href="/assets/lokalbot-icon-512.png" />
   <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/icons.css" />
   <script src="/app.js" defer></script>
 </head>
 <body>
@@ -22,14 +23,9 @@
       <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="32" height="32" />
       <span class="brand__name">LokalBot</span>
     </a>
-    <nav class="nav__links" aria-label="Primary">
-      <a href="/#features">Features</a>
-      <a href="/guides">Guides</a>
-      <a href="/benchmarks">Benchmarks</a>
-      <a href="/support">Support</a>
-    </nav>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
     <div class="nav__actions">
-      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Download</a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
     </div>
   </header>
 
@@ -43,12 +39,14 @@
     <article class="legal-card">
       <h2>Try one of these</h2>
       <ul>
-        <li><a href="/">Home</a>: what LokalBot does, with a demo and FAQ</li>
+        <li><a href="/">Home</a>: what LokalBot does, with a 43s tour, interactive browser demo, and FAQ</li>
         <li><a href="/guides">Guides</a>: local meeting notes, offline transcription, and model choice</li>
         <li><a href="/guides#compare">Comparisons</a>: LokalBot next to Granola, Otter, Fireflies, Rewind, and others</li>
         <li><a href="/blog">Blog</a>: releases, benchmarks, and build notes</li>
-        <li><a href="/about">About</a> and <a href="/benchmarks">benchmarks</a>: the fact sheet and measured results</li>
-        <li><a href="/support">Support</a>: common fixes and how to report a problem</li>
+        <li><a href="/benchmarks">Benchmarks</a> and <a href="/hardware">Hardware calculator</a>: measured results and what fits your RAM</li>
+        <li><a href="/migrate">Meeting Migrator</a>, <a href="/calculator">SaaS cost calculator</a>, and <a href="/wrapped">Agent Wrapped</a>: browser-local tools</li>
+        <li><a href="/about">About</a>, <a href="/privacy">Privacy</a>, <a href="/terms">Terms</a>, and <a href="/support">Support</a>: fact sheet, policies, and common fixes</li>
+        <li>Languages: <a href="/de" hreflang="de">Deutsch</a>, <a href="/zh" hreflang="zh-Hans">中文</a>, <a href="/ja" hreflang="ja">日本語</a>, <a href="/ru" hreflang="ru">Русский</a>, <a href="/fr" hreflang="fr">Français</a>, <a href="/es" hreflang="es">Español</a>, <a href="/ko" hreflang="ko">한국어</a>, <a href="/pt" hreflang="pt">Português</a></li>
       </ul>
       <p>If a link on this site brought you here, please <a href="https://github.com/stevyhacker/lokalbot/issues">open an issue</a> so it can be fixed.</p>
     </article>

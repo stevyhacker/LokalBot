@@ -2,6 +2,18 @@ import Foundation
 
 enum MeetingRecapExporter {
     static let websiteURL = "https://www.lokalbot.com/"
+    static let attributionToggleLabel = "Include 'Captured locally with LokalBot (no meeting bot)'"
+    static let plainAttributionLine = "Notes captured locally with LokalBot (no meeting bot) · \(websiteURL)"
+
+    static func followUpCopyText(
+        subject: String,
+        body: String,
+        includeAttribution: Bool = false
+    ) -> String {
+        let base = "Subject: \(subject)\n\n\(body)"
+        guard includeAttribution else { return base }
+        return "\(base)\n\n\(plainAttributionLine)"
+    }
 
     static func slackOrEmailRecap(
         meeting: Meeting,

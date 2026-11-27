@@ -58,12 +58,18 @@ struct SettingsScreen: View {
                 Task { await session.removeThisDevice() }
             }
         } message: {
-            Text(session.mode == .sample ? "You'll return to the welcome screen." : removalMessage)
+            Text(session.mode == .sample ? sampleCloseMessage : removalMessage)
         }
         .sheet(isPresented: $showingPairing) { PairingScreen() }
         .task(id: session.revision) {
             storageBytes = CompanionStorage.usedBytes()
         }
+    }
+
+    private var sampleCloseMessage: String {
+        let held = session.recordings.filter(\.isOnlyCopy).count
+        guard held > 0 else { return "You'll return to the welcome screen." }
+        return "You'll return to the welcome screen. \(held) recording\(held == 1 ? "" : "s") saved on this device stay\(held == 1 ? "s" : "") until you pair or delete \(held == 1 ? "it" : "them")."
     }
 
     private var removalMessage: String {

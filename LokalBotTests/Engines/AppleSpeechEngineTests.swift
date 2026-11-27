@@ -176,47 +176,54 @@ final class AppleSpeechEngineTests: XCTestCase {
     }
 
     func testEmptyAudioFileProducesEmptyTranscriptWithLiveAnalyzerWhenAvailable() async throws {
-        #if canImport(Speech)
-        if #available(macOS 26.0, *), AppleSpeechAvailability.isSystemSupported {
-            let speechInstalled = await SpeechTranscriber.installedLocales
-            let dictationInstalled = await DictationTranscriber.installedLocales
-            let candidateCodes = (speechInstalled + dictationInstalled).compactMap { locale -> String? in
-                guard let code = locale.language.languageCode?.identifier,
-                      AppleSpeechLocaleResolver.canonicalLocale[code] != nil else { return nil }
-                return code
-            }
-            var readyCode: String?
-            for code in candidateCodes {
-                let resolved = try await AppleSpeechLocaleResolver.resolveLive(language: code)
-                let status: AssetInventory.Status
-                switch resolved.module {
-                case .speechTranscriber:
-                    let m = SpeechTranscriber(
-                        locale: resolved.locale,
-                        transcriptionOptions: [],
-                        reportingOptions: [],
-                        attributeOptions: [.audioTimeRange])
-                    status = await AssetInventory.status(forModules: [m])
-                case .dictationTranscriber:
-                    let m = DictationTranscriber(locale: resolved.locale, preset: .timeIndexedLongDictation)
-                    status = await AssetInventory.status(forModules: [m])
-                }
-                if status == .installed {
-                    readyCode = code
-                    break
-                }
-            }
-            guard let base = readyCode else { return }
-
-            let temp = FileManager.default.temporaryDirectory
-                .appendingPathComponent("apple-speech-empty-\(UUID().uuidString).wav")
-            defer { try? FileManager.default.removeItem(at: temp) }
-            let writer = try WavWriter(url: temp, sampleRate: 16_000)
-            try writer.finish()
-
-            let transcript = try await AppleSpeechEngine.shared.transcribe(audio: temp, language: base)
-            XCTAssertTrue(transcript.segments.isEmpty)
+        guard ProcessInfo.processInfo.environment["LOKALBOT_APPLE_SPEECH_LIVE"] == "1" else {
+            throw XCTSkip("Set LOKALBOT_APPLE_SPEECH_LIVE=1 to run against installed Apple Speech assets")
         }
+        #if canImport(Speech)
+        guard #available(macOS 26.0, *), AppleSpeechAvailability.isSystemSupported else {
+            XCTFail("Apple Speech analyzer is unavailable on this host")
+            return
+        }
+        let speechInstalled = await SpeechTranscriber.installedLocales
+        let dictationInstalled = await DictationTranscriber.installedLocales
+        let candidateCodes = (speechInstalled + dictationInstalled).compactMap { locale -> String? in
+            guard let code = locale.language.languageCode?.identifier,
+                  AppleSpeechLocaleResolver.canonicalLocale[code] != nil else { return nil }
+            return code
+        }
+        var readyCode: String?
+        for code in candidateCodes {
+            let resolved = try await AppleSpeechLocaleResolver.resolveLive(language: code)
+            let status: AssetInventory.Status
+            switch resolved.module {
+            case .speechTranscriber:
+                let m = SpeechTranscriber(
+                    locale: resolved.locale,
+                    transcriptionOptions: [],
+                    reportingOptions: [],
+                    attributeOptions: [.audioTimeRange])
+                status = await AssetInventory.status(forModules: [m])
+            case .dictationTranscriber:
+                let m = DictationTranscriber(locale: resolved.locale, preset: .timeIndexedLongDictation)
+                status = await AssetInventory.status(forModules: [m])
+            }
+            if status == .installed {
+                readyCode = code
+                break
+            }
+        }
+        let base = try XCTUnwrap(readyCode, "No installed SpeechTranscriber or DictationTranscriber locale found")
+
+        let temp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("apple-speech-empty-\(UUID().uuidString).wav")
+        defer { try? FileManager.default.removeItem(at: temp) }
+        let writer = try WavWriter(url: temp, sampleRate: 16_000)
+        try writer.finish()
+
+        let transcript = try await AppleSpeechEngine.shared.transcribe(audio: temp, language: base)
+        XCTAssertTrue(transcript.segments.isEmpty)
+        #else
+        XCTFail("Speech framework unavailable")
         #endif
     }
 

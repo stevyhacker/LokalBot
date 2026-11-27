@@ -14,10 +14,9 @@ command there; it points at `Website/public/` and `Website/worker/`.
 - Extensionless article URLs are preserved. Workers `_redirects` files cannot
   match a source hostname, so the canonical redirect belongs in the zone rules.
 - `.assetsignore` excludes Markdown instructions from public assets.
-- Workers static assets answer byte-range requests with the whole file, and Safari
-  won't play video without ranges. Media requests run through
-  `Website/worker/media-ranges.js` first (`run_worker_first`); everything else is served
-  by the assets directly.
+- Workers static assets omit `Content-Length` and answer byte-range requests with the whole file, and Safari won't play video or seek audio without `206 Partial Content`. Media requests and stateless `/dl/*` download redirects run through `Website/worker/media-ranges.js` first (`run_worker_first`); everything else is served by the assets directly.
+- `Website/public/_headers` sets `Cache-Control` for CSS, JS, and `/assets/*`, plus `Content-Signal` and `Link` headers pointing to `/llms.txt`.
+- `"workers_dev": false` keeps the site served only on the custom domains.
 - No runtime secret is needed; downloads remain on GitHub Releases.
 
 Both custom domains are attached to the Worker and Cloudflare proxies the
@@ -87,7 +86,4 @@ curl -s -o /dev/null -w '%{http_code}\n' -A 'Mozilla/5.0 (compatible; GPTBot/1.2
 
 ## IndexNow
 
-`Website/public/<key>.txt` publishes the site's IndexNow key. After a deploy that adds or
-changes pages, run `python3 Website/generator/indexnow.py` to notify Bing and the other
-IndexNow engines, or pass paths such as `about benchmarks` to submit only those.
-Use `--dry-run` to see the request first. Keep exactly one key file in `Website/public/`.
+`Website/public/<key>.txt` publishes the site's IndexNow key. `.github/workflows/indexnow.yml` runs `python3 Website/generator/indexnow.py` automatically on every push to `master` that touches `Website/public/**` (after a 90-second wait for Cloudflare Workers deploy to settle) and also supports manual runs via `workflow_dispatch`. You can still run `python3 Website/generator/indexnow.py` locally with `--dry-run` or pass specific paths such as `about benchmarks`. Keep exactly one key file in `Website/public/`.

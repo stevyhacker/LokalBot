@@ -18,7 +18,7 @@ use crate::process;
 
 mod cuda;
 
-pub const LLAMA_BUILD: &str = "b12613";
+pub const LLAMA_BUILD: &str = "b12774";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
@@ -88,16 +88,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "win-vulkan-x64",
-        name: "llama-b12613-bin-win-vulkan-x64.zip",
-        size: 38_845_965,
-        sha256: "56f1fca056efc933a39226fa767328a0082ebd42ec3c4d2e0193a37ac44abdee",
+        name: "llama-b12774-bin-win-vulkan-x64.zip",
+        size: 39_160_850,
+        sha256: "d29a16265d26ef7598209caaf1a544cbfa6abe2858c24b0ce4ae6bff87a76f22",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "win-cpu-x64",
-        name: "llama-b12613-bin-win-cpu-x64.zip",
-        size: 25_009_376,
-        sha256: "4c4ca218083b090393f517b598e7c86fc61e62f4d15f8748d6fedf24f809f429",
+        name: "llama-b12774-bin-win-cpu-x64.zip",
+        size: 25_288_075,
+        sha256: "44b70b20f3374eec3d16a002beceefef33cc3565678caeb3eea5f6cacba61836",
     },
 ];
 
@@ -108,16 +108,16 @@ const ASSETS: &[RuntimeAsset] = &[
     RuntimeAsset {
         backend: LlamaBackend::Vulkan,
         tag: "ubuntu-vulkan-x64",
-        name: "llama-b12613-bin-ubuntu-vulkan-x64.tar.gz",
-        size: 36_860_521,
-        sha256: "0f9e00b9d370ae23319ed1cede97b3edbee4ba826b593f2181a2972e99e44e4e",
+        name: "llama-b12774-bin-ubuntu-vulkan-x64.tar.gz",
+        size: 37_166_104,
+        sha256: "75b7044df1232bd5bc78ffc753f14a5a44d9f3b5c67228b6103705c57084d02d",
     },
     RuntimeAsset {
         backend: LlamaBackend::Cpu,
         tag: "ubuntu-x64",
-        name: "llama-b12613-bin-ubuntu-x64.tar.gz",
-        size: 23_184_889,
-        sha256: "1a1af0cb6dc2af9779e10085266de44084288d58a2917e14b64400c436fb124a",
+        name: "llama-b12774-bin-ubuntu-x64.tar.gz",
+        size: 23_454_685,
+        sha256: "ab5837cca2317cfb7ecb5f85b550934e7355cd9df74cdde6e106581457034dbb",
     },
 ];
 
@@ -2342,7 +2342,7 @@ mod tests {
             assert!(
                 asset
                     .url()
-                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12613/")
+                    .starts_with("https://github.com/ggml-org/llama.cpp/releases/download/b12774/")
             );
             assert!(asset.name.contains(asset.tag));
         }
@@ -2653,7 +2653,7 @@ mod tests {
     #[test]
     fn folder_and_archive_names_give_their_build() {
         for (name, build) in [
-            ("b12613-ubuntu-x64", Some("b12613")),
+            ("b12774-ubuntu-x64", Some("b12774")),
             ("b11669-win-cuda-13.4-x64", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz", Some("b11669")),
             ("llama-b11669-bin-ubuntu-x64.tar.gz.part", Some("b11669")),

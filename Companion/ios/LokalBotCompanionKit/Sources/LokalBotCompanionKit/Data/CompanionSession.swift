@@ -180,7 +180,10 @@ public final class CompanionSession {
     public func pair(payload: String) async throws -> PairedMac {
         let mac = try await store.pair(payload: payload)
         await refresh()
-        Task { await syncNow() }
+        Task {
+            await syncNow()
+            await uploadRecordings()
+        }
         return mac
     }
 

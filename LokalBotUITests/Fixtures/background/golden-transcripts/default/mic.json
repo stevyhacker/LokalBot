@@ -5,13 +5,13 @@
       "start": 0,
       "end": 4,
       "speaker": "me",
-      "text": "I'll draft the eviction-policy doc by Thursday."
+      "text": "I'll publish the shard-quorum runbook by Thursday."
     },
     {
       "start": 6,
       "end": 9,
       "speaker": "me",
-      "text": "Fair, I'll borrow the load harness."
+      "text": "Fair, I'll borrow the telemetry-canary harness."
     }
   ]
 }

@@ -1,9 +1,0 @@
-{
-  "appName" : "Microsoft Teams",
-  "endedAt" : "2026-09-25T11:40:00Z",
-  "hasSystemTrack" : false,
-  "id" : "00000015-0000-4000-8000-000000000015",
-  "relativePath" : "meetings\/2026\/09\/25-sso-security-review",
-  "startedAt" : "2026-09-25T11:00:00Z",
-  "title" : "SSO security review"
-}

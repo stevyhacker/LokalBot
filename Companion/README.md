@@ -1,46 +1,67 @@
 # LokalBot companion apps
 
-iPhone, iPad and Android apps that show what LokalBot on your Mac remembers:
+iPhone, iPad, and Android apps that record meetings offline right after install
+and sync with what LokalBot on your Mac, Windows, or Linux computer remembers:
 meetings, action items, the Timeline and Day Digests (including earlier days),
-People and Projects. They also send questions for your Mac to answer, and
-record meetings for it to process.
+People, and Projects. They also send questions for your computer to answer, and
+transfer recordings made on your phone or tablet for it to transcribe and
+summarize.
 
-The Mac stays the source of truth. A phone or tablet holds an end-to-end
-encrypted, allowlisted copy that it gets straight from the Mac over your
+Your computer stays the source of truth. A phone or tablet holds an end-to-end
+encrypted, allowlisted copy that it gets straight from your computer over your
 local network or your Tailscale network. There is no LokalBot server and no
-cloud in between. The plan and its decisions are in
+cloud in between. Before you pair, you can still record meetings directly onto
+your device; those recordings stay in private on-device storage with zero
+network traffic until you pair. The plan and its decisions are in
 [Docs/plans/companion-apps-plan-2026-10-30.md](../Docs/plans/companion-apps-plan-2026-10-30.md).
 
 ## Layout
 
-| Path | What |
+| Path | Role |
 | --- | --- |
-| [protocol/](protocol/) | The contract: [protocol.md](protocol/protocol.md) (wire protocol), [records.md](protocol/records.md) (record schema), [ffi.md](protocol/ffi.md) (shared Rust API), [fixtures/sample-library.json](protocol/fixtures/sample-library.json) (sample library every part tests against) |
-| [design/](design/) | `tokens.json` (the Mac app's design tokens) and `generate.mjs`, which writes the Swift and Kotlin copies |
-| `../LinuxWindows/crates/lokalbot-sync/` | The Rust core shared by the Mac, iOS and Android: Noise sessions, pairing, records, the phone's local store and search, UniFFI bindings |
-| [ios/](ios/) | The iPhone and iPad app (SwiftUI) and its `LokalBotCompanionKit` package |
-| [android/](android/) | The Android app (Jetpack Compose, Material 3 Adaptive) |
-| `../LokalBot/Services/Companion/` | The Mac side: record builders, publisher, host and Settings → Phones & tablets |
+| [protocol/](protocol/) | Wire contract, record schema, FFI API, sample fixture |
+| [design/](design/) | Shared design tokens and Swift/Kotlin generator |
+| `../LinuxWindows/crates/lokalbot-sync/` | Shared Rust core (Noise sessions, pairing, local store, UniFFI) |
+| [ios/](ios/) | iPhone and iPad app (SwiftUI) and `LokalBotCompanionKit` |
+| [android/](android/) | Android app (Jetpack Compose, Material 3 Adaptive) |
+| [store-metadata/](store-metadata/) | App Store and Google Play ASO copy, review notes, screenshot lists |
+| `../LokalBot/Services/Companion/` | macOS host, record builders, publisher, settings UI |
+| `../LinuxWindows/crates/lokalbot-app/` | Windows and Linux host integration |
+
+Protocol references live in [protocol.md](protocol/protocol.md),
+[records.md](protocol/records.md), [ffi.md](protocol/ffi.md), and
+[sample-library.json](protocol/fixtures/sample-library.json).
 
 ## How it works
 
-1. On the Mac, turn on **Settings → Phones & tablets** and choose what to share.
-   Nothing listens until you do.
-2. Choose **Add a device** and scan the QR code with the phone. The code holds
-   a one-time secret that expires after 5 minutes. Approve the device on the Mac.
-3. The phone syncs whenever it can reach the Mac: on the same Wi-Fi (found by
-   Bonjour), or from anywhere with Tailscale on both devices. It keeps a full
-   local copy, so everything already synced stays readable offline.
-4. Questions asked on the phone are answered by the Mac's Ask agent with your
-   engine and approvals. When the Mac can't be reached, the phone searches its
-   own copy or queues the question.
-5. **Record** on the phone captures a meeting, carrying on with the screen
-   locked. The file goes to the Mac as soon as it's reachable, resuming if the
-   connection drops, and leaves the phone once the Mac has stored it. The Mac
-   makes a meeting of it and processes it like any other, and it comes back to
-   the phone with its transcript and summary. The audio is an ADTS AAC stream,
-   so a crash or a dead battery costs only the last moments; a recording cut
-   short goes to the Mac like any other at the next launch.
+1. **Record right away, even before pairing.** Open the app on a cold install
+   and tap **Record a meeting** (or record while exploring the sample library).
+   Audio streams directly to a crash-safe ADTS AAC file in private on-device
+   storage excluded from device backups, continuing with the screen locked.
+   Nothing is transmitted over the network while unpaired. Held recordings show
+   their title, timestamp, and duration, and can be renamed or deleted on the
+   device at any time.
+2. **Pair with Mac, Windows, or Linux.** On your computer, open LokalBot
+   **Settings > Phones & tablets**, turn sharing on, and choose what to share.
+   Nothing listens until you do. Choose **Add a device** and scan the QR code
+   with the phone (or paste the link). The code holds a one-time secret that
+   expires after 5 minutes. Approve the device on your computer.
+3. **Sync over Wi-Fi or Tailscale.** The phone syncs whenever it can reach your
+   computer on the same Wi-Fi (discovered via Bonjour/mDNS) or from anywhere
+   with Tailscale on both devices. It keeps a full local copy, so synced
+   meetings, actions, Timeline, and digests stay readable offline.
+4. **Ask with citations.** Questions asked on the phone are answered by your
+   computer's Ask engine using your model and approvals. When your computer is
+   unreachable, the phone searches its local copy or queues the question.
+   Sharing an answer includes its cited meeting titles.
+5. **Automatic encrypted transfer of recordings.** Once paired, any recordings
+   saved before pairing (and any new ones you make) upload directly to your
+   computer over the end-to-end encrypted Noise link, resuming if the
+   connection drops. Your phone deletes its audio file once the computer
+   confirms receipt. Your computer turns the audio into a meeting, transcribes
+   and summarizes it, and syncs the finished notes back to your phone. A crash
+   or dead battery loses only the last moments; a cut-short recording is
+   recovered automatically at the next launch.
 
 ## Building
 
@@ -67,23 +88,24 @@ each app. The iPhone and iPad app is on the [App Store](https://apps.apple.com/a
 LokalBot release also attaches the signed APK, under a different key from Play's
 ([Android releases](../Docs/releasing/android.md)).
 
-## Trying it without the Mac app
+## Trying it without a desktop app
 
 `lokalbot-sync` has a development host that serves the sample library, so a
-phone can pair and sync before the Mac side is involved:
+phone can pair and sync before a desktop app is involved:
 
 ```sh
 cd LinuxWindows
-cargo run -p lokalbot-sync --example companion_host -- --name "Dev Mac"
+cargo run -p lokalbot-sync --example companion_host -- --name "Dev Computer"
 ```
 
 It prints the pairing link and a QR code, asks `y`/`n` when a device pairs
 (`--auto-approve` skips that), applies action changes, answers questions
-with a canned reply and keeps the recordings devices send in its `uploads/`
+with a canned reply, and keeps the recordings devices send in its `uploads/`
 folder. Type `pair` for a new code, `devices`, `remove <id>`,
-`publish` or `quit`. `--port`, `--dir` and `--loopback` are optional. Both apps
-also have **Try it without a computer**, which loads the same sample library on the
-device.
+`publish`, or `quit`. `--port`, `--dir`, and `--loopback` are optional. Both
+apps also have **Record a meeting** on the welcome screen (for immediate
+offline recording) and **Try it without a computer**, which loads the same
+sample library on the device.
 
 ## End-to-end tests
 

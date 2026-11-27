@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LokalBot vs tl;dv: Bot-Free Local Meeting Notes</title>
+  <meta name="description" content="Compare tl;dv's cloud meeting bot and video clips with LokalBot's bot-free, on-device notes. No 3-month cap, no $18-$98/mo seats, free GPLv3." />
+  <meta name="color-scheme" content="light dark" />
+  <meta name="theme-color" content="#f4f7f7" media="(prefers-color-scheme: light)" />
+  <meta name="theme-color" content="#0b1119" media="(prefers-color-scheme: dark)" />
+
+  <link rel="canonical" href="https://www.lokalbot.com/lokalbot-vs-tldv" />
+  <meta property="og:type" content="article" />
+  <meta property="og:site_name" content="LokalBot" />
+  <meta property="og:url" content="https://www.lokalbot.com/lokalbot-vs-tldv" />
+  <meta property="og:title" content="LokalBot vs tl;dv: Local Notes Without a Meeting Bot" />
+  <meta property="og:description" content="tl;dv sends a recording bot into calls and caps free storage at 3 months. LokalBot captures locally with no bot, unlimited history, and GPLv3 code." />
+  <meta property="og:image" content="https://www.lokalbot.com/assets/compare/og/lokalbot-vs-tldv.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LokalBot vs tl;dv: Local Notes Without a Meeting Bot" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LokalBot vs tl;dv: Local Notes Without a Meeting Bot" />
+  <meta name="twitter:description" content="tl;dv sends a recording bot into calls and caps free storage at 3 months. LokalBot captures locally with no bot, unlimited history, and GPLv3 code." />
+  <meta name="twitter:image" content="https://www.lokalbot.com/assets/compare/og/lokalbot-vs-tldv.png" />
+
+  <link rel="icon" href="assets/lokalbot-icon.svg" type="image/svg+xml" />
+  <link rel="apple-touch-icon" href="assets/lokalbot-icon-512.png" />
+
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="icons.css" />
+  <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","@id":"https://www.lokalbot.com/#website","url":"https://www.lokalbot.com/","name":"LokalBot","publisher":{"@id":"https://www.lokalbot.com/#organization"}},{"@type":"Organization","@id":"https://www.lokalbot.com/#organization","name":"LokalBot","url":"https://www.lokalbot.com/","logo":{"@type":"ImageObject","url":"https://www.lokalbot.com/assets/lokalbot-icon-512.png"},"sameAs":["https://github.com/stevyhacker/LokalBot","https://huggingface.co/stevyhacker"]},{"@type":"Person","@id":"https://www.lokalbot.com/#author","name":"Stevan Bogosavljević","url":"https://bogosavljevic.me/","sameAs":["https://github.com/stevyhacker","https://huggingface.co/stevyhacker"]},{"@type":"SoftwareApplication","@id":"https://www.lokalbot.com/#software","name":"LokalBot","url":"https://www.lokalbot.com/","operatingSystem":"macOS 15+, Windows 10/11 (alpha), Linux x86_64 (alpha), iOS 18+, Android 10+","applicationCategory":"ProductivityApplication","softwareVersion":"0.14.0","license":"https://github.com/stevyhacker/LokalBot/blob/master/LICENSE","offers":{"@type":"Offer","price":"0","priceCurrency":"USD"},"author":{"@id":"https://www.lokalbot.com/#author"}},{"@type":"Article","headline":"LokalBot vs tl;dv","description":"Compare tl;dv's cloud meeting bot and video clips with LokalBot's bot-free, on-device notes. No 3-month cap, no $18-$98/mo seats, free GPLv3.","datePublished":"2026-11-26","dateModified":"2026-11-26","mainEntityOfPage":"https://www.lokalbot.com/lokalbot-vs-tldv","image":"https://www.lokalbot.com/assets/compare/og/lokalbot-vs-tldv.png","author":{"@id":"https://www.lokalbot.com/#author"},"publisher":{"@id":"https://www.lokalbot.com/#organization"},"isPartOf":{"@id":"https://www.lokalbot.com/#website"},"about":[{"@id":"https://www.lokalbot.com/#software"},{"@type":"SoftwareApplication","name":"tl;dv"}]},{"@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Home","item":"https://www.lokalbot.com/"},{"@type":"ListItem","position":2,"name":"Guides","item":"https://www.lokalbot.com/guides"},{"@type":"ListItem","position":3,"name":"LokalBot vs tl;dv","item":"https://www.lokalbot.com/lokalbot-vs-tldv"}]},{"@type":"FAQPage","@id":"https://www.lokalbot.com/lokalbot-vs-tldv#faq","mainEntity":[{"@type":"Question","name":"Does LokalBot record video like tl;dv?","acceptedAnswer":{"@type":"Answer","text":"No. LokalBot records two synchronized audio tracks (microphone and meeting app) plus optional opt-in screen text/screenshots on your timeline, keeping storage tiny compared to cloud video recordings."}},{"@type":"Question","name":"Why do teams switch from tl;dv to a local recorder?","acceptedAnswer":{"@type":"Answer","text":"Two common reasons: clients or IT block visible meeting bots from joining calls, and individuals do not want to pay $18-$98 per seat per month or lose recordings after the 3-month free storage window."}},{"@type":"Question","name":"Can LokalBot work completely offline?","acceptedAnswer":{"@type":"Answer","text":"Yes. After a one-time download of the open Apache-2.0 models, LokalBot records, transcribes, summarizes, and searches offline with zero cloud servers."}}]}]}</script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <!-- ambient brand background -->
+  <div class="bg-field" aria-hidden="true">
+    <div class="bg-glow bg-glow--a"></div>
+    <div class="bg-glow bg-glow--b"></div>
+    <div class="bg-glow bg-glow--c"></div>
+  </div>
+
+  <!-- ───────────────────────── NAV ───────────────────────── -->
+  <header class="nav" id="top">
+    <a class="brand" href="/" aria-label="LokalBot home">
+      <img class="brand__mark" src="assets/lokalbot-icon.svg" alt="" width="32" height="32" />
+      <span class="brand__name">LokalBot</span>
+    </a>
+    <nav class="nav__links" aria-label="Primary"><a href="/#demo">Demo</a><a href="/#compare">Compare</a><a href="/benchmarks">Benchmarks</a><a href="/guides">Guides</a><a href="/blog">Blog</a><a href="/migrate">Migrate</a><a href="/hardware">Hardware</a><a href="/calculator">Calculator</a><a href="/wrapped">Wrapped</a></nav>
+    <div class="nav__actions">
+      <a class="icon-link" href="https://github.com/stevyhacker/lokalbot" aria-label="LokalBot on GitHub" target="_blank" rel="noopener">
+        <i class="ph ph-github-logo" aria-hidden="true"></i>
+      </a>
+      <a class="btn btn--primary btn--sm" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </div>
+  </header>
+
+  <main>
+    <!-- ─────────────────────── HEAD ─────────────────────── -->
+    <section class="section compare-head">
+      <header class="section__head reveal">
+        <nav class="breadcrumbs" aria-label="Breadcrumb"><a href="/">Home</a><span aria-hidden="true">/</span><a href="guides">Guides</a><span aria-hidden="true">/</span><span>LokalBot vs tl;dv</span></nav>
+        <p class="eyebrow">Compare</p>
+        <h1 class="section__title">LokalBot vs tl;dv</h1>
+        <p class="section__lead">tl;dv is built for sales, customer success, and product teams that want recorded video reels, CRM auto-fill, and multi-call coaching dashboards. Its virtual bot joins Zoom, Google Meet, and Microsoft Teams calls, stores video in the cloud (with a 3-month storage cap and ~10 AI summaries/mo on Free), and scales up to $59-$98/user/mo for sales intelligence. LokalBot skips the bot completely, runs speech and summary models locally on your computer, keeps unlimited history on your disk, and costs nothing.</p>
+        <p class="compare-updated">Last verified <time datetime="2026-11-26">November 26, 2026</time> · spot something outdated? <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">Open an issue</a>.</p>
+      </header>
+    </section>
+
+    <!-- ─────────────────────── TABLE ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-table-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Side by side</p>
+        <h2 class="section__title" id="compare-table-title">Feature by feature.</h2>
+      </header>
+      <div class="compare-wrap reveal">
+        <table class="compare">
+          <thead>
+            <tr>
+              <th scope="col">Feature</th>
+              <th scope="col">LokalBot</th>
+              <th scope="col">tl;dv</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">How it captures a meeting</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Microphone + system audio on your computer; nothing joins the call</td>
+              <td>Automated tl;dv recording bot joins Zoom, Google Meet, and Teams</td>
+            </tr>
+            <tr>
+              <th scope="row">Works when IT blocks bots</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Yes, captures local audio with no external call participant</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>Blocked when hosts or IT restrict third-party meeting bots</td>
+            </tr>
+            <tr>
+              <th scope="row">Where transcription and AI run</th>
+              <td>On your computer: fine-tuned Qwen3-ASR by default (v3 1.7B on Mac, v1 0.6B compact), with Parakeet and Whisper as alternatives, plus Granite Speech on Mac</td>
+              <td>tl;dv cloud servers (EU hosting option available)</td>
+            </tr>
+            <tr>
+              <th scope="row">History &amp; AI limits on Free</th>
+              <td>Unlimited meetings, unlimited local summaries, stored forever on disk</td>
+              <td>Free: ~10 AI summaries/mo and 3-month recording storage limit</td>
+            </tr>
+            <tr>
+              <th scope="row">Video clips &amp; sales coaching</th>
+              <td>Audio playback with timestamped citations and Markdown export</td>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Video highlight reels, CRM sync, rep scorecards, playbook tracking</td>
+            </tr>
+            <tr>
+              <th scope="row">Connect AI tools</th>
+              <td>Read-only CLI and MCP server, off until you turn them on in Settings</td>
+              <td>API, webhooks, Zapier, and MCP on Pro ($18-$29/mo) and up</td>
+            </tr>
+            <tr>
+              <th scope="row">System-wide dictation</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Hold ⌥ Space (Alt+Space on Windows and Linux) in any app</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Day timeline</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>App and window activity by default; screen text and encrypted screenshots are opt-in and deleted after 14 days</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Writing autocomplete</th>
+              <td><i class="ph ph-check" aria-hidden="true"></i>Cotyping (Gemma 4 E2B LokalBot v4), in almost any app (on Linux: X11, or Wayland on Sway, Hyprland, GNOME, and KDE Plasma)</td>
+              <td><i class="ph ph-x" aria-hidden="true"></i>No</td>
+            </tr>
+            <tr>
+              <th scope="row">Source code</th>
+              <td>Open source, GPLv3</td>
+              <td>Proprietary</td>
+            </tr>
+            <tr>
+              <th scope="row">Price</th>
+              <td>Free</td>
+              <td>Free (3-mo storage, ~10 AI notes/mo) · Pro $18/user/mo annual ($29 monthly) · Business $59/user/mo annual ($98 monthly) · Enterprise custom</td>
+            </tr>
+            <tr>
+              <th scope="row">Platforms</th>
+              <td>macOS 15+ on Apple Silicon; Windows 10/11 x64 and Linux x86_64 in alpha; iOS and Android companion apps</td>
+              <td>Cloud bot for Zoom, Meet, Teams; web, iOS, and Android apps</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── PICKS ─────────────────────── -->
+    <section class="section section--tight" aria-labelledby="compare-pick-title">
+      <header class="section__head reveal">
+        <p class="eyebrow">Verdict</p>
+        <h2 class="section__title" id="compare-pick-title">Which one fits you?</h2>
+      </header>
+      <div class="pick-grid">
+        <article class="pick reveal">
+          <h3>Pick tl;dv if&hellip;</h3>
+          <p>Purpose-built for revenue teams sharing video clips and CRM playbooks.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want shareable video highlight reels from customer calls</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> Your sales team needs rep scorecards, objection tracking, and automated HubSpot/Salesforce updates</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You work in a browser and want cloud-hosted video archives across a sales org</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You need SOC 2 and centralized Enterprise admin controls</li>
+          </ul>
+        </article>
+        <article class="pick pick--lokal reveal">
+          <h3>Pick LokalBot if&hellip;</h3>
+          <p>Built for quiet, permanent local notes with no bots and no seat fees.</p>
+          <ul class="checklist">
+            <li><i class="ph ph-check" aria-hidden="true"></i> You do not want a tl;dv bot entering sensitive client, engineering, or 1:1 calls</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want unlimited local summaries and history that never expires after 3 months</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want calls outside Zoom/Meet/Teams (Slack huddles, Discord, FaceTime, Webex)</li>
+            <li><i class="ph ph-check" aria-hidden="true"></i> You want local dictation, autocomplete, Obsidian export, and free local MCP</li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── QA ─────────────────────── -->
+    <section class="section faq">
+      <header class="section__head reveal">
+        <p class="eyebrow">Questions</p>
+        <h2 class="section__title">The short answers.</h2>
+      </header>
+      <div class="faq__list reveal">
+        <details class="qa">
+          <summary>Does LokalBot record video like tl;dv?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>No. LokalBot records two synchronized audio tracks (microphone and meeting app) plus optional opt-in screen text/screenshots on your timeline, keeping storage tiny compared to cloud video recordings.</p>
+        </details>
+        <details class="qa">
+          <summary>Why do teams switch from tl;dv to a local recorder?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Two common reasons: clients or IT block visible meeting bots from joining calls, and individuals do not want to pay $18-$98 per seat per month or lose recordings after the 3-month free storage window.</p>
+        </details>
+        <details class="qa">
+          <summary>Can LokalBot work completely offline?<i class="ph ph-plus" aria-hidden="true"></i></summary>
+          <p>Yes. After a one-time download of the open Apache-2.0 models, LokalBot records, transcribes, summarizes, and searches offline with zero cloud servers.</p>
+        </details>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── CTA ─────────────────────── -->
+    <section class="section download">
+      <div class="download__panel reveal">
+        <img class="download__icon" src="assets/lokalbot-icon.svg" alt="" width="80" height="80" />
+        <p class="eyebrow">Download</p>
+        <h2 class="section__title">Keep your meeting history forever, without a bot.</h2>
+        <p class="section__lead">Free and open source. Models download on first use; built-in inference then works offline.</p>
+        <a class="btn btn--primary btn--lg" href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">
+          <i class="ph ph-apple-logo" aria-hidden="true"></i>
+          Download for macOS
+        </a>
+        <p class="download__sub" data-download-req data-req-windows="Windows 10 or 11, x64 &middot; Alpha, not code-signed yet" data-req-linux="x86_64 with glibc 2.39+ &middot; Alpha">Apple Silicon &middot; macOS 15+ &middot; <code>brew install --cask stevyhacker/tap/lokalbot</code></p>
+        <p class="download__sub"><a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="mac">macOS</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="windows">Windows</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download-alt data-asset="linux">Linux</a> (alpha) &middot; <a href="system-requirements">requirements</a> &middot; <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">all releases and notes</a></p>
+      </div>
+    </section>
+
+    <section class="section section--tight guide-related" aria-labelledby="compare-guides-title">
+      <p class="eyebrow">Related guides</p>
+      <h2 id="compare-guides-title">Go deeper on local meeting notes</h2>
+      <div class="guide-card-grid">
+        <a class="guide-card" href="ai-notetaker-bots-blocked-at-work">
+          <span class="guide-card__eyebrow">IT approval</span>
+          <strong>My company blocks AI notetaker bots. What can I use?</strong>
+          <span>Company or client policies blocking Otter, Read.ai, or Fireflies bots? Compare bot-free on-device meeting notes and an IT security approval checklist.</span>
+        </a>
+        <a class="guide-card" href="gdpr-local-ai-meeting-notes">
+          <span class="guide-card__eyebrow">GDPR & compliance</span>
+          <strong>GDPR AI meeting notes with zero cloud subprocessors</strong>
+          <span>Run GDPR-friendly AI meeting notes with zero cloud subprocessors, no DPA chain, and no bots. Compare on-device tools and participant consent rules.</span>
+        </a>
+        <a class="guide-card" href="best-local-ai-meeting-notes">
+          <span class="guide-card__eyebrow">Compare</span>
+          <strong>Best local and open-source AI meeting note takers (2026)</strong>
+          <span>Compare 6 local AI meeting note takers in 2026: LokalBot, Meetily, Anarlog, OpenWhispr, MacWhisper, and Screenpipe on local WER, RAM, platforms, and license.</span>
+        </a>
+      </div>
+    </section>
+
+    <!-- ─────────────────────── MORE ─────────────────────── -->
+    <section class="section section--tight" aria-label="More comparisons">
+      <nav class="compare-more" aria-label="More comparisons">
+        <a href="lokalbot-vs-granola">LokalBot vs Granola</a>
+        <a href="lokalbot-vs-apple-notes">LokalBot vs Apple Notes</a>
+        <a href="lokalbot-vs-otter">LokalBot vs Otter</a>
+        <a href="lokalbot-vs-fireflies">LokalBot vs Fireflies</a>
+        <a href="lokalbot-vs-fathom">LokalBot vs Fathom</a>
+        <a href="lokalbot-vs-notion-ai">LokalBot vs Notion AI</a>
+        <a href="lokalbot-vs-read-ai">LokalBot vs Read.ai</a>
+        <a href="lokalbot-vs-jamie">LokalBot vs Jamie</a>
+        <a href="lokalbot-vs-krisp">LokalBot vs Krisp</a>
+        <a href="lokalbot-vs-tactiq">LokalBot vs Tactiq</a>
+        <a href="lokalbot-vs-plaud">LokalBot vs Plaud</a>
+        <a href="lokalbot-vs-hyprnote">LokalBot vs Anarlog (Hyprnote)</a>
+        <a href="lokalbot-vs-meetily">LokalBot vs Meetily</a>
+        <a href="lokalbot-vs-openwhispr">LokalBot vs OpenWhispr</a>
+        <a href="lokalbot-vs-macwhisper">LokalBot vs MacWhisper</a>
+        <a href="lokalbot-vs-superwhisper">LokalBot vs Superwhisper</a>
+        <a href="lokalbot-vs-wispr-flow">LokalBot vs Wispr Flow</a>
+        <a href="lokalbot-vs-cotypist">LokalBot vs Cotypist</a>
+        <a href="lokalbot-vs-handy">LokalBot vs Handy, VoiceInk &amp; Voicenotes</a>
+        <a href="lokalbot-vs-screenpipe">LokalBot vs Screenpipe</a>
+        <a href="lokalbot-vs-rewind">LokalBot vs Rewind / Limitless</a>
+      </nav>
+      <p class="compare-disclaimer">tl;dv is a trademark of its owner; LokalBot is not affiliated with or endorsed by it. Details are based on public pages and pricing as of November 2026 and may change: if something here is wrong or out of date, <a href="https://github.com/stevyhacker/lokalbot/issues" target="_blank" rel="noopener">open an issue</a> and we'll fix it.</p>
+    </section>
+  </main>
+
+  <!-- ───────────────────────── FOOTER ───────────────────────── -->
+  <footer class="footer">
+    <div class="footer__brand">
+      <a class="brand" href="/">
+        <img class="brand__mark" src="/assets/lokalbot-icon.svg" alt="" width="30" height="30" />
+        <span class="brand__name">LokalBot</span>
+      </a>
+      <p>Local AI meeting notes, recall, dictation, and read-only MCP.</p>
+      <p class="footer__meta">macOS &middot; Windows and Linux (alpha) &middot; iOS &amp; Android &middot; Free &amp; GPLv3</p>
+    </div>
+    <nav class="footer__col" aria-label="Product">
+      <h3>Product</h3>
+      <a href="/#features">Features</a>
+      <a href="/#how">How it works</a>
+      <a href="/wrapped">Agent Wrapped</a>
+      <a href="/migrate">Meeting Migrator</a>
+      <a href="/hardware">Hardware calculator</a>
+      <a href="/calculator">SaaS cost calculator</a>
+      <a href="/system-requirements">System requirements</a>
+      <a href="/#mobile">iOS &amp; Android apps</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases/latest" data-download data-asset="mac">Download</a>
+    </nav>
+    <nav class="footer__col" aria-label="Compare">
+      <h3>Compare</h3>
+      <a href="/best-local-ai-meeting-notes">Best local AI meeting notes</a>
+      <a href="/best-open-source-ai-assistants">Best open-source AI assistants</a>
+      <a href="/lokalbot-vs-granola">vs Granola</a>
+      <a href="/lokalbot-vs-apple-notes">vs Apple Notes</a>
+      <a href="/lokalbot-vs-otter">vs Otter</a>
+      <a href="/lokalbot-vs-fireflies">vs Fireflies</a>
+      <a href="/lokalbot-vs-fathom">vs Fathom</a>
+      <a href="/lokalbot-vs-notion-ai">vs Notion AI</a>
+      <a href="/lokalbot-vs-read-ai">vs Read.ai</a>
+      <a href="/lokalbot-vs-jamie">vs Jamie</a>
+      <a href="/lokalbot-vs-krisp">vs Krisp</a>
+      <a href="/lokalbot-vs-tldv">vs tl;dv</a>
+      <a href="/lokalbot-vs-tactiq">vs Tactiq</a>
+      <a href="/lokalbot-vs-plaud">vs Plaud</a>
+      <a href="/lokalbot-vs-hyprnote">vs Anarlog (Hyprnote)</a>
+      <a href="/lokalbot-vs-meetily">vs Meetily</a>
+      <a href="/lokalbot-vs-openwhispr">vs OpenWhispr</a>
+      <a href="/lokalbot-vs-macwhisper">vs MacWhisper</a>
+      <a href="/lokalbot-vs-superwhisper">vs Superwhisper</a>
+      <a href="/lokalbot-vs-wispr-flow">vs Wispr Flow</a>
+      <a href="/lokalbot-vs-cotypist">vs Cotypist</a>
+      <a href="/lokalbot-vs-handy">vs Handy, VoiceInk &amp; Voicenotes</a>
+      <a href="/lokalbot-vs-screenpipe">vs Screenpipe</a>
+      <a href="/lokalbot-vs-rewind">vs Rewind / Limitless</a>
+    </nav>
+    <nav class="footer__col" aria-label="Project">
+      <h3>Project</h3>
+      <a href="/about">About</a>
+      <a href="/guides">Guides</a>
+      <a href="/blog">Blog</a>
+      <a href="/benchmarks">Benchmarks</a>
+      <a href="/claude-code-codex-meeting-notes">Meeting notes MCP</a>
+      <a href="/granola-otter-alternatives-linux-windows">Linux &amp; Windows notes</a>
+      <a href="/meeting-transcripts-obsidian-markdown">Obsidian Markdown</a>
+      <a href="/ai-notetaker-bots-blocked-at-work">Bots blocked at work</a>
+      <a href="/rewind-limitless-mac-alternatives">Rewind alternatives</a>
+      <a href="/open-source-windows-recall-alternative">Windows Recall alternative</a>
+      <a href="/gdpr-local-ai-meeting-notes">GDPR meeting notes</a>
+      <a href="/enshittification-proof">Enshittification-proof</a>
+      <a href="https://github.com/stevyhacker/lokalbot" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://github.com/stevyhacker/lokalbot/releases" target="_blank" rel="noopener">Releases</a>
+      <a href="/privacy">Privacy</a>
+      <a href="/terms">Terms</a>
+      <a href="/support">Support</a>
+    </nav>
+    <nav class="footer__legal" aria-label="Languages">
+      <strong>Languages:</strong> <a href="/" hreflang="en">English</a> &middot; <a href="/de" hreflang="de">Deutsch</a> &middot; <a href="/zh" hreflang="zh-Hans">中文</a> &middot; <a href="/ja" hreflang="ja">日本語</a> &middot; <a href="/ru" hreflang="ru">Русский</a> &middot; <a href="/fr" hreflang="fr">Français</a> &middot; <a href="/es" hreflang="es">Español</a> &middot; <a href="/ko" hreflang="ko">한국어</a> &middot; <a href="/pt" hreflang="pt">Português</a>
+    </nav>
+    <p class="footer__legal">Local by default. Record with consent. Your meetings are yours.</p>
+  </footer>
+</body>
+</html>

@@ -154,6 +154,8 @@
     <string name="recording_stop">Stop</string>
     <string name="recording_discard">Discard</string>
     <string name="recording_caption">Let everyone know you\'re recording.</string>
+    <string name="recording_caption_unpaired">Let everyone know you\'re recording. Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize.</string>
+    <string name="recording_unpaired_prompt">Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize.</string>
     <string name="recording_discard_title">Discard this recording?</string>
     <string name="recording_discard_message">What you\'ve recorded so far is deleted and won\'t reach your computer.</string>
     <string name="recording_problem_start">The microphone didn\'t start. Another app may be using it.</string>
@@ -311,6 +313,9 @@
     <string name="ask_failed_with">Your computer couldn\'t answer: %1$s</string>
     <string name="ask_stopped">Response stopped.</string>
     <string name="ask_retry">Ask again</string>
+    <string name="ask_copy">Copy</string>
+    <string name="ask_copied">Copied</string>
+    <string name="ask_share">Share</string>
 
     <!-- Settings -->
     <string name="settings_your_mac">Your computer</string>
@@ -359,15 +364,17 @@
 
     <!-- Welcome and pairing -->
     <string name="welcome_title">Your work memory, on your phone</string>
-    <string name="welcome_message">See your meetings, action items, Timeline and Day Digests from LokalBot on your computer, and ask it questions.</string>
+    <string name="welcome_message">Record meetings privately on this device, or pair with LokalBot on Mac, Windows, or Linux to read your meetings, action items, Timeline, and Day Digests.</string>
+    <string name="welcome_point_record">Record offline right now. Recordings stay strictly on this device until you pair.</string>
     <string name="welcome_point_network">Your computer and this device talk directly, over your Wi-Fi or Tailscale. No cloud in between.</string>
     <string name="welcome_point_encrypted">Everything is end-to-end encrypted, and only devices you approve on your computer can connect.</string>
+    <string name="welcome_record">Record a meeting</string>
     <string name="welcome_pair">Pair with your computer</string>
     <string name="welcome_removed">This device was removed on your computer, and its copy was erased.</string>
     <string name="welcome_try_sample">Try it without a computer</string>
-    <string name="welcome_requirement">Pairing needs LokalBot on your computer with Phones &amp; tablets turned on.</string>
+    <string name="welcome_requirement">Pairing works with LokalBot on Mac, Windows, or Linux with Phones &amp; tablets turned on.</string>
     <string name="pair_title">Pair with your computer</string>
-    <string name="pair_instructions">On your computer, open LokalBot Settings → Phones &amp; tablets → Add a device, then point this camera at the code.</string>
+    <string name="pair_instructions">On Mac, Windows, or Linux, open LokalBot Settings &gt; Phones &amp; tablets &gt; Add a device, then point this camera at the code.</string>
     <string name="pair_camera_explain">LokalBot uses the camera only to read the pairing code. Nothing is recorded.</string>
     <string name="pair_allow_camera">Allow camera</string>
     <string name="pair_paste_title">Or paste the pairing link</string>
@@ -406,11 +413,14 @@
     <string name="notification_recording_stopped_title">Recording stopped</string>
     <string name="notification_recording_stopped_text">The microphone stopped working. What was recorded is saved.</string>
     <plurals name="welcome_held_recordings_title">
-        <item quantity="one">%d recording hasn\'t reached a computer</item>
-        <item quantity="other">%d recordings haven\'t reached a computer</item>
+        <item quantity="one">%d recording on this device</item>
+        <item quantity="other">%d recordings on this device</item>
     </plurals>
-    <string name="welcome_held_recordings_message">Pair with your computer to send what\'s waiting. Until then it stays on this device.</string>
+    <string name="welcome_held_recordings_message">Saved on this device. Pair with LokalBot on Mac, Windows, or Linux over Wi-Fi or Tailscale to transcribe and summarize.</string>
     <string name="welcome_held_recordings_delete">Delete</string>
+    <string name="welcome_held_recordings_delete_all">Delete all</string>
+    <string name="welcome_held_recordings_confirm_single_title">Delete this recording?</string>
+    <string name="welcome_held_recordings_confirm_single_message">It hasn\'t reached a computer, so it can\'t be recovered.</string>
     <string name="welcome_held_recordings_confirm_title">Delete these recordings?</string>
     <string name="welcome_held_recordings_confirm_message">They haven\'t reached a computer, so they can\'t be recovered.</string>
 </resources>
