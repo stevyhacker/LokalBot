@@ -240,6 +240,7 @@ pub fn replay_case(input: &Input, case: &Case, think: &ThinkClient) -> Observati
         .unwrap_or_default();
     let result = prepare_checked_with_lock(&case.speech, &settings, &mut replayer, lock);
     let latency_ms = started.elapsed().as_secs_f64() * 1000.0;
+    let screen_reads = replayer.screen_reads;
     let mut observation = Observation {
         id: case.id.clone(),
         text: String::new(),
@@ -249,7 +250,7 @@ pub fn replay_case(input: &Input, case: &Case, think: &ThinkClient) -> Observati
         visible_ids: Vec::new(),
         text_read_ids: Vec::new(),
         model_calls: 0,
-        screen_reads: replayer.screen_reads,
+        screen_reads,
         routed_as_request: None,
         latency_ms,
         error: None,
@@ -267,7 +268,7 @@ pub fn replay_case(input: &Input, case: &Case, think: &ThinkClient) -> Observati
                     observation.system = DICTATION_COMPOSE_SYSTEM.to_string();
                     observation.prompt = compose_user_prompt(
                         &spoken,
-                        screen.as_ref().filter(|_| prepared.used_screen_context),
+                        screen.as_ref().filter(|_| screen_reads > 0),
                         &profile,
                         None,
                         None,
