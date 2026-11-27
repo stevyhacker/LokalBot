@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 2,
+  "actionItems": [
+    {
+      "id": "demo-action-22222222-1",
+      "schemaVersion": 2,
+      "text": "Unblock the index rebuild with the data team",
+      "citations": [
+        {
+          "meetingID": "22222222-2222-4222-8222-222222222222",
+          "segmentID": "segment-0001-0000009000-0000020000",
+          "start": 9,
+          "end": 20,
+          "speaker": "me",
+          "excerpt": "Blocker on the index rebuild \u2014 needs a review from the data team."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    },
+    {
+      "id": "demo-action-22222222-2",
+      "schemaVersion": 2,
+      "text": "Run the Redis failover benchmark Thursday morning",
+      "citations": [
+        {
+          "meetingID": "22222222-2222-4222-8222-222222222222",
+          "segmentID": "segment-0002-0000020000-0000032000",
+          "start": 20,
+          "end": 32,
+          "speaker": "me",
+          "excerpt": "Also scheduling the Redis failover benchmark for Thursday morning."
+        }
+      ],
+      "owner": "Me",
+      "isForUser": true
+    }
+  ],
+  "decisionRecords": [],
+  "openQuestions": []
+}
