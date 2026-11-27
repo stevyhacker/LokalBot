@@ -22,7 +22,7 @@ BENCH=$(find rt -name llama-bench | head -1); BDIR=$(dirname "$BENCH")
 export DYLD_LIBRARY_PATH=$BDIR
 "$BENCH" --version > results/version.txt 2>&1
 for pass in metal cpu; do for m in $QWEN $GEMMA; do
-  out=results/${m%.gguf}.$pass; [ -f $out.raw ] && continue
+  out=results/${m%.gguf}.$pass; python3 -c 'import json,sys; json.load(open(sys.argv[1]))' $out.raw 2>/dev/null && continue
   ngl=99; [ $pass = cpu ] && ngl=0
   sleep 60; log "run $out"
   /usr/bin/time -l -o $out.time "$BENCH" -m models/$m -ngl $ngl -p 512,4096 -n 128 -r 5 -o json > $out.tmp 2> $out.err
